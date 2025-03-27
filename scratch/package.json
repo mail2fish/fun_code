@@ -1,0 +1,49 @@
+{
+  "name": "scratch-editor",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "prop-types": "15.7.2",
+    "react": "16.14.0",
+    "react-dom": "16.14.0",
+    "react-redux": "5.0.7",
+    "redux": "3.7.2",
+    "redux-thunk": "2.3.0",
+    "scratch-gui": "^5.1.50"
+  },
+  "scripts": {
+    "build": "npm run clean && webpack",
+    "clean": "rimraf ./build ./dist",
+    "start": "webpack serve",
+    "watch": "webpack --watch"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.10",
+    "@babel/node": "^7.26.0",
+    "@babel/preset-env": "^7.26.9",
+    "@babel/preset-react": "^7.26.3",
+    "babel-loader": "^10.0.0",
+    "copy-webpack-plugin": "^13.0.0",
+    "html-webpack-plugin": "^5.6.3",
+    "webpack": "5.98.0",
+    "webpack-cli": "5.1.4",
+    "webpack-dev-server": "^5.2.1"
+  }
+}

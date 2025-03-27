@@ -1,0 +1,9 @@
+database:
+  driver: "sqlite"
+  dsn: "fun_code.db"
+storage:
+  basePath: "./storage"
+jwt:
+  secretKey: "your-secret-key"
+server:
+  port: ":8080"

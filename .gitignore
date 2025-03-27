@@ -23,3 +23,6 @@ go.work.sum
 
 # env file
 .env
+storage/
+config.yaml
+fun_code.db
