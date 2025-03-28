@@ -68,8 +68,12 @@ module.exports = {
     port: 3000,
     hot: true,
     open: false,
+  
     client: {
       overlay: false  // 添加这行
-    }
+    },
+    // devMiddleware: {
+    //   writeToDisk: true  // 添加这行，让 webpack-dev-server 将文件写入磁盘
+    // }
   }
 };

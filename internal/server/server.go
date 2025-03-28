@@ -67,7 +67,7 @@ func (s *Server) setupRoutes() {
 	// 设置CORS中间件
 	s.router.Use(func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
-		allowedOrigins := []string{"http://localhost:5173", "http://localhost:8601"}
+		allowedOrigins := []string{"http://localhost:5173", "http://localhost:8601", "http://localhost:3000"}
 
 		for _, allowed := range allowedOrigins {
 			if origin == allowed {

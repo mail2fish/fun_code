@@ -2,13 +2,25 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <!-- <link rel="icon" href="%PUBLIC_URL%/favicon.ico" /> -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="Scratch 编辑器" />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!-- <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" /> -->
     <title>Scratch 编辑器</title>
+    <script>
+      // 全局配置对象
+      window.SCRATCH_CONFIG = {
+        canSave: true,
+        canCreateNew: true,
+        canEditTitle: true,
+        enableCommunity: false,
+        showComingSoon: false,
+        projectHost: "http://localhost:8080/api/scratch/projects",
+        projectId: "0"
+      };
+    </script>
   </head>
   <body>
     <noscript>您需要启用 JavaScript 来运行此应用。</noscript>
