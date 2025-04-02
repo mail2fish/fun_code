@@ -104,7 +104,6 @@ func (s *Server) setupRoutes() {
 	// 公开路由
 	s.router.POST("/api/auth/register", s.handler.Register)
 	s.router.POST("/api/auth/login", s.handler.Login)
-	s.router.GET("/api/scratch/projects/:id", s.handler.GetScratchProject)
 
 	// 需要认证的路由组
 	auth := s.router.Group("/api")
@@ -120,7 +119,7 @@ func (s *Server) setupRoutes() {
 		auth.DELETE("/files/:id", s.handler.DeleteFile)
 
 		// Scratch 相关路由
-		// auth.GET("/scratch/projects/:id", s.handler.GetScratchProject)
+		auth.GET("/scratch/projects/:id", s.handler.GetScratchProject)
 		auth.PUT("/scratch/projects/:id", s.handler.SaveScratchProject)
 		auth.GET("/scratch/projects", s.handler.ListScratchProjects)
 		auth.DELETE("/scratch/projects/:id", s.handler.DeleteScratchProject)

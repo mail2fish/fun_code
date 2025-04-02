@@ -1,0 +1,1 @@
+export const prefix = window.__APP_CONFIG__?.prefix || ''

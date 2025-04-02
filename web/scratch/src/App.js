@@ -16,9 +16,10 @@ const getConfig = () => {
     canEditTitle: true,
     enableCommunity: false,
     showComingSoon: false,
-    projectHost: "http://localhost:8080/api/scratch/projects",
+    projectHost: "",
     projectId: "",
-    basePath: "./"
+    basePath: "./",
+    assetHost: ""
   };
 };
 
@@ -42,6 +43,7 @@ const App = () => {
           projectHost={config.projectHost}
           projectId={config.projectId}
           basePath={config.basePath}
+          assetHost={config.assetHost}
         />
       </div>      
     </Provider>

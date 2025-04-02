@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, Link } from 'react-router-dom'
 import { login, reset, setCredentials } from '../store/slices/authSlice'
+import { prefix } from '../config'
 
 function Login() {
   const [formData, setFormData] = useState({

@@ -1,15 +1,19 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { logout } from '../store/slices/authSlice'
+import { prefix } from '../config'
 
 function Layout() {
   const { user } = useSelector((state) => state.auth)
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  
+  // Add this line to get prefix from global config
+  const prefix = window.__APP_CONFIG__?.prefix || ''
 
   const handleLogout = () => {
     dispatch(logout())
-    navigate('/login')
+    navigate('${prefix}/login')
   }
 
   return (
@@ -37,13 +41,19 @@ function Layout() {
                   >
                     Files
                   </Link>
-                  <Link
-                    to="/scratch"
+                  <a
+                    href="/scratch"
                     className="border-transparent text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white hover:border-gray-300 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
                   >
                     Scratch
-                  </Link>
-                </div>
+                  </a>
+                  <Link
+                      to={`${prefix}/scratch-projects`}
+                      className="border-transparent text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white hover:border-gray-300 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                    >
+                      Scratch 项目
+                    </Link>
+                  </div>
               )}
             </div>
             {user && (
