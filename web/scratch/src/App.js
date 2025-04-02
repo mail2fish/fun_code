@@ -17,7 +17,8 @@ const getConfig = () => {
     enableCommunity: false,
     showComingSoon: false,
     projectHost: "http://localhost:8080/api/scratch/projects",
-    projectId: ""
+    projectId: "",
+    basePath: "./"
   };
 };
 
@@ -40,6 +41,7 @@ const App = () => {
           showComingSoon={config.showComingSoon}
           projectHost={config.projectHost}
           projectId={config.projectId}
+          basePath={config.basePath}
         />
       </div>      
     </Provider>

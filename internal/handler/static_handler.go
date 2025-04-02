@@ -2,10 +2,10 @@ package handler
 
 import (
 	"io/fs"
-	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/web"
@@ -42,19 +42,26 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 	if strings.HasPrefix(c.Request.URL.Path, "/static/scratch") {
 		fs = h.scratchFS
 		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/static/scratch")
-		log.Println("scratch: " + c.Request.URL.Path)
-	} else if strings.HasPrefix(c.Request.URL.Path, "/scratch") {
+	} else if strings.HasPrefix(c.Request.URL.Path, "/scratch") {	
 		fs = h.scratchFS
 		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/scratch")
 
 		if _, err := fs.Open(c.Request.URL.Path); os.IsNotExist(err) {
 			c.Request.URL.Path = "/scratch/index.html"
 		}
+	} else if c.Request.URL.Path == "/" {
+		// 直接返回 index.html 文件内容
+		file, err := h.wwwFS.Open("/index.html")
+		if err != nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+		defer file.Close()
+
+		http.ServeContent(c.Writer, c.Request, "index.html", time.Now(), file)
+		return
 	} else {
 		fs = h.wwwFS
-		if _, err := fs.Open(c.Request.URL.Path); os.IsNotExist(err) {
-			c.Request.URL.Path = "/index.html"
-		}
 	}
 
 	http.FileServer(fs).ServeHTTP(c.Writer, c.Request)
