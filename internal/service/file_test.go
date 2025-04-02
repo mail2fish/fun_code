@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"fun_code/internal/model"
+	"github.com/jun/fun_code/internal/model"
 
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"

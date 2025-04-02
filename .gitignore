@@ -26,3 +26,5 @@ go.work.sum
 storage/
 config.yaml
 fun_code.db
+.air.toml
+tmp

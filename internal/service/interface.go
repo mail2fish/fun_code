@@ -1,9 +1,10 @@
 package service
 
 import (
-	"fun_code/internal/model"
 	"io"
 	"net/http"
+
+	"github.com/jun/fun_code/internal/model"
 )
 
 // 在 AuthService 接口中添加新方法

@@ -1,4 +1,4 @@
-module fun_code
+module github.com/jun/fun_code
 
 go 1.21
 

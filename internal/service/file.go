@@ -3,11 +3,12 @@ package service
 import (
 	"errors"
 	"fmt"
-	"fun_code/internal/model"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/jun/fun_code/internal/model"
 
 	"gorm.io/gorm"
 )

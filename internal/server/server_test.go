@@ -2,14 +2,15 @@ package server
 
 import (
 	"encoding/json"
-	"fun_code/internal/config"
-	"fun_code/internal/model"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jun/fun_code/internal/config"
+	"github.com/jun/fun_code/internal/model"
 
 	"github.com/stretchr/testify/assert"
 )

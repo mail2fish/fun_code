@@ -13,8 +13,8 @@
     "scratch-gui": "^5.1.50"
   },
   "scripts": {
-    "build": "npm run clean && webpack",
-    "clean": "rimraf ./build ./dist",
+    "build": "npm run clean && webpack --config webpack.config.js",
+    "clean": "rm -rf ./build ./dist",
     "start": "webpack serve",
     "watch": "webpack --watch"
   },

@@ -2,9 +2,10 @@ package testutils
 
 import (
 	"fmt"
-	"fun_code/internal/model"
 	"math/rand"
 	"time"
+
+	"github.com/jun/fun_code/internal/model"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"

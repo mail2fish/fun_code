@@ -8,7 +8,7 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'bundle.js',
-    publicPath: '/'
+    publicPath: '/static/scratch/'  // 修改这里，指定公共路径
   },
   module: {
     rules: [
@@ -30,7 +30,10 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: './public/index.html'
+      template: './public/index.html',
+      filename: 'index.html',
+      inject: true,
+      publicPath: '/static/scratch/'  // 添加这行，确保 HTML 中的资源路径正确
     })
   ].concat([
     new CopyWebpackPlugin({

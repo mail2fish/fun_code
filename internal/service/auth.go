@@ -2,9 +2,10 @@ package service
 
 import (
 	"errors"
-	"fun_code/internal/model"
 	"net/http"
 	"time"
+
+	"github.com/jun/fun_code/internal/model"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"

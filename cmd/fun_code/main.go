@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"fun_code/internal/config"
-	"fun_code/internal/server"
+	"github.com/jun/fun_code/internal/config"
+	"github.com/jun/fun_code/internal/server"
 	"github.com/spf13/cobra"
 )
 
@@ -23,8 +23,15 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start the web server",
 	Run: func(cmd *cobra.Command, args []string) {
+		// 获取配置文件路径
+		configPath, err := cmd.Flags().GetString("config")
+		if err != nil {
+			fmt.Printf("获取配置文件路径失败: %v\n", err)
+			os.Exit(1)
+		}
+
 		// 加载配置
-		cfg, err := config.LoadConfig("./config.yaml")
+		cfg, err := config.LoadConfig(configPath)
 		if err != nil {
 			fmt.Printf("加载配置失败: %v\n", err)
 			os.Exit(1)
@@ -47,6 +54,7 @@ var serveCmd = &cobra.Command{
 
 func init() {
 	serveCmd.Flags().IntP("port", "p", 8080, "服务器监听端口")
+	serveCmd.Flags().StringP("config", "c", "./config.yaml", "配置文件路径")
 	rootCmd.AddCommand(serveCmd)
 }
 

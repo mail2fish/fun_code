@@ -1,13 +1,14 @@
 package server
 
 import (
-	"fun_code/internal/config"
-	"fun_code/internal/handler"
-	"fun_code/internal/model"
-	"fun_code/internal/service"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/jun/fun_code/internal/config"
+	"github.com/jun/fun_code/internal/handler"
+	"github.com/jun/fun_code/internal/model"
+	"github.com/jun/fun_code/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
@@ -64,6 +65,18 @@ func NewServer(cfg *config.Config) (*Server, error) {
 }
 
 func (s *Server) setupRoutes() {
+	// 添加静态文件服务
+	staticHandler, err := handler.NewStaticHandler()
+	if err != nil {
+		log.Printf("无法初始化静态文件处理器: %v", err)
+		return
+	}
+
+	// 处理 /public 路径下的所有请求
+	s.router.NoRoute(func(c *gin.Context) {
+		staticHandler.ServeStatic(c)
+	})
+
 	// 设置CORS中间件
 	s.router.Use(func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")

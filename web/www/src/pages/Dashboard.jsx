@@ -1,4 +1,5 @@
 import { useSelector } from 'react-redux'
+import { Link } from 'react-router-dom'
 
 function Dashboard() {
   const { user } = useSelector((state) => state.auth)
@@ -11,9 +12,9 @@ function Dashboard() {
         <div className="bg-primary-50 dark:bg-gray-700 p-6 rounded-lg shadow-sm">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">文件管理</h2>
           <p className="text-gray-600 dark:text-gray-300">管理您的文件和目录，上传、下载和组织您的内容。</p>
-          <a href="/files" className="mt-4 inline-block text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
+          <Link to="/files" className="mt-4 inline-block text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
             查看文件 →
-          </a>
+          </Link>
         </div>
         
         <div className="bg-primary-50 dark:bg-gray-700 p-6 rounded-lg shadow-sm">

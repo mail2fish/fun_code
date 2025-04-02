@@ -1,6 +1,7 @@
 import React from 'react';
 import { Provider } from 'react-redux';
-import GUI from 'scratch-gui';
+import {compose} from 'redux';
+import GUI ,{AppStateHOC} from 'scratch-gui';
 import store from './store';
 // import 'scratch-gui/dist/scratch-gui.css';
 import './App.css';
@@ -23,11 +24,15 @@ const getConfig = () => {
 const App = () => {
   // 获取配置
   const config = getConfig();
+
+  const WrappedGui = compose(
+    AppStateHOC,
+)(GUI);
   
   return (
     <Provider store={store}>
       <div className="scratch-editor" style={{ height: '100vh' }}>
-        <GUI
+        <WrappedGui
           canSave={config.canSave}
           canCreateNew={config.canCreateNew}
           canEditTitle={config.canEditTitle}

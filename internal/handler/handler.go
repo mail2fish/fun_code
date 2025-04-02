@@ -3,7 +3,7 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"fun_code/internal/service"
+	"github.com/jun/fun_code/internal/service"
 	"net/http"
 	"strconv"
 

@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"fun_code/internal/model"
+	"github.com/jun/fun_code/internal/model"
 
-	"fun_code/internal/service/testutils"
+	"github.com/jun/fun_code/internal/service/testutils"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"

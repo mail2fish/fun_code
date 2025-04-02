@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fun_code/internal/model"
-	"fun_code/internal/service"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
+
+	"github.com/jun/fun_code/internal/model"
+	"github.com/jun/fun_code/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"

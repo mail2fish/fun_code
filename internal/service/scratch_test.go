@@ -1,9 +1,10 @@
 package service
 
 import (
-	"fun_code/internal/service/testutils"
 	"os"
 	"testing"
+
+	"github.com/jun/fun_code/internal/service/testutils"
 )
 
 func TestGetProject(t *testing.T) {
