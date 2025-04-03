@@ -33,18 +33,18 @@ module.exports = {
       template: './public/index.html',
       filename: 'index.html',
       inject: true,
-      publicPath: '/static/scratch/'  // 添加这行，确保 HTML 中的资源路径正确
     })
   ].concat([
     new CopyWebpackPlugin({
         patterns: [
             {
                 from: 'node_modules/scratch-gui/dist/static/blocks-media',
+                // Remove "scratch" from the path to match URL structure
                 to: 'static/blocks-media'
             },
             {
                 from: 'node_modules/scratch-gui/dist/chunks',
-                to: 'chunks'
+                to: 'static/chunks'
             },
             {
                 from: 'node_modules/scratch-gui/dist/extension-worker.js'
@@ -65,18 +65,22 @@ module.exports = {
     })]),
   devServer: {
     static: {
-      directory: path.join(__dirname, 'public'),
+        directory: path.join(__dirname, 'dist'),
+        publicPath: '/scratch/'  // Update to match the URL path
     },
-    historyApiFallback: true,  // 添加这行
+    historyApiFallback: {
+      rewrites: [
+        { from: /^\/static\/scratch/, to: '/static/scratch/index.html' }
+      ]
+    },
     port: 3000,
     hot: true,
     open: false,
-  
     client: {
-      overlay: false  // 添加这行
+      overlay: false
     },
-    // devMiddleware: {
-    //   writeToDisk: true  // 添加这行，让 webpack-dev-server 将文件写入磁盘
-    // }
+    devMiddleware: {
+      publicPath: '/static/scratch/'
+    }
   }
 };
