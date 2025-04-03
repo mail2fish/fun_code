@@ -43,13 +43,18 @@ func (h *Handler) SaveScratchProject(c *gin.Context) {
 	// 获取当前用户ID
 	userID := h.getUserID(c)
 
-	// 解析请求参数
-	var req struct {
-		ID      uint            `json:"id"`
-		Name    string          `json:"name"`
-		Content json.RawMessage `json:"content"`
+	// 新增：从路径参数获取项目ID
+	projectID := c.Param("id")
+	id, err := strconv.ParseUint(projectID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的项目ID",
+		})
+		return
 	}
 
+	// 修改后的请求体结构
+	req := make(map[string]interface{})
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "无效的请求参数",
@@ -57,16 +62,19 @@ func (h *Handler) SaveScratchProject(c *gin.Context) {
 		return
 	}
 
-	// 验证必要参数
-	if req.Name == "" || len(req.Content) == 0 {
+	r, err := json.Marshal(req)
+
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "项目名称和内容不能为空",
+			"error": "无效的请求参数: " + err.Error(),
 		})
 		return
 	}
 
 	// 保存项目
-	projectID, err := h.scratchService.SaveProject(userID, req.ID, req.Name, req.Content)
+	// 修改服务调用参数
+	// 由于 SaveProject 返回 uint 类型，需要将 projectID 声明为 uint
+	_, err = h.scratchService.SaveProject(userID, uint(id), "", r)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "保存项目失败: " + err.Error(),
@@ -75,7 +83,7 @@ func (h *Handler) SaveScratchProject(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id": projectID,
+		"status": "ok",
 	})
 }
 
@@ -167,7 +175,8 @@ func (h *Handler) CreateScratchProject(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"id": projectID,
+	c.JSON(http.StatusOK, gin.H{
+		"content-name": projectID,
+		"status":       "ok",
 	})
 }

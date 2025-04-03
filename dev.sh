@@ -1,2 +1,2 @@
 #!/bin/bash
-/Users/jun/go/bin/air
+/Users/jun/go/bin/air -c .air.toml
