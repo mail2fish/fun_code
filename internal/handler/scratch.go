@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -38,6 +39,7 @@ func (h *Handler) GetScratchProject(c *gin.Context) {
 
 // SaveScratchProject 保存Scratch项目
 func (h *Handler) SaveScratchProject(c *gin.Context) {
+	log.Println("dbg SaveScratchProject")
 	// 获取当前用户ID
 	userID := h.getUserID(c)
 
@@ -130,4 +132,42 @@ func (h *Handler) getUserID(c *gin.Context) uint {
 		return 0
 	}
 	return userID.(uint)
+}
+
+// CreateScratchProject 创建新的Scratch项目
+func (h *Handler) CreateScratchProject(c *gin.Context) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+
+	// 解析请求参数
+	req := make(map[string]interface{})
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的请求参数: " + err.Error(),
+		})
+		return
+	}
+
+	r, err := json.Marshal(req)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的请求参数: " + err.Error(),
+		})
+		return
+	}
+
+	// 调用服务创建项目（使用0表示新项目）
+	projectID, err := h.scratchService.SaveProject(userID, 0, "default", r)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "创建项目失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"id": projectID,
+	})
 }

@@ -10,6 +10,9 @@ import (
 	"github.com/jun/fun_code/internal/model"
 	"github.com/jun/fun_code/internal/service"
 
+	"time"
+
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -65,6 +68,16 @@ func NewServer(cfg *config.Config) (*Server, error) {
 }
 
 func (s *Server) setupRoutes() {
+
+	// 添加新的CORS中间件
+	s.router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:8601"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
 	// 添加静态文件服务
 	staticHandler, err := handler.NewStaticHandler()
 	if err != nil {
@@ -75,30 +88,6 @@ func (s *Server) setupRoutes() {
 	// 处理 /public 路径下的所有请求
 	s.router.NoRoute(func(c *gin.Context) {
 		staticHandler.ServeStatic(c)
-	})
-
-	// 设置CORS中间件
-	s.router.Use(func(c *gin.Context) {
-		origin := c.Request.Header.Get("Origin")
-		allowedOrigins := []string{"http://localhost:5173", "http://localhost:8601", "http://localhost:3000"}
-
-		for _, allowed := range allowedOrigins {
-			if origin == allowed {
-				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-				break
-			}
-		}
-
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
 	})
 
 	// 公开路由
@@ -120,6 +109,7 @@ func (s *Server) setupRoutes() {
 
 		// Scratch 相关路由
 		auth.GET("/scratch/projects/:id", s.handler.GetScratchProject)
+		auth.POST("/scratch/projects/", s.handler.CreateScratchProject)
 		auth.PUT("/scratch/projects/:id", s.handler.SaveScratchProject)
 		auth.GET("/scratch/projects", s.handler.ListScratchProjects)
 		auth.DELETE("/scratch/projects/:id", s.handler.DeleteScratchProject)

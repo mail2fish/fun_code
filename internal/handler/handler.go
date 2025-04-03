@@ -3,9 +3,10 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"github.com/jun/fun_code/internal/service"
 	"net/http"
 	"strconv"
+
+	"github.com/jun/fun_code/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -78,7 +79,16 @@ func (h *Handler) Login(c *gin.Context) {
 
 func (h *Handler) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 优先从Header获取token
 		token := c.GetHeader("Authorization")
+
+		// 如果Header中没有，尝试从cookie获取
+		if token == "" {
+			if cookie, err := c.Cookie("auth_token"); err == nil {
+				token = "Bearer " + cookie
+			}
+		}
+
 		if token == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "未提供认证token"})
 			c.Abort()

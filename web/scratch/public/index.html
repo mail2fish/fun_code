@@ -13,7 +13,7 @@
       // 全局配置对象
       window.SCRATCH_CONFIG = {
         canSave: true,
-        canCreateNew: false,
+        canCreateNew: true,
         canEditTitle: true,
         enableCommunity: false,
         showComingSoon: false,
@@ -22,6 +22,20 @@
         basePath: "/scratch/",
         assetHost: "http://localhost:8080/scratch"
       };
+    
+      // 设置cookie的函数
+      function setCookie(name, value, days) {
+        let expires = "";
+        if (days) {
+          const date = new Date();
+          date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+          expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "") + expires + "; path=/; SameSite=Lax" + (location.protocol === 'https:' ? "; Secure" : "");
+      }
+      
+      // 使用示例
+      setCookie("auth_token", "", 1); // 1天后过期
     </script>
   </head>
   <body>

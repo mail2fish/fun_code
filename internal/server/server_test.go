@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,49 +12,42 @@ import (
 
 	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/model"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestNewServer(t *testing.T) {
-	// 创建临时目录作为文件存储路径
-	tempDir := t.TempDir()
-
 	tests := []struct {
 		name    string
-		config  *config.Config
+		config  func(t *testing.T) *config.Config
 		wantErr bool
 	}{
 		{
 			name: "正常初始化",
-			config: &config.Config{
-				Database: config.DatabaseConfig{
-					DSN: ":memory:",
-				},
-				Storage: config.StorageConfig{
-					BasePath: tempDir,
-				},
-				JWT: config.JWTConfig{
-					SecretKey: "test_key",
-				},
-				Server: config.ServerConfig{
-					Port: ":8080",
-				},
+			config: func(t *testing.T) *config.Config {
+				return &config.Config{
+					Database: config.DatabaseConfig{DSN: "file::memory:?cache=shared"},
+					Storage:  config.StorageConfig{BasePath: t.TempDir()},
+					JWT:      config.JWTConfig{SecretKey: "test_key"},
+				}
 			},
 			wantErr: false,
 		},
 		{
 			name: "无效的数据库配置",
-			config: &config.Config{
-				Database: config.DatabaseConfig{
-					DSN: "sqlite3://invalid:1234/nonexistent", // 使用一个确保会失败的DSN
-				},
-				Storage: config.StorageConfig{
-					BasePath: tempDir,
-				},
-				JWT: config.JWTConfig{
-					SecretKey: "test_key",
-				},
+			config: func(t *testing.T) *config.Config {
+				return &config.Config{
+					Database: config.DatabaseConfig{
+						DSN: "sqlite3://invalid:1234/nonexistent",
+					},
+					Storage: config.StorageConfig{
+						BasePath: t.TempDir(),
+					},
+					JWT: config.JWTConfig{
+						SecretKey: "test_key",
+					},
+				}
 			},
 			wantErr: true,
 		},
@@ -61,7 +55,8 @@ func TestNewServer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s, err := NewServer(tt.config)
+			cfg := tt.config(t)
+			s, err := NewServer(cfg)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, s)
@@ -74,7 +69,7 @@ func TestNewServer(t *testing.T) {
 				assert.NotEmpty(t, routes)
 
 				// 验证文件存储目录是否创建
-				_, err := os.Stat(tt.config.Storage.BasePath)
+				_, err := os.Stat(cfg.Storage.BasePath) // 使用cfg而不是tt.config
 				assert.NoError(t, err)
 			}
 		})
@@ -163,98 +158,71 @@ func TestServer_setupRoutes(t *testing.T) {
 
 // 添加测试带认证的路由
 func TestServer_AuthenticatedRoutes(t *testing.T) {
-	// 创建一个测试服务器
-	cfg := &config.Config{
-		Database: config.DatabaseConfig{
-			DSN: ":memory:",
-		},
-		Storage: config.StorageConfig{
-			BasePath: t.TempDir(),
-		},
-		JWT: config.JWTConfig{
-			SecretKey: "test_key",
-		},
-	}
+	s := createTestServer(t)
+	token := createTestUserAndToken(t, s)
 
-	s, err := NewServer(cfg)
-	assert.NoError(t, err)
-
-	// 创建一个测试用户并获取token
-	// 注意：这里我们直接使用服务器实例的数据库和处理器
-	// 在实际项目中，你可能需要使用mock或者更复杂的设置
-	user := model.User{
-		Username: "testuser",
-		Password: "password123", // 实际应用中应该是加密的
-		Email:    "test@example.com",
-	}
-
-	result := s.db.Create(&user)
-	assert.NoError(t, result.Error)
-
-	// 模拟登录请求获取token
-	loginReq := httptest.NewRequest("POST", "/api/auth/login", strings.NewReader(`{"username":"testuser","password":"password123"}`))
-	loginReq.Header.Set("Content-Type", "application/json")
-	loginW := httptest.NewRecorder()
-
-	s.router.ServeHTTP(loginW, loginReq)
-
-	// 检查登录是否成功
-	assert.Equal(t, http.StatusOK, loginW.Code)
-
-	// 解析响应获取token
-	var loginResp map[string]string
-	err = json.Unmarshal(loginW.Body.Bytes(), &loginResp)
-	assert.NoError(t, err)
-	token := loginResp["token"]
-	assert.NotEmpty(t, token)
-
-	// 测试需要认证的路由
 	tests := []struct {
 		name       string
 		method     string
 		path       string
-		body       string
+		setup      func() *http.Request
 		wantStatus int
 	}{
 		{
-			name:       "列出文件",
-			method:     "GET",
-			path:       "/api/files",
-			body:       "",
+			name:   "创建Scratch项目",
+			method: "POST",
+			path:   "/api/scratch/projects/",
+			setup: func() *http.Request {
+				body := `{"name":"测试项目","content":{"test":"data"}}`
+				req := httptest.NewRequest("POST", "/api/scratch/projects/", strings.NewReader(body))
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("Authorization", "Bearer "+token)
+				return req
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name:   "列出文件",
+			method: "GET",
+			path:   "/api/files",
+			setup: func() *http.Request {
+				req := httptest.NewRequest("GET", "/api/files", nil)
+				req.Header.Set("Authorization", "Bearer "+token)
+				return req
+			},
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:       "列出Scratch项目",
-			method:     "GET",
-			path:       "/api/scratch/projects",
-			body:       "",
+			name:   "列出Scratch项目",
+			method: "GET",
+			path:   "/api/scratch/projects",
+			setup: func() *http.Request {
+				req := httptest.NewRequest("GET", "/api/scratch/projects", nil)
+				req.Header.Set("Authorization", "Bearer "+token)
+				return req
+			},
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:       "保存Scratch项目",
-			method:     "PUT",
-			path:       "/api/scratch/projects/0", // 0表示新建项目
-			body:       `{"name":"测试项目","content":{"test":"data"}}`,
+			name:   "保存Scratch项目",
+			method: "PUT",
+			path:   "/api/scratch/projects/0",
+			setup: func() *http.Request {
+				body := `{"name":"测试项目","content":{"test":"data"}}`
+				req := httptest.NewRequest("PUT", "/api/scratch/projects/0", strings.NewReader(body))
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("Authorization", "Bearer "+token)
+				return req
+			},
 			wantStatus: http.StatusOK,
-		},
+		}, // 这里添加了缺失的逗号
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var req *http.Request
-			if tt.body != "" {
-				req = httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
-				req.Header.Set("Content-Type", "application/json")
-			} else {
-				req = httptest.NewRequest(tt.method, tt.path, nil)
-			}
-
-			// 添加认证token
-			req.Header.Set("Authorization", "Bearer "+token)
-
+			req := tt.setup()
 			w := httptest.NewRecorder()
 			s.router.ServeHTTP(w, req)
-
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
@@ -262,10 +230,54 @@ func TestServer_AuthenticatedRoutes(t *testing.T) {
 
 // 添加测试服务器启动函数
 func TestServer_Start(t *testing.T) {
-	// 创建一个测试服务器
+	s := createTestServer(t)
+
+	// 使用随机端口
+	s.config.Server.Port = ":0"
+
+	// 使用channel来同步
+	done := make(chan struct{})
+	errChan := make(chan error, 1)
+
+	go func() {
+		defer close(done)
+		err := s.Start()
+		if err != nil && err != http.ErrServerClosed {
+			errChan <- err
+		}
+	}()
+
+	// 等待服务器启动
+	time.Sleep(500 * time.Millisecond)
+
+	// 测试服务器是否响应 - 修改为测试根路径
+	req := httptest.NewRequest("GET", "/auth/login", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+
+	// 关闭服务器
+	close(done)
+
+	select {
+	case err := <-errChan:
+		assert.NoError(t, err)
+	default:
+	}
+}
+
+// 添加在文件顶部
+const (
+	testUsername = "testuser"
+	testPassword = "password123"
+	testEmail    = "test@example.com"
+)
+
+// 辅助函数：创建测试服务器
+func createTestServer(t *testing.T) *Server {
 	cfg := &config.Config{
 		Database: config.DatabaseConfig{
-			DSN: ":memory:",
+			DSN: "file::memory:?cache=shared",
 		},
 		Storage: config.StorageConfig{
 			BasePath: t.TempDir(),
@@ -273,25 +285,40 @@ func TestServer_Start(t *testing.T) {
 		JWT: config.JWTConfig{
 			SecretKey: "test_key",
 		},
-		Server: config.ServerConfig{
-			Port: ":0", // 使用随机端口
-		},
 	}
-
 	s, err := NewServer(cfg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	return s
+}
 
-	// 启动服务器（在goroutine中）
-	go func() {
-		// 忽略错误，因为我们会在测试结束时关闭服务器
-		_ = s.Start()
-	}()
+// 辅助函数：创建测试用户并获取token
+// 修复TestServer_AuthenticatedRoutes中的登录请求
+func createTestUserAndToken(t *testing.T, s *Server) string {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(testPassword), bcrypt.DefaultCost)
+	if err != nil {
+		require.NoError(t, err)
+		return ""
+	}
+	// 创建测试用户
+	user := model.User{
+		Username: testUsername,
+		Password: string(hashedPassword),
+		Email:    testEmail,
+	}
+	result := s.db.Create(&user)
+	require.NoError(t, result.Error)
 
-	// 等待服务器启动
-	time.Sleep(100 * time.Millisecond)
+	// 获取token
+	loginReq := httptest.NewRequest("POST", "/api/auth/login",
+		strings.NewReader(fmt.Sprintf(`{"username":"%s","password":"%s"}`, testUsername, testPassword)))
+	loginReq.Header.Set("Content-Type", "application/json")
+	loginW := httptest.NewRecorder()
+	s.router.ServeHTTP(loginW, loginReq)
+	require.Equal(t, http.StatusOK, loginW.Code, "登录失败，响应体: "+loginW.Body.String()) // 添加错误信息
 
-	// 测试服务器是否正常运行
-	// 注意：这个测试可能不是很可靠，因为我们不知道确切的端口
-	// 在实际项目中，你可能需要更复杂的设置来测试服务器启动
-	t.Log("服务器已启动")
+	var loginResp map[string]string
+	err = json.Unmarshal(loginW.Body.Bytes(), &loginResp)
+	require.NoError(t, err)
+	require.NotEmpty(t, loginResp["token"], "返回的token为空")
+	return loginResp["token"]
 }
