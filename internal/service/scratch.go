@@ -27,6 +27,9 @@ type ScratchService interface {
 
 	// DeleteProject 删除项目
 	DeleteProject(userID uint, projectID uint) error
+
+	// CanReadProject 检查用户是否有权限读取项目
+	CanReadProject(projectID uint) bool
 }
 
 // ScratchServiceImpl 实现了ScratchService接口
@@ -43,10 +46,24 @@ func NewScratchService(db *gorm.DB, basePath string) ScratchService {
 	}
 }
 
+func (s *ScratchServiceImpl) CanReadProject(projectID uint) bool {
+
+	// 从数据库查询项目
+	var project model.ScratchProject
+	if err := s.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false
+		}
+		return false
+	}
+
+	return true
+}
+
 // GetProject 获取指定ID的Scratch项目
 func (s *ScratchServiceImpl) GetProject(projectID uint) ([]byte, error) {
 	// 如果projectID为0，返回示例项目
-	if projectID == 0 || projectID == 1233 {
+	if projectID == 0 {
 		return s.getExampleProject(), nil
 	}
 

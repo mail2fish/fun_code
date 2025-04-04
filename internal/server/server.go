@@ -114,6 +114,12 @@ func (s *Server) setupRoutes() {
 		auth.GET("/scratch/projects", s.handler.ListScratchProjects)
 		auth.DELETE("/scratch/projects/:id", s.handler.DeleteScratchProject)
 	}
+
+	projects := s.router.Group("/projects")
+	projects.Use(s.handler.AuthMiddleware())
+	{
+		projects.GET("/scratch/:id", s.handler.OpenScratchProject)
+	}
 }
 
 func (s *Server) Start() error {

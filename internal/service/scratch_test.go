@@ -92,3 +92,62 @@ func TestSaveProject(t *testing.T) {
 	// 不再验证具体的文件路径，因为路径生成逻辑可能会变化
 	// 只要能通过GetProject读取到正确的内容即可
 }
+
+// 添加CanReadProject的测试
+func TestCanReadProject(t *testing.T) {
+	// 创建临时目录用于测试
+	tempDir, err := os.MkdirTemp("", "scratch_test")
+	if err != nil {
+		t.Fatalf("无法创建临时目录: %v", err)
+	}
+	defer os.RemoveAll(tempDir) // 测试结束后清理
+
+	db := testutils.SetupTestDB()
+	service := NewScratchService(db, tempDir)
+
+	// 先创建一个项目用于测试
+	userID := uint(1)
+	name := "测试项目"
+	content := []byte(`{"test":"content"}`)
+
+	// 保存项目
+	projectID, err := service.SaveProject(userID, 0, name, content)
+	if err != nil {
+		t.Fatalf("SaveProject() error = %v", err)
+	}
+
+	// 测试用例
+	tests := []struct {
+		name      string
+		projectID uint
+		want      bool
+	}{
+		{
+			name:      "存在的项目",
+			projectID: projectID,
+			want:      true,
+		},
+		{
+			name:      "不存在的项目",
+			projectID: 9999,
+			want:      false,
+		},
+		{
+			name:      "项目ID为0",
+			projectID: 0,
+			want:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// 执行测试
+			got := service.CanReadProject(tt.projectID)
+
+			// 验证结果
+			if got != tt.want {
+				t.Errorf("CanReadProject() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

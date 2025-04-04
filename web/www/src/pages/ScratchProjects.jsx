@@ -168,7 +168,7 @@ function ScratchProjects() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
-                          onClick={() => window.open(`/scratch#${project.id}`, '_blank')}
+                          onClick={() => window.open(`/projects/scratch/${project.id}`, '_blank')}
                           className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300 mr-3"
                         >
                           打开
