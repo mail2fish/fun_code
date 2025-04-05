@@ -10,6 +10,13 @@ module.exports = {
     filename: 'bundle.js',
     publicPath: '/static/scratch/'  // 修改这里，指定公共路径
   },
+  // 添加 resolve 配置到模块导出对象内部
+  resolve: {
+    alias: {
+      'react': path.resolve('./node_modules/react'),
+      'react-dom': path.resolve('./node_modules/react-dom'),
+    }
+  },
   module: {
     rules: [
       {
@@ -55,6 +62,10 @@ module.exports = {
             {
                 from: 'node_modules/scratch-gui/dist/static/assets',
                 to: 'static/assets'
+            },
+            {
+              from: 'public/static/assets',
+              to: 'static/assets'
             },
             {
                 // 修改这里，使用 globOptions 替代 flatten

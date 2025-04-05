@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/web"
@@ -251,4 +252,49 @@ func (h *Handler) CreateScratchProject(c *gin.Context) {
 		"content-name": projectID,
 		"status":       "ok",
 	})
+}
+
+// GetLibraryAsset 获取Scratch库资源文件
+func (h *Handler) GetLibraryAsset(c *gin.Context) {
+	// 获取文件名参数
+	filename := c.Param("filename")
+	if filename == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "未指定文件名",
+		})
+		return
+	}
+
+	// 从嵌入的文件系统中获取资源文件
+	assetData, err := web.GetScratchAsset(filename)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "资源文件不存在",
+		})
+		return
+	}
+
+	// 根据文件扩展名设置适当的Content-Type
+	contentType := "application/octet-stream" // 默认
+	switch {
+	case strings.HasSuffix(filename, ".svg"):
+		contentType = "image/svg+xml"
+	case strings.HasSuffix(filename, ".png"):
+		contentType = "image/png"
+	case strings.HasSuffix(filename, ".jpg"), strings.HasSuffix(filename, ".jpeg"):
+		contentType = "image/jpeg"
+	case strings.HasSuffix(filename, ".wav"):
+		contentType = "audio/wav"
+	case strings.HasSuffix(filename, ".mp3"):
+		contentType = "audio/mpeg"
+	case strings.HasSuffix(filename, ".json"):
+		contentType = "application/json"
+	}
+
+	// 设置响应头
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Length", strconv.Itoa(len(assetData)))
+
+	// 直接写入字节数据
+	c.Writer.Write(assetData)
 }

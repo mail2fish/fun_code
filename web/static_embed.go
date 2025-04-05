@@ -12,3 +12,8 @@ var ScratchStaticFiles embed.FS
 func GetScratchIndexHTML() ([]byte, error) {
 	return ScratchStaticFiles.ReadFile("scratch/dist/index.html")
 }
+
+// 添加一个函数来获取 scratch 的资源文件
+func GetScratchAsset(filename string) ([]byte, error) {
+	return ScratchStaticFiles.ReadFile("scratch/dist/static/assets/" + filename)
+}
