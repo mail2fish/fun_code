@@ -3,9 +3,12 @@ package handler
 import (
 	"encoding/json"
 	"html/template"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -66,8 +69,10 @@ func (h *Handler) OpenScratchProject(c *gin.Context) {
 	// 准备模板数据
 	data := struct {
 		ProjectID string
+		AssetHost string
 	}{
 		ProjectID: projectID,
+		AssetHost: "http://localhost:8080/assets/scratch",
 	}
 
 	// 设置响应头
@@ -230,6 +235,14 @@ func (h *Handler) CreateScratchProject(c *gin.Context) {
 		return
 	}
 
+	// 检查请求体是否为空
+	if len(req) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "请求体不能为空",
+		})
+		return
+	}
+
 	r, err := json.Marshal(req)
 
 	if err != nil {
@@ -268,10 +281,17 @@ func (h *Handler) GetLibraryAsset(c *gin.Context) {
 	// 从嵌入的文件系统中获取资源文件
 	assetData, err := web.GetScratchAsset(filename)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "资源文件不存在",
-		})
-		return
+		// 使用 scratch 服务的基础路径
+		filePath := filepath.Join(h.scratchService.GetScratchBasePath(), "assets", filename)
+
+		// 尝试从文件系统中读取资源文件
+		assetData, err = os.ReadFile(filePath)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "资源文件不存在",
+			})
+			return
+		}
 	}
 
 	// 根据文件扩展名设置适当的Content-Type
@@ -297,4 +317,83 @@ func (h *Handler) GetLibraryAsset(c *gin.Context) {
 
 	// 直接写入字节数据
 	c.Writer.Write(assetData)
+}
+
+// UploadScratchAsset 处理上传的Scratch资源文件
+func (h *Handler) UploadScratchAsset(c *gin.Context) {
+	// 获取当前用户ID
+	// userID := h.getUserID(c)
+	// if userID == 0 {
+	// 	c.JSON(http.StatusUnauthorized, gin.H{
+	// 		"error": "未授权",
+	// 	})
+	// 	return
+	// }
+
+	// 获取资源ID
+	assetID := c.Param("asset_id")
+	if assetID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的资源ID",
+		})
+		return
+	}
+
+	// 读取请求体中的二进制数据
+	bodyData, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "读取请求数据失败: " + err.Error(),
+		})
+		return
+	}
+
+	if len(bodyData) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "请求体为空",
+		})
+		return
+	}
+
+	// 根据文件扩展名设置适当的Content-Type
+	contentType := "application/octet-stream" // 默认
+	switch {
+	case strings.HasSuffix(assetID, ".svg"):
+		contentType = "image/svg+xml"
+	case strings.HasSuffix(assetID, ".png"):
+		contentType = "image/png"
+	case strings.HasSuffix(assetID, ".jpg"), strings.HasSuffix(assetID, ".jpeg"):
+		contentType = "image/jpeg"
+	case strings.HasSuffix(assetID, ".wav"):
+		contentType = "audio/wav"
+	case strings.HasSuffix(assetID, ".mp3"):
+		contentType = "audio/mpeg"
+	case strings.HasSuffix(assetID, ".json"):
+		contentType = "application/json"
+	}
+
+	// 使用 scratch 服务的基础路径
+	assetDir := filepath.Join(h.scratchService.GetScratchBasePath(), "assets")
+	if err := os.MkdirAll(assetDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "创建资源目录失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 保存文件
+	filePath := filepath.Join(assetDir, assetID)
+	if err := os.WriteFile(filePath, bodyData, 0644); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "保存文件失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
+		"status":       "ok",
+		"assetID":      assetID,
+		"content_type": contentType,
+	})
 }

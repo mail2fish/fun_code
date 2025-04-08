@@ -215,6 +215,29 @@ func (m *MockScratchService) DeleteProject(userID uint, projectID uint) error {
 	return args.Error(0)
 }
 
+func (m *MockScratchService) CanReadProject(projectID uint) bool {
+	args := m.Called(projectID)
+	return args.Bool(0)
+}
+
+func (m *MockScratchService) GetProjectInfo(projectID uint) (*model.ScratchProject, error) {
+	args := m.Called(projectID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.ScratchProject), args.Error(1)
+}
+
+func (m *MockScratchService) GetScratchBasePath() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+func (m *MockScratchService) SaveAsset(userID uint, projectID uint, filename string, file *multipart.FileHeader) (string, error) {
+	args := m.Called(userID, projectID, filename, file)
+	return args.String(0), args.Error(1)
+}
+
 // 修改 setupTestHandler 函数，添加 MockScratchService
 func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockScratchService) {
 	gin.SetMode(gin.TestMode)
@@ -240,7 +263,8 @@ func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockS
 
 		// Scratch 相关路由
 		auth.GET("/scratch/projects/:id", h.GetScratchProject)
-		auth.POST("/scratch/projects", h.SaveScratchProject)
+		auth.POST("/scratch/projects", h.CreateScratchProject)
+		auth.PUT("/scratch/projects/:id", h.SaveScratchProject)
 		auth.GET("/scratch/projects", h.ListScratchProjects)
 		auth.DELETE("/scratch/projects/:id", h.DeleteScratchProject)
 	}
@@ -654,35 +678,35 @@ func TestHandler_SaveScratchProject(t *testing.T) {
 
 	tests := []struct {
 		name       string
+		projectID  string
 		reqBody    map[string]interface{}
 		mockID     uint
 		mockErr    error
 		wantStatus int
 	}{
 		{
-			name: "正常保存项目",
+			name:      "正常保存项目",
+			projectID: "1",
 			reqBody: map[string]interface{}{
-				"name":    "测试项目",
-				"content": map[string]interface{}{"test": "data"},
+				"test": "data",
 			},
 			mockID:     1,
 			mockErr:    nil,
 			wantStatus: http.StatusOK,
 		},
 		{
-			name: "参数无效",
-			reqBody: map[string]interface{}{
-				"name": "测试项目",
-			},
-			mockID:     0,
-			mockErr:    nil,
+			name:      "参数无效",
+			projectID: "invalid",
+			reqBody:   map[string]interface{}{},
+			mockID:    0,
+			mockErr:   nil,
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "保存失败",
+			name:      "保存失败",
+			projectID: "1",
 			reqBody: map[string]interface{}{
-				"name":    "测试项目",
-				"content": map[string]interface{}{"test": "data"},
+				"test": "data",
 			},
 			mockID:     0,
 			mockErr:    errors.New("保存失败"),
@@ -693,7 +717,7 @@ func TestHandler_SaveScratchProject(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			body, _ := json.Marshal(tt.reqBody)
-			req := httptest.NewRequest("POST", "/api/scratch/projects", bytes.NewBuffer(body))
+			req := httptest.NewRequest("PUT", "/api/scratch/projects/"+tt.projectID, bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer valid.token.string")
 			w := httptest.NewRecorder()
@@ -702,10 +726,10 @@ func TestHandler_SaveScratchProject(t *testing.T) {
 			mockAuth.On("ValidateToken", "valid.token.string").Return(&service.Claims{UserID: 1}, nil)
 
 			// 设置SaveProject的mock
-			if content, ok := tt.reqBody["content"]; ok {
-				name := tt.reqBody["name"].(string)
-				contentBytes, _ := json.Marshal(content)
-				mockScratch.On("SaveProject", uint(1), uint(0), name, contentBytes).Return(tt.mockID, tt.mockErr).Once()
+			if tt.projectID != "invalid" {
+				id, _ := strconv.ParseUint(tt.projectID, 10, 64)
+				contentBytes, _ := json.Marshal(tt.reqBody)
+				mockScratch.On("SaveProject", uint(1), uint(id), "", contentBytes).Return(tt.mockID, tt.mockErr).Once()
 			}
 
 			r.ServeHTTP(w, req)
@@ -822,6 +846,73 @@ func TestHandler_DeleteScratchProject(t *testing.T) {
 			if tt.projectID != "invalid" {
 				id, _ := strconv.ParseUint(tt.projectID, 10, 64)
 				mockScratch.On("DeleteProject", uint(1), uint(id)).Return(tt.mockErr).Once()
+			}
+
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			mockAuth.AssertExpectations(t)
+			mockScratch.AssertExpectations(t)
+		})
+	}
+}
+
+func TestHandler_CreateScratchProject(t *testing.T) {
+	r, mockAuth, _, mockScratch := setupTestHandler()
+
+	tests := []struct {
+		name       string
+		reqBody    map[string]interface{}
+		mockID     uint
+		mockErr    error
+		wantStatus int
+		setupMock  bool  // 添加标志控制是否设置mock
+	}{
+		{
+			name: "正常创建项目",
+			reqBody: map[string]interface{}{
+				"test": "data",
+			},
+			mockID:     1,
+			mockErr:    nil,
+			wantStatus: http.StatusOK,
+			setupMock:  true,
+		},
+		{
+			name:       "参数无效",
+			reqBody:    map[string]interface{}{},
+			mockID:     0,
+			mockErr:    errors.New("无效的请求体"),
+			wantStatus: http.StatusBadRequest,
+			setupMock:  false,  // 空请求体不会调用SaveProject
+		},
+		{
+			name: "创建失败",
+			reqBody: map[string]interface{}{
+				"test": "data",
+			},
+			mockID:     0,
+			mockErr:    errors.New("创建失败"),
+			wantStatus: http.StatusInternalServerError,
+			setupMock:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body, _ := json.Marshal(tt.reqBody)
+			req := httptest.NewRequest("POST", "/api/scratch/projects", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer valid.token.string")
+			w := httptest.NewRecorder()
+
+			// 设置认证中间件的mock
+			mockAuth.On("ValidateToken", "valid.token.string").Return(&service.Claims{UserID: 1}, nil)
+
+			// 只有当setupMock为true时才设置SaveProject的mock
+			if tt.setupMock {
+				contentBytes, _ := json.Marshal(tt.reqBody)
+				mockScratch.On("SaveProject", uint(1), uint(0), "default", contentBytes).Return(tt.mockID, tt.mockErr).Once()
 			}
 
 			r.ServeHTTP(w, req)

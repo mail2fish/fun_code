@@ -151,3 +151,25 @@ func TestCanReadProject(t *testing.T) {
 		})
 	}
 }
+
+// 添加 GetScratchBasePath 的测试
+func TestGetScratchBasePath(t *testing.T) {
+	// 创建临时目录用于测试
+	tempDir, err := os.MkdirTemp("", "scratch_test")
+	if err != nil {
+		t.Fatalf("无法创建临时目录: %v", err)
+	}
+	defer os.RemoveAll(tempDir) // 测试结束后清理
+
+	// 创建服务实例
+	db := testutils.SetupTestDB()
+	service := NewScratchService(db, tempDir)
+
+	// 调用被测试的方法
+	basePath := service.GetScratchBasePath()
+
+	// 验证结果
+	if basePath != tempDir {
+		t.Errorf("GetScratchBasePath() = %v, 期望 %v", basePath, tempDir)
+	}
+}

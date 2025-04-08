@@ -18,9 +18,9 @@
         enableCommunity: false,
         showComingSoon: false,
         projectHost: "http://localhost:8080/api/scratch/projects",
-        projectId: "0",
+        projectId: "{{ .ProjectID }}",
         basePath: "/scratch/",
-        assetHost: "http://localhost:8080/assets/scratch"
+        assetHost: "{{ .AssetHost }}"
       };
     
       // 设置cookie的函数

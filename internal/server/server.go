@@ -90,9 +90,6 @@ func (s *Server) setupRoutes() {
 		staticHandler.ServeStatic(c)
 	})
 
-	// 添加新的路由用于获取Scratch资源文件
-	s.router.GET("/scratch/internalapi/asset/:filename/get/", s.handler.GetLibraryAsset)
-
 	// 公开路由
 	s.router.POST("/api/auth/register", s.handler.Register)
 	s.router.POST("/api/auth/login", s.handler.Login)
@@ -122,6 +119,14 @@ func (s *Server) setupRoutes() {
 	projects.Use(s.handler.AuthMiddleware())
 	{
 		projects.GET("/scratch/:id", s.handler.OpenScratchProject)
+	}
+
+	assets := s.router.Group("/assets")
+	assets.Use(s.handler.AuthMiddleware())
+	// 添加新的路由用于获取Scratch资源文件
+	{
+		assets.GET("/scratch/:filename", s.handler.GetLibraryAsset)
+		assets.POST("/scratch/:asset_id", s.handler.UploadScratchAsset)
 	}
 }
 
