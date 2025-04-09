@@ -18,7 +18,7 @@ type StaticHandler struct {
 
 func NewStaticHandler() (*StaticHandler, error) {
 	// 获取 www 子文件系统
-	wwwSubFS, err := fs.Sub(web.WWWStaticFiles, "www/dist")
+	wwwSubFS, err := fs.Sub(web.WWWStaticFiles, "react-router-www/build/client")
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 	if strings.HasPrefix(c.Request.URL.Path, "/static/scratch") {
 		fs = h.scratchFS
 		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/static/scratch")
-	} else if strings.HasPrefix(c.Request.URL.Path, "/scratch") {	
+	} else if strings.HasPrefix(c.Request.URL.Path, "/scratch") {
 		fs = h.scratchFS
 		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/scratch")
 

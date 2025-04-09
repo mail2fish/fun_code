@@ -2,7 +2,7 @@ package web
 
 import "embed"
 
-//go:embed www/dist/*
+//go:embed react-router-www/build/client/*
 var WWWStaticFiles embed.FS
 
 //go:embed scratch/dist/*
