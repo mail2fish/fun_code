@@ -22,8 +22,8 @@ type ScratchService interface {
 	// SaveProject 保存Scratch项目
 	SaveProject(userID uint, projectID uint, name string, content []byte) (uint, error)
 
-	// ListProjects 列出用户的所有项目
-	ListProjects(userID uint) ([]model.ScratchProject, error)
+	// ListProjectsWithPagination 分页列出用户的所有项目
+	ListProjectsWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.ScratchProject, bool, error)
 
 	// DeleteProject 删除项目
 	DeleteProject(userID uint, projectID uint) error
@@ -32,6 +32,8 @@ type ScratchService interface {
 	CanReadProject(projectID uint) bool
 
 	GetScratchBasePath() string
+
+	CountProjects(userID uint) (int64, error)
 }
 
 // ScratchServiceImpl 实现了ScratchService接口
@@ -176,13 +178,125 @@ func (s *ScratchServiceImpl) SaveProject(userID uint, projectID uint, name strin
 	return project.ID, nil
 }
 
-// ListProjects 列出用户的所有项目
-func (s *ScratchServiceImpl) ListProjects(userID uint) ([]model.ScratchProject, error) {
-	var projects []model.ScratchProject
-	if err := s.db.Where("user_id = ?", userID).Find(&projects).Error; err != nil {
-		return nil, err
+func (s *ScratchServiceImpl) CountProjects(userID uint) (int64, error) {
+	var total int64
+
+	// 计算总数
+	if err := s.db.Model(&model.ScratchProject{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
+		return 0, err
 	}
-	return projects, nil
+	return total, nil
+}
+
+// ListProjectsWithPagination 分页列出用户的所有项目
+// 参数：
+// userID 为 uint 类型，代表用户ID
+// pageSize 为 uint 类型，代表每页的项目数量
+// beginID 为 uint 类型，代表分页的起始ID
+// forward 为 bool 类型，代表是否向前分页
+// asc 为 bool 类型，代表返回结果是否按升序排序
+// 返回值：
+// []model.ScratchProject 类型，代表分页后的项目列表
+// bool 类型，代表是否还有更多项目
+// error 类型，代表错误信息
+// 说明：
+// userID 为 0 时，返回所有用户的项目
+// userID 不为 0 时，返回指定用户的项目
+// pageSize 为 0 时，使用默认值 20
+// asc 为 true 时，返回结果数组按 id 升序排序，代表页面按升序显示
+// asc 为 false 时，返回结果数组按 id 降序排序，代表页面按降序显示
+// biginID 为 0 ，asc 为 true，  order 按 id asc 排序
+// biginID 为 0 ，asc 为 false， order 按 id desc 排序
+// (asc == true and forward == true), 那么 where 条件为 id >= beginID, order 为 id asc
+// (asc == true and forward == false)， 那么 where 条件为 id <= beginID，order 为 id desc
+// (asc == false and forward == true)， 那么 where 条件为 id <= beginID，order 为 id desc
+// (asc == false and forward == false)， 那么 where 条件为 id >= beginID, order 为 id asc
+// 查询 limit 为 abs(pageSize)+1 条记录，如果查询结果数组 length <= pageSize 条记录，hasMore 为 false
+// 查询 limit 为 abs(pageSize)+1 条记录，如果查询结果数组 length > pageSize 条记录，hasMore 为 true
+
+func (s *ScratchServiceImpl) ListProjectsWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.ScratchProject, bool, error) {
+	var projects []model.ScratchProject
+
+	// 处理 pageSize 为 0 的情况，使用默认值 20
+	if pageSize == 0 {
+		pageSize = 20
+	}
+
+	// 构建基础查询
+	query := s.db
+
+	// 如果指定了用户ID，则只查询该用户的项目
+	if userID > 0 {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	// 记录查询是否按升序排序
+	queryAsc := false
+
+	// 根据 beginID、forward 和 asc 设置查询条件和排序
+	if beginID > 0 {
+		if asc && forward {
+			// asc == true and forward == true
+			// id >= beginID, order 为 id asc
+			query = query.Where("id > ?", beginID).Order("id ASC")
+			queryAsc = true
+		} else if asc && !forward {
+			// asc == true and forward == false
+			// id <= beginID，order 为 id desc
+			query = query.Where("id < ?", beginID).Order("id DESC")
+			queryAsc = false
+		} else if !asc && forward {
+			// asc == false and forward == true
+			// id <= beginID，order 为 id desc
+			query = query.Where("id < ?", beginID).Order("id DESC")
+			queryAsc = false
+		} else {
+			// asc == false and forward == false
+			// id >= beginID, order 为 id asc
+			query = query.Where("id > ?", beginID).Order("id ASC")
+			queryAsc = true
+		}
+	} else {
+		// beginID 为 0 的情况
+		if asc {
+			// asc 为 true，按 id asc 排序
+			query = query.Order("id ASC")
+			queryAsc = true
+		} else {
+			// asc 为 false，按 id desc 排序
+			query = query.Order("id DESC")
+			queryAsc = false
+		}
+	}
+
+	// 执行查询，多查询一条用于判断是否有更多数据
+	if err := query.Limit(int(pageSize + 1)).Find(&projects).Error; err != nil {
+		return nil, false, err
+	}
+
+	// 处理查询结果
+	// asc 为 true 时，返回结果数组按 id 升序排序，代表页面按升序显示
+	// asc 为 false 时，返回结果数组按 id 降序排序，代表页面按降序显示
+	// 检查查询结果的排序是否与 asc 参数一致，如果不一致则需要反转
+	if queryAsc != asc {
+		// 反转结果数组
+		for i, j := 0, len(projects)-1; i < j; i, j = i+1, j-1 {
+			projects[i], projects[j] = projects[j], projects[i]
+		}
+	}
+
+	// 判断是否有更多数据
+	hasMore := false
+	if len(projects) > int(pageSize) {
+		hasMore = true
+		if queryAsc != asc {
+			projects = projects[1:]
+		} else {
+			projects = projects[:int(pageSize)]
+		}
+	}
+
+	return projects, hasMore, nil
 }
 
 // DeleteProject 删除项目

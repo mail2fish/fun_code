@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -16,13 +17,15 @@ type Handler struct {
 	authService    service.AuthService
 	fileService    service.FileService
 	scratchService service.ScratchService
+	config         *config.Config // 添加配置字段
 }
 
-func NewHandler(auth service.AuthService, file service.FileService, scratch service.ScratchService) *Handler {
+func NewHandler(auth service.AuthService, file service.FileService, scratch service.ScratchService, cfg *config.Config) *Handler {
 	return &Handler{
 		authService:    auth,
 		fileService:    file,
 		scratchService: scratch,
+		config:         cfg, // 初始化配置字段
 	}
 }
 

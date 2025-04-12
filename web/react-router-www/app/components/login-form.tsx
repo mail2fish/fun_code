@@ -51,7 +51,7 @@ export function LoginForm({
       localStorage.setItem("user", JSON.stringify(response.data.user));
 
       // 登录成功后跳转到 scratch/projects 页面
-      navigate("/scratch/projects");
+      navigate("/react/scratch/projects");
     } catch (err: any) {
       setError(err.response?.data?.error || "登录失败，请检查用户名和密码");
     } finally {

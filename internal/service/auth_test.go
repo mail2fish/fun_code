@@ -12,10 +12,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"
-
-	// 删除以下未使用的导入
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
 func TestAuth(t *testing.T) {
@@ -297,12 +293,4 @@ func TestAuthService_ValidateToken(t *testing.T) {
 			}
 		})
 	}
-}
-
-func setupTestDB() *gorm.DB {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect database")
-	}
-	return db
 }

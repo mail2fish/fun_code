@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/model"
 	"github.com/jun/fun_code/internal/service"
 
@@ -205,9 +206,9 @@ func (m *MockScratchService) SaveProject(userID uint, projectID uint, name strin
 	return args.Get(0).(uint), args.Error(1)
 }
 
-func (m *MockScratchService) ListProjects(userID uint) ([]model.ScratchProject, error) {
+func (m *MockScratchService) CountProjects(userID uint) (int64, error) {
 	args := m.Called(userID)
-	return args.Get(0).([]model.ScratchProject), args.Error(1)
+	return args.Get(0).(int64), args.Error(1)
 }
 
 func (m *MockScratchService) DeleteProject(userID uint, projectID uint) error {
@@ -238,6 +239,12 @@ func (m *MockScratchService) SaveAsset(userID uint, projectID uint, filename str
 	return args.String(0), args.Error(1)
 }
 
+// 在 MockScratchService 中添加 ListProjectsWithPagination 方法
+func (m *MockScratchService) ListProjectsWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.ScratchProject, bool, error) {
+	args := m.Called(userID, pageSize, beginID, forward, asc)
+	return args.Get(0).([]model.ScratchProject), args.Bool(1), args.Error(2)
+}
+
 // 修改 setupTestHandler 函数，添加 MockScratchService
 func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockScratchService) {
 	gin.SetMode(gin.TestMode)
@@ -246,7 +253,8 @@ func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockS
 	mockAuth := new(MockAuthService)
 	mockFile := new(MockFileService)
 	mockScratch := new(MockScratchService)
-	h := NewHandler(mockAuth, mockFile, mockScratch)
+	cfg := &config.Config{Server: config.ServerConfig{AssetHost: "http://localhost/assets"}}
+	h := NewHandler(mockAuth, mockFile, mockScratch, cfg)
 
 	// 设置路由
 	r.POST("/api/auth/register", h.Register)
@@ -695,11 +703,11 @@ func TestHandler_SaveScratchProject(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:      "参数无效",
-			projectID: "invalid",
-			reqBody:   map[string]interface{}{},
-			mockID:    0,
-			mockErr:   nil,
+			name:       "参数无效",
+			projectID:  "invalid",
+			reqBody:    map[string]interface{}{},
+			mockID:     0,
+			mockErr:    nil,
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -735,69 +743,6 @@ func TestHandler_SaveScratchProject(t *testing.T) {
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
-			mockAuth.AssertExpectations(t)
-			mockScratch.AssertExpectations(t)
-		})
-	}
-}
-
-func TestHandler_ListScratchProjects(t *testing.T) {
-	r, mockAuth, _, mockScratch := setupTestHandler()
-
-	tests := []struct {
-		name       string
-		projects   []model.ScratchProject
-		mockErr    error
-		wantStatus int
-	}{
-		{
-			name: "正常列出项目",
-			projects: []model.ScratchProject{
-				{
-					ID:       1,
-					UserID:   1,
-					Name:     "测试项目1",
-					FilePath: "/tmp/test1.json",
-				},
-				{
-					ID:       2,
-					UserID:   1,
-					Name:     "测试项目2",
-					FilePath: "/tmp/test2.json",
-				},
-			},
-			mockErr:    nil,
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "列出项目失败",
-			projects:   nil,
-			mockErr:    errors.New("列出项目失败"),
-			wantStatus: http.StatusInternalServerError,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/api/scratch/projects", nil)
-			req.Header.Set("Authorization", "Bearer valid.token.string")
-			w := httptest.NewRecorder()
-
-			// 设置认证中间件的mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&service.Claims{UserID: 1}, nil)
-
-			// 设置ListProjects的mock
-			mockScratch.On("ListProjects", uint(1)).Return(tt.projects, tt.mockErr).Once()
-
-			r.ServeHTTP(w, req)
-
-			assert.Equal(t, tt.wantStatus, w.Code)
-			if tt.wantStatus == http.StatusOK {
-				var response []model.ScratchProject
-				err := json.Unmarshal(w.Body.Bytes(), &response)
-				assert.NoError(t, err)
-				assert.Equal(t, tt.projects, response)
-			}
 			mockAuth.AssertExpectations(t)
 			mockScratch.AssertExpectations(t)
 		})
@@ -866,7 +811,7 @@ func TestHandler_CreateScratchProject(t *testing.T) {
 		mockID     uint
 		mockErr    error
 		wantStatus int
-		setupMock  bool  // 添加标志控制是否设置mock
+		setupMock  bool // 添加标志控制是否设置mock
 	}{
 		{
 			name: "正常创建项目",
@@ -884,7 +829,7 @@ func TestHandler_CreateScratchProject(t *testing.T) {
 			mockID:     0,
 			mockErr:    errors.New("无效的请求体"),
 			wantStatus: http.StatusBadRequest,
-			setupMock:  false,  // 空请求体不会调用SaveProject
+			setupMock:  false, // 空请求体不会调用SaveProject
 		},
 		{
 			name: "创建失败",

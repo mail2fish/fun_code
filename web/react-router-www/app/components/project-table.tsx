@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link } from "react-router"
-import { IconEdit, IconTrash } from "@tabler/icons-react"
+import { IconEdit, IconTrash, IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
 
 import { Button } from "~/components/ui/button"
 import {
@@ -25,7 +25,6 @@ import { toast } from  "sonner"
 
 import { API_BASE_URL } from "~/config";
 
-
 export interface Project {
   id: string
   name: string
@@ -33,13 +32,29 @@ export interface Project {
   createdAt?: string
 }
 
-interface ProjectTableProps {
+export interface ProjectsData{
   projects: Project[]
-  isLoading: boolean
-  onDeleteProject: (id: string) => Promise<void>
+  total: number
+  showForward:boolean
+  showBackward:boolean 
+  pageSize: number
+  currentPage: number
 }
 
-export function ProjectTable({ projects, isLoading, onDeleteProject }: ProjectTableProps) {
+
+interface ProjectTableProps {
+  projectsData: ProjectsData
+  isLoading: boolean
+  onDeleteProject: (id: string) => Promise<void>
+  onPageChange?: (nextCursor: string,forward:boolean,asc:boolean) => void
+}
+
+export function ProjectTable({ 
+   projectsData, 
+  isLoading, 
+  onDeleteProject,
+  onPageChange,
+}: ProjectTableProps) {
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
 
   const formatDate = (dateString?: string) => {
@@ -81,78 +96,120 @@ export function ProjectTable({ projects, isLoading, onDeleteProject }: ProjectTa
     return <div className="text-center py-4">加载中...</div>
   }
 
+  // 计算总页数
+  const totalPages = projectsData.total>0 ? Math.ceil(projectsData.total / projectsData.pageSize) : 0;
+  const projects = projectsData.projects;
+  let asc=false;
+
+
   return (
-    <div className="rounded-xl overflow-hidden border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>项目名称</TableHead>
-            <TableHead>创建时间</TableHead>
-            <TableHead className="w-[150px]">操作</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.isArray(projects) && projects.length > 0 ? (
-            projects.map((project) => (
-              <TableRow key={project.id || Math.random()}>
-                <TableCell className="font-medium">
-                  {project.name || "未命名项目"}
-                </TableCell>
-                <TableCell>
-                  {formatDate(project.created_at || project.createdAt)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      title="编辑"
-                      asChild
-                    >
-                      <Link to={`${API_BASE_URL}/projects/scratch/${project.id}`} target="_blank">
-                        <IconEdit className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" title="删除">
-                          <IconTrash className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>确认删除</DialogTitle>
-                          <DialogDescription>
-                            您确定要删除项目 "{project.name}" 吗？此操作无法撤销。
-                          </DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter>
-                          <DialogClose asChild>
-                            <Button variant="outline">取消</Button>
-                          </DialogClose>
-                          <Button 
-                            variant="destructive" 
-                            onClick={() => handleDelete(project.id)}
-                            disabled={deletingId === project.id}
-                          >
-                            {deletingId === project.id ? "删除中..." : "删除"}
+    <div className="flex flex-col gap-4">
+      <div className="rounded-xl overflow-hidden border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+            <TableHead>项目序号</TableHead>
+              <TableHead>项目名称</TableHead>
+              <TableHead>创建时间</TableHead>
+              <TableHead className="w-[150px]">操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.isArray(projects) && projects.length > 0 ? (
+              projects.map((project) => (
+                <TableRow key={project.id || Math.random()}>
+                  <TableCell className="font-medium">
+                  {project.id} 
+                  </TableCell>
+                  <TableCell className="font-medium">
+                  <Link to={`${API_BASE_URL}/projects/scratch/open/${project.id}`} target="_blank"> {project.name || "未命名项目"} </Link>   
+                  </TableCell>
+                  <TableCell>
+                    {formatDate(project.created_at || project.createdAt)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        title="编辑"
+                        asChild
+                      >
+                        <Link to={`${API_BASE_URL}/projects/scratch/open/${project.id}`} target="_blank">
+                          <IconEdit className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="icon" title="删除">
+                            <IconTrash className="h-4 w-4" />
                           </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>确认删除</DialogTitle>
+                            <DialogDescription>
+                              您确定要删除项目 "{project.name}" 吗？此操作无法撤销。
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <DialogClose asChild>
+                              <Button variant="outline">取消</Button>
+                            </DialogClose>
+                            <Button 
+                              variant="destructive" 
+                              onClick={() => handleDelete(project.id)}
+                              disabled={deletingId === project.id}
+                            >
+                              {deletingId === project.id ? "删除中..." : "删除"}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={3} className="h-24 text-center">
+                  没有找到 Scratch 项目
                 </TableCell>
               </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={3} className="h-24 text-center">
-                没有找到 Scratch 项目
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      
+      {projectsData.total > 0 && (
+        <div className="flex items-center justify-between px-2">
+          <div className="text-sm text-muted-foreground">
+            共 {projectsData.total} 个项目，共 {totalPages} 页，当前第 {projectsData.currentPage} 页
+          </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              disabled={!projectsData.showBackward}
+              onClick={() => onPageChange && onPageChange(projects[0].id,false,asc)}
+            >
+              <IconChevronLeft className="h-4 w-4" />
+              上一页
+            </Button>
+            
+            
+              <Button 
+                variant="outline" 
+                size="sm"
+                disabled={!projectsData.showForward}
+                onClick={() => onPageChange && onPageChange(projects[projects.length - 1].id, true,asc)}
+              >
+                下一页
+                <IconChevronRight className="h-4 w-4" />
+              </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

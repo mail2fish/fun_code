@@ -16,6 +16,65 @@ import (
 	"github.com/jun/fun_code/web"
 )
 
+// NewScratchProject 创建一个新的Scratch项目处理程序
+// 从 web package 的 GetScratchIndexHTML 方法获取 HTML 模版内容
+// 通过 html/template 包 tmpl.Execute, 注入数据 ProjectID string,AssetHost string
+// AssetHost 从 config/config.go 中获取 AssetHost
+
+func (h *Handler) NewScratchProject(c *gin.Context) {
+	// 从嵌入的文件系统中获取index.html
+	scratchFS, err := fs.Sub(web.ScratchStaticFiles, "scratch/dist")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "无法访问静态文件",
+		})
+		return
+	}
+
+	// 读取index.html文件
+	htmlContent, err := fs.ReadFile(scratchFS, "index.html")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "无法读取index.html",
+		})
+		return
+	}
+
+	// 将HTML内容转换为字符串
+	htmlStr := string(htmlContent)
+
+	// 创建模板
+	tmpl, err := template.New("scratch").Parse(htmlStr)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "解析模板失败",
+		})
+		return
+	}
+
+	// 准备模板数据，新项目不需要项目ID
+	data := struct {
+		ProjectID string
+		AssetHost string
+	}{
+		ProjectID: "0",                       // 新项目使用0作为ID
+		AssetHost: h.config.Server.AssetHost, // 从配置中获取 AssetHost
+	}
+
+	// 设置响应头
+	c.Header("Content-Type", "text/html; charset=utf-8")
+
+	// 执行模板并将结果写入响应
+	if err := tmpl.Execute(c.Writer, data); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "渲染模板失败",
+		})
+		return
+	}
+}
+
+// OpenScratchProject 打开Scratch项目
+// 修改 OpenScratchProject 函数中的 AssetHost
 func (h *Handler) OpenScratchProject(c *gin.Context) {
 	projectID := c.Param("id")
 
@@ -72,7 +131,7 @@ func (h *Handler) OpenScratchProject(c *gin.Context) {
 		AssetHost string
 	}{
 		ProjectID: projectID,
-		AssetHost: "http://localhost:8080/assets/scratch",
+		AssetHost: h.config.Server.AssetHost, // 从配置中获取 AssetHost
 	}
 
 	// 设置响应头
@@ -170,16 +229,50 @@ func (h *Handler) ListScratchProjects(c *gin.Context) {
 	// 获取当前用户ID
 	userID := h.getUserID(c)
 
-	// 获取项目列表
-	projects, err := h.scratchService.ListProjects(userID)
+	// 获取分页参数
+	pageSizeStr := c.DefaultQuery("pageSize", "20")
+	beginIDStr := c.DefaultQuery("beginID", "0")
+	forwardStr := c.DefaultQuery("forward", "true")
+	ascStr := c.DefaultQuery("asc", "true")
+
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil || pageSize <= 0 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	beginID, err := strconv.ParseUint(beginIDStr, 10, 64)
+	if err != nil {
+		beginID = 0
+	}
+
+	// 获取项目总数
+	total, err := h.scratchService.CountProjects(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取项目列表失败",
+			"error": "获取项目总数失败: " + err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, projects)
+	// 解析布尔参数
+	asc := ascStr == "true"
+	forward := forwardStr == "true"
+
+	// 获取项目列表
+	projects, hasMore, err := h.scratchService.ListProjectsWithPagination(userID, uint(pageSize), uint(beginID), forward, asc)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "获取项目列表失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回结果
+	c.JSON(http.StatusOK, gin.H{
+		"data":    projects,
+		"hasMore": hasMore,
+		"total":   total,
+	})
 }
 
 // DeleteScratchProject 删除Scratch项目

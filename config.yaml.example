@@ -7,3 +7,4 @@ jwt:
   secretKey: "your-secret-key"
 server:
   port: ":8080"
+  assetHost: "http://localhost:8080/assets/scratch" # 添加 assetHost 配置

@@ -22,7 +22,8 @@ type JWTConfig struct {
 }
 
 type ServerConfig struct {
-	Port string `yaml:"port"`
+	Port      string `yaml:"port"`
+	AssetHost string `yaml:"assetHost"` // 添加 AssetHost 配置项
 }
 
 type Config struct {

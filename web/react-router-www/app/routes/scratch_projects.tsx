@@ -3,7 +3,7 @@ import { Link } from "react-router"
 import { IconPlus } from "@tabler/icons-react"
 
 import { AppSidebar } from "~/components/my-app-sidebar"
-import { ProjectTable, type Project } from "~/components/project-table"
+import { ProjectTable, type ProjectsData } from "~/components/project-table"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -27,9 +27,17 @@ import { fetchWithAuth } from "~/utils/api";
 import { API_BASE_URL } from "~/config";
 
 // 获取项目列表
-async function getScratchProjects() {
+async function getScratchProjects(beginID = "0",pageSize = 10,forward = false,asc=false) {
   try {
-    const response = await fetchWithAuth(`${API_BASE_URL}/api/scratch/projects`);
+    const params = new URLSearchParams();
+    params.append('pageSize', pageSize.toString());
+    params.append('asc', asc.toString());
+    params.append('forward', forward.toString());
+    if (beginID != "0") {
+      params.append('beginID', beginID.toString());
+    }
+    
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/scratch/projects?${params.toString()}`);
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`);
     }
@@ -55,38 +63,110 @@ async function deleteScratchProject(id: string) {
     throw error;
   }
 }
+const defaultPageSize = 10; // 每页显示的项目数量
 
 export default function Page() {
-  const [projects, setProjects] = React.useState<Project[]>([]);
+  const [projectsData, setProjectsData] = React.useState<ProjectsData>({
+    projects: [],
+    total: 0,
+    showForward: false,
+    showBackward: false,
+    currentPage: 1,
+    pageSize: defaultPageSize
+  });
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  // 加载数据
-  React.useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        setIsLoading(true);
-        const data = await getScratchProjects();
-        setProjects(data);
-        setError(null);
-      } catch (error) {
-        console.error("加载数据失败:", error);
-        setError("加载项目列表失败");
-        setProjects([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
 
-    fetchProjects();
+
+  // 加载数据
+  const fetchProjects = async (beginID = "0", forard=false,asc=false ) => {
+    try {
+      let page = projectsData.currentPage;
+      if (beginID == "0") {
+        page = 0 ;
+      }
+
+      let pageSize=defaultPageSize;
+      let showForward = false;
+      let showBackward = false;
+
+
+      setIsLoading(true);
+      const response = await getScratchProjects(beginID, pageSize,forard,asc);
+
+      // 如果向后翻页
+      if (forard) {        
+        page++;
+        if (response.hasMore) {
+          showForward = true;
+        }
+        if (page > 1) {
+          showBackward = true;
+        }
+        // 如果向前翻页
+      } else {
+        page--;
+        if (page > 1) {
+          showBackward = true;
+        }
+        // 只有在有更多数据或不是第一页时才显示向前按钮
+        showForward = response.hasMore || page > 0;
+      }
+
+      setProjectsData({
+        projects: response.data || [],
+        total: response.total || 0,
+        showForward: showForward,
+        showBackward: showBackward,
+        currentPage: page,
+        pageSize: defaultPageSize
+    
+      });
+      setError(null);
+    } catch (error) {
+      console.error("加载数据失败:", error);
+      setError("加载项目列表失败");
+      setProjectsData({
+        projects:  [],
+        total:  0,
+        showForward: false,
+        showBackward: false,
+        currentPage: 1,
+        pageSize: defaultPageSize
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 初始加载
+  const isFirstRender = React.useRef(true);
+  
+  React.useEffect(() => {
+    if (isFirstRender.current) {
+      fetchProjects("0", true, false);
+      console.log("useEffect");
+      isFirstRender.current = false;
+    }
   }, []);
+
+  // 处理页码变化
+  const handlePageChange = (beginID: string,forward:boolean,asc:boolean) => {
+    fetchProjects(beginID,forward,asc);
+  };
+
 
   // 处理删除项目
   const handleDeleteProject = async (id: string) => {
     try {
       await deleteScratchProject(id);
-      // 删除成功后更新列表
-      setProjects(projects.filter(project => project.id !== id));
+      // 删除成功后重新加载当前页
+      if (projectsData.projects.length > 0) {
+        fetchProjects(projectsData.projects[0].id.toString(), false);
+      } else {
+        fetchProjects("0", false);
+      }
     } catch (error) {
       console.error("删除项目失败:", error);
       throw error;
@@ -120,7 +200,7 @@ export default function Page() {
           </div>
           <div className="ml-auto mr-4">
             <Button size="sm" asChild>
-              <Link to="/scratch">
+              <Link to={`${API_BASE_URL}/projects/scratch/new`}  target="_blank">
                 <IconPlus className="mr-2 h-4 w-4" />
                 新建项目
               </Link>
@@ -135,9 +215,10 @@ export default function Page() {
           )}
           
           <ProjectTable 
-            projects={projects} 
+            projectsData={projectsData} 
             isLoading={isLoading} 
-            onDeleteProject={handleDeleteProject} 
+            onDeleteProject={handleDeleteProject}
+            onPageChange={handlePageChange}
           />
         </div>
       </SidebarInset>

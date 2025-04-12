@@ -48,7 +48,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	scratchService := service.NewScratchService(db, filepath.Join(cfg.Storage.BasePath, "scratch"))
 
 	// 初始化处理器
-	h := handler.NewHandler(authService, fileService, scratchService)
+	h := handler.NewHandler(authService, fileService, scratchService, cfg)
 
 	// 初始化路由
 	r := gin.Default()
@@ -118,7 +118,8 @@ func (s *Server) setupRoutes() {
 	projects := s.router.Group("/projects")
 	projects.Use(s.handler.AuthMiddleware())
 	{
-		projects.GET("/scratch/:id", s.handler.OpenScratchProject)
+		projects.GET("/scratch/new", s.handler.NewScratchProject)
+		projects.GET("/scratch/open/:id", s.handler.OpenScratchProject)
 	}
 
 	assets := s.router.Group("/assets")

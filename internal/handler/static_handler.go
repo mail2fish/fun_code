@@ -3,7 +3,6 @@ package handler
 import (
 	"io/fs"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -46,9 +45,6 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 		fs = h.scratchFS
 		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/scratch")
 
-		if _, err := fs.Open(c.Request.URL.Path); os.IsNotExist(err) {
-			c.Request.URL.Path = "/scratch/index.html"
-		}
 	} else if c.Request.URL.Path == "/" {
 		// 直接返回 index.html 文件内容
 		file, err := h.wwwFS.Open("/index.html")
