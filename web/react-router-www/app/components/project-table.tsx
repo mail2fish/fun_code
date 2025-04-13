@@ -122,7 +122,7 @@ export function ProjectTable({
                   {project.id} 
                   </TableCell>
                   <TableCell className="font-medium">
-                  <Link to={`${API_BASE_URL}/projects/scratch/open/${project.id}`} target="_blank"> {project.name || "未命名项目"} </Link>   
+                  <a href={`${API_BASE_URL}/projects/scratch/open/${project.id}`} > {project.name || "未命名项目"} </a>   
                   </TableCell>
                   <TableCell>
                     {formatDate(project.created_at || project.createdAt)}
@@ -135,9 +135,9 @@ export function ProjectTable({
                         title="编辑"
                         asChild
                       >
-                        <Link to={`${API_BASE_URL}/projects/scratch/open/${project.id}`} target="_blank">
-                          <IconEdit className="h-4 w-4" />
-                        </Link>
+                        <a href={`${API_BASE_URL}/projects/scratch/open/${project.id}`}>
+                                          <IconEdit className="h-4 w-4" />
+                                        </a>
                       </Button>
                       <Dialog>
                         <DialogTrigger asChild>
