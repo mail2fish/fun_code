@@ -12,6 +12,7 @@ import './App.css';
 const getConfig = () => {
   return window.SCRATCH_CONFIG || {
     canSave: true,
+    canRemix: true,
     canCreateNew: true,
     canEditTitle: true,
     enableCommunity: false,
@@ -36,6 +37,7 @@ const App = () => {
       <div className="scratch-editor" style={{ height: '100vh' }}>
         <WrappedGui
           canSave={config.canSave}
+          canRemix={config.canRemix}
           canCreateNew={config.canCreateNew}
           canEditTitle={config.canEditTitle}
           enableCommunity={config.enableCommunity}

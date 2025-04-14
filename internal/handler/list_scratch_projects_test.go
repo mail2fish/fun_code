@@ -34,8 +34,8 @@ func TestListScratchProjects(t *testing.T) {
 
 	// 创建配置
 	cfg := &config.Config{
-		Server: config.ServerConfig{
-			AssetHost: "http://localhost:8080",
+		ScratchEditor: config.ScratchEditorConfig{
+			Host: "http://localhost:8080",
 		},
 	}
 

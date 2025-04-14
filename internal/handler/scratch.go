@@ -55,10 +55,10 @@ func (h *Handler) NewScratchProject(c *gin.Context) {
 	// 准备模板数据，新项目不需要项目ID
 	data := struct {
 		ProjectID string
-		AssetHost string
+		Host      string
 	}{
-		ProjectID: "0",                       // 新项目使用0作为ID
-		AssetHost: h.config.Server.AssetHost, // 从配置中获取 AssetHost
+		ProjectID: "0",                         // 新项目使用0作为ID
+		Host:      h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
 	}
 
 	// 设置响应头
@@ -125,13 +125,13 @@ func (h *Handler) OpenScratchProject(c *gin.Context) {
 		return
 	}
 
-	// 准备模板数据
+	// 准备模板数据，新项目不需要项目ID
 	data := struct {
 		ProjectID string
-		AssetHost string
+		Host      string
 	}{
-		ProjectID: projectID,
-		AssetHost: h.config.Server.AssetHost, // 从配置中获取 AssetHost
+		ProjectID: "0",                         // 新项目使用0作为ID
+		Host:      h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
 	}
 
 	// 设置响应头

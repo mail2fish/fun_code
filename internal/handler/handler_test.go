@@ -253,7 +253,7 @@ func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockS
 	mockAuth := new(MockAuthService)
 	mockFile := new(MockFileService)
 	mockScratch := new(MockScratchService)
-	cfg := &config.Config{Server: config.ServerConfig{AssetHost: "http://localhost/assets"}}
+	cfg := &config.Config{ScratchEditor: config.ScratchEditorConfig{Host: "http://localhost"}}
 	h := NewHandler(mockAuth, mockFile, mockScratch, cfg)
 
 	// 设置路由

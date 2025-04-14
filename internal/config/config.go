@@ -22,15 +22,19 @@ type JWTConfig struct {
 }
 
 type ServerConfig struct {
-	Port      string `yaml:"port"`
-	AssetHost string `yaml:"assetHost"` // 添加 AssetHost 配置项
+	Port string `yaml:"port"`
+}
+
+type ScratchEditorConfig struct {
+	Host string `yaml:"host"`
 }
 
 type Config struct {
-	Database DatabaseConfig `yaml:"database"`
-	Storage  StorageConfig  `yaml:"storage"`
-	JWT      JWTConfig     `yaml:"jwt"`
-	Server   ServerConfig  `yaml:"server"`
+	Database      DatabaseConfig      `yaml:"database"`
+	Storage       StorageConfig       `yaml:"storage"`
+	JWT           JWTConfig           `yaml:"jwt"`
+	Server        ServerConfig        `yaml:"server"`
+	ScratchEditor ScratchEditorConfig `yaml:"scratch_editor"`
 }
 
 func LoadConfig(path string) (*Config, error) {

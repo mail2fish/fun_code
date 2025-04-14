@@ -44,8 +44,7 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 	} else if strings.HasPrefix(c.Request.URL.Path, "/scratch") {
 		fs = h.scratchFS
 		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/scratch")
-
-	} else if c.Request.URL.Path == "/" {
+	} else if c.Request.URL.Path == "/" || strings.HasPrefix(c.Request.URL.Path, "/www") {
 		// 直接返回 index.html 文件内容
 		file, err := h.wwwFS.Open("/index.html")
 		if err != nil {

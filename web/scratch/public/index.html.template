@@ -13,14 +13,15 @@
       // 全局配置对象
       window.SCRATCH_CONFIG = {
         canSave: true,
+        canRemix: true,
         canCreateNew: true,
         canEditTitle: true,
         enableCommunity: false,
         showComingSoon: false,
-        projectHost: "http://localhost:8080/api/scratch/projects",
+        projectHost: "{{ .Host }}/api/scratch/projects",
         projectId: "{{ .ProjectID }}",
         basePath: "/scratch/",
-        assetHost: "{{ .AssetHost }}"
+        assetHost: "{{ .Host }}/assets/scratch"
       };
     
       // 设置cookie的函数
@@ -35,7 +36,7 @@
       }
       
       // 使用示例
-      setCookie("auth_token", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJpc3MiOiJmdW5fY29kZSIsImV4cCI6MTc0Mzc2MDAxOCwiaWF0IjoxNzQzNjczNjE4fQ.wRTUSmcXh30pu5w6RC6wx9mmAxlSDRxUisWu9RWmvtA", 1); // 1天后过期
+      setCookie("auth_token", "", 1); // 1天后过期
     </script>
   </head>
   <body>
