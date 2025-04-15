@@ -109,8 +109,8 @@ func (s *Server) setupRoutes() {
 
 		// Scratch 相关路由
 		auth.GET("/scratch/projects/:id", s.handler.GetScratchProject)
-		auth.POST("/scratch/projects/", s.handler.CreateScratchProject)
-		auth.PUT("/scratch/projects/:id", s.handler.SaveScratchProject)
+		auth.POST("/scratch/projects/", s.handler.PostCreateScratchProject)
+		auth.PUT("/scratch/projects/:id", s.handler.PutSaveScratchProject)
 		auth.GET("/scratch/projects", s.handler.ListScratchProjects)
 		auth.DELETE("/scratch/projects/:id", s.handler.DeleteScratchProject)
 	}
@@ -118,14 +118,14 @@ func (s *Server) setupRoutes() {
 	projects := s.router.Group("/projects")
 	projects.Use(s.handler.AuthMiddleware())
 	{
-		projects.GET("/scratch/new", s.handler.NewScratchProject)
-		projects.GET("/scratch/open/:id", s.handler.OpenScratchProject)
+		projects.GET("/scratch/new", s.handler.GetNewScratchProject)
+		projects.GET("/scratch/open/:id", s.handler.GetOpenScratchProject)
 	}
 
 	assets := s.router.Group("/assets")
 	assets.Use(s.handler.AuthMiddleware())
 	// 添加新的路由用于获取Scratch资源文件
-	{	
+	{
 		assets.GET("/scratch/:filename", s.handler.GetLibraryAsset)
 		assets.POST("/scratch/:asset_id", s.handler.UploadScratchAsset)
 	}

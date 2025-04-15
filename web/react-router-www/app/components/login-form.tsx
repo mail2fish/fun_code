@@ -7,7 +7,7 @@ import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
 
-import { API_BASE_URL } from "~/config";
+import { HOST_URL } from "~/config";
 
 export function LoginForm({
   className,
@@ -41,7 +41,7 @@ export function LoginForm({
     
     try {
       setIsLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
+      const response = await axios.post(`${HOST_URL}/api/auth/login`, {
         username,
         password,
       });

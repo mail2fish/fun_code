@@ -271,8 +271,8 @@ func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockS
 
 		// Scratch 相关路由
 		auth.GET("/scratch/projects/:id", h.GetScratchProject)
-		auth.POST("/scratch/projects", h.CreateScratchProject)
-		auth.PUT("/scratch/projects/:id", h.SaveScratchProject)
+		auth.POST("/scratch/projects", h.PostCreateScratchProject)
+		auth.PUT("/scratch/projects/:id", h.PutSaveScratchProject)
 		auth.GET("/scratch/projects", h.ListScratchProjects)
 		auth.DELETE("/scratch/projects/:id", h.DeleteScratchProject)
 	}

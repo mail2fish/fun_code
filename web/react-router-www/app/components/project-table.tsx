@@ -23,7 +23,7 @@ import {
 } from "~/components/ui/table"
 import { toast } from  "sonner" 
 
-import { API_BASE_URL } from "~/config";
+import { HOST_URL } from "~/config";
 
 export interface Project {
   id: string
@@ -122,7 +122,7 @@ export function ProjectTable({
                   {project.id} 
                   </TableCell>
                   <TableCell className="font-medium">
-                  <a href={`${API_BASE_URL}/projects/scratch/open/${project.id}`} > {project.name || "未命名项目"} </a>   
+                  <a href={`${HOST_URL}/projects/scratch/open/${project.id}`} > {project.name || "未命名项目"} </a>   
                   </TableCell>
                   <TableCell>
                     {formatDate(project.created_at || project.createdAt)}
@@ -135,7 +135,7 @@ export function ProjectTable({
                         title="编辑"
                         asChild
                       >
-                        <a href={`${API_BASE_URL}/projects/scratch/open/${project.id}`}>
+                        <a href={`${HOST_URL}/projects/scratch/open/${project.id}`}>
                                           <IconEdit className="h-4 w-4" />
                                         </a>
                       </Button>

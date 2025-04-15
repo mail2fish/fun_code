@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/web"
@@ -21,7 +22,7 @@ import (
 // 通过 html/template 包 tmpl.Execute, 注入数据 ProjectID string,AssetHost string
 // AssetHost 从 config/config.go 中获取 AssetHost
 
-func (h *Handler) NewScratchProject(c *gin.Context) {
+func (h *Handler) GetNewScratchProject(c *gin.Context) {
 	// 从嵌入的文件系统中获取index.html
 	scratchFS, err := fs.Sub(web.ScratchStaticFiles, "scratch/dist")
 	if err != nil {
@@ -73,9 +74,9 @@ func (h *Handler) NewScratchProject(c *gin.Context) {
 	}
 }
 
-// OpenScratchProject 打开Scratch项目
-// 修改 OpenScratchProject 函数中的 AssetHost
-func (h *Handler) OpenScratchProject(c *gin.Context) {
+// GetOpenScratchProject 打开Scratch项目
+// 修改 GetOpenScratchProject 函数中的 AssetHost
+func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 	projectID := c.Param("id")
 
 	// 从 service 获取项目数据
@@ -174,8 +175,8 @@ func (h *Handler) GetScratchProject(c *gin.Context) {
 	c.Writer.Write(projectData)
 }
 
-// SaveScratchProject 保存Scratch项目
-func (h *Handler) SaveScratchProject(c *gin.Context) {
+// PutSaveScratchProject 保存Scratch项目
+func (h *Handler) PutSaveScratchProject(c *gin.Context) {
 	log.Println("dbg SaveScratchProject")
 	// 获取当前用户ID
 	userID := h.getUserID(c)
@@ -192,7 +193,7 @@ func (h *Handler) SaveScratchProject(c *gin.Context) {
 
 	// 修改后的请求体结构
 	req := make(map[string]interface{})
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "无效的请求参数",
 		})
@@ -207,11 +208,12 @@ func (h *Handler) SaveScratchProject(c *gin.Context) {
 		})
 		return
 	}
+	title := c.DefaultQuery("title", "Scratch Project")
 
 	// 保存项目
 	// 修改服务调用参数
 	// 由于 SaveProject 返回 uint 类型，需要将 projectID 声明为 uint
-	_, err = h.scratchService.SaveProject(userID, uint(id), "", r)
+	_, err = h.scratchService.SaveProject(userID, uint(id), title, r)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "保存项目失败: " + err.Error(),
@@ -313,10 +315,44 @@ func (h *Handler) getUserID(c *gin.Context) uint {
 	return userID.(uint)
 }
 
-// CreateScratchProject 创建新的Scratch项目
-func (h *Handler) CreateScratchProject(c *gin.Context) {
+// PostCreateScratchProject 创建新的Scratch项目
+func (h *Handler) PostCreateScratchProject(c *gin.Context) {
 	// 获取当前用户ID
 	userID := h.getUserID(c)
+
+	// 添加限流逻辑
+	h.createProjectLimiterLock.Lock()
+	now := time.Now()
+
+	// 获取用户的调用记录
+	times, exists := h.createProjectLimiter[userID]
+	if !exists {
+		times = []time.Time{}
+	}
+
+	// 清理3分钟前的记录
+	var validTimes []time.Time
+	for _, t := range times {
+		if now.Sub(t) < 3*time.Minute {
+			validTimes = append(validTimes, t)
+		}
+	}
+
+	// 检查是否超过限制（3分钟内最多3次）
+	if len(validTimes) >= 3 {
+		h.createProjectLimiterLock.Unlock()
+		c.JSON(http.StatusTooManyRequests, gin.H{
+			"error": "操作过于频繁，请稍后再试",
+		})
+		return
+	}
+
+	// 添加当前时间到记录中
+	validTimes = append(validTimes, now)
+	h.createProjectLimiter[userID] = validTimes
+	h.createProjectLimiterLock.Unlock()
+
+	title := c.DefaultQuery("title", "Scratch Project")
 
 	// 解析请求参数
 	req := make(map[string]interface{})
@@ -346,7 +382,7 @@ func (h *Handler) CreateScratchProject(c *gin.Context) {
 	}
 
 	// 调用服务创建项目（使用0表示新项目）
-	projectID, err := h.scratchService.SaveProject(userID, 0, "default", r)
+	projectID, err := h.scratchService.SaveProject(userID, 0, title, r)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "创建项目失败: " + err.Error(),

@@ -24,7 +24,7 @@ import {
 import { fetchWithAuth } from "~/utils/api";
 
 // API 服务
-import { API_BASE_URL } from "~/config";
+import { HOST_URL } from "~/config";
 
 // 获取项目列表
 async function getScratchProjects(beginID = "0",pageSize = 10,forward = false,asc=false) {
@@ -37,7 +37,7 @@ async function getScratchProjects(beginID = "0",pageSize = 10,forward = false,as
       params.append('beginID', beginID.toString());
     }
     
-    const response = await fetchWithAuth(`${API_BASE_URL}/api/scratch/projects?${params.toString()}`);
+    const response = await fetchWithAuth(`${HOST_URL}/api/scratch/projects?${params.toString()}`);
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`);
     }
@@ -51,7 +51,7 @@ async function getScratchProjects(beginID = "0",pageSize = 10,forward = false,as
 // 删除项目
 async function deleteScratchProject(id: string) {
   try {
-    const response = await fetchWithAuth(`${API_BASE_URL}/api/scratch/projects/${id}`, {
+    const response = await fetchWithAuth(`${HOST_URL}/api/scratch/projects/${id}`, {
       method: "DELETE",
     });
     if (!response.ok) {
@@ -76,6 +76,8 @@ export default function Page() {
   });
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  // 添加按钮冷却状态
+  const [isButtonCooling, setIsButtonCooling] = React.useState(false);
 
 
 
@@ -173,6 +175,19 @@ export default function Page() {
     }
   };
 
+  // 处理新建项目按钮点击
+  const handleNewProjectClick = (e: React.MouseEvent) => {
+    if (isButtonCooling) {
+      e.preventDefault();
+      return;
+    }
+    
+    setIsButtonCooling(true);
+    setTimeout(() => {
+      setIsButtonCooling(false);
+    }, 2000); // 2秒冷却时间
+  };
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -199,10 +214,19 @@ export default function Page() {
             </Breadcrumb>
           </div>
           <div className="ml-auto mr-4">
-            <Button size="sm" asChild>
-              <Link to={`${API_BASE_URL}/projects/scratch/new`}  target="_blank">
+            <Button 
+              size="sm" 
+              asChild
+              disabled={isButtonCooling}
+            >
+              <Link 
+                to={`${HOST_URL}/projects/scratch/new`} 
+                target="_blank"
+                onClick={handleNewProjectClick}
+                className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
+              >
                 <IconPlus className="mr-2 h-4 w-4" />
-                新建项目
+                {isButtonCooling ? "请稍候..." : "新建项目"}
               </Link>
             </Button>
           </div>

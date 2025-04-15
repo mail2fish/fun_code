@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/service"
@@ -18,6 +20,10 @@ type Handler struct {
 	fileService    service.FileService
 	scratchService service.ScratchService
 	config         *config.Config // 添加配置字段
+	
+	// 用于限流的映射和互斥锁
+	createProjectLimiter     map[uint][]time.Time
+	createProjectLimiterLock sync.Mutex
 }
 
 func NewHandler(auth service.AuthService, file service.FileService, scratch service.ScratchService, cfg *config.Config) *Handler {
@@ -26,6 +32,7 @@ func NewHandler(auth service.AuthService, file service.FileService, scratch serv
 		fileService:    file,
 		scratchService: scratch,
 		config:         cfg, // 初始化配置字段
+		createProjectLimiter: make(map[uint][]time.Time),
 	}
 }
 
