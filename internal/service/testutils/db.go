@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/jun/fun_code/internal/model"
+	"github.com/jun/fun_code/internal/database"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -22,16 +22,7 @@ func SetupTestDB() *gorm.DB {
 		panic("failed to connect database")
 	}
 
-	// 自动迁移数据库结构，创建必要的表
-	err = db.AutoMigrate(&model.User{}, &model.File{}, &model.ScratchProject{})
-	if err != nil {
-		panic("failed to migrate database: " + err.Error())
-	}
-
-	// 迁移会话模型
-	if err := db.AutoMigrate(&model.UserSession{}); err != nil {
-		panic("failed to migrate database: " + err.Error())
-	}
+	database.RunMigrations(db)
 
 	return db
 }

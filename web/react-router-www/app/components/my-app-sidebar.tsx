@@ -36,7 +36,7 @@ const data = {
         },
         {
           title: "创建班级",
-          url: "#",
+          url: "/www/class/create",
           isActive: false,
         },
       ],
@@ -52,7 +52,7 @@ const data = {
         },
         {
           title: "创建学员",
-          url: "#",
+          url: "",
           isActive: false,
         },
       ],

@@ -21,7 +21,7 @@ type AuthServiceImpl struct {
 }
 
 // 修改 NewAuthService 函数，添加缓存参数
-func NewAuthService(db *gorm.DB, jwtKey []byte, sessionCache cache.SessionCache) AuthService {
+func NewAuthService(db *gorm.DB, jwtKey []byte, sessionCache cache.SessionCache) UserService {
 	return &AuthServiceImpl{
 		db:           db,
 		jwtKey:       jwtKey,

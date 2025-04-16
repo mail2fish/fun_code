@@ -41,8 +41,8 @@ func TestListScratchProjects(t *testing.T) {
 
 	// 创建处理器
 	h := &Handler{
-		scratchService: scratchService,
-		config:         cfg,
+		services: service.Services{ScratchService: scratchService},
+		config:   cfg,
 	}
 
 	// 创建测试用户

@@ -18,7 +18,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.Register(req.Username, req.Password, req.Email); err != nil {
+	if err := h.services.UserService.Register(req.Username, req.Password, req.Email); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -37,7 +37,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	token, cookie, err := h.authService.Login(req.Username, req.Password)
+	token, cookie, err := h.services.UserService.Login(req.Username, req.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -65,7 +65,7 @@ func (h *Handler) Logout(c *gin.Context) {
 		return
 	}
 	// 调用服务层登出方法
-	expiredCookie, err := h.authService.Logout(token)
+	expiredCookie, err := h.services.UserService.Logout(token)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -95,7 +95,7 @@ func (h *Handler) AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		claims, err := h.authService.ValidateToken(token)
+		claims, err := h.services.UserService.ValidateToken(token)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的token"})
 			c.Abort()

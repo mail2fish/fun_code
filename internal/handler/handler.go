@@ -16,27 +16,22 @@ import (
 )
 
 type Handler struct {
-	authService    service.AuthService
-	fileService    service.FileService
-	scratchService service.ScratchService
-	config         *config.Config // 添加配置字段
-	
+	services service.Services
+	config   *config.Config // 添加配置字段
+
 	// 用于限流的映射和互斥锁
 	createProjectLimiter     map[uint][]time.Time
 	createProjectLimiterLock sync.Mutex
 }
 
-func NewHandler(auth service.AuthService, file service.FileService, scratch service.ScratchService, cfg *config.Config) *Handler {
+func NewHandler(services service.Services,
+	cfg *config.Config) *Handler {
 	return &Handler{
-		authService:    auth,
-		fileService:    file,
-		scratchService: scratch,
-		config:         cfg, // 初始化配置字段
+		services:             services,
+		config:               cfg, // 初始化配置字段
 		createProjectLimiter: make(map[uint][]time.Time),
 	}
 }
-
-
 
 func (h *Handler) CreateDirectory(c *gin.Context) {
 	userID := c.GetUint("userID")
@@ -50,7 +45,7 @@ func (h *Handler) CreateDirectory(c *gin.Context) {
 		return
 	}
 
-	if err := h.fileService.CreateDirectory(userID, req.Name, req.ParentID); err != nil {
+	if err := h.services.FileService.CreateDirectory(userID, req.Name, req.ParentID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建目录失败"})
 		return
 	}
@@ -86,7 +81,7 @@ func (h *Handler) UploadFile(c *gin.Context) {
 	defer src.Close()
 
 	contentType := file.Header.Get("Content-Type")
-	if err := h.fileService.UploadFile(userID, file.Filename, parentID, contentType, file.Size, src); err != nil {
+	if err := h.services.FileService.UploadFile(userID, file.Filename, parentID, contentType, file.Size, src); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "上传文件失败"})
 		return
 	}
@@ -109,7 +104,7 @@ func (h *Handler) ListFiles(c *gin.Context) {
 		parentID = &uintID
 	}
 
-	files, err := h.fileService.ListFiles(userID, parentID)
+	files, err := h.services.FileService.ListFiles(userID, parentID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取文件列表失败"})
 		return
@@ -126,7 +121,7 @@ func (h *Handler) DownloadFile(c *gin.Context) {
 		return
 	}
 
-	file, err := h.fileService.GetFile(userID, uint(fileID))
+	file, err := h.services.FileService.GetFile(userID, uint(fileID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -150,7 +145,7 @@ func (h *Handler) DeleteFile(c *gin.Context) {
 		return
 	}
 
-	if err := h.fileService.DeleteFile(userID, uint(fileID)); err != nil {
+	if err := h.services.FileService.DeleteFile(userID, uint(fileID)); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
 		} else {
