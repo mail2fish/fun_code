@@ -16,18 +16,24 @@ const getConfig = () => {
     canCreateNew: true,
     canEditTitle: true,
     enableCommunity: false,
-    showComingSoon: false,
+    showComingSoon: true,
     projectHost: "",
     projectId: "",
     basePath: "./",
-    assetHost: ""
+    assetHost: "",
+    host: "http://localhost:8080",
+    projectsRoute: "/www/scratch/projects"
   };
+};
+
+const onClickLogo = () => {
+  let cfg=getConfig()
+  window.location = cfg.projectsRoute;
 };
 
 const App = () => {
   // 获取配置
   const config = getConfig();
-
   const WrappedGui = compose(
     AppStateHOC,
 )(GUI);
@@ -46,6 +52,7 @@ const App = () => {
           projectId={config.projectId}
           basePath={config.basePath}
           assetHost={config.assetHost}
+          onClickLogo={onClickLogo}
         />
       </div>      
     </Provider>

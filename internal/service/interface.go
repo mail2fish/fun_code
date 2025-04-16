@@ -12,9 +12,9 @@ type AuthService interface {
 	Register(username, password, email string) error
 	// 修改 Login 方法的返回值，增加 *http.Cookie
 	Login(username, password string) (string, *http.Cookie, error)
+	Logout(token string) (*http.Cookie, error)
 	ValidateToken(tokenString string) (*Claims, error)
 	GenerateCookie(token string) *http.Cookie
-	ValidateCookie(cookie *http.Cookie) (*Claims, error)
 }
 
 type FileService interface {

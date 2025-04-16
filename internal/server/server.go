@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/jun/fun_code/internal/cache"
 	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/handler"
 	"github.com/jun/fun_code/internal/model"
@@ -33,7 +34,8 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	}
 
 	// 自动迁移数据库结构
-	if err := db.AutoMigrate(&model.User{}, &model.File{}, &model.ScratchProject{}); err != nil {
+	err = db.AutoMigrate(&model.User{}, &model.File{}, &model.ScratchProject{})
+	if err != nil {
 		return nil, err
 	}
 
@@ -43,7 +45,10 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	}
 
 	// 初始化服务
-	authService := service.NewAuthService(db, []byte(cfg.JWT.SecretKey))
+	// 创建一个新的会话缓存实例
+	c := cache.NewGoCache()
+	sessionCache := cache.NewUserSessionCache(c)
+	authService := service.NewAuthService(db, []byte(cfg.JWT.SecretKey), sessionCache)
 	fileService := service.NewFileService(db, cfg.Storage.BasePath)
 	scratchService := service.NewScratchService(db, filepath.Join(cfg.Storage.BasePath, "scratch"))
 

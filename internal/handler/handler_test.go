@@ -40,6 +40,15 @@ func (m *MockAuthService) Login(username, password string) (string, *http.Cookie
 	return args.String(0), args.Get(1).(*http.Cookie), args.Error(2)
 }
 
+// Logout 方法的模拟实现
+func (m *MockAuthService) Logout(token string) (*http.Cookie, error) {
+	args := m.Called(token)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*http.Cookie), args.Error(1)
+}
+
 // 修改 TestHandler_Login 测试函数
 func TestHandler_Login(t *testing.T) {
 	r, mockAuth, _, _ := setupTestHandler()
@@ -168,15 +177,6 @@ func (m *MockFileService) ListFiles(userID uint, parentID *uint) ([]model.File, 
 func (m *MockFileService) DeleteFile(userID, fileID uint) error {
 	args := m.Called(userID, fileID)
 	return args.Error(0)
-}
-
-// 添加 ValidateCookie 方法到 MockAuthService
-func (m *MockAuthService) ValidateCookie(cookie *http.Cookie) (*service.Claims, error) {
-	args := m.Called(cookie)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*service.Claims), args.Error(1)
 }
 
 // 修复 GenerateCookie 方法的位置和 setupTestHandler 函数
@@ -737,7 +737,7 @@ func TestHandler_SaveScratchProject(t *testing.T) {
 			if tt.projectID != "invalid" {
 				id, _ := strconv.ParseUint(tt.projectID, 10, 64)
 				contentBytes, _ := json.Marshal(tt.reqBody)
-				mockScratch.On("SaveProject", uint(1), uint(id), "", contentBytes).Return(tt.mockID, tt.mockErr).Once()
+				mockScratch.On("SaveProject", uint(1), uint(id), "Scratch Project", contentBytes).Return(tt.mockID, tt.mockErr).Once()
 			}
 
 			r.ServeHTTP(w, req)
@@ -857,7 +857,7 @@ func TestHandler_CreateScratchProject(t *testing.T) {
 			// 只有当setupMock为true时才设置SaveProject的mock
 			if tt.setupMock {
 				contentBytes, _ := json.Marshal(tt.reqBody)
-				mockScratch.On("SaveProject", uint(1), uint(0), "default", contentBytes).Return(tt.mockID, tt.mockErr).Once()
+				mockScratch.On("SaveProject", uint(1), uint(0), "Scratch Project", contentBytes).Return(tt.mockID, tt.mockErr).Once()
 			}
 
 			r.ServeHTTP(w, req)

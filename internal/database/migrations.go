@@ -1,0 +1,25 @@
+package database
+
+import (
+	"github.com/jun/fun_code/internal/model"
+	"gorm.io/gorm"
+)
+
+// RunMigrations 运行所有数据库迁移
+func RunMigrations(db *gorm.DB) error {
+	// 迁移现有模型
+	if err := db.AutoMigrate(&model.User{}); err != nil {
+		return err
+	}
+
+	// 迁移会话模型
+	if err := db.AutoMigrate(&model.UserSession{}); err != nil {
+		return err
+	}
+
+	// 迁移文件模型 ScratchProject
+	if err := db.AutoMigrate(&model.File{}, &model.ScratchProject{}); err != nil {
+		return err
+	}
+	return nil
+}

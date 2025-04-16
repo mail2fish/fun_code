@@ -28,5 +28,10 @@ func SetupTestDB() *gorm.DB {
 		panic("failed to migrate database: " + err.Error())
 	}
 
+	// 迁移会话模型
+	if err := db.AutoMigrate(&model.UserSession{}); err != nil {
+		panic("failed to migrate database: " + err.Error())
+	}
+
 	return db
 }

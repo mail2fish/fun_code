@@ -21,7 +21,9 @@
         projectHost: "{{ .Host }}/api/scratch/projects",
         projectId: "{{ .ProjectID }}",
         basePath: "/scratch/",
-        assetHost: "{{ .Host }}/assets/scratch"
+        assetHost: "{{ .Host }}/assets/scratch",
+        host: "{{ .Host }}",
+        projectsRoute: "/www/scratch/projects"
       };    
     </script>
   </head>

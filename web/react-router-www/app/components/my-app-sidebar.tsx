@@ -26,13 +26,45 @@ const data = {
   versions: ["0.0.1"],
   navMain: [
     {
-      title: "Scratch程序",
+      title: "班级管理",
+      url: "#",
+      items: [
+        {
+          title: "班级列表",
+          url: "#",
+          isActive: false,
+        },
+        {
+          title: "创建班级",
+          url: "#",
+          isActive: false,
+        },
+      ],
+    },
+    {
+      title: "学员管理",
+      url: "#",
+      items: [
+        {
+          title: "学员列表",
+          url: "#",
+          isActive: false,
+        },
+        {
+          title: "创建学员",
+          url: "#",
+          isActive: false,
+        },
+      ],
+    },    
+    {
+      title: "Scratch程序管理",
       url: "#",
       items: [
         {
           title: "程序列表",
           url: "#",
-          isActive: true,
+          isActive: false,
         },
       ],
     },

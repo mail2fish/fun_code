@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jun/fun_code/internal/cache"
 	"github.com/jun/fun_code/internal/model"
+	"gorm.io/gorm"
 
 	"github.com/jun/fun_code/internal/service/testutils"
 
@@ -17,7 +19,9 @@ import (
 func TestAuth(t *testing.T) {
 	db := testutils.SetupTestDB()
 	jwtKey := []byte("test_key")
-	authService := NewAuthService(db, jwtKey)
+	c := cache.NewGoCache()
+	sessionCache := cache.NewUserSessionCache(c)
+	authService := NewAuthService(db, jwtKey, sessionCache)
 
 	tests := []struct {
 		name     string
@@ -69,7 +73,9 @@ func TestAuthService_Login(t *testing.T) {
 	// 使用 testutils 中的函数
 	db := testutils.SetupTestDB()
 	jwtKey := []byte("test_key")
-	authService := NewAuthService(db, jwtKey)
+	c := cache.NewGoCache()
+	sessionCache := cache.NewUserSessionCache(c)
+	authService := NewAuthService(db, jwtKey, sessionCache)
 
 	// 创建测试用户
 	password := "password123"
@@ -149,7 +155,9 @@ func TestAuthService_Login(t *testing.T) {
 func TestAuthService_GenerateCookie(t *testing.T) {
 	db := testutils.SetupTestDB()
 	jwtKey := []byte("test_key")
-	authService := NewAuthService(db, jwtKey)
+	c := cache.NewGoCache()
+	sessionCache := cache.NewUserSessionCache(c)
+	authService := NewAuthService(db, jwtKey, sessionCache)
 
 	token := "test.token.string"
 	cookie := authService.GenerateCookie(token)
@@ -163,72 +171,32 @@ func TestAuthService_GenerateCookie(t *testing.T) {
 	assert.Equal(t, 86400, cookie.MaxAge)
 }
 
-func TestAuthService_ValidateCookie(t *testing.T) {
-	db := testutils.SetupTestDB()
-	jwtKey := []byte("test_key")
-	authService := NewAuthService(db, jwtKey)
-
-	// 创建一个有效的 token
-	claims := Claims{
-		UserID: 1,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer:    "fun_code",
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	validToken, err := token.SignedString(jwtKey)
-	assert.NoError(t, err)
-
-	tests := []struct {
-		name    string
-		cookie  *http.Cookie
-		wantErr bool
-	}{
-		{
-			name: "有效cookie",
-			cookie: &http.Cookie{
-				Name:  "auth_token",
-				Value: validToken,
-			},
-			wantErr: false,
-		},
-		{
-			name:    "空cookie",
-			cookie:  nil,
-			wantErr: true,
-		},
-		{
-			name: "无效token的cookie",
-			cookie: &http.Cookie{
-				Name:  "auth_token",
-				Value: "invalid.token.string",
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			claims, err := authService.ValidateCookie(tt.cookie)
-			if tt.wantErr {
-				assert.Error(t, err)
-				assert.Nil(t, claims)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, claims)
-				assert.Equal(t, uint(1), claims.UserID)
-			}
-		})
-	}
-}
-
 func TestAuthService_ValidateToken(t *testing.T) {
 	db := testutils.SetupTestDB()
 	jwtKey := []byte("test_key")
-	authService := NewAuthService(db, jwtKey)
+	c := cache.NewGoCache()
+	sessionCache := cache.NewUserSessionCache(c)
+	authService := NewAuthService(db, jwtKey, sessionCache)
+
+	// 创建测试用户
+	user := model.User{
+		Model:    gorm.Model{ID: 1},
+		Username: "testuser",
+		Password: "hashedpassword",
+		Email:    "test@example.com",
+	}
+	err := db.Create(&user).Error
+	assert.NoError(t, err)
+
+	// 创建有效的会话记录
+	session := model.UserSession{
+		UserID:    1,
+		SessionID: "test-session-id",
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+		IsActive:  true,
+	}
+	err = db.Create(&session).Error
+	assert.NoError(t, err)
 
 	// 创建一个有效的 token
 	claims := Claims{
