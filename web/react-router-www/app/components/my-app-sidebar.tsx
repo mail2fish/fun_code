@@ -31,7 +31,7 @@ const data = {
       items: [
         {
           title: "班级列表",
-          url: "#",
+          url: "/www/class/list",
           isActive: false,
         },
         {

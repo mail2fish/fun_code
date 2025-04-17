@@ -7,7 +7,6 @@ import (
 
 	"github.com/jun/fun_code/internal/cache"
 	"github.com/jun/fun_code/internal/model"
-	"gorm.io/gorm"
 
 	"github.com/jun/fun_code/internal/service/testutils"
 
@@ -180,7 +179,7 @@ func TestAuthService_ValidateToken(t *testing.T) {
 
 	// 创建测试用户
 	user := model.User{
-		Model:    gorm.Model{ID: 1},
+		ID:       1,
 		Username: "testuser",
 		Password: "hashedpassword",
 		Email:    "test@example.com",

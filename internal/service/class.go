@@ -27,7 +27,7 @@ func (s *ClassServiceImpl) CreateClass(teacherID uint, name, description string,
 	if err != nil {
 		return nil, errors.New("开始日期格式无效")
 	}
-	
+
 	endDate, err := time.Parse("2006-01-02", endDateStr)
 	if err != nil {
 		return nil, errors.New("结束日期格式无效")
@@ -37,10 +37,10 @@ func (s *ClassServiceImpl) CreateClass(teacherID uint, name, description string,
 	if name == "" {
 		return nil, errors.New("班级名称不能为空")
 	}
-	
+
 	// 生成唯一邀请码
 	code := uuid.New().String()[:8]
-	
+
 	class := model.Class{
 		Name:        name,
 		Description: description,
@@ -50,11 +50,11 @@ func (s *ClassServiceImpl) CreateClass(teacherID uint, name, description string,
 		TeacherID:   teacherID,
 		IsActive:    true,
 	}
-	
+
 	if err := s.db.Create(&class).Error; err != nil {
 		return nil, errors.New("创建班级失败")
 	}
-	
+
 	return &class, nil
 }
 
@@ -68,7 +68,7 @@ func (s *ClassServiceImpl) UpdateClass(classID, teacherID uint, updates map[stri
 		}
 		return err
 	}
-	
+
 	// 处理日期字段
 	if startDateStr, ok := updates["start_date"].(string); ok {
 		startDate, err := time.Parse("2006-01-02", startDateStr)
@@ -77,7 +77,7 @@ func (s *ClassServiceImpl) UpdateClass(classID, teacherID uint, updates map[stri
 		}
 		updates["start_date"] = startDate
 	}
-	
+
 	if endDateStr, ok := updates["end_date"].(string); ok {
 		endDate, err := time.Parse("2006-01-02", endDateStr)
 		if err != nil {
@@ -85,12 +85,12 @@ func (s *ClassServiceImpl) UpdateClass(classID, teacherID uint, updates map[stri
 		}
 		updates["end_date"] = endDate
 	}
-	
+
 	// 更新班级信息
 	if err := s.db.Model(&class).Updates(updates).Error; err != nil {
 		return errors.New("更新班级失败")
 	}
-	
+
 	return nil
 }
 
@@ -103,7 +103,7 @@ func (s *ClassServiceImpl) GetClass(classID uint) (*model.Class, error) {
 		}
 		return nil, err
 	}
-	
+
 	return &class, nil
 }
 
@@ -113,8 +113,118 @@ func (s *ClassServiceImpl) ListClasses(teacherID uint) ([]model.Class, error) {
 	if err := s.db.Where("teacher_id = ?", teacherID).Find(&classes).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return classes, nil
+}
+
+// ListClassesWithPagination 分页列出Teacher的所有班级
+// 参数：
+// userID 为 uint 类型，代表用户ID
+// pageSize 为 uint 类型，代表每页的班级数量
+// beginID 为 uint 类型，代表分页的起始ID
+// forward 为 bool 类型，代表是否向前分页
+// asc 为 bool 类型，代表返回结果是否按升序排序
+// 返回值：
+// []model.ScratchProject 类型，代表分页后的班级列表
+// bool 类型，代表是否还有更多班级
+// error 类型，代表错误信息
+// 说明：
+// userID 为 0 时，返回所有用户的班级
+// userID 不为 0 时，返回指定用户的班级
+// pageSize 为 0 时，使用默认值 20
+// asc 为 true 时，返回结果数组按 id 升序排序，代表页面按升序显示
+// asc 为 false 时，返回结果数组按 id 降序排序，代表页面按降序显示
+// biginID 为 0 ，asc 为 true，  order 按 id asc 排序
+// biginID 为 0 ，asc 为 false， order 按 id desc 排序
+// (asc == true and forward == true), 那么 where 条件为 id >= beginID, order 为 id asc
+// (asc == true and forward == false)， 那么 where 条件为 id <= beginID，order 为 id desc
+// (asc == false and forward == true)， 那么 where 条件为 id <= beginID，order 为 id desc
+// (asc == false and forward == false)， 那么 where 条件为 id >= beginID, order 为 id asc
+// 查询 limit 为 abs(pageSize)+1 条记录，如果查询结果数组 length <= pageSize 条记录，hasMore 为 false
+// 查询 limit 为 abs(pageSize)+1 条记录，如果查询结果数组 length > pageSize 条记录，hasMore 为 true
+func (s *ClassServiceImpl) ListClassesWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Class, bool, error) {
+	var classes []model.Class
+
+	// 处理 pageSize 为 0 的情况，使用默认值 20
+	if pageSize == 0 {
+		pageSize = 20
+	}
+
+	// 构建基础查询
+	query := s.db
+
+	// 如果指定了用户ID，则只查询该用户的班级
+	if userID > 0 {
+		query = query.Where("teacher_id = ?", userID)
+	}
+
+	// 记录查询是否按升序排序
+	queryAsc := false
+
+	// 根据 beginID、forward 和 asc 设置查询条件和排序
+	if beginID > 0 {
+		if asc && forward {
+			// asc == true and forward == true
+			// id >= beginID, order 为 id asc
+			query = query.Where("id > ?", beginID).Order("id ASC")
+			queryAsc = true
+		} else if asc && !forward {
+			// asc == true and forward == false
+			// id <= beginID，order 为 id desc
+			query = query.Where("id < ?", beginID).Order("id DESC")
+			queryAsc = false
+		} else if !asc && forward {
+			// asc == false and forward == true
+			// id <= beginID，order 为 id desc
+			query = query.Where("id < ?", beginID).Order("id DESC")
+			queryAsc = false
+		} else {
+			// asc == false and forward == false
+			// id >= beginID, order 为 id asc
+			query = query.Where("id > ?", beginID).Order("id ASC")
+			queryAsc = true
+		}
+	} else {
+		// beginID 为 0 的情况
+		if asc {
+			// asc 为 true，按 id asc 排序
+			query = query.Order("id ASC")
+			queryAsc = true
+		} else {
+			// asc 为 false，按 id desc 排序
+			query = query.Order("id DESC")
+			queryAsc = false
+		}
+	}
+
+	// 执行查询，多查询一条用于判断是否有更多数据
+	if err := query.Limit(int(pageSize + 1)).Find(&classes).Error; err != nil {
+		return nil, false, err
+	}
+
+	// 处理查询结果
+	// asc 为 true 时，返回结果数组按 id 升序排序，代表页面按升序显示
+	// asc 为 false 时，返回结果数组按 id 降序排序，代表页面按降序显示
+	// 检查查询结果的排序是否与 asc 参数一致，如果不一致则需要反转
+	if queryAsc != asc {
+		// 反转结果数组
+		for i, j := 0, len(classes)-1; i < j; i, j = i+1, j-1 {
+			classes[i], classes[j] = classes[j], classes[i]
+		}
+	}
+
+	// 判断是否有更多数据
+	hasMore := false
+	if len(classes) > int(pageSize) {
+		hasMore = true
+		if queryAsc != asc {
+			classes = classes[1:]
+		} else {
+			classes = classes[:int(pageSize)]
+		}
+	}
+
+	return classes, hasMore, nil
 }
 
 // DeleteClass 删除班级
@@ -127,24 +237,24 @@ func (s *ClassServiceImpl) DeleteClass(classID, teacherID uint) error {
 		}
 		return err
 	}
-	
+
 	// 使用事务确保数据一致性
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		// 删除班级与学生的关联
 		if err := tx.Where("class_id = ?", classID).Delete(&model.ClassUser{}).Error; err != nil {
 			return err
 		}
-		
+
 		// 删除班级与课程的关联
 		if err := tx.Where("class_id = ?", classID).Delete(&model.ClassCourse{}).Error; err != nil {
 			return err
 		}
-		
+
 		// 删除班级
 		if err := tx.Delete(&class).Error; err != nil {
 			return err
 		}
-		
+
 		return nil
 	})
 }
@@ -159,7 +269,7 @@ func (s *ClassServiceImpl) AddStudent(classID, teacherID, studentID uint, role s
 		}
 		return err
 	}
-	
+
 	// 检查学生是否已在班级中
 	var existingRelation model.ClassUser
 	result := s.db.Where("class_id = ? AND user_id = ?", classID, studentID).First(&existingRelation)
@@ -174,7 +284,7 @@ func (s *ClassServiceImpl) AddStudent(classID, teacherID, studentID uint, role s
 	} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return result.Error
 	}
-	
+
 	// 添加学生到班级
 	classUser := model.ClassUser{
 		ClassID:  classID,
@@ -183,11 +293,11 @@ func (s *ClassServiceImpl) AddStudent(classID, teacherID, studentID uint, role s
 		Role:     role,
 		IsActive: true,
 	}
-	
+
 	if err := s.db.Create(&classUser).Error; err != nil {
 		return errors.New("添加学生失败")
 	}
-	
+
 	return nil
 }
 
@@ -201,13 +311,13 @@ func (s *ClassServiceImpl) RemoveStudent(classID, teacherID, studentID uint) err
 		}
 		return err
 	}
-	
+
 	// 从班级移除学生
 	result := s.db.Where("class_id = ? AND user_id = ?", classID, studentID).Delete(&model.ClassUser{})
 	if result.RowsAffected == 0 {
 		return errors.New("学生不在班级中")
 	}
-	
+
 	return result.Error
 }
 
@@ -221,13 +331,13 @@ func (s *ClassServiceImpl) ListStudents(classID, teacherID uint) ([]model.User, 
 		}
 		return nil, err
 	}
-	
+
 	// 获取班级中的所有学生
 	var students []model.User
 	if err := s.db.Model(&class).Association("Students").Find(&students); err != nil {
 		return nil, err
 	}
-	
+
 	return students, nil
 }
 
@@ -241,7 +351,7 @@ func (s *ClassServiceImpl) AddCourse(classID, teacherID, courseID uint, startDat
 		}
 		return err
 	}
-	
+
 	// 检查课程是否存在
 	var course model.Course
 	if err := s.db.First(&course, courseID).Error; err != nil {
@@ -250,18 +360,18 @@ func (s *ClassServiceImpl) AddCourse(classID, teacherID, courseID uint, startDat
 		}
 		return err
 	}
-	
+
 	// 解析日期
 	startDate, err := time.Parse("2006-01-02", startDateStr)
 	if err != nil {
 		return errors.New("开始日期格式无效")
 	}
-	
+
 	endDate, err := time.Parse("2006-01-02", endDateStr)
 	if err != nil {
 		return errors.New("结束日期格式无效")
 	}
-	
+
 	// 检查课程是否已添加到班级
 	var existingRelation model.ClassCourse
 	result := s.db.Where("class_id = ? AND course_id = ?", classID, courseID).First(&existingRelation)
@@ -276,7 +386,7 @@ func (s *ClassServiceImpl) AddCourse(classID, teacherID, courseID uint, startDat
 	} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return result.Error
 	}
-	
+
 	// 添加课程到班级
 	classCourse := model.ClassCourse{
 		ClassID:     classID,
@@ -285,11 +395,11 @@ func (s *ClassServiceImpl) AddCourse(classID, teacherID, courseID uint, startDat
 		EndDate:     endDate,
 		IsPublished: false,
 	}
-	
+
 	if err := s.db.Create(&classCourse).Error; err != nil {
 		return errors.New("添加课程失败")
 	}
-	
+
 	return nil
 }
 
@@ -303,13 +413,13 @@ func (s *ClassServiceImpl) RemoveCourse(classID, teacherID, courseID uint) error
 		}
 		return err
 	}
-	
+
 	// 从班级移除课程
 	result := s.db.Where("class_id = ? AND course_id = ?", classID, courseID).Delete(&model.ClassCourse{})
 	if result.RowsAffected == 0 {
 		return errors.New("课程不在班级中")
 	}
-	
+
 	return result.Error
 }
 
@@ -323,13 +433,13 @@ func (s *ClassServiceImpl) ListCourses(classID, teacherID uint) ([]model.Course,
 		}
 		return nil, err
 	}
-	
+
 	// 获取班级中的所有课程
 	var courses []model.Course
 	if err := s.db.Model(&class).Association("Courses").Find(&courses); err != nil {
 		return nil, err
 	}
-	
+
 	return courses, nil
 }
 
@@ -343,7 +453,7 @@ func (s *ClassServiceImpl) JoinClass(studentID uint, classCode string) error {
 		}
 		return err
 	}
-	
+
 	// 检查学生是否已在班级中
 	var existingRelation model.ClassUser
 	result := s.db.Where("class_id = ? AND user_id = ?", class.ID, studentID).First(&existingRelation)
@@ -351,7 +461,7 @@ func (s *ClassServiceImpl) JoinClass(studentID uint, classCode string) error {
 		if existingRelation.IsActive {
 			return errors.New("您已经在班级中")
 		}
-		
+
 		// 重新激活
 		existingRelation.IsActive = true
 		existingRelation.JoinedAt = time.Now()
@@ -362,7 +472,7 @@ func (s *ClassServiceImpl) JoinClass(studentID uint, classCode string) error {
 	} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return result.Error
 	}
-	
+
 	// 添加学生到班级
 	classUser := model.ClassUser{
 		ClassID:  class.ID,
@@ -371,18 +481,18 @@ func (s *ClassServiceImpl) JoinClass(studentID uint, classCode string) error {
 		Role:     "student",
 		IsActive: true,
 	}
-	
+
 	if err := s.db.Create(&classUser).Error; err != nil {
 		return errors.New("加入班级失败")
 	}
-	
+
 	return nil
 }
 
 // ListJoinedClasses 列出学生加入的所有班级
 func (s *ClassServiceImpl) ListJoinedClasses(studentID uint) ([]model.Class, error) {
 	var classes []model.Class
-	
+
 	// 查询学生加入的所有班级
 	if err := s.db.Joins("JOIN class_users ON class_users.class_id = classes.id").
 		Where("class_users.user_id = ? AND class_users.is_active = ?", studentID, true).
@@ -390,7 +500,7 @@ func (s *ClassServiceImpl) ListJoinedClasses(studentID uint) ([]model.Class, err
 		Find(&classes).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return classes, nil
 }
 
@@ -413,11 +523,11 @@ func (s *CourseServiceImpl) CreateCourse(authorID uint, title, description, cont
 		Content:     content,
 		IsPublic:    isPublic,
 	}
-	
+
 	if err := s.db.Create(&course).Error; err != nil {
 		return nil, fmt.Errorf("创建课程失败: %w", err)
 	}
-	
+
 	return &course, nil
 }
 
@@ -431,12 +541,12 @@ func (s *CourseServiceImpl) UpdateCourse(courseID, authorID uint, updates map[st
 		}
 		return err
 	}
-	
+
 	// 更新课程信息
 	if err := s.db.Model(&course).Updates(updates).Error; err != nil {
 		return fmt.Errorf("更新课程失败: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -449,7 +559,7 @@ func (s *CourseServiceImpl) GetCourse(courseID uint) (*model.Course, error) {
 		}
 		return nil, err
 	}
-	
+
 	return &course, nil
 }
 
@@ -459,7 +569,7 @@ func (s *CourseServiceImpl) ListCourses(authorID uint) ([]model.Course, error) {
 	if err := s.db.Where("author_id = ?", authorID).Find(&courses).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return courses, nil
 }
 
@@ -473,19 +583,39 @@ func (s *CourseServiceImpl) DeleteCourse(courseID, authorID uint) error {
 		}
 		return err
 	}
-	
+
 	// 使用事务确保数据一致性
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		// 删除课程与班级的关联
 		if err := tx.Where("course_id = ?", courseID).Delete(&model.ClassCourse{}).Error; err != nil {
 			return err
 		}
-		
+
 		// 删除课程
 		if err := tx.Delete(&course).Error; err != nil {
 			return err
 		}
-		
+
 		return nil
 	})
+}
+
+// CountClasses 计算教师创建的班级总数
+func (s *ClassServiceImpl) CountClasses(teacherID uint) (int64, error) {
+	var total int64
+
+	// 构建查询
+	query := s.db.Model(&model.Class{})
+
+	// 如果指定了教师ID，则只计算该教师的班级
+	if teacherID > 0 {
+		query = query.Where("teacher_id = ?", teacherID)
+	}
+
+	// 计算总数
+	if err := query.Count(&total).Error; err != nil {
+		return 0, err
+	}
+
+	return total, nil
 }

@@ -58,6 +58,12 @@ func (s *Server) setupRoutes() {
 
 		// 班级相关路由
 		auth.POST("/class/create", s.handler.PostCreateClass)
+		// 班级列表路由
+		auth.GET("/class/list", s.handler.GetListClasses)
+		// 获取单个班级的信息路由
+		auth.GET("/classes/:class_id", s.handler.GetClass)
+		// 修改班级信息路由
+		auth.PUT("/classes/:class_id", s.handler.PutUpdateClass)
 	}
 
 	projects := s.router.Group("/projects")

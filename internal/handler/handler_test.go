@@ -467,7 +467,7 @@ func TestHandler_ListFiles(t *testing.T) {
 			name: "正常列出文件",
 			files: []model.File{
 				{
-					Model:       gorm.Model{ID: 1},
+					ID:          1,
 					Name:        "test.txt",
 					Path:        "/tmp/test.txt",
 					ContentType: "text/plain",

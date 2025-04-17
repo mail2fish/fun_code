@@ -45,3 +45,4 @@ func (h *Handler) PostCreateClass(c *gin.Context) {
 		},
 	})
 }
+
