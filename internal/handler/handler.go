@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -155,4 +156,47 @@ func (h *Handler) DeleteFile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "文件删除成功"})
+}
+
+// 在 Handler 结构体中添加 i18n 相关方法
+
+// T 翻译消息
+func (h *Handler) T(messageID string, c *gin.Context) string {
+	lang := h.GetLanguage(c)
+	return h.services.I18nService.Translate(messageID, lang)
+}
+
+// TWithData 使用模板数据翻译消息
+func (h *Handler) TWithData(messageID string, c *gin.Context, data map[string]interface{}) string {
+	lang := h.GetLanguage(c)
+	return h.services.I18nService.TranslateWithData(messageID, lang, data)
+}
+
+// GetLanguage 从请求中获取语言
+func (h *Handler) GetLanguage(c *gin.Context) string {
+	// 优先从查询参数获取
+	lang := c.Query("lang")
+	if lang != "" {
+		return lang
+	}
+
+	// 其次从 Cookie 获取
+	langCookie, err := c.Cookie("lang")
+	if err == nil && langCookie != "" {
+		return langCookie
+	}
+
+	// 最后从 Accept-Language 头获取
+	acceptLang := c.GetHeader("Accept-Language")
+	if acceptLang != "" {
+		// 简单处理，取第一个语言代码
+		parts := strings.Split(acceptLang, ",")
+		if len(parts) > 0 {
+			langCode := strings.Split(parts[0], ";")[0]
+			return langCode
+		}
+	}
+
+	// 默认返回配置的默认语言
+	return h.services.I18nService.GetDefaultLanguage()
 }

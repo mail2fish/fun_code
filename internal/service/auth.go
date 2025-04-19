@@ -21,7 +21,7 @@ type AuthServiceImpl struct {
 }
 
 // 修改 NewAuthService 函数，添加缓存参数
-func NewAuthService(db *gorm.DB, jwtKey []byte, sessionCache cache.SessionCache) UserService {
+func NewAuthService(db *gorm.DB, jwtKey []byte, sessionCache cache.SessionCache) AuthService {
 	return &AuthServiceImpl{
 		db:           db,
 		jwtKey:       jwtKey,
@@ -32,42 +32,6 @@ func NewAuthService(db *gorm.DB, jwtKey []byte, sessionCache cache.SessionCache)
 type Claims struct {
 	UserID uint `json:"user_id"`
 	jwt.RegisteredClaims
-}
-
-func (s *AuthServiceImpl) Register(username, password, email string) error {
-	// 检查用户名是否已存在
-	var existingUser model.User
-	if err := s.db.Where("username = ?", username).First(&existingUser).Error; err == nil {
-		return errors.New("用户名已被注册")
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return err
-	}
-
-	// 检查邮箱是否已被使用
-	if err := s.db.Where("email = ?", email).First(&existingUser).Error; err == nil {
-		return errors.New("邮箱已被注册")
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return err
-	}
-
-	// bcrypt 是单向哈希函数，无法从哈希值还原原始密码
-	// 这种设计是密码存储的最佳实践，即使数据库被攻破，攻击者也无法获取用户原始密码
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return errors.New("密码加密失败")
-	}
-
-	user := model.User{
-		Username: username,
-		Password: string(hashedPassword),
-		Email:    email,
-	}
-
-	result := s.db.Create(&user)
-	if result.Error != nil {
-		return errors.New("创建用户失败")
-	}
-	return nil
 }
 
 // 在 AuthServiceImpl 中实现新方法
@@ -229,4 +193,40 @@ func (s *AuthServiceImpl) ValidateToken(tokenString string) (*Claims, error) {
 	s.sessionCache.SetSession(&dbSession)
 
 	return claims, nil
+}
+
+func (s *AuthServiceImpl) Register(username, password, email string) error {
+	// 检查用户名是否已存在
+	var existingUser model.User
+	if err := s.db.Where("username = ?", username).First(&existingUser).Error; err == nil {
+		return errors.New("用户名已被注册")
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+
+	// 检查邮箱是否已被使用
+	if err := s.db.Where("email = ?", email).First(&existingUser).Error; err == nil {
+		return errors.New("邮箱已被注册")
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+
+	// bcrypt 是单向哈希函数，无法从哈希值还原原始密码
+	// 这种设计是密码存储的最佳实践，即使数据库被攻破，攻击者也无法获取用户原始密码
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New("密码加密失败")
+	}
+
+	user := model.User{
+		Username: username,
+		Password: string(hashedPassword),
+		Email:    email,
+	}
+
+	result := s.db.Create(&user)
+	if result.Error != nil {
+		return errors.New("创建用户失败")
+	}
+	return nil
 }

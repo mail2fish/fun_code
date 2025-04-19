@@ -14,28 +14,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// ScratchService 定义了Scratch项目服务的接口
-type ScratchService interface {
-	// GetProject 获取指定ID的Scratch项目
-	GetProject(projectID uint) ([]byte, error)
-
-	// SaveProject 保存Scratch项目
-	SaveProject(userID uint, projectID uint, name string, content []byte) (uint, error)
-
-	// ListProjectsWithPagination 分页列出用户的所有项目
-	ListProjectsWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.ScratchProject, bool, error)
-
-	// DeleteProject 删除项目
-	DeleteProject(userID uint, projectID uint) error
-
-	// CanReadProject 检查用户是否有权限读取项目
-	CanReadProject(projectID uint) bool
-
-	GetScratchBasePath() string
-
-	CountProjects(userID uint) (int64, error)
-}
-
 // ScratchServiceImpl 实现了ScratchService接口
 type ScratchServiceImpl struct {
 	db       *gorm.DB
@@ -50,7 +28,7 @@ func NewScratchService(db *gorm.DB, basePath string) ScratchService {
 	}
 }
 
-func (s *ScratchServiceImpl) CanReadProject(projectID uint) bool {
+func (s *ScratchServiceImpl) ProjectExist(projectID uint) bool {
 
 	// 从数据库查询项目
 	var project model.ScratchProject
@@ -64,8 +42,8 @@ func (s *ScratchServiceImpl) CanReadProject(projectID uint) bool {
 	return true
 }
 
-// GetProject 获取指定ID的Scratch项目
-func (s *ScratchServiceImpl) GetProject(projectID uint) ([]byte, error) {
+// GetProjectBinary 获取指定ID的Scratch项目
+func (s *ScratchServiceImpl) GetProjectBinary(projectID uint) ([]byte, error) {
 	// 如果projectID为0，返回示例项目
 	if projectID == 0 {
 		return s.getExampleProject(), nil
@@ -332,6 +310,21 @@ func (s *ScratchServiceImpl) DeleteProject(userID uint, projectID uint) error {
 func (s *ScratchServiceImpl) getExampleProject() []byte {
 	result := `{"targets":[{"isStage":true,"name":"Stage","variables":{"` + "`" + `jEk@4|i[#Fk?(8x)AV.-my variable":["my variable",0]},"lists":{},"broadcasts":{},"blocks":{},"comments":{},"currentCostume":0,"costumes":[{"name":"backdrop1","dataFormat":"svg","assetId":"cd21514d0531fdffb22204e0ec5ed84a","md5ext":"cd21514d0531fdffb22204e0ec5ed84a.svg","rotationCenterX":240,"rotationCenterY":180}],"sounds":[{"name":"pop","assetId":"83a9787d4cb6f3b7632b4ddfebf74367","dataFormat":"wav","format":"","rate":48000,"sampleCount":1123,"md5ext":"83a9787d4cb6f3b7632b4ddfebf74367.wav"}],"volume":100,"layerOrder":0,"tempo":60,"videoTransparency":50,"videoState":"on","textToSpeechLanguage":null},{"isStage":false,"name":"Sprite1","variables":{},"lists":{},"broadcasts":{},"blocks":{"MvnU:C*rPc=Q7{LV-*F9":{"opcode":"motion_movesteps","next":";YZXVOf%nL3([N],fGSi","parent":null,"inputs":{"STEPS":[1,[4,"10"]]},"fields":{},"shadow":false,"topLevel":true,"x":156,"y":283},";YZXVOf%nL3([N],fGSi":{"opcode":"motion_movesteps","next":null,"parent":"MvnU:C*rPc=Q7{LV-*F9","inputs":{"STEPS":[1,[4,"10"]]},"fields":{},"shadow":false,"topLevel":false}},"comments":{},"currentCostume":0,"costumes":[{"name":"costume1","bitmapResolution":1,"dataFormat":"svg","assetId":"bcf454acf82e4504149f7ffe07081dbc","md5ext":"bcf454acf82e4504149f7ffe07081dbc.svg","rotationCenterX":48,"rotationCenterY":50},{"name":"costume2","bitmapResolution":1,"dataFormat":"svg","assetId":"0fb9be3e8397c983338cb71dc84d0b25","md5ext":"0fb9be3e8397c983338cb71dc84d0b25.svg","rotationCenterX":46,"rotationCenterY":53}],"sounds":[{"name":"Meow","assetId":"83c36d806dc92327b9e7049a565c6bff","dataFormat":"wav","format":"","rate":48000,"sampleCount":40681,"md5ext":"83c36d806dc92327b9e7049a565c6bff.wav"}],"volume":100,"layerOrder":1,"visible":true,"x":0,"y":0,"size":100,"direction":90,"draggable":false,"rotationStyle":"all around"}],"monitors":[],"extensions":[],"meta":{"semver":"3.0.0","vm":"11.0.0-beta.2","agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"}}`
 	return []byte(result)
+}
+
+// GetProject 获取指定ID的Scratch项目
+func (s *ScratchServiceImpl) GetProject(projectID uint) (*model.ScratchProject, error) {
+	var project model.ScratchProject
+
+	// 从数据库查询项目
+	if err := s.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("项目不存在")
+		}
+		return nil, err
+	}
+
+	return &project, nil
 }
 
 // 在 ScratchServiceImpl 中实现

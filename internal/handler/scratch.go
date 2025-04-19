@@ -88,7 +88,7 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		})
 		return
 	}
-	ok := h.services.ScratchService.CanReadProject(uint(id))
+	ok := h.services.ScratchService.ProjectExist(uint(id))
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "获取项目失败",
@@ -159,7 +159,7 @@ func (h *Handler) GetScratchProject(c *gin.Context) {
 		})
 		return
 	}
-	projectData, err := h.services.ScratchService.GetProject(uint(id))
+	projectData, err := h.services.ScratchService.GetProjectBinary(uint(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "获取项目失败",

@@ -192,7 +192,7 @@ type MockScratchService struct {
 	mock.Mock
 }
 
-func (m *MockScratchService) GetProject(projectID uint) ([]byte, error) {
+func (m *MockScratchService) GetProjectBinary(projectID uint) ([]byte, error) {
 	args := m.Called(projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -215,12 +215,20 @@ func (m *MockScratchService) DeleteProject(userID uint, projectID uint) error {
 	return args.Error(0)
 }
 
-func (m *MockScratchService) CanReadProject(projectID uint) bool {
+func (m *MockScratchService) ProjectExist(projectID uint) bool {
 	args := m.Called(projectID)
 	return args.Bool(0)
 }
 
 func (m *MockScratchService) GetProjectInfo(projectID uint) (*model.ScratchProject, error) {
+	args := m.Called(projectID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.ScratchProject), args.Error(1)
+}
+
+func (m *MockScratchService) GetProject(projectID uint) (*model.ScratchProject, error) {
 	args := m.Called(projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -254,7 +262,7 @@ func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockS
 	mockScratch := new(MockScratchService)
 	cfg := &config.Config{ScratchEditor: config.ScratchEditorConfig{Host: "http://localhost"}}
 	h := NewHandler(service.Services{
-		UserService:    mockAuth,
+		AuthService:    mockAuth,
 		FileService:    mockFile,
 		ScratchService: mockScratch,
 	}, cfg)

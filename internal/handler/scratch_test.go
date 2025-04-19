@@ -59,7 +59,7 @@ func TestHandler_GetScratchProject(t *testing.T) {
 			// 设置GetProject的mock
 			if tt.projectID != "invalid" {
 				id, _ := strconv.ParseUint(tt.projectID, 10, 64)
-				mockScratch.On("GetProject", uint(id)).Return(tt.mockData, tt.mockErr).Once()
+				mockScratch.On("GetProjectBinary", uint(id)).Return(tt.mockData, tt.mockErr).Once()
 			}
 
 			r.ServeHTTP(w, req)

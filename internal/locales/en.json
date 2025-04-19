@@ -1,0 +1,18 @@
+{
+  "welcome": "Welcome to Fun Code",
+  "login": "Login",
+  "register": "Register",
+  "username": "Username",
+  "password": "Password",
+  "email": "Email",
+  "login_success": "Login successful",
+  "login_failed": "Login failed: {{.Error}}",
+  "register_success": "Registration successful",
+  "register_failed": "Registration failed: {{.Error}}",
+  "class_not_found": "Class not found",
+  "class_update_success": "Class updated successfully",
+  "class_update_failed": "Failed to update class: {{.Error}}",
+  "unauthorized": "Unauthorized access",
+  "invalid_request": "Invalid request data",
+  "invalid_class_id": "Invalid class ID"
+}

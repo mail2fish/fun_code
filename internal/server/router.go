@@ -35,6 +35,8 @@ func (s *Server) setupRoutes() {
 	// 公开路由
 	s.router.POST("/api/auth/register", s.handler.Register)
 	s.router.POST("/api/auth/login", s.handler.Login)
+	s.router.GET("/api/i18n/languages", s.handler.GetSupportedLanguages) // 获取支持的语言列表
+	s.router.POST("/api/i18n/language", s.handler.SetLanguage)           // 设置语言
 
 	// 需要认证的路由组
 	auth := s.router.Group("/api")
@@ -81,3 +83,22 @@ func (s *Server) setupRoutes() {
 		assets.POST("/scratch/:asset_id", s.handler.UploadScratchAsset)
 	}
 }
+
+// // 在 setupRoutes 函数中添加权限中间件
+
+// // Scratch 相关路由
+// auth.GET("/scratch/projects/:id", s.handler.RequireOwnership("scratch_project", "id"), s.handler.GetScratchProject)
+// auth.POST("/scratch/projects/", s.handler.RequirePermission("create_scratch"), s.handler.PostCreateScratchProject)
+// auth.PUT("/scratch/projects/:id", s.handler.RequireOwnership("scratch_project", "id"), s.handler.PutSaveScratchProject)
+// auth.GET("/scratch/projects", s.handler.RequirePermission("view_own_scratch"), s.handler.ListScratchProjects)
+// auth.DELETE("/scratch/projects/:id", s.handler.RequireOwnership("scratch_project", "id"), s.handler.DeleteScratchProject)
+
+// // 班级相关路由
+// auth.POST("/class/create", s.handler.RequirePermission("manage_own_class"), s.handler.PostCreateClass)
+// auth.GET("/class/list", s.handler.GetListClasses)
+// auth.GET("/classes/:class_id", s.handler.GetClass)
+// auth.PUT("/classes/:class_id", s.handler.RequireOwnership("class", "class_id"), s.handler.PutUpdateClass)
+
+// // 用户角色管理
+// auth.POST("/users/role", s.handler.SetUserRole)
+// auth.GET("/users/permissions", s.handler.GetCurrentUserPermissions)

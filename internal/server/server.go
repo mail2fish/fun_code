@@ -43,11 +43,19 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	c := cache.NewGoCache()
 	sessionCache := cache.NewUserSessionCache(c)
 
+	// 初始化 I18n 服务
+	i18nService, err := service.NewI18nService(cfg.I18n.LocalesPath, cfg.I18n.DefaultLang)
+	if err != nil {
+		log.Printf("初始化 I18n 服务失败: %v", err)
+		// 继续执行，不要因为 i18n 初始化失败而中断服务启动
+	}
+
 	services := service.Services{
-		UserService:    service.NewAuthService(db, []byte(cfg.JWT.SecretKey), sessionCache),
+		AuthService:    service.NewAuthService(db, []byte(cfg.JWT.SecretKey), sessionCache),
 		FileService:    service.NewFileService(db, cfg.Storage.BasePath),
 		ScratchService: service.NewScratchService(db, filepath.Join(cfg.Storage.BasePath, "scratch")),
 		ClassService:   service.NewClassService(db),
+		I18nService:    i18nService, // 添加 I18nService
 	}
 	// 初始化处理器
 	h := handler.NewHandler(

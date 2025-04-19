@@ -9,3 +9,8 @@ server:
   port: ":8080"
 scratch_editor:
   host: "http://localhost:8080"
+
+# 国际化配置
+i18n:
+  locales_path: "./internal/locales"
+  default_lang: "zh-CN"

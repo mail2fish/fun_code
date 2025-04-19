@@ -29,12 +29,22 @@ type ScratchEditorConfig struct {
 	Host string `yaml:"host"`
 }
 
+// 在现有的 config.go 文件中添加 I18n 配置
+
+// I18nConfig 国际化配置
+type I18nConfig struct {
+	LocalesPath    string `yaml:"locales_path"`
+	DefaultLang    string `yaml:"default_lang"`
+}
+
+// Config 应用配置
 type Config struct {
 	Database      DatabaseConfig      `yaml:"database"`
 	Storage       StorageConfig       `yaml:"storage"`
 	JWT           JWTConfig           `yaml:"jwt"`
 	Server        ServerConfig        `yaml:"server"`
 	ScratchEditor ScratchEditorConfig `yaml:"scratch_editor"`
+	I18n     I18nConfig     `yaml:"i18n"`
 }
 
 func LoadConfig(path string) (*Config, error) {
