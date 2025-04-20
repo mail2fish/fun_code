@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/jun/fun_code/internal/model"
 	"golang.org/x/crypto/bcrypt"
@@ -217,6 +218,50 @@ func (s *UserServiceImpl) HardDeleteUser(id uint) error {
 	// 执行硬删除
 	if err := s.db.Unscoped().Delete(&user).Error; err != nil {
 		return errors.New("删除用户失败")
+	}
+
+	return nil
+}
+
+// 创建用户
+func (s *UserServiceImpl) CreateUser(user *model.User) error {
+	// 检查用户名是否已存在
+	var existingUser model.User
+	if err := s.db.Where("username = ?", user.Username).First(&existingUser).Error; err == nil {
+		return errors.New("用户名已被注册")
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+
+	// 检查邮箱是否已被使用
+	if err := s.db.Where("email = ?", user.Email).First(&existingUser).Error; err == nil {
+		return errors.New("邮箱已被注册")
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+
+	// 检查密码是否为空
+	if user.Password == "" {
+		return errors.New("密码不能为空")
+	}
+
+	// 如果密码未加密，则进行加密
+	if len(user.Password) > 0 && !strings.HasPrefix(user.Password, "$2a$") {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return errors.New("密码加密失败")
+		}
+		user.Password = string(hashedPassword)
+	}
+
+	// 如果未指定角色，设置默认角色为学生
+	if user.Role == "" {
+		user.Role = "student"
+	}
+
+	// 创建用户
+	if err := s.db.Create(user).Error; err != nil {
+		return errors.New("创建用户失败: " + err.Error())
 	}
 
 	return nil

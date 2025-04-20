@@ -3,6 +3,7 @@ package service
 import (
 	"net/http"
 
+	"github.com/jun/fun_code/internal/i18n"
 	"github.com/jun/fun_code/internal/model"
 )
 
@@ -13,7 +14,7 @@ type Services struct {
 	ClassService   ClassService
 	CourseService  CourseService
 	ScratchService ScratchService
-	I18nService    I18nService // 新增 I18nService
+	I18nService    i18n.I18nService // 新增 I18nService
 }
 
 type AuthService interface {

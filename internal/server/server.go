@@ -9,6 +9,7 @@ import (
 	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/database"
 	"github.com/jun/fun_code/internal/handler"
+	"github.com/jun/fun_code/internal/i18n"
 	"github.com/jun/fun_code/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -44,7 +45,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	sessionCache := cache.NewUserSessionCache(c)
 
 	// 初始化 I18n 服务
-	i18nService, err := service.NewI18nService(cfg.I18n.LocalesPath, cfg.I18n.DefaultLang)
+	i18nService, err := i18n.NewI18nService(cfg.I18n.LocalesPath, cfg.I18n.DefaultLang)
 	if err != nil {
 		log.Printf("初始化 I18n 服务失败: %v", err)
 		// 继续执行，不要因为 i18n 初始化失败而中断服务启动

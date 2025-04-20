@@ -1,4 +1,4 @@
-package service
+package i18n
 
 import (
 	"encoding/json"
@@ -13,10 +13,10 @@ import (
 
 // I18nServiceImpl 实现了 I18nService 接口
 type I18nServiceImpl struct {
-	bundle           *i18n.Bundle
-	defaultLanguage  string
-	localizer        map[string]*i18n.Localizer
-	supportedLangs   []string
+	bundle          *i18n.Bundle
+	defaultLanguage string
+	localizer       map[string]*i18n.Localizer
+	supportedLangs  []string
 }
 
 // NewI18nService 创建一个新的 I18nService 实例
