@@ -17,11 +17,13 @@ const (
 )
 
 // ErrorCode 定义错误代码类型
+// 格式为：错误类型-业务模块-错误编码
 type ErrorCode string
 
 // CustomError 自定义应用错误类型
 type CustomError struct {
 	Type    ErrorType // 错误类型
+	Module  string    // 业务模块
 	Code    ErrorCode // 错误代码，使用专有类型
 	Message string    // 错误消息
 	Err     error     // 原始错误
@@ -44,19 +46,37 @@ func (e *CustomError) Unwrap() error {
 	return e.Err
 }
 
-// NewHandlerError 创建业务逻辑错误
-func NewHandlerError(code ErrorCode, message string) *CustomError {
+// ErrorCode 获取错误代码
+// 格式为：错误类型-业务模块-错误编码
+func (e *CustomError) ErrorCode() ErrorCode {
+	return ErrorCode(fmt.Sprintf("%s-%s-%s", e.Type, e.Module, e.Code))
+}
+
+// NewError 创建错误
+func NewError(module string, code ErrorCode, message string) *CustomError {
 	return &CustomError{
 		Type:    HandlerError,
+		Module:  module,
+		Code:    code,
+		Message: message,
+	}
+}
+
+// NewHandlerError 创建业务逻辑错误
+func NewHandlerError(module string, code ErrorCode, message string) *CustomError {
+	return &CustomError{
+		Type:    HandlerError,
+		Module:  module,
 		Code:    code,
 		Message: message,
 	}
 }
 
 // NewThirdPartyError 创建第三方库错误
-func NewThirdPartyError(code ErrorCode, message string, err error) *CustomError {
+func NewThirdPartyError(module string, code ErrorCode, message string, err error) *CustomError {
 	return &CustomError{
 		Type:    ThirdPartyError,
+		Module:  module,
 		Code:    code,
 		Message: message,
 		Err:     err,
@@ -64,9 +84,10 @@ func NewThirdPartyError(code ErrorCode, message string, err error) *CustomError 
 }
 
 // NewServiceError 创建系统错误
-func NewServiceError(code ErrorCode, message string) *CustomError {
+func NewServiceError(module string, code ErrorCode, message string) *CustomError {
 	return &CustomError{
 		Type:    ServiceError,
+		Module:  module,
 		Code:    code,
 		Message: message,
 	}
