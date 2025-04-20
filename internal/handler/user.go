@@ -41,7 +41,7 @@ func (h *Handler) SetUserRole(c *gin.Context) {
 		"role": req.Role,
 	}
 
-	if err := h.services.UserService.UpdateUser(req.UserID, updates); err != nil {
+	if err := h.services.UserDao.UpdateUser(req.UserID, updates); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "设置用户角色失败: " + err.Error(),
 		})
@@ -64,7 +64,7 @@ func (h *Handler) GetCurrentUserPermissions(c *gin.Context) {
 	}
 
 	// 获取用户信息
-	user, err := h.services.UserService.GetUserByID(userID.(uint))
+	user, err := h.services.UserDao.GetUserByID(userID.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "获取用户信息失败: " + err.Error(),

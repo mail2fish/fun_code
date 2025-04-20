@@ -14,21 +14,21 @@ import (
 	"gorm.io/gorm"
 )
 
-// ScratchServiceImpl 实现了ScratchService接口
-type ScratchServiceImpl struct {
+// ScratchDaoImpl 实现了ScratchService接口
+type ScratchDaoImpl struct {
 	db       *gorm.DB
 	basePath string // 文件存储的基础路径
 }
 
-// NewScratchService 创建一个新的ScratchService实例
-func NewScratchService(db *gorm.DB, basePath string) ScratchService {
-	return &ScratchServiceImpl{
+// NewScratchDao 创建一个新的ScratchService实例
+func NewScratchDao(db *gorm.DB, basePath string) ScratchDao {
+	return &ScratchDaoImpl{
 		db:       db,
 		basePath: basePath,
 	}
 }
 
-func (s *ScratchServiceImpl) ProjectExist(projectID uint) bool {
+func (s *ScratchDaoImpl) ProjectExist(projectID uint) bool {
 
 	// 从数据库查询项目
 	var project model.ScratchProject
@@ -43,7 +43,7 @@ func (s *ScratchServiceImpl) ProjectExist(projectID uint) bool {
 }
 
 // GetProjectBinary 获取指定ID的Scratch项目
-func (s *ScratchServiceImpl) GetProjectBinary(projectID uint) ([]byte, error) {
+func (s *ScratchDaoImpl) GetProjectBinary(projectID uint) ([]byte, error) {
 	// 如果projectID为0，返回示例项目
 	if projectID == 0 {
 		return s.getExampleProject(), nil
@@ -68,7 +68,7 @@ func (s *ScratchServiceImpl) GetProjectBinary(projectID uint) ([]byte, error) {
 }
 
 // SaveProject 保存Scratch项目
-func (s *ScratchServiceImpl) SaveProject(userID uint, projectID uint, name string, content []byte) (uint, error) {
+func (s *ScratchDaoImpl) SaveProject(userID uint, projectID uint, name string, content []byte) (uint, error) {
 	// 检查项目是否已存在
 	var project model.ScratchProject
 	result := s.db.Where("id = ?", projectID).First(&project)
@@ -156,7 +156,7 @@ func (s *ScratchServiceImpl) SaveProject(userID uint, projectID uint, name strin
 	return project.ID, nil
 }
 
-func (s *ScratchServiceImpl) CountProjects(userID uint) (int64, error) {
+func (s *ScratchDaoImpl) CountProjects(userID uint) (int64, error) {
 	var total int64
 
 	// 计算总数
@@ -192,7 +192,7 @@ func (s *ScratchServiceImpl) CountProjects(userID uint) (int64, error) {
 // 查询 limit 为 abs(pageSize)+1 条记录，如果查询结果数组 length <= pageSize 条记录，hasMore 为 false
 // 查询 limit 为 abs(pageSize)+1 条记录，如果查询结果数组 length > pageSize 条记录，hasMore 为 true
 
-func (s *ScratchServiceImpl) ListProjectsWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.ScratchProject, bool, error) {
+func (s *ScratchDaoImpl) ListProjectsWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.ScratchProject, bool, error) {
 	var projects []model.ScratchProject
 
 	// 处理 pageSize 为 0 的情况，使用默认值 20
@@ -278,7 +278,7 @@ func (s *ScratchServiceImpl) ListProjectsWithPagination(userID uint, pageSize ui
 }
 
 // DeleteProject 删除项目
-func (s *ScratchServiceImpl) DeleteProject(userID uint, projectID uint) error {
+func (s *ScratchDaoImpl) DeleteProject(userID uint, projectID uint) error {
 	// 检查项目是否存在
 	var project model.ScratchProject
 	if err := s.db.Where("id = ?", projectID).First(&project).Error; err != nil {
@@ -307,13 +307,13 @@ func (s *ScratchServiceImpl) DeleteProject(userID uint, projectID uint) error {
 }
 
 // getExampleProject 返回示例项目
-func (s *ScratchServiceImpl) getExampleProject() []byte {
+func (s *ScratchDaoImpl) getExampleProject() []byte {
 	result := `{"targets":[{"isStage":true,"name":"Stage","variables":{"` + "`" + `jEk@4|i[#Fk?(8x)AV.-my variable":["my variable",0]},"lists":{},"broadcasts":{},"blocks":{},"comments":{},"currentCostume":0,"costumes":[{"name":"backdrop1","dataFormat":"svg","assetId":"cd21514d0531fdffb22204e0ec5ed84a","md5ext":"cd21514d0531fdffb22204e0ec5ed84a.svg","rotationCenterX":240,"rotationCenterY":180}],"sounds":[{"name":"pop","assetId":"83a9787d4cb6f3b7632b4ddfebf74367","dataFormat":"wav","format":"","rate":48000,"sampleCount":1123,"md5ext":"83a9787d4cb6f3b7632b4ddfebf74367.wav"}],"volume":100,"layerOrder":0,"tempo":60,"videoTransparency":50,"videoState":"on","textToSpeechLanguage":null},{"isStage":false,"name":"Sprite1","variables":{},"lists":{},"broadcasts":{},"blocks":{"MvnU:C*rPc=Q7{LV-*F9":{"opcode":"motion_movesteps","next":";YZXVOf%nL3([N],fGSi","parent":null,"inputs":{"STEPS":[1,[4,"10"]]},"fields":{},"shadow":false,"topLevel":true,"x":156,"y":283},";YZXVOf%nL3([N],fGSi":{"opcode":"motion_movesteps","next":null,"parent":"MvnU:C*rPc=Q7{LV-*F9","inputs":{"STEPS":[1,[4,"10"]]},"fields":{},"shadow":false,"topLevel":false}},"comments":{},"currentCostume":0,"costumes":[{"name":"costume1","bitmapResolution":1,"dataFormat":"svg","assetId":"bcf454acf82e4504149f7ffe07081dbc","md5ext":"bcf454acf82e4504149f7ffe07081dbc.svg","rotationCenterX":48,"rotationCenterY":50},{"name":"costume2","bitmapResolution":1,"dataFormat":"svg","assetId":"0fb9be3e8397c983338cb71dc84d0b25","md5ext":"0fb9be3e8397c983338cb71dc84d0b25.svg","rotationCenterX":46,"rotationCenterY":53}],"sounds":[{"name":"Meow","assetId":"83c36d806dc92327b9e7049a565c6bff","dataFormat":"wav","format":"","rate":48000,"sampleCount":40681,"md5ext":"83c36d806dc92327b9e7049a565c6bff.wav"}],"volume":100,"layerOrder":1,"visible":true,"x":0,"y":0,"size":100,"direction":90,"draggable":false,"rotationStyle":"all around"}],"monitors":[],"extensions":[],"meta":{"semver":"3.0.0","vm":"11.0.0-beta.2","agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"}}`
 	return []byte(result)
 }
 
 // GetProject 获取指定ID的Scratch项目
-func (s *ScratchServiceImpl) GetProject(projectID uint) (*model.ScratchProject, error) {
+func (s *ScratchDaoImpl) GetProject(projectID uint) (*model.ScratchProject, error) {
 	var project model.ScratchProject
 
 	// 从数据库查询项目
@@ -328,6 +328,6 @@ func (s *ScratchServiceImpl) GetProject(projectID uint) (*model.ScratchProject, 
 }
 
 // 在 ScratchServiceImpl 中实现
-func (s *ScratchServiceImpl) GetScratchBasePath() string {
+func (s *ScratchDaoImpl) GetScratchBasePath() string {
 	return s.basePath
 }

@@ -23,7 +23,7 @@ func (h *Handler) GetClass(c *gin.Context) {
 	}
 
 	// 调用服务层获取班级信息
-	class, err := h.services.ClassService.GetClass(uint(id))
+	class, err := h.services.ClassDao.GetClass(uint(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "班级不存在" {
 			c.JSON(http.StatusNotFound, gin.H{

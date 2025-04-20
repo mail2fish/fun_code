@@ -13,16 +13,16 @@ import (
 	"gorm.io/gorm"
 )
 
-type FileServiceImpl struct {
+type FileDaoImpl struct {
 	db       *gorm.DB
 	basePath string
 }
 
-func NewFileService(db *gorm.DB, basePath string) FileService {
-	return &FileServiceImpl{db: db, basePath: basePath}
+func NewFileDao(db *gorm.DB, basePath string) FileDao {
+	return &FileDaoImpl{db: db, basePath: basePath}
 }
 
-func (s *FileServiceImpl) CreateDirectory(userID uint, name string, parentID *uint) error {
+func (s *FileDaoImpl) CreateDirectory(userID uint, name string, parentID *uint) error {
 	dir := model.File{
 		Name:        name,
 		IsDirectory: true,
@@ -35,7 +35,7 @@ func (s *FileServiceImpl) CreateDirectory(userID uint, name string, parentID *ui
 	return result.Error
 }
 
-func (s *FileServiceImpl) UploadFile(userID uint, name string, parentID *uint, contentType string, size int64, reader io.Reader) error {
+func (s *FileDaoImpl) UploadFile(userID uint, name string, parentID *uint, contentType string, size int64, reader io.Reader) error {
 	userPath := filepath.Join(s.basePath, fmt.Sprintf("%d", userID))
 	if err := os.MkdirAll(userPath, 0755); err != nil {
 		return err
@@ -74,7 +74,7 @@ func (s *FileServiceImpl) UploadFile(userID uint, name string, parentID *uint, c
 	return nil
 }
 
-func (s *FileServiceImpl) GetFile(userID, fileID uint) (*model.File, error) {
+func (s *FileDaoImpl) GetFile(userID, fileID uint) (*model.File, error) {
 	var file model.File
 	if err := s.db.Where("id = ? AND user_id = ?", fileID, userID).First(&file).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -85,7 +85,7 @@ func (s *FileServiceImpl) GetFile(userID, fileID uint) (*model.File, error) {
 	return &file, nil
 }
 
-func (s *FileServiceImpl) ListFiles(userID uint, parentID *uint) ([]model.File, error) {
+func (s *FileDaoImpl) ListFiles(userID uint, parentID *uint) ([]model.File, error) {
 	var files []model.File
 	query := s.db.Where("user_id = ?", userID)
 	if parentID != nil && *parentID != 0 {
@@ -101,7 +101,7 @@ func (s *FileServiceImpl) ListFiles(userID uint, parentID *uint) ([]model.File, 
 	return files, nil
 }
 
-func (s *FileServiceImpl) DeleteFile(userID, fileID uint) error {
+func (s *FileDaoImpl) DeleteFile(userID, fileID uint) error {
 	file, err := s.GetFile(userID, fileID)
 	if err != nil {
 		return err

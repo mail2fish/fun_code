@@ -88,7 +88,7 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		})
 		return
 	}
-	ok := h.services.ScratchService.ProjectExist(uint(id))
+	ok := h.services.ScratchDao.ProjectExist(uint(id))
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "获取项目失败",
@@ -159,7 +159,7 @@ func (h *Handler) GetScratchProject(c *gin.Context) {
 		})
 		return
 	}
-	projectData, err := h.services.ScratchService.GetProjectBinary(uint(id))
+	projectData, err := h.services.ScratchDao.GetProjectBinary(uint(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "获取项目失败",
@@ -213,7 +213,7 @@ func (h *Handler) PutSaveScratchProject(c *gin.Context) {
 	// 保存项目
 	// 修改服务调用参数
 	// 由于 SaveProject 返回 uint 类型，需要将 projectID 声明为 uint
-	_, err = h.services.ScratchService.SaveProject(userID, uint(id), title, r)
+	_, err = h.services.ScratchDao.SaveProject(userID, uint(id), title, r)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "保存项目失败: " + err.Error(),
@@ -248,7 +248,7 @@ func (h *Handler) ListScratchProjects(c *gin.Context) {
 	}
 
 	// 获取项目总数
-	total, err := h.services.ScratchService.CountProjects(userID)
+	total, err := h.services.ScratchDao.CountProjects(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "获取项目总数失败: " + err.Error(),
@@ -261,7 +261,7 @@ func (h *Handler) ListScratchProjects(c *gin.Context) {
 	forward := forwardStr == "true"
 
 	// 获取项目列表
-	projects, hasMore, err := h.services.ScratchService.ListProjectsWithPagination(userID, uint(pageSize), uint(beginID), forward, asc)
+	projects, hasMore, err := h.services.ScratchDao.ListProjectsWithPagination(userID, uint(pageSize), uint(beginID), forward, asc)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "获取项目列表失败: " + err.Error(),
@@ -293,7 +293,7 @@ func (h *Handler) DeleteScratchProject(c *gin.Context) {
 	}
 
 	// 删除项目
-	if err := h.services.ScratchService.DeleteProject(userID, uint(id)); err != nil {
+	if err := h.services.ScratchDao.DeleteProject(userID, uint(id)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "删除项目失败: " + err.Error(),
 		})
@@ -382,7 +382,7 @@ func (h *Handler) PostCreateScratchProject(c *gin.Context) {
 	}
 
 	// 调用服务创建项目（使用0表示新项目）
-	projectID, err := h.services.ScratchService.SaveProject(userID, 0, title, r)
+	projectID, err := h.services.ScratchDao.SaveProject(userID, 0, title, r)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "创建项目失败: " + err.Error(),
@@ -411,7 +411,7 @@ func (h *Handler) GetLibraryAsset(c *gin.Context) {
 	assetData, err := web.GetScratchAsset(filename)
 	if err != nil {
 		// 使用 scratch 服务的基础路径
-		filePath := filepath.Join(h.services.ScratchService.GetScratchBasePath(), "assets", filename)
+		filePath := filepath.Join(h.services.ScratchDao.GetScratchBasePath(), "assets", filename)
 
 		// 尝试从文件系统中读取资源文件
 		assetData, err = os.ReadFile(filePath)
@@ -502,7 +502,7 @@ func (h *Handler) UploadScratchAsset(c *gin.Context) {
 	}
 
 	// 使用 scratch 服务的基础路径
-	assetDir := filepath.Join(h.services.ScratchService.GetScratchBasePath(), "assets")
+	assetDir := filepath.Join(h.services.ScratchDao.GetScratchBasePath(), "assets")
 	if err := os.MkdirAll(assetDir, 0755); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "创建资源目录失败: " + err.Error(),

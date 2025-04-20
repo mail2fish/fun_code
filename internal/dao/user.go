@@ -9,18 +9,18 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserServiceImpl struct {
+type UserDaoImpl struct {
 	db *gorm.DB
 }
 
-func NewUserService(db *gorm.DB) UserService {
-	return &UserServiceImpl{
+func NewUserDao(db *gorm.DB) UserDao {
+	return &UserDaoImpl{
 		db: db,
 	}
 }
 
 // GetUserByID 根据ID获取用户信息
-func (s *UserServiceImpl) GetUserByID(id uint) (*model.User, error) {
+func (s *UserDaoImpl) GetUserByID(id uint) (*model.User, error) {
 	var user model.User
 	if err := s.db.First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -32,7 +32,7 @@ func (s *UserServiceImpl) GetUserByID(id uint) (*model.User, error) {
 }
 
 // GetUserByUsername 根据用户名获取用户信息
-func (s *UserServiceImpl) GetUserByUsername(username string) (*model.User, error) {
+func (s *UserDaoImpl) GetUserByUsername(username string) (*model.User, error) {
 	var user model.User
 	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -44,7 +44,7 @@ func (s *UserServiceImpl) GetUserByUsername(username string) (*model.User, error
 }
 
 // GetUserByEmail 根据邮箱获取用户信息
-func (s *UserServiceImpl) GetUserByEmail(email string) (*model.User, error) {
+func (s *UserDaoImpl) GetUserByEmail(email string) (*model.User, error) {
 	var user model.User
 	if err := s.db.Where("email = ?", email).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -56,7 +56,7 @@ func (s *UserServiceImpl) GetUserByEmail(email string) (*model.User, error) {
 }
 
 // ListUsers 获取用户列表，支持分页
-func (s *UserServiceImpl) ListUsers(page, pageSize int) ([]model.User, int64, error) {
+func (s *UserDaoImpl) ListUsers(page, pageSize int) ([]model.User, int64, error) {
 	var users []model.User
 	var total int64
 
@@ -75,7 +75,7 @@ func (s *UserServiceImpl) ListUsers(page, pageSize int) ([]model.User, int64, er
 }
 
 // UpdateUser 更新用户信息
-func (s *UserServiceImpl) UpdateUser(id uint, updates map[string]interface{}) error {
+func (s *UserDaoImpl) UpdateUser(id uint, updates map[string]interface{}) error {
 	// 检查用户是否存在
 	var user model.User
 	if err := s.db.First(&user, id).Error; err != nil {
@@ -123,7 +123,7 @@ func (s *UserServiceImpl) UpdateUser(id uint, updates map[string]interface{}) er
 }
 
 // UpdateUserProfile 更新用户资料（不包括密码）
-func (s *UserServiceImpl) UpdateUserProfile(id uint, nickname, email string) error {
+func (s *UserDaoImpl) UpdateUserProfile(id uint, nickname, email string) error {
 	updates := map[string]interface{}{
 		"nickname": nickname,
 	}
@@ -156,7 +156,7 @@ func (s *UserServiceImpl) UpdateUserProfile(id uint, nickname, email string) err
 }
 
 // ChangePassword 修改用户密码
-func (s *UserServiceImpl) ChangePassword(id uint, oldPassword, newPassword string) error {
+func (s *UserDaoImpl) ChangePassword(id uint, oldPassword, newPassword string) error {
 	// 检查用户是否存在
 	var user model.User
 	if err := s.db.First(&user, id).Error; err != nil {
@@ -186,7 +186,7 @@ func (s *UserServiceImpl) ChangePassword(id uint, oldPassword, newPassword strin
 }
 
 // DeleteUser 删除用户
-func (s *UserServiceImpl) DeleteUser(id uint) error {
+func (s *UserDaoImpl) DeleteUser(id uint) error {
 	// 检查用户是否存在
 	var user model.User
 	if err := s.db.First(&user, id).Error; err != nil {
@@ -205,7 +205,7 @@ func (s *UserServiceImpl) DeleteUser(id uint) error {
 }
 
 // HardDeleteUser 硬删除用户（慎用）
-func (s *UserServiceImpl) HardDeleteUser(id uint) error {
+func (s *UserDaoImpl) HardDeleteUser(id uint) error {
 	// 检查用户是否存在
 	var user model.User
 	if err := s.db.First(&user, id).Error; err != nil {
@@ -224,7 +224,7 @@ func (s *UserServiceImpl) HardDeleteUser(id uint) error {
 }
 
 // 创建用户
-func (s *UserServiceImpl) CreateUser(user *model.User) error {
+func (s *UserDaoImpl) CreateUser(user *model.User) error {
 	// 检查用户名是否已存在
 	var existingUser model.User
 	if err := s.db.Where("username = ?", user.Username).First(&existingUser).Error; err == nil {

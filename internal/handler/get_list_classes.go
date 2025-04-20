@@ -33,7 +33,7 @@ func (h *Handler) GetListClasses(c *gin.Context) {
 	forward := forwardStr == "true"
 
 	// 获取班级列表
-	classes, hasMore, err := h.services.ClassService.ListClassesWithPagination(userID, uint(pageSize), uint(beginID), forward, asc)
+	classes, hasMore, err := h.services.ClassDao.ListClassesWithPagination(userID, uint(pageSize), uint(beginID), forward, asc)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "获取班级列表失败: " + err.Error(),

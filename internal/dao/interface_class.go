@@ -2,8 +2,8 @@ package dao
 
 import "github.com/jun/fun_code/internal/model"
 
-// ClassService 定义了班级服务的接口
-type ClassService interface {
+// ClassDao 定义了班级服务的接口
+type ClassDao interface {
 	// CreateClass 创建班级
 	CreateClass(teacherID uint, name, description string, startDateStr, endDateStr string) (*model.Class, error)
 

@@ -24,7 +24,7 @@ func (h *Handler) PostCreateClass(c *gin.Context) {
 	}
 
 	// 调用服务层创建班级
-	class, err := h.services.ClassService.CreateClass(userID, req.Name, req.Description, req.StartDate, req.EndDate)
+	class, err := h.services.ClassDao.CreateClass(userID, req.Name, req.Description, req.StartDate, req.EndDate)
 	if err != nil {
 		c.JSON(400, gin.H{"error": "创建班级失败", "details": err.Error()})
 		return
@@ -45,4 +45,3 @@ func (h *Handler) PostCreateClass(c *gin.Context) {
 		},
 	})
 }
-

@@ -17,7 +17,7 @@ import (
 )
 
 type Handler struct {
-	services dao.Services
+	services dao.Dao
 	config   *config.Config // 添加配置字段
 
 	// 用于限流的映射和互斥锁
@@ -25,7 +25,7 @@ type Handler struct {
 	createProjectLimiterLock sync.Mutex
 }
 
-func NewHandler(services dao.Services,
+func NewHandler(services dao.Dao,
 	cfg *config.Config) *Handler {
 	return &Handler{
 		services:             services,
@@ -46,7 +46,7 @@ func (h *Handler) CreateDirectory(c *gin.Context) {
 		return
 	}
 
-	if err := h.services.FileService.CreateDirectory(userID, req.Name, req.ParentID); err != nil {
+	if err := h.services.FileDao.CreateDirectory(userID, req.Name, req.ParentID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建目录失败"})
 		return
 	}
@@ -82,7 +82,7 @@ func (h *Handler) UploadFile(c *gin.Context) {
 	defer src.Close()
 
 	contentType := file.Header.Get("Content-Type")
-	if err := h.services.FileService.UploadFile(userID, file.Filename, parentID, contentType, file.Size, src); err != nil {
+	if err := h.services.FileDao.UploadFile(userID, file.Filename, parentID, contentType, file.Size, src); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "上传文件失败"})
 		return
 	}
@@ -105,7 +105,7 @@ func (h *Handler) ListFiles(c *gin.Context) {
 		parentID = &uintID
 	}
 
-	files, err := h.services.FileService.ListFiles(userID, parentID)
+	files, err := h.services.FileDao.ListFiles(userID, parentID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取文件列表失败"})
 		return
@@ -122,7 +122,7 @@ func (h *Handler) DownloadFile(c *gin.Context) {
 		return
 	}
 
-	file, err := h.services.FileService.GetFile(userID, uint(fileID))
+	file, err := h.services.FileDao.GetFile(userID, uint(fileID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -146,7 +146,7 @@ func (h *Handler) DeleteFile(c *gin.Context) {
 		return
 	}
 
-	if err := h.services.FileService.DeleteFile(userID, uint(fileID)); err != nil {
+	if err := h.services.FileDao.DeleteFile(userID, uint(fileID)); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
 		} else {
@@ -163,13 +163,13 @@ func (h *Handler) DeleteFile(c *gin.Context) {
 // T 翻译消息
 func (h *Handler) T(messageID string, c *gin.Context) string {
 	lang := h.GetLanguage(c)
-	return h.services.I18nService.Translate(messageID, lang)
+	return h.services.I18nDao.Translate(messageID, lang)
 }
 
 // TWithData 使用模板数据翻译消息
 func (h *Handler) TWithData(messageID string, c *gin.Context, data map[string]interface{}) string {
 	lang := h.GetLanguage(c)
-	return h.services.I18nService.TranslateWithData(messageID, lang, data)
+	return h.services.I18nDao.TranslateWithData(messageID, lang, data)
 }
 
 // GetLanguage 从请求中获取语言
@@ -198,5 +198,5 @@ func (h *Handler) GetLanguage(c *gin.Context) string {
 	}
 
 	// 默认返回配置的默认语言
-	return h.services.I18nService.GetDefaultLanguage()
+	return h.services.I18nDao.GetDefaultLanguage()
 }

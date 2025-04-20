@@ -10,18 +10,18 @@ import (
 	"gorm.io/gorm"
 )
 
-// ClassServiceImpl 班级服务实现
-type ClassServiceImpl struct {
+// ClassDaoImpl 班级服务实现
+type ClassDaoImpl struct {
 	db *gorm.DB
 }
 
-// NewClassService 创建班级服务实例
-func NewClassService(db *gorm.DB) ClassService {
-	return &ClassServiceImpl{db: db}
+// NewClassDao 创建班级服务实例
+func NewClassDao(db *gorm.DB) ClassDao {
+	return &ClassDaoImpl{db: db}
 }
 
 // CreateClass 创建班级
-func (s *ClassServiceImpl) CreateClass(teacherID uint, name, description string, startDateStr, endDateStr string) (*model.Class, error) {
+func (s *ClassDaoImpl) CreateClass(teacherID uint, name, description string, startDateStr, endDateStr string) (*model.Class, error) {
 	// 解析日期
 	startDate, err := time.Parse("2006-01-02", startDateStr)
 	if err != nil {
@@ -59,7 +59,7 @@ func (s *ClassServiceImpl) CreateClass(teacherID uint, name, description string,
 }
 
 // UpdateClass 更新班级信息
-func (s *ClassServiceImpl) UpdateClass(classID, teacherID uint, updates map[string]interface{}) error {
+func (s *ClassDaoImpl) UpdateClass(classID, teacherID uint, updates map[string]interface{}) error {
 	// 检查班级是否存在且属于该教师
 	var class model.Class
 	if err := s.db.Where("id = ? AND teacher_id = ?", classID, teacherID).First(&class).Error; err != nil {
@@ -95,7 +95,7 @@ func (s *ClassServiceImpl) UpdateClass(classID, teacherID uint, updates map[stri
 }
 
 // GetClass 获取班级详情
-func (s *ClassServiceImpl) GetClass(classID uint) (*model.Class, error) {
+func (s *ClassDaoImpl) GetClass(classID uint) (*model.Class, error) {
 	var class model.Class
 	if err := s.db.Preload("Teacher").Preload("Students").Preload("Courses").First(&class, classID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -108,7 +108,7 @@ func (s *ClassServiceImpl) GetClass(classID uint) (*model.Class, error) {
 }
 
 // ListClasses 列出教师创建的所有班级
-func (s *ClassServiceImpl) ListClasses(teacherID uint) ([]model.Class, error) {
+func (s *ClassDaoImpl) ListClasses(teacherID uint) ([]model.Class, error) {
 	var classes []model.Class
 	if err := s.db.Where("teacher_id = ?", teacherID).Find(&classes).Error; err != nil {
 		return nil, err
@@ -142,7 +142,7 @@ func (s *ClassServiceImpl) ListClasses(teacherID uint) ([]model.Class, error) {
 // (asc == false and forward == false)， 那么 where 条件为 id >= beginID, order 为 id asc
 // 查询 limit 为 abs(pageSize)+1 条记录，如果查询结果数组 length <= pageSize 条记录，hasMore 为 false
 // 查询 limit 为 abs(pageSize)+1 条记录，如果查询结果数组 length > pageSize 条记录，hasMore 为 true
-func (s *ClassServiceImpl) ListClassesWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Class, bool, error) {
+func (s *ClassDaoImpl) ListClassesWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Class, bool, error) {
 	var classes []model.Class
 
 	// 处理 pageSize 为 0 的情况，使用默认值 20
@@ -228,7 +228,7 @@ func (s *ClassServiceImpl) ListClassesWithPagination(userID uint, pageSize uint,
 }
 
 // DeleteClass 删除班级
-func (s *ClassServiceImpl) DeleteClass(classID, teacherID uint) error {
+func (s *ClassDaoImpl) DeleteClass(classID, teacherID uint) error {
 	// 检查班级是否存在且属于该教师
 	var class model.Class
 	if err := s.db.Where("id = ? AND teacher_id = ?", classID, teacherID).First(&class).Error; err != nil {
@@ -260,7 +260,7 @@ func (s *ClassServiceImpl) DeleteClass(classID, teacherID uint) error {
 }
 
 // AddStudent 添加学生到班级
-func (s *ClassServiceImpl) AddStudent(classID, teacherID, studentID uint, role string) error {
+func (s *ClassDaoImpl) AddStudent(classID, teacherID, studentID uint, role string) error {
 	// 检查班级是否存在且属于该教师
 	var class model.Class
 	if err := s.db.Where("id = ? AND teacher_id = ?", classID, teacherID).First(&class).Error; err != nil {
@@ -302,7 +302,7 @@ func (s *ClassServiceImpl) AddStudent(classID, teacherID, studentID uint, role s
 }
 
 // RemoveStudent 从班级移除学生
-func (s *ClassServiceImpl) RemoveStudent(classID, teacherID, studentID uint) error {
+func (s *ClassDaoImpl) RemoveStudent(classID, teacherID, studentID uint) error {
 	// 检查班级是否存在且属于该教师
 	var class model.Class
 	if err := s.db.Where("id = ? AND teacher_id = ?", classID, teacherID).First(&class).Error; err != nil {
@@ -322,7 +322,7 @@ func (s *ClassServiceImpl) RemoveStudent(classID, teacherID, studentID uint) err
 }
 
 // ListStudents 列出班级中的所有学生
-func (s *ClassServiceImpl) ListStudents(classID, teacherID uint) ([]model.User, error) {
+func (s *ClassDaoImpl) ListStudents(classID, teacherID uint) ([]model.User, error) {
 	// 检查班级是否存在且属于该教师
 	var class model.Class
 	if err := s.db.Where("id = ? AND teacher_id = ?", classID, teacherID).First(&class).Error; err != nil {
@@ -342,7 +342,7 @@ func (s *ClassServiceImpl) ListStudents(classID, teacherID uint) ([]model.User, 
 }
 
 // AddCourse 添加课程到班级
-func (s *ClassServiceImpl) AddCourse(classID, teacherID, courseID uint, startDateStr, endDateStr string) error {
+func (s *ClassDaoImpl) AddCourse(classID, teacherID, courseID uint, startDateStr, endDateStr string) error {
 	// 检查班级是否存在且属于该教师
 	var class model.Class
 	if err := s.db.Where("id = ? AND teacher_id = ?", classID, teacherID).First(&class).Error; err != nil {
@@ -404,7 +404,7 @@ func (s *ClassServiceImpl) AddCourse(classID, teacherID, courseID uint, startDat
 }
 
 // RemoveCourse 从班级移除课程
-func (s *ClassServiceImpl) RemoveCourse(classID, teacherID, courseID uint) error {
+func (s *ClassDaoImpl) RemoveCourse(classID, teacherID, courseID uint) error {
 	// 检查班级是否存在且属于该教师
 	var class model.Class
 	if err := s.db.Where("id = ? AND teacher_id = ?", classID, teacherID).First(&class).Error; err != nil {
@@ -424,7 +424,7 @@ func (s *ClassServiceImpl) RemoveCourse(classID, teacherID, courseID uint) error
 }
 
 // ListCourses 列出班级中的所有课程
-func (s *ClassServiceImpl) ListCourses(classID, teacherID uint) ([]model.Course, error) {
+func (s *ClassDaoImpl) ListCourses(classID, teacherID uint) ([]model.Course, error) {
 	// 检查班级是否存在且属于该教师
 	var class model.Class
 	if err := s.db.Where("id = ? AND teacher_id = ?", classID, teacherID).First(&class).Error; err != nil {
@@ -444,7 +444,7 @@ func (s *ClassServiceImpl) ListCourses(classID, teacherID uint) ([]model.Course,
 }
 
 // JoinClass 学生加入班级
-func (s *ClassServiceImpl) JoinClass(studentID uint, classCode string) error {
+func (s *ClassDaoImpl) JoinClass(studentID uint, classCode string) error {
 	// 查找班级
 	var class model.Class
 	if err := s.db.Where("code = ? AND is_active = ?", classCode, true).First(&class).Error; err != nil {
@@ -490,7 +490,7 @@ func (s *ClassServiceImpl) JoinClass(studentID uint, classCode string) error {
 }
 
 // ListJoinedClasses 列出学生加入的所有班级
-func (s *ClassServiceImpl) ListJoinedClasses(studentID uint) ([]model.Class, error) {
+func (s *ClassDaoImpl) ListJoinedClasses(studentID uint) ([]model.Class, error) {
 	var classes []model.Class
 
 	// 查询学生加入的所有班级
@@ -510,7 +510,7 @@ type CourseServiceImpl struct {
 }
 
 // NewCourseService 创建课程服务实例
-func NewCourseService(db *gorm.DB) CourseService {
+func NewCourseService(db *gorm.DB) CourseDao {
 	return &CourseServiceImpl{db: db}
 }
 
@@ -601,7 +601,7 @@ func (s *CourseServiceImpl) DeleteCourse(courseID, authorID uint) error {
 }
 
 // CountClasses 计算教师创建的班级总数
-func (s *ClassServiceImpl) CountClasses(teacherID uint) (int64, error) {
+func (s *ClassDaoImpl) CountClasses(teacherID uint) (int64, error) {
 	var total int64
 
 	// 构建查询

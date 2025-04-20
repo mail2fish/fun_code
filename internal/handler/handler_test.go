@@ -261,10 +261,10 @@ func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockS
 	mockFile := new(MockFileService)
 	mockScratch := new(MockScratchService)
 	cfg := &config.Config{ScratchEditor: config.ScratchEditorConfig{Host: "http://localhost"}}
-	h := NewHandler(dao.Services{
-		AuthService:    mockAuth,
-		FileService:    mockFile,
-		ScratchService: mockScratch,
+	h := NewHandler(dao.Dao{
+		AuthDao:    mockAuth,
+		FileDao:    mockFile,
+		ScratchDao: mockScratch,
 	}, cfg)
 
 	// 设置路由

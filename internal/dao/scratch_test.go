@@ -18,7 +18,7 @@ func TestGetProject(t *testing.T) {
 
 	// 修改调用方式，传入数据库和基础路径
 	db := testutils.SetupTestDB()
-	service := NewScratchService(db, tempDir)
+	service := NewScratchDao(db, tempDir)
 
 	tests := []struct {
 		name        string
@@ -62,7 +62,7 @@ func TestSaveProject(t *testing.T) {
 	defer os.RemoveAll(tempDir) // 测试结束后清理
 
 	db := testutils.SetupTestDB()
-	service := NewScratchService(db, tempDir)
+	service := NewScratchDao(db, tempDir)
 
 	// 测试数据
 	userID := uint(1)
@@ -104,7 +104,7 @@ func TestCanReadProject(t *testing.T) {
 	defer os.RemoveAll(tempDir) // 测试结束后清理
 
 	db := testutils.SetupTestDB()
-	service := NewScratchService(db, tempDir)
+	service := NewScratchDao(db, tempDir)
 
 	// 先创建一个项目用于测试
 	userID := uint(1)
@@ -164,7 +164,7 @@ func TestGetScratchBasePath(t *testing.T) {
 
 	// 创建服务实例
 	db := testutils.SetupTestDB()
-	service := NewScratchService(db, tempDir)
+	service := NewScratchDao(db, tempDir)
 
 	// 调用被测试的方法
 	basePath := service.GetScratchBasePath()
@@ -185,7 +185,7 @@ func TestListProjectsWithPagination(t *testing.T) {
 	defer os.RemoveAll(tempDir) // 测试结束后清理
 
 	db := testutils.SetupTestDB()
-	service := NewScratchService(db, tempDir)
+	service := NewScratchDao(db, tempDir)
 
 	// 创建测试用户
 	userID := uint(1)
@@ -390,7 +390,7 @@ func TestCountProjects(t *testing.T) {
 	defer os.RemoveAll(tempDir) // 测试结束后清理
 
 	db := testutils.SetupTestDB()
-	service := NewScratchService(db, tempDir)
+	service := NewScratchDao(db, tempDir)
 
 	// 创建测试用户
 	userID := uint(1)

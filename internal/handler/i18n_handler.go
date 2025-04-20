@@ -8,8 +8,8 @@ import (
 
 // GetSupportedLanguages 获取支持的语言列表
 func (h *Handler) GetSupportedLanguages(c *gin.Context) {
-	languages := h.services.I18nService.GetSupportedLanguages()
-	defaultLang := h.services.I18nService.GetDefaultLanguage()
+	languages := h.services.I18nDao.GetSupportedLanguages()
+	defaultLang := h.services.I18nDao.GetDefaultLanguage()
 
 	c.JSON(http.StatusOK, gin.H{
 		"languages":    languages,
@@ -33,7 +33,7 @@ func (h *Handler) SetLanguage(c *gin.Context) {
 
 	// 检查语言是否受支持
 	supported := false
-	for _, lang := range h.services.I18nService.GetSupportedLanguages() {
+	for _, lang := range h.services.I18nDao.GetSupportedLanguages() {
 		if lang == req.Language {
 			supported = true
 			break

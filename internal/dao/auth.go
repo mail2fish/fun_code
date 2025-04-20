@@ -14,15 +14,15 @@ import (
 	"gorm.io/gorm"
 )
 
-type AuthServiceImpl struct {
+type AuthDaoImpl struct {
 	db           *gorm.DB
 	jwtKey       []byte
 	sessionCache cache.SessionCache
 }
 
-// 修改 NewAuthService 函数，添加缓存参数
-func NewAuthService(db *gorm.DB, jwtKey []byte, sessionCache cache.SessionCache) AuthService {
-	return &AuthServiceImpl{
+// 修改 NewAuthDao 函数，添加缓存参数
+func NewAuthDao(db *gorm.DB, jwtKey []byte, sessionCache cache.SessionCache) AuthDao {
+	return &AuthDaoImpl{
 		db:           db,
 		jwtKey:       jwtKey,
 		sessionCache: sessionCache,
@@ -35,7 +35,7 @@ type Claims struct {
 }
 
 // 在 AuthServiceImpl 中实现新方法
-func (s *AuthServiceImpl) GenerateCookie(token string) *http.Cookie {
+func (s *AuthDaoImpl) GenerateCookie(token string) *http.Cookie {
 	return &http.Cookie{
 		Name:     "auth_token",
 		Value:    token,
@@ -49,7 +49,7 @@ func (s *AuthServiceImpl) GenerateCookie(token string) *http.Cookie {
 
 // Login 方法，返回用户的登录 token 和 cookie，并创建一个 session id，用于后续的请求验证
 // Login 方法，添加缓存逻辑
-func (s *AuthServiceImpl) Login(username, password string) (string, *http.Cookie, error) {
+func (s *AuthDaoImpl) Login(username, password string) (string, *http.Cookie, error) {
 	var user model.User
 	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -114,7 +114,7 @@ func (s *AuthServiceImpl) Login(username, password string) (string, *http.Cookie
 }
 
 // Logout 方法，添加缓存清理逻辑
-func (s *AuthServiceImpl) Logout(token string) (*http.Cookie, error) {
+func (s *AuthDaoImpl) Logout(token string) (*http.Cookie, error) {
 	// 验证 cookie
 	claims, err := s.ValidateToken(token)
 	if err != nil {
@@ -155,7 +155,7 @@ func (s *AuthServiceImpl) Logout(token string) (*http.Cookie, error) {
 }
 
 // ValidateToken 方法，使用缓存优化会话验证
-func (s *AuthServiceImpl) ValidateToken(tokenString string) (*Claims, error) {
+func (s *AuthDaoImpl) ValidateToken(tokenString string) (*Claims, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		return s.jwtKey, nil
@@ -195,7 +195,7 @@ func (s *AuthServiceImpl) ValidateToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
-func (s *AuthServiceImpl) Register(username, password, email string) error {
+func (s *AuthDaoImpl) Register(username, password, email string) error {
 	// 检查用户名是否已存在
 	var existingUser model.User
 	if err := s.db.Where("username = ?", username).First(&existingUser).Error; err == nil {

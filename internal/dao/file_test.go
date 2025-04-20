@@ -26,7 +26,7 @@ func setupFileTestDB(t *testing.T) *gorm.DB {
 func TestFileService_CreateDirectory(t *testing.T) {
 	db := setupFileTestDB(t)
 	tempDir := t.TempDir()
-	fileService := NewFileService(db, tempDir)
+	fileService := NewFileDao(db, tempDir)
 
 	tests := []struct {
 		name     string
@@ -75,7 +75,7 @@ func TestFileService_CreateDirectory(t *testing.T) {
 func TestFileService_UploadFile(t *testing.T) {
 	db := setupFileTestDB(t)
 	tempDir := t.TempDir()
-	fileService := NewFileService(db, tempDir)
+	fileService := NewFileDao(db, tempDir)
 
 	tests := []struct {
 		name        string
@@ -129,7 +129,7 @@ func TestFileService_UploadFile(t *testing.T) {
 func TestFileService_GetFile(t *testing.T) {
 	db := setupFileTestDB(t)
 	tempDir := t.TempDir()
-	fileService := NewFileService(db, tempDir)
+	fileService := NewFileDao(db, tempDir)
 
 	// 创建测试文件
 	file := model.File{
@@ -189,7 +189,7 @@ func TestFileService_GetFile(t *testing.T) {
 func TestFileService_ListFiles(t *testing.T) {
 	db := setupFileTestDB(t)
 	tempDir := t.TempDir()
-	fileService := NewFileService(db, tempDir)
+	fileService := NewFileDao(db, tempDir)
 
 	// 创建测试文件和目录
 	parentID := uint(1)
@@ -238,7 +238,7 @@ func TestFileService_ListFiles(t *testing.T) {
 func TestFileService_DeleteFile(t *testing.T) {
 	db := setupFileTestDB(t)
 	tempDir := t.TempDir()
-	fileService := NewFileService(db, tempDir)
+	fileService := NewFileDao(db, tempDir)
 
 	// 创建测试文件
 	testFilePath := filepath.Join(tempDir, "test.txt")

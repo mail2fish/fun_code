@@ -7,17 +7,17 @@ import (
 	"github.com/jun/fun_code/internal/model"
 )
 
-type Services struct {
-	AuthService    AuthService
-	UserService    UserService
-	FileService    FileService
-	ClassService   ClassService
-	CourseService  CourseService
-	ScratchService ScratchService
-	I18nService    i18n.I18nService // 新增 I18nService
+type Dao struct {
+	AuthDao    AuthDao
+	UserDao    UserDao
+	FileDao    FileDao
+	ClassDao   ClassDao
+	CourseDao  CourseDao
+	ScratchDao ScratchDao
+	I18nDao    i18n.I18nService // 新增 I18nService
 }
 
-type AuthService interface {
+type AuthDao interface {
 	Register(username, password, email string) error
 	Login(username, password string) (string, *http.Cookie, error)
 	Logout(token string) (*http.Cookie, error)
@@ -25,8 +25,8 @@ type AuthService interface {
 	GenerateCookie(token string) *http.Cookie
 }
 
-// UserService 用户服务接口
-type UserService interface {
+// UserDao 用户服务接口
+type UserDao interface {
 	GetUserByID(id uint) (*model.User, error)
 	GetUserByUsername(username string) (*model.User, error)
 	GetUserByEmail(email string) (*model.User, error)

@@ -6,7 +6,7 @@ import (
 	"github.com/jun/fun_code/internal/model"
 )
 
-type FileService interface {
+type FileDao interface {
 	CreateDirectory(userID uint, name string, parentID *uint) error
 	UploadFile(userID uint, name string, parentID *uint, contentType string, size int64, reader io.Reader) error
 	GetFile(userID, fileID uint) (*model.File, error)

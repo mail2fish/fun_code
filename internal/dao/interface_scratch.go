@@ -2,8 +2,8 @@ package dao
 
 import "github.com/jun/fun_code/internal/model"
 
-// ScratchService 定义了Scratch项目服务的接口
-type ScratchService interface {
+// ScratchDao 定义了Scratch项目服务的接口
+type ScratchDao interface {
 	// GetProjectBinary 获取指定ID的Scratch项目的二进制内容
 	GetProjectBinary(projectID uint) ([]byte, error)
 

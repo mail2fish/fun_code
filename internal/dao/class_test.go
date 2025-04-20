@@ -14,7 +14,7 @@ import (
 func TestCreateClass(t *testing.T) {
 	// 设置测试数据库
 	db := testutils.SetupTestDB()
-	classService := NewClassService(db)
+	classService := NewClassDao(db)
 
 	// 测试数据
 	teacherID := uint(1)
@@ -95,7 +95,7 @@ func TestCreateClass(t *testing.T) {
 func TestUpdateClass(t *testing.T) {
 	// 设置测试数据库
 	db := testutils.SetupTestDB()
-	classService := NewClassService(db)
+	classService := NewClassDao(db)
 
 	// 先创建一个班级用于测试
 	teacherID := uint(1)
@@ -199,7 +199,7 @@ func TestUpdateClass(t *testing.T) {
 func TestGetClass(t *testing.T) {
 	// 设置测试数据库
 	db := testutils.SetupTestDB()
-	classService := NewClassService(db)
+	classService := NewClassDao(db)
 
 	// 先创建一个班级用于测试
 	teacherID := uint(1)
@@ -260,7 +260,7 @@ func TestGetClass(t *testing.T) {
 func TestListClasses(t *testing.T) {
 	// 设置测试数据库
 	db := testutils.SetupTestDB()
-	classService := NewClassService(db)
+	classService := NewClassDao(db)
 
 	// 创建多个班级用于测试
 	teacherID := uint(1)
@@ -337,7 +337,7 @@ func TestListClasses(t *testing.T) {
 func TestDeleteClass(t *testing.T) {
 	// 设置测试数据库
 	db := testutils.SetupTestDB()
-	classService := NewClassService(db)
+	classService := NewClassDao(db)
 
 	// 先创建一个班级用于测试
 	teacherID := uint(1)
