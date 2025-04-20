@@ -1,11 +1,11 @@
-package service
+package dao
 
 import (
 	"fmt"
 	"os"
 	"testing"
 
-	"github.com/jun/fun_code/internal/service/testutils"
+	"github.com/jun/fun_code/internal/dao/testutils"
 )
 
 func TestGetProject(t *testing.T) {

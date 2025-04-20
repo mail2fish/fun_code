@@ -10,9 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/config"
+	"github.com/jun/fun_code/internal/dao"
+	"github.com/jun/fun_code/internal/dao/testutils"
 	"github.com/jun/fun_code/internal/model"
-	"github.com/jun/fun_code/internal/service"
-	"github.com/jun/fun_code/internal/service/testutils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,7 +30,7 @@ func TestListScratchProjects(t *testing.T) {
 
 	// 设置数据库和服务
 	db := testutils.SetupTestDB()
-	scratchService := service.NewScratchService(db, tempDir)
+	scratchService := dao.NewScratchService(db, tempDir)
 
 	// 创建配置
 	cfg := &config.Config{
@@ -41,7 +41,7 @@ func TestListScratchProjects(t *testing.T) {
 
 	// 创建处理器
 	h := &Handler{
-		services: service.Services{ScratchService: scratchService},
+		services: dao.Services{ScratchService: scratchService},
 		config:   cfg,
 	}
 

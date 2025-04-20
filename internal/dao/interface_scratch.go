@@ -1,4 +1,4 @@
-package service
+package dao
 
 import "github.com/jun/fun_code/internal/model"
 

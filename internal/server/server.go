@@ -7,10 +7,10 @@ import (
 
 	"github.com/jun/fun_code/internal/cache"
 	"github.com/jun/fun_code/internal/config"
+	"github.com/jun/fun_code/internal/dao"
 	"github.com/jun/fun_code/internal/database"
 	"github.com/jun/fun_code/internal/handler"
 	"github.com/jun/fun_code/internal/i18n"
-	"github.com/jun/fun_code/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
@@ -51,11 +51,11 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		// 继续执行，不要因为 i18n 初始化失败而中断服务启动
 	}
 
-	services := service.Services{
-		AuthService:    service.NewAuthService(db, []byte(cfg.JWT.SecretKey), sessionCache),
-		FileService:    service.NewFileService(db, cfg.Storage.BasePath),
-		ScratchService: service.NewScratchService(db, filepath.Join(cfg.Storage.BasePath, "scratch")),
-		ClassService:   service.NewClassService(db),
+	services := dao.Services{
+		AuthService:    dao.NewAuthService(db, []byte(cfg.JWT.SecretKey), sessionCache),
+		FileService:    dao.NewFileService(db, cfg.Storage.BasePath),
+		ScratchService: dao.NewScratchService(db, filepath.Join(cfg.Storage.BasePath, "scratch")),
+		ClassService:   dao.NewClassService(db),
 		I18nService:    i18nService, // 添加 I18nService
 	}
 	// 初始化处理器

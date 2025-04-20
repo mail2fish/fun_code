@@ -1,12 +1,12 @@
-package service
+package dao
 
 import (
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/jun/fun_code/internal/dao/testutils"
 	"github.com/jun/fun_code/internal/model"
-	"github.com/jun/fun_code/internal/service/testutils"
 	"github.com/stretchr/testify/assert"
 )
 

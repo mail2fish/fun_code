@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/jun/fun_code/internal/service"
+	"github.com/jun/fun_code/internal/dao"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,7 +54,7 @@ func TestHandler_GetScratchProject(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// 设置认证中间件的mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&service.Claims{UserID: 1}, nil)
+			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 
 			// 设置GetProject的mock
 			if tt.projectID != "invalid" {
@@ -129,7 +129,7 @@ func TestHandler_SaveScratchProject(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// 设置认证中间件的mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&service.Claims{UserID: 1}, nil)
+			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 
 			// 设置SaveProject的mock
 			if tt.projectID != "invalid" {
@@ -183,7 +183,7 @@ func TestHandler_DeleteScratchProject(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// 设置认证中间件的mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&service.Claims{UserID: 1}, nil)
+			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 
 			// 设置DeleteProject的mock
 			if tt.projectID != "invalid" {
@@ -250,7 +250,7 @@ func TestHandler_CreateScratchProject(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// 设置认证中间件的mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&service.Claims{UserID: 1}, nil)
+			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 
 			// 只有当setupMock为true时才设置SaveProject的mock
 			if tt.setupMock {

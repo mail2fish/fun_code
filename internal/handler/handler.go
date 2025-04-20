@@ -10,14 +10,14 @@ import (
 	"time"
 
 	"github.com/jun/fun_code/internal/config"
-	"github.com/jun/fun_code/internal/service"
+	"github.com/jun/fun_code/internal/dao"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 type Handler struct {
-	services service.Services
+	services dao.Services
 	config   *config.Config // 添加配置字段
 
 	// 用于限流的映射和互斥锁
@@ -25,7 +25,7 @@ type Handler struct {
 	createProjectLimiterLock sync.Mutex
 }
 
-func NewHandler(services service.Services,
+func NewHandler(services dao.Services,
 	cfg *config.Config) *Handler {
 	return &Handler{
 		services:             services,

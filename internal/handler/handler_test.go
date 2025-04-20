@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/jun/fun_code/internal/config"
+	"github.com/jun/fun_code/internal/dao"
 	"github.com/jun/fun_code/internal/model"
-	"github.com/jun/fun_code/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -137,12 +137,12 @@ func TestHandler_Login(t *testing.T) {
 	}
 }
 
-func (m *MockAuthService) ValidateToken(token string) (*service.Claims, error) {
+func (m *MockAuthService) ValidateToken(token string) (*dao.Claims, error) {
 	args := m.Called(token)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*service.Claims), args.Error(1)
+	return args.Get(0).(*dao.Claims), args.Error(1)
 }
 
 // MockFileService 是 FileService 的模拟实现
@@ -261,7 +261,7 @@ func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockS
 	mockFile := new(MockFileService)
 	mockScratch := new(MockScratchService)
 	cfg := &config.Config{ScratchEditor: config.ScratchEditorConfig{Host: "http://localhost"}}
-	h := NewHandler(service.Services{
+	h := NewHandler(dao.Services{
 		AuthService:    mockAuth,
 		FileService:    mockFile,
 		ScratchService: mockScratch,
@@ -347,14 +347,14 @@ func TestHandler_AuthMiddleware(t *testing.T) {
 	tests := []struct {
 		name       string
 		token      string
-		mockClaims *service.Claims
+		mockClaims *dao.Claims
 		mockErr    error
 		wantStatus int
 	}{
 		{
 			name:  "有效token",
 			token: "valid.token.string",
-			mockClaims: &service.Claims{
+			mockClaims: &dao.Claims{
 				UserID: 1,
 			},
 			mockErr:    nil,
@@ -401,7 +401,7 @@ func TestHandler_CreateDirectory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&service.Claims{UserID: 1}, nil)
+			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 			mockFile.On("CreateDirectory", uint(1), tt.reqBody["name"].(string), (*uint)(nil)).Return(tt.mockErr)
 
 			body, _ := json.Marshal(tt.reqBody)
@@ -445,7 +445,7 @@ func TestHandler_UploadFile(t *testing.T) {
 			part.Write(content)
 			writer.Close()
 
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&service.Claims{UserID: 1}, nil)
+			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 			mockFile.On("UploadFile", uint(1), tt.fileName, (*uint)(nil), "application/octet-stream", int64(len(content)), mock.Anything).Return(tt.mockErr)
 
 			req := httptest.NewRequest("POST", "/api/files", body)
@@ -489,7 +489,7 @@ func TestHandler_ListFiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&service.Claims{UserID: 1}, nil)
+			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 			mockFile.On("ListFiles", uint(1), (*uint)(nil)).Return(tt.files, tt.mockErr)
 
 			req := httptest.NewRequest("GET", "/api/files", nil)
@@ -544,7 +544,7 @@ func TestHandler_DownloadFile(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// 设置认证中间件的mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&service.Claims{UserID: 1}, nil)
+			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 
 			// 设置GetFile的mock
 			if tt.fileID != "invalid" {
@@ -610,7 +610,7 @@ func TestHandler_DeleteFile(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// 设置认证中间件的mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&service.Claims{UserID: 1}, nil)
+			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 
 			// 设置DeleteFile的mock
 			if tt.fileID != "invalid" {

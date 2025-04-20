@@ -1,4 +1,4 @@
-package service
+package dao
 
 import (
 	"net/http"
@@ -8,7 +8,7 @@ import (
 	"github.com/jun/fun_code/internal/cache"
 	"github.com/jun/fun_code/internal/model"
 
-	"github.com/jun/fun_code/internal/service/testutils"
+	"github.com/jun/fun_code/internal/dao/testutils"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
