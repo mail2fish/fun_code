@@ -2,7 +2,7 @@ package handler
 
 import "github.com/gin-gonic/gin"
 
-// PostCreateClass 调用 service 层的 CreateClass 方法，创建班级
+// PostCreateClass 调用 dao 层的 CreateClass 方法，创建班级
 // 参数是通过Post JSON 方式传递，格式如下：
 // {"name":"2025 scratch 测试班","description":"测试测试","start_date":"2025-04-16","end_date":"2025-08-16"}
 func (h *Handler) PostCreateClass(c *gin.Context) {

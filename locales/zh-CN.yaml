@@ -1,0 +1,13 @@
+user:
+  not_found: "用户不存在"
+  username_taken: "用户名已被注册"
+  email_taken: "邮箱已被使用"
+  password_empty: "密码不能为空"
+  password_encrypt_failed: "密码加密失败"
+  update_failed: "更新用户失败"
+  update_profile_failed: "更新用户资料失败"
+  old_password_incorrect: "旧密码不正确"
+  update_password_failed: "更新密码失败"
+  delete_failed: "删除用户失败"
+  create_failed: "创建用户失败"
+  db_query_failed: "数据库查询失败"

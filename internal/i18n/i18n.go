@@ -1,7 +1,7 @@
 package i18n
 
 import (
-	"encoding/json"
+	// 保持导入，以防万一 RegisterUnmarshalFunc 需要它作为默认
 	"log"
 	"os"
 	"path/filepath"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"golang.org/x/text/language"
+	"gopkg.in/yaml.v3" // 导入 YAML 包
 )
 
 // I18nServiceImpl 实现了 I18nService 接口
@@ -22,7 +23,8 @@ type I18nServiceImpl struct {
 // NewI18nService 创建一个新的 I18nService 实例
 func NewI18nService(localesPath string, defaultLang string) (I18nService, error) {
 	bundle := i18n.NewBundle(language.Make(defaultLang))
-	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
+	// 注册 YAML 的 unmarshal 函数
+	bundle.RegisterUnmarshalFunc("yaml", yaml.Unmarshal)
 
 	// 读取语言文件
 	files, err := os.ReadDir(localesPath)
@@ -39,15 +41,17 @@ func NewI18nService(localesPath string, defaultLang string) (I18nService, error)
 			continue
 		}
 
-		if strings.HasSuffix(file.Name(), ".json") {
+		// 修改后缀检查为 .yaml
+		if strings.HasSuffix(file.Name(), ".yaml") {
 			langFile := filepath.Join(localesPath, file.Name())
+			// LoadMessageFile 会自动使用注册的 unmarshal 函数
 			_, err := bundle.LoadMessageFile(langFile)
 			if err != nil {
 				log.Printf("加载语言文件 %s 失败: %v", langFile, err)
 				continue
 			}
 
-			// 从文件名中提取语言代码 (例如 zh-CN.json -> zh-CN)
+			// 从文件名中提取语言代码 (例如 zh-CN.yaml -> zh-CN)
 			lang := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
 			if lang != defaultLang {
 				supportedLangs = append(supportedLangs, lang)

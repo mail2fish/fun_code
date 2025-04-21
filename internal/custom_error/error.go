@@ -24,7 +24,7 @@ type ErrorCode string
 type CustomError struct {
 	Type    ErrorType // 错误类型
 	Module  string    // 业务模块
-	Code    ErrorCode // 错误代码，使用专有类型
+	Code    int       // 错误代码，使用专有类型
 	Message string    // 错误消息
 	Err     error     // 原始错误
 }
@@ -53,7 +53,7 @@ func (e *CustomError) ErrorCode() ErrorCode {
 }
 
 // NewError 创建错误
-func NewError(module string, code ErrorCode, message string) *CustomError {
+func NewError(module string, code int, message string) *CustomError {
 	return &CustomError{
 		Type:    HandlerError,
 		Module:  module,
@@ -63,7 +63,7 @@ func NewError(module string, code ErrorCode, message string) *CustomError {
 }
 
 // NewHandlerError 创建业务逻辑错误
-func NewHandlerError(module string, code ErrorCode, message string) *CustomError {
+func NewHandlerError(module string, code int, message string) *CustomError {
 	return &CustomError{
 		Type:    HandlerError,
 		Module:  module,
@@ -73,7 +73,7 @@ func NewHandlerError(module string, code ErrorCode, message string) *CustomError
 }
 
 // NewThirdPartyError 创建第三方库错误
-func NewThirdPartyError(module string, code ErrorCode, message string, err error) *CustomError {
+func NewThirdPartyError(module string, code int, message string, err error) *CustomError {
 	return &CustomError{
 		Type:    ThirdPartyError,
 		Module:  module,
@@ -83,8 +83,8 @@ func NewThirdPartyError(module string, code ErrorCode, message string, err error
 	}
 }
 
-// NewServiceError 创建系统错误
-func NewServiceError(module string, code ErrorCode, message string) *CustomError {
+// NewDaoError 创建系统错误
+func NewDaoError(module string, code int, message string) *CustomError {
 	return &CustomError{
 		Type:    ServiceError,
 		Module:  module,
@@ -132,7 +132,7 @@ func GetErrorCode(err error) ErrorCode {
 		return ""
 	}
 	if e, ok := err.(*CustomError); ok {
-		return e.Code
+		return e.ErrorCode()
 	}
 	return ""
 }
