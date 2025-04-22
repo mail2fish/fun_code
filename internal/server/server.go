@@ -69,7 +69,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		// 继续执行，不要因为 i18n 初始化失败而中断服务启动
 	}
 
-	services := dao.Dao{
+	dao := &dao.Dao{
 		AuthDao:    dao.NewAuthDao(db, []byte(cfg.JWT.SecretKey), sessionCache),
 		FileDao:    dao.NewFileDao(db, cfg.Storage.BasePath),
 		ScratchDao: dao.NewScratchDao(db, filepath.Join(cfg.Storage.BasePath, "scratch")),
@@ -78,7 +78,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	}
 	// 初始化处理器
 	h := handler.NewHandler(
-		services, i18nService, logger, cfg)
+		dao, i18nService, logger, cfg)
 
 	// 初始化路由
 	r := gin.Default()

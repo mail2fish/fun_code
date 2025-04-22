@@ -19,7 +19,7 @@ import (
 )
 
 type Handler struct {
-	dao    dao.Dao
+	dao    *dao.Dao
 	config *config.Config   // 添加配置字段
 	i18n   i18n.I18nService // 新增 I18nService
 
@@ -29,10 +29,10 @@ type Handler struct {
 	logger                   *zap.Logger
 }
 
-func NewHandler(services dao.Dao, i18n i18n.I18nService, logger *zap.Logger,
+func NewHandler(dao *dao.Dao, i18n i18n.I18nService, logger *zap.Logger,
 	cfg *config.Config) *Handler {
 	return &Handler{
-		dao:                  services,
+		dao:                  dao,
 		i18n:                 i18n,
 		config:               cfg, // 初始化配置字段
 		createProjectLimiter: make(map[uint][]time.Time),

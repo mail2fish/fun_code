@@ -15,7 +15,7 @@ import (
 
 // 添加 Scratch 相关测试函数
 func TestHandler_GetScratchProject(t *testing.T) {
-	r, mockAuth, _, mockScratch := setupTestHandler()
+	r, mockAuth, _, _, mockScratch := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -81,7 +81,7 @@ func TestHandler_GetScratchProject(t *testing.T) {
 }
 
 func TestHandler_SaveScratchProject(t *testing.T) {
-	r, mockAuth, _, mockScratch := setupTestHandler()
+	r, mockAuth, _, _, mockScratch := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -150,7 +150,7 @@ func TestHandler_SaveScratchProject(t *testing.T) {
 }
 
 func TestHandler_DeleteScratchProject(t *testing.T) {
-	r, mockAuth, _, mockScratch := setupTestHandler()
+	r, mockAuth, _, _, mockScratch := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -204,7 +204,7 @@ func TestHandler_DeleteScratchProject(t *testing.T) {
 }
 
 func TestHandler_CreateScratchProject(t *testing.T) {
-	r, mockAuth, _, mockScratch := setupTestHandler()
+	r, mockAuth, _, _, mockScratch := setupTestHandler()
 
 	tests := []struct {
 		name       string

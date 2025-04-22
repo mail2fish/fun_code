@@ -14,17 +14,17 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockUserDao 是 UserDao 的模拟实现
-type MockUserDao struct {
+// PostCreateUserMockUserDao 是 UserDao 的模拟实现
+type PostCreateUserMockUserDao struct {
 	mock.Mock
 }
 
-func (m *MockUserDao) CreateUser(user *model.User) error {
+func (m *PostCreateUserMockUserDao) CreateUser(user *model.User) error {
 	args := m.Called(user)
 	return args.Error(0)
 }
 
-func (m *MockUserDao) GetUserByID(id uint) (*model.User, error) {
+func (m *PostCreateUserMockUserDao) GetUserByID(id uint) (*model.User, error) {
 	args := m.Called(id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -32,7 +32,7 @@ func (m *MockUserDao) GetUserByID(id uint) (*model.User, error) {
 	return args.Get(0).(*model.User), args.Error(1)
 }
 
-func (m *MockUserDao) GetUserByUsername(username string) (*model.User, error) {
+func (m *PostCreateUserMockUserDao) GetUserByUsername(username string) (*model.User, error) {
 	args := m.Called(username)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -40,7 +40,7 @@ func (m *MockUserDao) GetUserByUsername(username string) (*model.User, error) {
 	return args.Get(0).(*model.User), args.Error(1)
 }
 
-func (m *MockUserDao) GetUserByEmail(email string) (*model.User, error) {
+func (m *PostCreateUserMockUserDao) GetUserByEmail(email string) (*model.User, error) {
 	args := m.Called(email)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -48,37 +48,37 @@ func (m *MockUserDao) GetUserByEmail(email string) (*model.User, error) {
 	return args.Get(0).(*model.User), args.Error(1)
 }
 
-func (m *MockUserDao) ListUsers(pageSize uint, beginID uint, forward bool, asc bool) ([]model.User, bool, error) {
+func (m *PostCreateUserMockUserDao) ListUsers(pageSize uint, beginID uint, forward bool, asc bool) ([]model.User, bool, error) {
 	args := m.Called(pageSize, beginID, forward, asc)
 	return args.Get(0).([]model.User), args.Get(1).(bool), args.Error(2)
 }
 
-func (m *MockUserDao) UpdateUser(id uint, updates map[string]interface{}) error {
+func (m *PostCreateUserMockUserDao) UpdateUser(id uint, updates map[string]interface{}) error {
 	args := m.Called(id, updates)
 	return args.Error(0)
 }
 
-func (m *MockUserDao) UpdateUserProfile(id uint, nickname, email string) error {
+func (m *PostCreateUserMockUserDao) UpdateUserProfile(id uint, nickname, email string) error {
 	args := m.Called(id, nickname, email)
 	return args.Error(0)
 }
 
-func (m *MockUserDao) ChangePassword(id uint, oldPassword, newPassword string) error {
+func (m *PostCreateUserMockUserDao) ChangePassword(id uint, oldPassword, newPassword string) error {
 	args := m.Called(id, oldPassword, newPassword)
 	return args.Error(0)
 }
 
-func (m *MockUserDao) DeleteUser(id uint) error {
+func (m *PostCreateUserMockUserDao) DeleteUser(id uint) error {
 	args := m.Called(id)
 	return args.Error(0)
 }
 
-func (m *MockUserDao) HardDeleteUser(id uint) error {
+func (m *PostCreateUserMockUserDao) HardDeleteUser(id uint) error {
 	args := m.Called(id)
 	return args.Error(0)
 }
 
-func (m *MockUserDao) CountUsers() (int64, error) {
+func (m *PostCreateUserMockUserDao) CountUsers() (int64, error) {
 	args := m.Called()
 	return args.Get(0).(int64), args.Error(1)
 }
@@ -109,17 +109,17 @@ func (m *MockI18nService) GetSupportedLanguages() []string {
 }
 
 // 设置测试环境
-func setupUserTestHandler() (*gin.Engine, *MockUserDao, *MockI18nService) {
+func setupUserTestHandler() (*gin.Engine, *PostCreateUserMockUserDao, *MockI18nService) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
-	mockUserDao := new(MockUserDao)
+	PostCreateUsermockUserDao := new(PostCreateUserMockUserDao)
 	mockI18n := new(MockI18nService)
 
 	// 创建一个简化版的 Handler
 	h := &Handler{
-		dao: dao.Dao{
-			UserDao: mockUserDao,
+		dao: &dao.Dao{
+			UserDao: PostCreateUsermockUserDao,
 		},
 		i18n: mockI18n,
 	}
@@ -127,11 +127,11 @@ func setupUserTestHandler() (*gin.Engine, *MockUserDao, *MockI18nService) {
 	// 设置路由
 	r.POST("/api/users", h.PostCreateUser)
 
-	return r, mockUserDao, mockI18n
+	return r, PostCreateUsermockUserDao, mockI18n
 }
 
 func TestPostCreateUser(t *testing.T) {
-	_, mockUserDao, mockI18n := setupUserTestHandler()
+	_, PostCreateUsermockUserDao, mockI18n := setupUserTestHandler()
 
 	// 设置 I18n 服务的默认行为 - 修改为每个测试用例单独设置
 	// mockI18n.On("GetDefaultLanguage").Return("en")
@@ -153,13 +153,13 @@ func TestPostCreateUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// 重置 mock 对象
-			mockUserDao = new(MockUserDao)
+			PostCreateUsermockUserDao = new(PostCreateUserMockUserDao)
 			mockI18n = new(MockI18nService)
 
 			// 重新设置 Handler
 			h := &Handler{
-				dao: dao.Dao{
-					UserDao: mockUserDao,
+				dao: &dao.Dao{
+					UserDao: PostCreateUsermockUserDao,
 				},
 				i18n: mockI18n,
 			}
@@ -174,14 +174,14 @@ func TestPostCreateUser(t *testing.T) {
 			} else if tt.name == "用户名已存在" {
 				mockI18n.On("GetDefaultLanguage").Return("en")
 				mockI18n.On("Translate", "user.username_taken", "en").Return("Username is already taken")
-				mockUserDao.On("CreateUser", mock.AnythingOfType("*model.User")).Return(tt.mockErr)
+				PostCreateUsermockUserDao.On("CreateUser", mock.AnythingOfType("*model.User")).Return(tt.mockErr)
 			} else if tt.name == "数据库错误" {
 				mockI18n.On("GetDefaultLanguage").Return("en")
 				mockI18n.On("Translate", "user.create_failed", "en").Return("Failed to create user")
-				mockUserDao.On("CreateUser", mock.AnythingOfType("*model.User")).Return(tt.mockErr)
+				PostCreateUsermockUserDao.On("CreateUser", mock.AnythingOfType("*model.User")).Return(tt.mockErr)
 			} else if tt.name == "正常创建用户" {
 				mockI18n.On("Translate", "user.create_success", "en").Return("User created successfully")
-				mockUserDao.On("CreateUser", mock.AnythingOfType("*model.User")).Return(nil)
+				PostCreateUsermockUserDao.On("CreateUser", mock.AnythingOfType("*model.User")).Return(nil)
 			}
 
 			// 创建请求
@@ -221,7 +221,7 @@ func TestPostCreateUser(t *testing.T) {
 			}
 
 			// 验证 mock 调用
-			mockUserDao.AssertExpectations(t)
+			PostCreateUsermockUserDao.AssertExpectations(t)
 			mockI18n.AssertExpectations(t)
 		})
 	}
@@ -230,7 +230,7 @@ func TestPostCreateUser(t *testing.T) {
 // 测试不同语言的响应
 func TestPostCreateUserI18n(t *testing.T) {
 	// 不再使用全局设置的 mock 对象
-	// r, mockUserDao, mockI18n := setupUserTestHandler()
+	// r, PostCreateUsermockUserDao, mockI18n := setupUserTestHandler()
 
 	// 移除全局的 mock 期望设置
 	// mockI18n.On("GetDefaultLanguage").Return("en")
@@ -273,13 +273,13 @@ func TestPostCreateUserI18n(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// 为每个测试用例创建新的 mock 对象
-			mockUserDao := new(MockUserDao)
+			PostCreateUsermockUserDao := new(PostCreateUserMockUserDao)
 			mockI18n := new(MockI18nService)
 
 			// 重新设置 Handler
 			h := &Handler{
-				dao: dao.Dao{
-					UserDao: mockUserDao,
+				dao: &dao.Dao{
+					UserDao: PostCreateUsermockUserDao,
 				},
 				i18n: mockI18n,
 			}
@@ -291,7 +291,7 @@ func TestPostCreateUserI18n(t *testing.T) {
 
 			if tt.wantStatus == http.StatusCreated {
 				mockI18n.On("Translate", "user.create_success", tt.lang).Return("用户创建成功")
-				mockUserDao.On("CreateUser", mock.AnythingOfType("*model.User")).Return(nil)
+				PostCreateUsermockUserDao.On("CreateUser", mock.AnythingOfType("*model.User")).Return(nil)
 			} else {
 				mockI18n.On("Translate", "common.invalid_request", tt.lang).Return("无效的请求数据")
 			}
@@ -321,7 +321,7 @@ func TestPostCreateUserI18n(t *testing.T) {
 			}
 
 			// 验证 mock 调用
-			mockUserDao.AssertExpectations(t)
+			PostCreateUsermockUserDao.AssertExpectations(t)
 			mockI18n.AssertExpectations(t)
 		})
 	}

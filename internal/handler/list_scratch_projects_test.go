@@ -41,7 +41,7 @@ func TestListScratchProjects(t *testing.T) {
 
 	// 创建处理器
 	h := &Handler{
-		dao:    dao.Dao{ScratchDao: scratchService},
+		dao:    &dao.Dao{ScratchDao: scratchService},
 		config: cfg,
 	}
 
