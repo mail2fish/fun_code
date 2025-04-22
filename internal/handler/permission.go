@@ -52,9 +52,10 @@ var rolePermissions = map[string][]string{
 
 // 检查用户是否有指定权限
 func (h *Handler) hasPermission(c *gin.Context, permission string) bool {
-	// 从上下文获取用户ID
+	// 获取当前用户ID
 	userID := h.getUserID(c)
 	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
 		return false
 	}
 
@@ -101,8 +102,10 @@ func (h *Handler) RequirePermission(permission string) gin.HandlerFunc {
 
 // 检查用户是否是资源所有者
 func (h *Handler) isResourceOwner(c *gin.Context, resourceType string, resourceID uint) bool {
-	userID, exists := c.Get("user_id")
-	if !exists {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
 		return false
 	}
 
@@ -112,13 +115,13 @@ func (h *Handler) isResourceOwner(c *gin.Context, resourceType string, resourceI
 		if err != nil {
 			return false
 		}
-		return project.UserID == userID.(uint)
+		return project.UserID == userID
 	case "class":
 		class, err := h.dao.ClassDao.GetClass(resourceID)
 		if err != nil {
 			return false
 		}
-		return class.TeacherID == userID.(uint)
+		return class.TeacherID == userID
 	}
 	return false
 }
@@ -158,8 +161,10 @@ func (h *Handler) RequireOwnership(resourceType string, idParam string) gin.Hand
 
 // 检查用户是否是班级成员
 func (h *Handler) isClassMember(c *gin.Context, classID uint) bool {
-	userID, exists := c.Get("user_id")
-	if !exists {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
 		return false
 	}
 
@@ -170,13 +175,13 @@ func (h *Handler) isClassMember(c *gin.Context, classID uint) bool {
 	}
 
 	// 如果是班级的教师，则是成员
-	if class.TeacherID == userID.(uint) {
+	if class.TeacherID == userID {
 		return true
 	}
 
 	// 检查是否是班级的学生
 	for _, student := range class.Students {
-		if student.ID == userID.(uint) {
+		if student.ID == userID {
 			return true
 		}
 	}

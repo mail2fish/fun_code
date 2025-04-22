@@ -70,7 +70,7 @@ const formSchema = z.object({
 // 创建班级
 async function createClass(classData: z.infer<typeof formSchema>) {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/classes/create`, {
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/classes/create`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

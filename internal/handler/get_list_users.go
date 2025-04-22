@@ -9,13 +9,6 @@ import (
 
 // GetListUsers 获取用户列表，支持分页
 func (h *Handler) GetListUsers(c *gin.Context) {
-	// 检查 UserDao 是否初始化
-	if h.dao.UserDao == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "UserDao not initialized",
-		})
-		return
-	}
 
 	// 获取分页参数
 	pageSizeStr := c.DefaultQuery("pageSize", "20")

@@ -40,7 +40,7 @@ async function getScratchProjects(beginID = "0",pageSize = 10,forward = false,as
     const response = await fetchWithAuth(`${HOST_URL}/api/scratch/projects?${params.toString()}`);
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`);
-    }
+    } 
     return await response.json();
   } catch (error) {
     console.error("获取项目列表失败:", error);

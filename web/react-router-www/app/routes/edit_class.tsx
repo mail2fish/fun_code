@@ -86,7 +86,7 @@ const formSchema = z.object({
 // 获取班级信息
 async function getClass(classId: string) {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/classes/${classId}`);
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/classes/${classId}`);
     
     if (!response.ok) {
       const errorData = await response.json();
@@ -104,7 +104,7 @@ async function getClass(classId: string) {
 // 更新班级
 async function updateClass(classId: string, classData: z.infer<typeof formSchema>) {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/classes/${classId}`, {
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/classes/${classId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -205,7 +205,7 @@ export default function EditClassPage() {
       
       // 更新成功后跳转到班级列表页
       setTimeout(() => {
-        navigate("/www/class/list");
+        navigate("/www/classes/list");
       }, 2000);
     } catch (error) {
       console.error("提交表单失败:", error);
@@ -282,7 +282,7 @@ export default function EditClassPage() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => navigate("/www/class/list")}
+                          onClick={() => navigate("/www/classes/list")}
                         >
                           返回班级列表
                         </Button>
@@ -445,7 +445,7 @@ export default function EditClassPage() {
                       <Button 
                         variant="outline" 
                         type="button"
-                        onClick={() => navigate("/www/class/list")}
+                        onClick={() => navigate("/www/classes/list")}
                         disabled={isSubmitting}
                       >
                         取消

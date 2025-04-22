@@ -23,52 +23,43 @@ import {
 import { HOST_URL } from "~/config"
 import { fetchWithAuth } from "~/utils/api"
 
-// This is sample data.
-const data = {
-  versions: ["0.0.1"],
-  navMain: [
-    {
-      title: "管理菜单",
-      url: "#",
-      items: [
-        // {
-        //   title: "班级列表",
-        //   url: "/www/classes/list",
-        //   isActive: false,
-        // },
-        // {
-        //   title: "创建班级",
-        //   url: "/www/classes/create",
-        //   isActive: false,
-        // },
-        {
-          title: "用户列表",
-          url: "/www/users/list",
-          isActive: false,
-        },
-        {
-          title: "创建用户",
-          url: "/www/users/create",
-          isActive: false,
-        },        
-      ],
-    },
-    {
-      title: "Scratch程序",
-      url: "#",
-      items: [
-        {
-          title: "我的程序列表",
-          url: "/www/scratch/projects",
-          isActive: false,
-        },
-      ],
-    },
-  ],
+interface MenuItem {
+  title: string
+  url: string
+  isActive: boolean
+}
+
+interface MenuGroup {
+  title: string
+  url: string
+  items: MenuItem[]
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const navigate = useNavigate();
+  const [menuData, setMenuData] = React.useState<MenuGroup[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  // 获取菜单数据
+  React.useEffect(() => {
+    const fetchMenuData = async () => {
+      try {
+        const response = await fetchWithAuth(`${HOST_URL}/api/menu/list`);
+        if (!response.ok) {
+          throw new Error(`获取菜单失败: ${response.status}`);
+        }
+        const data = await response.json();
+        setMenuData(data);
+      } catch (error) {
+        console.error("获取菜单失败:", error);
+        toast.error("获取菜单失败");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMenuData();
+  }, []);
 
   const handleLogout = async () => {
     // 调用服务端登出接口
@@ -84,6 +75,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     navigate("/");
   };
 
+  if (isLoading) {
+    return <div>加载中...</div>;
+  }
+
   return (
     <Sidebar {...props}>
       <SidebarHeader>
@@ -91,7 +86,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent className="gap-0">
         {/* We create a collapsible SidebarGroup for each parent. */}
-        {data.navMain.map((item) => (
+        {menuData.map((item) => (
           <Collapsible
             key={item.title}
             title={item.title}

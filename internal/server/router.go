@@ -43,6 +43,9 @@ func (s *Server) setupRoutes() {
 	auth := s.router.Group("/api")
 	auth.Use(s.handler.AuthMiddleware())
 	{
+
+		auth.GET("/menu/list", s.handler.GetMenuList)
+
 		// 目录操作
 		auth.POST("/directories", s.handler.CreateDirectory)
 
@@ -59,22 +62,23 @@ func (s *Server) setupRoutes() {
 		auth.GET("/scratch/projects", s.handler.ListScratchProjects)
 		auth.DELETE("/scratch/projects/:id", s.handler.DeleteScratchProject)
 
+		admin := auth.Group("/admin").Use(s.handler.RequirePermission(handler.PermissionManageAll))
 		// 班级相关路由
-		auth.POST("/classes/create", s.handler.PostCreateClass)
+		admin.POST("/classes/create", s.handler.PostCreateClass)
 		// 班级列表路由
-		auth.GET("/classes/list", s.handler.GetListClasses)
+		admin.GET("/classes/list", s.handler.GetListClasses)
 		// 获取单个班级的信息路由
-		auth.GET("/classes/:class_id", s.handler.GetClass)
+		admin.GET("/classes/:class_id", s.handler.GetClass)
 		// 修改班级信息路由
-		auth.PUT("/classes/:class_id", s.handler.PutUpdateClass)
+		admin.PUT("/classes/:class_id", s.handler.PutUpdateClass)
 		// 删除班级路由
-		auth.DELETE("/classes/:class_id", s.handler.DeleteClass)
+		admin.DELETE("/classes/:class_id", s.handler.DeleteClass)
 
 		// 用户管理路由
-		auth.POST("/users/create", s.handler.RequirePermission("manage_users"), s.handler.PostCreateUser)
-		auth.GET("/users/list", s.handler.RequirePermission("manage_users"), s.handler.GetListUsers)
-		auth.PUT("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.PutUpdateUser)
-		auth.DELETE("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.DeleteUser)
+		admin.POST("/users/create", s.handler.RequirePermission("manage_users"), s.handler.PostCreateUser)
+		admin.GET("/users/list", s.handler.RequirePermission("manage_users"), s.handler.GetListUsers)
+		admin.PUT("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.PutUpdateUser)
+		admin.DELETE("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.DeleteUser)
 	}
 
 	projects := s.router.Group("/projects")

@@ -23,15 +23,12 @@ func (h *Handler) PutUpdateClass(c *gin.Context) {
 		return
 	}
 
-	// 获取当前用户ID（教师ID）
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": h.T("unauthorized", c),
-		})
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
 		return
 	}
-	teacherID := userID.(uint)
 
 	// 解析请求体
 	var requestBody struct {
@@ -74,7 +71,7 @@ func (h *Handler) PutUpdateClass(c *gin.Context) {
 	}
 
 	// 调用服务层更新班级信息
-	err = h.dao.ClassDao.UpdateClass(uint(id), teacherID, updates)
+	err = h.dao.ClassDao.UpdateClass(uint(id), userID, updates)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "班级不存在或您无权修改" {
 			c.JSON(http.StatusNotFound, gin.H{

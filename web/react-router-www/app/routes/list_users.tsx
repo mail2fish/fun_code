@@ -76,7 +76,7 @@ async function getUsers(beginID = "0", pageSize = 10, forward = false, asc = fal
       params.append('beginID', beginID.toString())
     }
     
-    const response = await fetchWithAuth(`${HOST_URL}/api/users/list?${params.toString()}`)
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?${params.toString()}`)
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`)
     }
@@ -90,7 +90,7 @@ async function getUsers(beginID = "0", pageSize = 10, forward = false, asc = fal
 // 删除用户
 async function deleteUser(id: string) {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/users/${id}`, {
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/users/${id}`, {
       method: "DELETE",
     })
     if (!response.ok) {
@@ -342,7 +342,7 @@ export default function ListUserPage() {
                               title="编辑"
                               asChild
                             >
-                              <Link to={`/www/user/${user.id}/edit`}>
+                              <Link to={`/www/users/${user.id}/edit`}>
                                 <IconEdit className="h-4 w-4" />
                               </Link>
                             </Button>

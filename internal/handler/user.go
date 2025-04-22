@@ -55,16 +55,15 @@ func (h *Handler) SetUserRole(c *gin.Context) {
 
 // GetCurrentUserPermissions 获取当前用户的权限
 func (h *Handler) GetCurrentUserPermissions(c *gin.Context) {
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "未授权访问",
-		})
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
 		return
 	}
 
 	// 获取用户信息
-	user, err := h.dao.UserDao.GetUserByID(userID.(uint))
+	user, err := h.dao.UserDao.GetUserByID(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "获取用户信息失败: " + err.Error(),

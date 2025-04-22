@@ -14,6 +14,7 @@ import (
 	"github.com/jun/fun_code/internal/dao"
 	"github.com/jun/fun_code/internal/i18n"
 	"github.com/jun/fun_code/internal/model"
+	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -270,7 +271,7 @@ func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockS
 		AuthDao:    mockAuth,
 		FileDao:    mockFile,
 		ScratchDao: mockScratch,
-	}, i18n, cfg)
+	}, i18n, zap.NewNop(), cfg)
 
 	// 设置路由
 	r.POST("/api/auth/register", h.Register)

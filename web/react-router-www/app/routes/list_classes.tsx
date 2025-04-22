@@ -81,7 +81,7 @@ async function getClasses(beginID = "0", pageSize = 10, forward = false, asc = f
       params.append('beginID', beginID.toString())
     }
     
-    const response = await fetchWithAuth(`${HOST_URL}/api/classes/list?${params.toString()}`)
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/classes/list?${params.toString()}`)
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`)
     }
@@ -95,7 +95,7 @@ async function getClasses(beginID = "0", pageSize = 10, forward = false, asc = f
 // 删除班级
 async function deleteClass(id: string) {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/classes/${id}`, {
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/classes/${id}`, {
       method: "DELETE",
     })
     if (!response.ok) {
@@ -290,7 +290,7 @@ export default function ListClassPage() {
               disabled={isButtonCooling}
             >
               <Link 
-                to="/create_class" 
+                to="/www/classes/create" 
                 onClick={handleNewClassClick}
                 className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
               >
@@ -332,7 +332,7 @@ export default function ListClassPage() {
                     classes.map((classItem) => (
                       <TableRow key={classItem.id || Math.random()}>
                         <TableCell className="font-medium">
-                          <Link to={`/www/class/${classItem.id}`}>{classItem.name || "未命名班级"}</Link>
+                          <Link to={`/www/classes/${classItem.id}`}>{classItem.name || "未命名班级"}</Link>
                         </TableCell>
                         <TableCell>{classItem.code}</TableCell>
                         <TableCell>{formatDate(classItem.start_date)}</TableCell>
@@ -347,7 +347,7 @@ export default function ListClassPage() {
                               title="查看学生"
                               asChild
                             >
-                              <Link to={`/www/class/${classItem.id}/students`}>
+                              <Link to={`/www/classes/${classItem.id}/students`}>
                                 <IconUsers className="h-4 w-4" />
                               </Link>
                             </Button>
@@ -357,7 +357,7 @@ export default function ListClassPage() {
                               title="编辑"
                               asChild
                             >
-                              <Link to={`/www/class/${classItem.id}/edit`}>
+                              <Link to={`/www/classes/${classItem.id}/edit`}>
                                 <IconEdit className="h-4 w-4" />
                               </Link>
                             </Button>
