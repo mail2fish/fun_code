@@ -28,18 +28,17 @@ func NewScratchDao(db *gorm.DB, basePath string) ScratchDao {
 	}
 }
 
-func (s *ScratchDaoImpl) ProjectExist(projectID uint) bool {
-
+func (s *ScratchDaoImpl) GetProjectUserID(projectID uint) (uint, bool) {
 	// 从数据库查询项目
 	var project model.ScratchProject
 	if err := s.db.Where("id = ?", projectID).First(&project).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return false
+			return 0, false
 		}
-		return false
+		return 0, false
 	}
 
-	return true
+	return project.UserID, true
 }
 
 // GetProjectBinary 获取指定ID的Scratch项目

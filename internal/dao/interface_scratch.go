@@ -19,8 +19,8 @@ type ScratchDao interface {
 	// DeleteProject 删除项目
 	DeleteProject(userID uint, projectID uint) error
 
-	// ProjectExist 检查project 是否存在
-	ProjectExist(projectID uint) bool
+	// GetProjectUserID 获取 project 的 userID，判断 project 是否存在
+	GetProjectUserID(projectID uint) (uint, bool)
 
 	GetScratchBasePath() string
 

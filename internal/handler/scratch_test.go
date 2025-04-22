@@ -59,6 +59,7 @@ func TestHandler_GetScratchProject(t *testing.T) {
 			// 设置GetProject的mock
 			if tt.projectID != "invalid" {
 				id, _ := strconv.ParseUint(tt.projectID, 10, 64)
+				mockScratch.On("GetProjectUserID", uint(id)).Return(uint(1), true).Once()
 				mockScratch.On("GetProjectBinary", uint(id)).Return(tt.mockData, tt.mockErr).Once()
 			}
 
@@ -135,6 +136,7 @@ func TestHandler_SaveScratchProject(t *testing.T) {
 			if tt.projectID != "invalid" {
 				id, _ := strconv.ParseUint(tt.projectID, 10, 64)
 				contentBytes, _ := json.Marshal(tt.reqBody)
+				mockScratch.On("GetProjectUserID", uint(id)).Return(uint(1), true).Once()
 				mockScratch.On("SaveProject", uint(1), uint(id), "Scratch Project", contentBytes).Return(tt.mockID, tt.mockErr).Once()
 			}
 
@@ -188,6 +190,7 @@ func TestHandler_DeleteScratchProject(t *testing.T) {
 			// 设置DeleteProject的mock
 			if tt.projectID != "invalid" {
 				id, _ := strconv.ParseUint(tt.projectID, 10, 64)
+				mockScratch.On("GetProjectUserID", uint(id)).Return(uint(1), true).Once()
 				mockScratch.On("DeleteProject", uint(1), uint(id)).Return(tt.mockErr).Once()
 			}
 

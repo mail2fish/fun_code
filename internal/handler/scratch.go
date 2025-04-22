@@ -88,10 +88,18 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		})
 		return
 	}
-	ok := h.dao.ScratchDao.ProjectExist(uint(id))
+	// 获取项目创建者ID
+	userID, ok := h.dao.ScratchDao.GetProjectUserID(uint(id))
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "获取项目失败",
+		})
+		return
+	}
+	// 判断用户是否是项目创建者或者为管理员
+	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "无权限访问",
 		})
 		return
 	}
@@ -159,6 +167,23 @@ func (h *Handler) GetScratchProject(c *gin.Context) {
 		})
 		return
 	}
+
+	// 获取项目创建者ID
+	userID, ok := h.dao.ScratchDao.GetProjectUserID(uint(id))
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "获取项目失败",
+		})
+		return
+	}
+	// 判断用户是否是项目创建者或者为管理员
+	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "无权限访问",
+		})
+		return
+	}
+
 	projectData, err := h.dao.ScratchDao.GetProjectBinary(uint(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -178,8 +203,6 @@ func (h *Handler) GetScratchProject(c *gin.Context) {
 // PutSaveScratchProject 保存Scratch项目
 func (h *Handler) PutSaveScratchProject(c *gin.Context) {
 	log.Println("dbg SaveScratchProject")
-	// 获取当前用户ID
-	userID := h.getUserID(c)
 
 	// 新增：从路径参数获取项目ID
 	projectID := c.Param("id")
@@ -187,6 +210,22 @@ func (h *Handler) PutSaveScratchProject(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "无效的项目ID",
+		})
+		return
+	}
+
+	// 获取项目创建者ID
+	userID, ok := h.dao.ScratchDao.GetProjectUserID(uint(id))
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "获取项目失败",
+		})
+		return
+	}
+	// 判断用户是否是项目创建者或者为管理员
+	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "无权限访问",
 		})
 		return
 	}
@@ -228,8 +267,6 @@ func (h *Handler) PutSaveScratchProject(c *gin.Context) {
 
 // DeleteScratchProject 删除Scratch项目
 func (h *Handler) DeleteScratchProject(c *gin.Context) {
-	// 获取当前用户ID
-	userID := h.getUserID(c)
 
 	// 获取项目ID
 	projectID := c.Param("id")
@@ -237,6 +274,22 @@ func (h *Handler) DeleteScratchProject(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "无效的项目ID",
+		})
+		return
+	}
+
+	// 获取项目创建者ID
+	userID, ok := h.dao.ScratchDao.GetProjectUserID(uint(id))
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "获取项目失败",
+		})
+		return
+	}
+	// 判断用户是否是项目创建者或者为管理员
+	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "无权限访问",
 		})
 		return
 	}
@@ -254,20 +307,14 @@ func (h *Handler) DeleteScratchProject(c *gin.Context) {
 	})
 }
 
-// getUserID 从上下文中获取当前用户ID
-func (h *Handler) getUserID(c *gin.Context) uint {
-	// 从上下文中获取用户信息
-	userID, exists := c.Get("userID")
-	if !exists {
-		return 0
-	}
-	return userID.(uint)
-}
-
 // PostCreateScratchProject 创建新的Scratch项目
 func (h *Handler) PostCreateScratchProject(c *gin.Context) {
 	// 获取当前用户ID
 	userID := h.getUserID(c)
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
+		return
+	}
 
 	// 添加限流逻辑
 	h.createProjectLimiterLock.Lock()

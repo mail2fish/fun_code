@@ -143,7 +143,7 @@ func TestCanReadProject(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// 执行测试
-			got := service.ProjectExist(tt.projectID)
+			got := service.ProjectUserID(tt.projectID)
 
 			// 验证结果
 			if got != tt.want {

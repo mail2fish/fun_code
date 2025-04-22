@@ -217,9 +217,9 @@ func (m *MockScratchService) DeleteProject(userID uint, projectID uint) error {
 	return args.Error(0)
 }
 
-func (m *MockScratchService) ProjectExist(projectID uint) bool {
+func (m *MockScratchService) GetProjectUserID(projectID uint) (uint, bool) {
 	args := m.Called(projectID)
-	return args.Bool(0)
+	return args.Get(0).(uint), args.Bool(1)
 }
 
 func (m *MockScratchService) GetProjectInfo(projectID uint) (*model.ScratchProject, error) {
