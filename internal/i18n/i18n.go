@@ -3,10 +3,10 @@ package i18n
 import (
 	// 保持导入，以防万一 RegisterUnmarshalFunc 需要它作为默认
 	"log"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/jun/fun_code/locales"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"golang.org/x/text/language"
 	"gopkg.in/yaml.v3" // 导入 YAML 包
@@ -21,13 +21,13 @@ type I18nServiceImpl struct {
 }
 
 // NewI18nService 创建一个新的 I18nService 实例
-func NewI18nService(localesPath string, defaultLang string) (I18nService, error) {
+func NewI18nService(defaultLang string) (I18nService, error) {
 	bundle := i18n.NewBundle(language.Make(defaultLang))
 	// 注册 YAML 的 unmarshal 函数
 	bundle.RegisterUnmarshalFunc("yaml", yaml.Unmarshal)
 
 	// 读取语言文件
-	files, err := os.ReadDir(localesPath)
+	files, err := locales.LocaleFiles.ReadDir(".")
 	if err != nil {
 		return nil, err
 	}
@@ -43,11 +43,17 @@ func NewI18nService(localesPath string, defaultLang string) (I18nService, error)
 
 		// 修改后缀检查为 .yaml
 		if strings.HasSuffix(file.Name(), ".yaml") {
-			langFile := filepath.Join(localesPath, file.Name())
-			// LoadMessageFile 会自动使用注册的 unmarshal 函数
-			_, err := bundle.LoadMessageFile(langFile)
+			// 从 embed.FS 读取文件内容
+			content, err := locales.LocaleFiles.ReadFile(file.Name())
 			if err != nil {
-				log.Printf("加载语言文件 %s 失败: %v", langFile, err)
+				log.Printf("读取语言文件 %s 失败: %v", file.Name(), err)
+				continue
+			}
+
+			// 使用 ParseMessageFileBytes 解析文件内容
+			_, err = bundle.ParseMessageFileBytes(content, file.Name())
+			if err != nil {
+				log.Printf("解析语言文件 %s 失败: %v", file.Name(), err)
 				continue
 			}
 

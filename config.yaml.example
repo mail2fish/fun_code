@@ -1,3 +1,4 @@
+env: "development"
 database:
   driver: "sqlite"
   dsn: "fun_code.db"
@@ -12,5 +13,4 @@ scratch_editor:
 
 # 国际化配置
 i18n:
-  locales_path: "./internal/locales"
   default_lang: "zh-CN"

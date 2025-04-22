@@ -53,13 +53,13 @@ var rolePermissions = map[string][]string{
 // 检查用户是否有指定权限
 func (h *Handler) hasPermission(c *gin.Context, permission string) bool {
 	// 从上下文获取用户ID
-	userID, exists := c.Get("user_id")
-	if !exists {
+	userID := h.getUserID(c)
+	if userID == 0 {
 		return false
 	}
 
 	// 获取用户信息
-	user, err := h.dao.UserDao.GetUserByID(userID.(uint))
+	user, err := h.dao.UserDao.GetUserByID(userID)
 	if err != nil {
 		return false
 	}

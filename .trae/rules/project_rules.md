@@ -3,3 +3,4 @@
 3. 项目的根目录下有 .trae 目录，
 4. 项目根目录下的 web/react-router-www 是 react 19 的项目
 5. 项目根目录下的 web/scratch 是 react16 的项目
+6. 给 golang 的方法或函数生成单元测试

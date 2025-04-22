@@ -12,6 +12,7 @@ import (
 	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/dao"
 	"github.com/jun/fun_code/internal/i18n"
+	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -25,15 +26,17 @@ type Handler struct {
 	// 用于限流的映射和互斥锁
 	createProjectLimiter     map[uint][]time.Time
 	createProjectLimiterLock sync.Mutex
+	logger                   *zap.Logger
 }
 
-func NewHandler(services dao.Dao, i18n i18n.I18nService,
+func NewHandler(services dao.Dao, i18n i18n.I18nService, logger *zap.Logger,
 	cfg *config.Config) *Handler {
 	return &Handler{
 		dao:                  services,
 		i18n:                 i18n,
 		config:               cfg, // 初始化配置字段
 		createProjectLimiter: make(map[uint][]time.Time),
+		logger:               logger,
 	}
 }
 

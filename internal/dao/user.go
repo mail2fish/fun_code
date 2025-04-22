@@ -61,22 +61,77 @@ func (s *UserDaoImpl) GetUserByEmail(email string) (*model.User, error) {
 }
 
 // ListUsers 获取用户列表，支持分页
-func (s *UserDaoImpl) ListUsers(page, pageSize int) ([]model.User, int64, error) {
+func (s *UserDaoImpl) ListUsers(pageSize uint, beginID uint, forward, asc bool) ([]model.User, bool, error) {
 	var users []model.User
-	var total int64
 
-	// 获取总数
-	if err := s.db.Model(&model.User{}).Count(&total).Error; err != nil {
-		return nil, 0, custom_error.NewThirdPartyError(moduleUser, ErrorCodeQueryFailed, "user.db_query_failed", err)
+	// 处理 pageSize 为 0 的情况，使用默认值 20
+	if pageSize == 0 {
+		pageSize = 20
 	}
 
-	// 分页查询
-	offset := (page - 1) * pageSize
-	if err := s.db.Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
-		return nil, 0, custom_error.NewThirdPartyError(moduleUser, ErrorCodeQueryFailed, "user.db_query_failed", err)
+	// 构建基础查询
+	query := s.db
+
+	// 记录查询是否按升序排序
+	queryAsc := false
+
+	// 根据 beginID、forward 和 asc 设置查询条件和排序
+	if beginID > 0 {
+		if asc && forward {
+			// asc == true and forward == true
+			// id >= beginID, order 为 id asc
+			query = query.Where("id > ?", beginID).Order("id ASC")
+			queryAsc = true
+		} else if asc && !forward {
+			// asc == true and forward == false
+			// id <= beginID，order 为 id desc
+			query = query.Where("id < ?", beginID).Order("id DESC")
+			queryAsc = false
+		} else if !asc && forward {
+			// asc == false and forward == true
+			// id <= beginID，order 为 id desc
+			query = query.Where("id < ?", beginID).Order("id DESC")
+			queryAsc = false
+		} else {
+			// asc == false and forward == false
+			// id >= beginID, order 为 id asc
+			query = query.Where("id > ?", beginID).Order("id ASC")
+			queryAsc = true
+		}
+	} else {
+		// beginID 为 0 的情况
+		if asc {
+			// asc 为 true，按 id asc 排序
+			query = query.Order("id ASC")
+			queryAsc = true
+		} else {
+			// asc 为 false，按 id desc 排序
+			query = query.Order("id DESC")
+			queryAsc = false
+		}
 	}
 
-	return users, total, nil
+	// 执行查询，多查询一条用于判断是否有更多数据
+	if err := query.Limit(int(pageSize + 1)).Find(&users).Error; err != nil {
+		return nil, false, custom_error.NewThirdPartyError(moduleUser, ErrorCodeQueryFailed, "user.db_query_failed", err)
+	}
+
+	// 处理查询结果
+	// asc 为 true 时，返回结果数组按 id 升序排序，代表页面按升序显示
+	// asc 为 false 时，返回结果数组按 id 降序排序，代表页面按降序显示
+	hasMore := len(users) > int(pageSize)
+	if hasMore {
+		users = users[:pageSize]
+	}
+
+	// 检查查询结果的排序是否与 asc 参数一致，如果不一致则需要反转
+	if queryAsc != asc {
+		for i, j := 0, len(users)-1; i < j; i, j = i+1, j-1 {
+			users[i], users[j] = users[j], users[i]
+		}
+	}
+
+	return users, hasMore, nil
 }
 
 // UpdateUser 更新用户信息
@@ -268,16 +323,19 @@ func (s *UserDaoImpl) CreateUser(user *model.User) error {
 	}
 	// err 是 gorm.ErrRecordNotFound，表示用户名可用
 
-	// 检查邮箱是否已被使用
-	err = s.db.Where("email = ?", user.Email).First(&existingUser).Error
-	if err == nil {
-		// 邮箱已被注册，是业务错误，使用 InsertFailed 码表示插入冲突
-		return custom_error.NewDaoError(moduleUser, ErrorCodeInsertFailed, "user.email_taken")
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		// 其他数据库查询错误
-		return custom_error.NewThirdPartyError(moduleUser, ErrorCodeQueryFailed, "user.db_query_failed", err)
+	// 如果邮箱不为空，检查邮箱是否已被使用
+	if user.Email != "" {
+		// 检查邮箱是否已被使用
+		err = s.db.Where("email = ?", user.Email).First(&existingUser).Error
+		if err == nil {
+			// 邮箱已被注册，是业务错误，使用 InsertFailed 码表示插入冲突
+			return custom_error.NewDaoError(moduleUser, ErrorCodeInsertFailed, "user.email_taken")
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			// 其他数据库查询错误
+			return custom_error.NewThirdPartyError(moduleUser, ErrorCodeQueryFailed, "user.db_query_failed", err)
+		}
+		// err 是 gorm.ErrRecordNotFound，表示邮箱可用
 	}
-	// err 是 gorm.ErrRecordNotFound，表示邮箱可用
 
 	// 检查密码是否为空
 	if user.Password == "" {
@@ -307,4 +365,13 @@ func (s *UserDaoImpl) CreateUser(user *model.User) error {
 	}
 
 	return nil
+}
+
+// CountUsers 获取用户总数
+func (s *UserDaoImpl) CountUsers() (int64, error) {
+	var count int64
+	if err := s.db.Model(&model.User{}).Count(&count).Error; err != nil {
+		return 0, custom_error.NewThirdPartyError(moduleUser, ErrorCodeQueryFailed, "user.db_query_failed", err)
+	}
+	return count, nil
 }

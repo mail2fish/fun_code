@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"github.com/jun/fun_code/internal/database"
 	"github.com/jun/fun_code/internal/handler"
 	"github.com/jun/fun_code/internal/i18n"
+	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
@@ -25,6 +27,22 @@ type Server struct {
 }
 
 func NewServer(cfg *config.Config) (*Server, error) {
+
+	// 初始化 zap logger, 用于日志记录,根据 cfg 区分不同环境
+	var logger *zap.Logger
+	var err error
+	if cfg.Env == "production" {
+		logger, err = zap.NewProduction()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		logger, err = zap.NewDevelopment()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// 初始化数据库
 	db, err := gorm.Open(sqlite.Open(cfg.Database.DSN), &gorm.Config{})
 	if err != nil {
@@ -45,9 +63,9 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	sessionCache := cache.NewUserSessionCache(c)
 
 	// 初始化 I18n 服务
-	i18nService, err := i18n.NewI18nService(cfg.I18n.LocalesPath, cfg.I18n.DefaultLang)
+	i18nService, err := i18n.NewI18nService(cfg.I18n.DefaultLang)
 	if err != nil {
-		log.Printf("初始化 I18n 服务失败: %v", err)
+		panic(fmt.Sprintf("failed to initialize i18n service: %s, %s, %v", cfg.I18n.LocalesPath, cfg.I18n.DefaultLang, err))
 		// 继续执行，不要因为 i18n 初始化失败而中断服务启动
 	}
 
@@ -56,10 +74,11 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		FileDao:    dao.NewFileDao(db, cfg.Storage.BasePath),
 		ScratchDao: dao.NewScratchDao(db, filepath.Join(cfg.Storage.BasePath, "scratch")),
 		ClassDao:   dao.NewClassDao(db),
+		UserDao:    dao.NewUserDao(db),
 	}
 	// 初始化处理器
 	h := handler.NewHandler(
-		services, i18nService, cfg)
+		services, i18nService, logger, cfg)
 
 	// 初始化路由
 	r := gin.Default()

@@ -16,7 +16,7 @@ func (h *Handler) PostCreateUser(c *gin.Context) {
 		Username string `json:"username" binding:"required"`
 		Nickname string `json:"nickname"`
 		Password string `json:"password" binding:"required"`
-		Email    string `json:"email" binding:"required"`
+		Email    string `json:"email"`
 		Role     string `json:"role"`
 	}
 

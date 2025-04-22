@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link } from "react-router"
-import { IconPlus, IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconUsers } from "@tabler/icons-react"
+import { IconPlus, IconEdit, IconTrash, IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
 
 import { AppSidebar } from "~/components/my-app-sidebar"
 import {
@@ -44,25 +44,20 @@ import { fetchWithAuth } from "~/utils/api"
 // API 服务
 import { HOST_URL } from "~/config"
 
-// 班级类型定义
-interface Class {
+// 用户类型定义
+interface User {
   id: number
-  name: string
-  description: string
-  code: string
-  teacher_id: number
-  start_date: string
-  end_date: string
-  is_active: boolean
+  username: string
+  nickname: string
+  email: string
+  role: string
   created_at: string
   updated_at: string
-  students_count?: number
-  courses_count?: number
 }
 
-// 班级列表数据类型
-interface ClassesData {
-  classes: Class[]
+// 用户列表数据类型
+interface UsersData {
+  users: User[]
   total: number
   showForward: boolean
   showBackward: boolean
@@ -70,8 +65,8 @@ interface ClassesData {
   currentPage: number
 }
 
-// 获取班级列表
-async function getClasses(beginID = "0", pageSize = 10, forward = false, asc = false) {
+// 获取用户列表
+async function getUsers(beginID = "0", pageSize = 10, forward = false, asc = false) {
   try {
     const params = new URLSearchParams()
     params.append('pageSize', pageSize.toString())
@@ -81,21 +76,21 @@ async function getClasses(beginID = "0", pageSize = 10, forward = false, asc = f
       params.append('beginID', beginID.toString())
     }
     
-    const response = await fetchWithAuth(`${HOST_URL}/api/class/list?${params.toString()}`)
+    const response = await fetchWithAuth(`${HOST_URL}/api/users/list?${params.toString()}`)
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`)
     }
     return await response.json()
   } catch (error) {
-    console.error("获取班级列表失败:", error)
+    console.error("获取用户列表失败:", error)
     throw error
   }
 }
 
-// 删除班级
-async function deleteClass(id: string) {
+// 删除用户
+async function deleteUser(id: string) {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/classes/${id}`, {
+    const response = await fetchWithAuth(`${HOST_URL}/api/users/${id}`, {
       method: "DELETE",
     })
     if (!response.ok) {
@@ -103,16 +98,16 @@ async function deleteClass(id: string) {
     }
     return await response.json()
   } catch (error) {
-    console.error("删除班级失败:", error)
+    console.error("删除用户失败:", error)
     throw error
   }
 }
 
-const defaultPageSize = 10 // 每页显示的班级数量
+const defaultPageSize = 10 // 每页显示的用户数量
 
-export default function ListClassPage() {
-  const [classesData, setClassesData] = React.useState<ClassesData>({
-    classes: [],
+export default function ListUserPage() {
+  const [usersData, setUsersData] = React.useState<UsersData>({
+    users: [],
     total: 0,
     showForward: false,
     showBackward: false,
@@ -147,9 +142,9 @@ export default function ListClassPage() {
   }
 
   // 加载数据
-  const fetchClasses = async (beginID = "0", forward = false, asc = false) => {
+  const fetchUsers = async (beginID = "0", forward = false, asc = false) => {
     try {
-      let page = classesData.currentPage
+      let page = usersData.currentPage
       if (beginID === "0") {
         page = 0
       }
@@ -159,7 +154,7 @@ export default function ListClassPage() {
       let showBackward = false
 
       setIsLoading(true)
-      const response = await getClasses(beginID, pageSize, forward, asc)
+      const response = await getUsers(beginID, pageSize, forward, asc)
 
       // 如果向后翻页
       if (forward) {        
@@ -180,8 +175,8 @@ export default function ListClassPage() {
         showForward = response.hasMore || page > 0
       }
 
-      setClassesData({
-        classes: response.data || [],
+      setUsersData({
+        users: response.data || [],
         total: response.total || 0,
         showForward: showForward,
         showBackward: showBackward,
@@ -191,9 +186,9 @@ export default function ListClassPage() {
       setError(null)
     } catch (error) {
       console.error("加载数据失败:", error)
-      setError("加载班级列表失败")
-      setClassesData({
-        classes: [],
+      setError("加载用户列表失败")
+      setUsersData({
+        users: [],
         total: 0,
         showForward: false,
         showBackward: false,
@@ -210,38 +205,38 @@ export default function ListClassPage() {
   
   React.useEffect(() => {
     if (isFirstRender.current) {
-      fetchClasses("0", true, false)
+      fetchUsers("0", true, false)
       isFirstRender.current = false
     }
   }, [])
 
   // 处理页码变化
   const handlePageChange = (beginID: string, forward: boolean, asc: boolean) => {
-    fetchClasses(beginID, forward, asc)
+    fetchUsers(beginID, forward, asc)
   }
 
-  // 处理删除班级
-  const handleDeleteClass = async (id: string) => {
+  // 处理删除用户
+  const handleDeleteUser = async (id: string) => {
     setDeletingId(id)
     try {
-      await deleteClass(id)
-      toast("班级已成功删除")
+      await deleteUser(id)
+      toast("用户已成功删除")
       // 删除成功后重新加载当前页
-      if (classesData.classes.length > 0) {
-        fetchClasses(classesData.classes[0].id.toString(), false, false)
+      if (usersData.users.length > 1) {
+        fetchUsers(usersData.users[0].id.toString(), false, false)
       } else {
-        fetchClasses("0", false, false)
+        fetchUsers("0", false, false)
       }
     } catch (error) {
-      console.error("删除班级失败:", error)
-      toast("删除班级时出现错误")
+      console.error("删除用户失败:", error)
+      toast("删除用户时出现错误")
     } finally {
       setDeletingId(null)
     }
   }
 
-  // 处理新建班级按钮点击
-  const handleNewClassClick = (e: React.MouseEvent) => {
+  // 处理新建用户按钮点击
+  const handleNewUserClick = (e: React.MouseEvent) => {
     if (isButtonCooling) {
       e.preventDefault()
       return
@@ -254,8 +249,8 @@ export default function ListClassPage() {
   }
 
   // 计算总页数
-  const totalPages = classesData.total > 0 ? Math.ceil(classesData.total / classesData.pageSize) : 0
-  const classes = classesData.classes
+  const totalPages = usersData.total > 0 ? Math.ceil(usersData.total / usersData.pageSize) : 0
+  const users = usersData.users
   let asc = false
 
   return (
@@ -273,12 +268,12 @@ export default function ListClassPage() {
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
                   <BreadcrumbLink href="#">
-                    班级管理
+                    用户管理
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>班级列表</BreadcrumbPage>
+                  <BreadcrumbPage>用户列表</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -290,12 +285,12 @@ export default function ListClassPage() {
               disabled={isButtonCooling}
             >
               <Link 
-                to="/create_class" 
-                onClick={handleNewClassClick}
+                to="/www/users/create" 
+                onClick={handleNewUserClick}
                 className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
               >
                 <IconPlus className="mr-2 h-4 w-4" />
-                {isButtonCooling ? "请稍候..." : "创建班级"}
+                {isButtonCooling ? "请稍候..." : "创建用户"}
               </Link>
             </Button>
           </div>
@@ -312,13 +307,13 @@ export default function ListClassPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>班级名称</TableHead>
-                    <TableHead>邀请码</TableHead>
-                    <TableHead>开课日期</TableHead>
-                    <TableHead>结课日期</TableHead>
-                    <TableHead>学生数量</TableHead>
-                    <TableHead>课程数量</TableHead>
-                    <TableHead className="w-[150px]">操作</TableHead>
+                    <TableHead>用户名</TableHead>
+                    <TableHead>昵称</TableHead>
+                    <TableHead>邮箱</TableHead>
+                    <TableHead>角色</TableHead>
+                    <TableHead>创建时间</TableHead>
+                    <TableHead>更新时间</TableHead>
+                    <TableHead className="w-[100px]">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -328,36 +323,26 @@ export default function ListClassPage() {
                         加载中...
                       </TableCell>
                     </TableRow>
-                  ) : Array.isArray(classes) && classes.length > 0 ? (
-                    classes.map((classItem) => (
-                      <TableRow key={classItem.id || Math.random()}>
+                  ) : Array.isArray(users) && users.length > 0 ? (
+                    users.map((user) => (
+                      <TableRow key={user.id || Math.random()}>
                         <TableCell className="font-medium">
-                          <Link to={`/www/class/${classItem.id}`}>{classItem.name || "未命名班级"}</Link>
+                          {user.username}
                         </TableCell>
-                        <TableCell>{classItem.code}</TableCell>
-                        <TableCell>{formatDate(classItem.start_date)}</TableCell>
-                        <TableCell>{formatDate(classItem.end_date)}</TableCell>
-                        <TableCell>{classItem.students_count || 0}</TableCell>
-                        <TableCell>{classItem.courses_count || 0}</TableCell>
+                        <TableCell>{user.nickname}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.role}</TableCell>
+                        <TableCell>{formatDate(user.created_at)}</TableCell>
+                        <TableCell>{formatDate(user.updated_at)}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              title="查看学生"
-                              asChild
-                            >
-                              <Link to={`/www/class/${classItem.id}/students`}>
-                                <IconUsers className="h-4 w-4" />
-                              </Link>
-                            </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
                               title="编辑"
                               asChild
                             >
-                              <Link to={`/www/class/${classItem.id}/edit`}>
+                              <Link to={`/www/user/${user.id}/edit`}>
                                 <IconEdit className="h-4 w-4" />
                               </Link>
                             </Button>
@@ -371,7 +356,7 @@ export default function ListClassPage() {
                                 <DialogHeader>
                                   <DialogTitle>确认删除</DialogTitle>
                                   <DialogDescription>
-                                    您确定要删除班级 "{classItem.name}" 吗？此操作将删除所有相关的学生关联和课程安排，但不会删除学生账户和课程内容。此操作无法撤销。
+                                    您确定要删除用户 "{user.username}" 吗？此操作将永久删除该用户及其所有数据，且无法恢复。
                                   </DialogDescription>
                                 </DialogHeader>
                                 <DialogFooter>
@@ -380,10 +365,10 @@ export default function ListClassPage() {
                                   </DialogClose>
                                   <Button 
                                     variant="destructive" 
-                                    onClick={() => handleDeleteClass(classItem.id.toString())}
-                                    disabled={deletingId === classItem.id.toString()}
+                                    onClick={() => handleDeleteUser(user.id.toString())}
+                                    disabled={deletingId === user.id.toString()}
                                   >
-                                    {deletingId === classItem.id.toString() ? "删除中..." : "删除"}
+                                    {deletingId === user.id.toString() ? "删除中..." : "删除"}
                                   </Button>
                                 </DialogFooter>
                               </DialogContent>
@@ -395,7 +380,7 @@ export default function ListClassPage() {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={7} className="h-24 text-center">
-                        没有找到班级，点击右上角"创建班级"按钮创建您的第一个班级
+                        没有找到用户，点击右上角"创建用户"按钮创建新用户
                       </TableCell>
                     </TableRow>
                   )}
@@ -403,17 +388,17 @@ export default function ListClassPage() {
               </Table>
             </div>
             
-            {classesData.total > 0 && (
+            {usersData.total > 0 && (
               <div className="flex items-center justify-between px-2">
                 <div className="text-sm text-muted-foreground">
-                  共 {classesData.total} 个班级，共 {totalPages} 页，当前第 {classesData.currentPage} 页
+                  共 {usersData.total} 个用户，共 {totalPages} 页，当前第 {usersData.currentPage} 页
                 </div>
                 <div className="flex items-center gap-2">
                   <Button 
                     variant="outline" 
                     size="sm"
-                    disabled={!classesData.showBackward}
-                    onClick={() => handlePageChange(classes[0].id.toString(), false, asc)}
+                    disabled={!usersData.showBackward}
+                    onClick={() => handlePageChange(users[0].id.toString(), false, asc)}
                   >
                     <IconChevronLeft className="h-4 w-4" />
                     上一页
@@ -422,8 +407,8 @@ export default function ListClassPage() {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    disabled={!classesData.showForward}
-                    onClick={() => handlePageChange(classes[classes.length - 1].id.toString(), true, asc)}
+                    disabled={!usersData.showForward}
+                    onClick={() => handlePageChange(users[users.length - 1].id.toString(), true, asc)}
                   >
                     下一页
                     <IconChevronRight className="h-4 w-4" />

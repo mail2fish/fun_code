@@ -2,8 +2,6 @@ package dao
 
 import (
 	"net/http"
-
-	"github.com/jun/fun_code/internal/model"
 )
 
 type Dao struct {
@@ -21,18 +19,4 @@ type AuthDao interface {
 	Logout(token string) (*http.Cookie, error)
 	ValidateToken(tokenString string) (*Claims, error)
 	GenerateCookie(token string) *http.Cookie
-}
-
-// UserDao 用户服务接口
-type UserDao interface {
-	CreateUser(user *model.User) error
-	GetUserByID(id uint) (*model.User, error)
-	GetUserByUsername(username string) (*model.User, error)
-	GetUserByEmail(email string) (*model.User, error)
-	ListUsers(page, pageSize int) ([]model.User, int64, error)
-	UpdateUser(id uint, updates map[string]interface{}) error
-	UpdateUserProfile(id uint, nickname, email string) error
-	ChangePassword(id uint, oldPassword, newPassword string) error
-	DeleteUser(id uint) error
-	HardDeleteUser(id uint) error
 }

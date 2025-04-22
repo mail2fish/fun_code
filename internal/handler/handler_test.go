@@ -261,7 +261,7 @@ func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockS
 	mockAuth := new(MockAuthService)
 	mockFile := new(MockFileService)
 	mockScratch := new(MockScratchService)
-	i18n, err := i18n.NewI18nService("../../locales", "en")
+	i18n, err := i18n.NewI18nService("en")
 	if err != nil {
 		panic(err)
 	}

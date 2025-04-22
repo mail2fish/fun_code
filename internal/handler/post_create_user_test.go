@@ -48,9 +48,9 @@ func (m *MockUserDao) GetUserByEmail(email string) (*model.User, error) {
 	return args.Get(0).(*model.User), args.Error(1)
 }
 
-func (m *MockUserDao) ListUsers(page, pageSize int) ([]model.User, int64, error) {
-	args := m.Called(page, pageSize)
-	return args.Get(0).([]model.User), args.Get(1).(int64), args.Error(2)
+func (m *MockUserDao) ListUsers(pageSize uint, beginID uint, forward bool, asc bool) ([]model.User, bool, error) {
+	args := m.Called(pageSize, beginID, forward, asc)
+	return args.Get(0).([]model.User), args.Get(1).(bool), args.Error(2)
 }
 
 func (m *MockUserDao) UpdateUser(id uint, updates map[string]interface{}) error {
@@ -76,6 +76,11 @@ func (m *MockUserDao) DeleteUser(id uint) error {
 func (m *MockUserDao) HardDeleteUser(id uint) error {
 	args := m.Called(id)
 	return args.Error(0)
+}
+
+func (m *MockUserDao) CountUsers() (int64, error) {
+	args := m.Called()
+	return args.Get(0).(int64), args.Error(1)
 }
 
 // MockI18nService 是 I18nService 的模拟实现

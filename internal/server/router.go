@@ -35,6 +35,7 @@ func (s *Server) setupRoutes() {
 	// 公开路由
 	s.router.POST("/api/auth/register", s.handler.Register)
 	s.router.POST("/api/auth/login", s.handler.Login)
+	s.router.POST("/api/auth/logout", s.handler.Logout)
 	s.router.GET("/api/i18n/languages", s.handler.GetSupportedLanguages) // 获取支持的语言列表
 	s.router.POST("/api/i18n/language", s.handler.SetLanguage)           // 设置语言
 
@@ -59,13 +60,21 @@ func (s *Server) setupRoutes() {
 		auth.DELETE("/scratch/projects/:id", s.handler.DeleteScratchProject)
 
 		// 班级相关路由
-		auth.POST("/class/create", s.handler.PostCreateClass)
+		auth.POST("/classes/create", s.handler.PostCreateClass)
 		// 班级列表路由
-		auth.GET("/class/list", s.handler.GetListClasses)
+		auth.GET("/classes/list", s.handler.GetListClasses)
 		// 获取单个班级的信息路由
 		auth.GET("/classes/:class_id", s.handler.GetClass)
 		// 修改班级信息路由
 		auth.PUT("/classes/:class_id", s.handler.PutUpdateClass)
+		// 删除班级路由
+		auth.DELETE("/classes/:class_id", s.handler.DeleteClass)
+
+		// 用户管理路由
+		auth.POST("/users/create", s.handler.RequirePermission("manage_users"), s.handler.PostCreateUser)
+		auth.GET("/users/list", s.handler.RequirePermission("manage_users"), s.handler.GetListUsers)
+		auth.PUT("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.PutUpdateUser)
+		auth.DELETE("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.DeleteUser)
 	}
 
 	projects := s.router.Group("/projects")

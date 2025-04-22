@@ -70,7 +70,7 @@ const formSchema = z.object({
 // 创建班级
 async function createClass(classData: z.infer<typeof formSchema>) {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/class/create`, {
+    const response = await fetchWithAuth(`${HOST_URL}/api/classes/create`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -120,7 +120,7 @@ export default function CreateClassPage() {
       
       // 创建成功后跳转到班级列表页
       setTimeout(() => {
-        navigate("/www/class/list");
+        navigate("/www/classes/list");
       }, 2000);
     } catch (error) {
       console.error("提交表单失败:", error);
@@ -144,7 +144,7 @@ export default function CreateClassPage() {
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/classes">
+                  <BreadcrumbLink href="/www/classes/list">
                     班级管理
                   </BreadcrumbLink>
                 </BreadcrumbItem>
@@ -288,7 +288,7 @@ export default function CreateClassPage() {
                     <Button 
                       variant="outline" 
                       type="button"
-                      onClick={() => navigate("/classes")}
+                      onClick={() => navigate("/www/classes/list")}
                       disabled={isSubmitting}
                     >
                       取消

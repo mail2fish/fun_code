@@ -1,8 +1,8 @@
 import * as React from "react"
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, LogOut } from "lucide-react"
+import { useNavigate } from "react-router"
+import { toast } from "sonner"
 
-import { SearchForm } from "~/components/search-form"
-import { VersionSwitcher } from "~/components/version-switcher"
 import {
   Collapsible,
   CollapsibleContent,
@@ -20,50 +20,46 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "~/components/ui/sidebar"
+import { HOST_URL } from "~/config"
+import { fetchWithAuth } from "~/utils/api"
 
 // This is sample data.
 const data = {
   versions: ["0.0.1"],
   navMain: [
     {
-      title: "班级管理",
+      title: "管理菜单",
       url: "#",
       items: [
+        // {
+        //   title: "班级列表",
+        //   url: "/www/classes/list",
+        //   isActive: false,
+        // },
+        // {
+        //   title: "创建班级",
+        //   url: "/www/classes/create",
+        //   isActive: false,
+        // },
         {
-          title: "班级列表",
-          url: "/www/class/list",
+          title: "用户列表",
+          url: "/www/users/list",
           isActive: false,
         },
         {
-          title: "创建班级",
-          url: "/www/class/create",
+          title: "创建用户",
+          url: "/www/users/create",
           isActive: false,
-        },
+        },        
       ],
     },
     {
-      title: "学员管理",
+      title: "Scratch程序",
       url: "#",
       items: [
         {
-          title: "学员列表",
-          url: "#",
-          isActive: false,
-        },
-        {
-          title: "创建学员",
-          url: "",
-          isActive: false,
-        },
-      ],
-    },    
-    {
-      title: "Scratch程序管理",
-      url: "#",
-      items: [
-        {
-          title: "程序列表",
-          url: "#",
+          title: "我的程序列表",
+          url: "/www/scratch/projects",
           isActive: false,
         },
       ],
@@ -72,14 +68,26 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    // 调用服务端登出接口
+    try {
+      await fetchWithAuth(`${HOST_URL}/api/auth/logout`, {
+        method: "POST"
+      });
+    } catch (error) {
+      console.error("登出失败:", error);
+    }
+    localStorage.removeItem('token');
+    toast.success("已退出登录");
+    navigate("/");
+  };
+
   return (
     <Sidebar {...props}>
       <SidebarHeader>
-        <VersionSwitcher
-          versions={data.versions}
-          defaultVersion={data.versions[0]}
-        />
-        <SearchForm />
+        FunCode 后台管理
       </SidebarHeader>
       <SidebarContent className="gap-0">
         {/* We create a collapsible SidebarGroup for each parent. */}
@@ -117,6 +125,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </Collapsible>
         ))}
       </SidebarContent>
+      <SidebarGroup>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              退出登录
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroup>
       <SidebarRail />
     </Sidebar>
   )
