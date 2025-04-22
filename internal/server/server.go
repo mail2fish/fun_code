@@ -35,7 +35,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	database.RunMigrations(db)
 
 	// 确保文件存储目录存在
-	if err := os.MkdirAll(cfg.Storage.BasePath, 0755); err != nil {
+	if err = os.MkdirAll(cfg.Storage.BasePath, 0755); err != nil {
 		return nil, err
 	}
 
@@ -56,11 +56,10 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		FileDao:    dao.NewFileDao(db, cfg.Storage.BasePath),
 		ScratchDao: dao.NewScratchDao(db, filepath.Join(cfg.Storage.BasePath, "scratch")),
 		ClassDao:   dao.NewClassDao(db),
-		I18nDao:    i18nService, // 添加 I18nService
 	}
 	// 初始化处理器
 	h := handler.NewHandler(
-		services, cfg)
+		services, i18nService, cfg)
 
 	// 初始化路由
 	r := gin.Default()

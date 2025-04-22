@@ -3,7 +3,6 @@ package dao
 import (
 	"net/http"
 
-	"github.com/jun/fun_code/internal/i18n"
 	"github.com/jun/fun_code/internal/model"
 )
 
@@ -14,7 +13,6 @@ type Dao struct {
 	ClassDao   ClassDao
 	CourseDao  CourseDao
 	ScratchDao ScratchDao
-	I18nDao    i18n.I18nService // 新增 I18nService
 }
 
 type AuthDao interface {
@@ -27,6 +25,7 @@ type AuthDao interface {
 
 // UserDao 用户服务接口
 type UserDao interface {
+	CreateUser(user *model.User) error
 	GetUserByID(id uint) (*model.User, error)
 	GetUserByUsername(username string) (*model.User, error)
 	GetUserByEmail(email string) (*model.User, error)

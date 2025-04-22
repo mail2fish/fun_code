@@ -59,7 +59,7 @@ func (h *Handler) hasPermission(c *gin.Context, permission string) bool {
 	}
 
 	// 获取用户信息
-	user, err := h.services.UserDao.GetUserByID(userID.(uint))
+	user, err := h.dao.UserDao.GetUserByID(userID.(uint))
 	if err != nil {
 		return false
 	}
@@ -108,13 +108,13 @@ func (h *Handler) isResourceOwner(c *gin.Context, resourceType string, resourceI
 
 	switch resourceType {
 	case "scratch_project":
-		project, err := h.services.ScratchDao.GetProject(resourceID)
+		project, err := h.dao.ScratchDao.GetProject(resourceID)
 		if err != nil {
 			return false
 		}
 		return project.UserID == userID.(uint)
 	case "class":
-		class, err := h.services.ClassDao.GetClass(resourceID)
+		class, err := h.dao.ClassDao.GetClass(resourceID)
 		if err != nil {
 			return false
 		}
@@ -164,7 +164,7 @@ func (h *Handler) isClassMember(c *gin.Context, classID uint) bool {
 	}
 
 	// 获取班级信息
-	class, err := h.services.ClassDao.GetClass(classID)
+	class, err := h.dao.ClassDao.GetClass(classID)
 	if err != nil {
 		return false
 	}

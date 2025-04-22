@@ -11,24 +11,27 @@ import (
 
 	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/dao"
+	"github.com/jun/fun_code/internal/i18n"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 type Handler struct {
-	services dao.Dao
-	config   *config.Config // 添加配置字段
+	dao    dao.Dao
+	config *config.Config   // 添加配置字段
+	i18n   i18n.I18nService // 新增 I18nService
 
 	// 用于限流的映射和互斥锁
 	createProjectLimiter     map[uint][]time.Time
 	createProjectLimiterLock sync.Mutex
 }
 
-func NewHandler(services dao.Dao,
+func NewHandler(services dao.Dao, i18n i18n.I18nService,
 	cfg *config.Config) *Handler {
 	return &Handler{
-		services:             services,
+		dao:                  services,
+		i18n:                 i18n,
 		config:               cfg, // 初始化配置字段
 		createProjectLimiter: make(map[uint][]time.Time),
 	}
@@ -46,7 +49,7 @@ func (h *Handler) CreateDirectory(c *gin.Context) {
 		return
 	}
 
-	if err := h.services.FileDao.CreateDirectory(userID, req.Name, req.ParentID); err != nil {
+	if err := h.dao.FileDao.CreateDirectory(userID, req.Name, req.ParentID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建目录失败"})
 		return
 	}
@@ -82,7 +85,7 @@ func (h *Handler) UploadFile(c *gin.Context) {
 	defer src.Close()
 
 	contentType := file.Header.Get("Content-Type")
-	if err := h.services.FileDao.UploadFile(userID, file.Filename, parentID, contentType, file.Size, src); err != nil {
+	if err := h.dao.FileDao.UploadFile(userID, file.Filename, parentID, contentType, file.Size, src); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "上传文件失败"})
 		return
 	}
@@ -105,7 +108,7 @@ func (h *Handler) ListFiles(c *gin.Context) {
 		parentID = &uintID
 	}
 
-	files, err := h.services.FileDao.ListFiles(userID, parentID)
+	files, err := h.dao.FileDao.ListFiles(userID, parentID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取文件列表失败"})
 		return
@@ -122,7 +125,7 @@ func (h *Handler) DownloadFile(c *gin.Context) {
 		return
 	}
 
-	file, err := h.services.FileDao.GetFile(userID, uint(fileID))
+	file, err := h.dao.FileDao.GetFile(userID, uint(fileID))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -146,7 +149,7 @@ func (h *Handler) DeleteFile(c *gin.Context) {
 		return
 	}
 
-	if err := h.services.FileDao.DeleteFile(userID, uint(fileID)); err != nil {
+	if err := h.dao.FileDao.DeleteFile(userID, uint(fileID)); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "文件不存在"})
 		} else {
@@ -163,13 +166,13 @@ func (h *Handler) DeleteFile(c *gin.Context) {
 // T 翻译消息
 func (h *Handler) T(messageID string, c *gin.Context) string {
 	lang := h.GetLanguage(c)
-	return h.services.I18nDao.Translate(messageID, lang)
+	return h.i18n.Translate(messageID, lang)
 }
 
 // TWithData 使用模板数据翻译消息
 func (h *Handler) TWithData(messageID string, c *gin.Context, data map[string]interface{}) string {
 	lang := h.GetLanguage(c)
-	return h.services.I18nDao.TranslateWithData(messageID, lang, data)
+	return h.i18n.TranslateWithData(messageID, lang, data)
 }
 
 // GetLanguage 从请求中获取语言
@@ -198,5 +201,5 @@ func (h *Handler) GetLanguage(c *gin.Context) string {
 	}
 
 	// 默认返回配置的默认语言
-	return h.services.I18nDao.GetDefaultLanguage()
+	return h.i18n.GetDefaultLanguage()
 }

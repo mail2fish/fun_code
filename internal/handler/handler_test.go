@@ -12,6 +12,7 @@ import (
 
 	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/dao"
+	"github.com/jun/fun_code/internal/i18n"
 	"github.com/jun/fun_code/internal/model"
 
 	"github.com/gin-gonic/gin"
@@ -260,12 +261,16 @@ func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockS
 	mockAuth := new(MockAuthService)
 	mockFile := new(MockFileService)
 	mockScratch := new(MockScratchService)
+	i18n, err := i18n.NewI18nService("../../locales", "en")
+	if err != nil {
+		panic(err)
+	}
 	cfg := &config.Config{ScratchEditor: config.ScratchEditorConfig{Host: "http://localhost"}}
 	h := NewHandler(dao.Dao{
 		AuthDao:    mockAuth,
 		FileDao:    mockFile,
 		ScratchDao: mockScratch,
-	}, cfg)
+	}, i18n, cfg)
 
 	// 设置路由
 	r.POST("/api/auth/register", h.Register)

@@ -74,7 +74,7 @@ func (h *Handler) PutUpdateClass(c *gin.Context) {
 	}
 
 	// 调用服务层更新班级信息
-	err = h.services.ClassDao.UpdateClass(uint(id), teacherID, updates)
+	err = h.dao.ClassDao.UpdateClass(uint(id), teacherID, updates)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "班级不存在或您无权修改" {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -102,7 +102,7 @@ func (h *Handler) PutUpdateClass(c *gin.Context) {
 	}
 
 	// 获取更新后的班级信息
-	updatedClass, err := h.services.ClassDao.GetClass(uint(id))
+	updatedClass, err := h.dao.ClassDao.GetClass(uint(id))
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"message": h.T("class_update_success", c),
