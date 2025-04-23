@@ -9,79 +9,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/dao"
-	"github.com/jun/fun_code/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
-
-// PostCreateUserMockUserDao 是 UserDao 的模拟实现
-type PostCreateUserMockUserDao struct {
-	mock.Mock
-}
-
-func (m *PostCreateUserMockUserDao) CreateUser(user *model.User) error {
-	args := m.Called(user)
-	return args.Error(0)
-}
-
-func (m *PostCreateUserMockUserDao) GetUserByID(id uint) (*model.User, error) {
-	args := m.Called(id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*model.User), args.Error(1)
-}
-
-func (m *PostCreateUserMockUserDao) GetUserByUsername(username string) (*model.User, error) {
-	args := m.Called(username)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*model.User), args.Error(1)
-}
-
-func (m *PostCreateUserMockUserDao) GetUserByEmail(email string) (*model.User, error) {
-	args := m.Called(email)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*model.User), args.Error(1)
-}
-
-func (m *PostCreateUserMockUserDao) ListUsers(pageSize uint, beginID uint, forward bool, asc bool) ([]model.User, bool, error) {
-	args := m.Called(pageSize, beginID, forward, asc)
-	return args.Get(0).([]model.User), args.Get(1).(bool), args.Error(2)
-}
-
-func (m *PostCreateUserMockUserDao) UpdateUser(id uint, updates map[string]interface{}) error {
-	args := m.Called(id, updates)
-	return args.Error(0)
-}
-
-func (m *PostCreateUserMockUserDao) UpdateUserProfile(id uint, nickname, email string) error {
-	args := m.Called(id, nickname, email)
-	return args.Error(0)
-}
-
-func (m *PostCreateUserMockUserDao) ChangePassword(id uint, oldPassword, newPassword string) error {
-	args := m.Called(id, oldPassword, newPassword)
-	return args.Error(0)
-}
-
-func (m *PostCreateUserMockUserDao) DeleteUser(id uint) error {
-	args := m.Called(id)
-	return args.Error(0)
-}
-
-func (m *PostCreateUserMockUserDao) HardDeleteUser(id uint) error {
-	args := m.Called(id)
-	return args.Error(0)
-}
-
-func (m *PostCreateUserMockUserDao) CountUsers() (int64, error) {
-	args := m.Called()
-	return args.Get(0).(int64), args.Error(1)
-}
 
 // MockI18nService 是 I18nService 的模拟实现
 type MockI18nService struct {
@@ -109,17 +39,17 @@ func (m *MockI18nService) GetSupportedLanguages() []string {
 }
 
 // 设置测试环境
-func setupUserTestHandler() (*gin.Engine, *PostCreateUserMockUserDao, *MockI18nService) {
+func setupUserTestHandler() (*gin.Engine, *MockUserDao, *MockI18nService) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
-	PostCreateUsermockUserDao := new(PostCreateUserMockUserDao)
+	mockUserDao := new(MockUserDao)
 	mockI18n := new(MockI18nService)
 
 	// 创建一个简化版的 Handler
 	h := &Handler{
 		dao: &dao.Dao{
-			UserDao: PostCreateUsermockUserDao,
+			UserDao: mockUserDao,
 		},
 		i18n: mockI18n,
 	}
@@ -127,7 +57,7 @@ func setupUserTestHandler() (*gin.Engine, *PostCreateUserMockUserDao, *MockI18nS
 	// 设置路由
 	r.POST("/api/users", h.PostCreateUser)
 
-	return r, PostCreateUsermockUserDao, mockI18n
+	return r, mockUserDao, mockI18n
 }
 
 func TestPostCreateUser(t *testing.T) {
@@ -153,7 +83,7 @@ func TestPostCreateUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// 重置 mock 对象
-			PostCreateUsermockUserDao = new(PostCreateUserMockUserDao)
+			PostCreateUsermockUserDao = new(MockUserDao)
 			mockI18n = new(MockI18nService)
 
 			// 重新设置 Handler
@@ -273,7 +203,7 @@ func TestPostCreateUserI18n(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// 为每个测试用例创建新的 mock 对象
-			PostCreateUsermockUserDao := new(PostCreateUserMockUserDao)
+			PostCreateUsermockUserDao := new(MockUserDao)
 			mockI18n := new(MockI18nService)
 
 			// 重新设置 Handler

@@ -4,58 +4,65 @@ import (
 	"fmt"
 )
 
+// 格式为：错误类型-业务模块-错误编码
+
 // ErrorType 定义错误类型
-type ErrorType string
+type ErrorType int
 
 const (
-	// HandlerError Handler层错误
-	HandlerError ErrorType = "handler"
-	// ThirdPartyError 第三方库错误
-	ThirdPartyError ErrorType = "third_party"
-	// ServiceError 服务层错误
-	ServiceError ErrorType = "system"
+	// HANDLER Handler层错误
+	HANDLER ErrorType = 1000000
+	// THIRD_PARTY 第三方库错误
+	THIRD_PARTY ErrorType = 2000000
+	// DAO 数据访问层错误
+	DAO ErrorType = 3000000
 )
 
-// ErrorCode 定义错误代码类型
-// 格式为：错误类型-业务模块-错误编码
-type ErrorCode string
+// ErrorCode 定义错误代码
+type ErrorCode int
+
+// ErrorModule 定义错误模块
+type ErrorModule int
+
+const (
+	USER ErrorModule = 100000
+)
 
 // CustomError 自定义应用错误类型
 type CustomError struct {
-	Type    ErrorType // 错误类型
-	Module  string    // 业务模块
-	Code    int       // 错误代码，使用专有类型
-	Message string    // 错误消息
-	Err     error     // 原始错误
+	Type    ErrorType   // 错误类型
+	Module  ErrorModule // 业务模块
+	Code    int         // 错误代码，使用专有类型
+	Message string      // 错误消息
+	Err     error       // 原始错误
 }
 
 // Error 实现 error 接口
 func (e *CustomError) Error() string {
 	if e.Err != nil {
-		return fmt.Sprintf("[%s] %s: %s - %v", e.Type, e.Code, e.Message, e.Err)
+		return fmt.Sprintf("[%d] %v", e.ErrorCode(), e.Err)
 	}
-	return fmt.Sprintf("[%s] %s: %s", e.Type, e.Code, e.Message)
+	return fmt.Sprintf("[%d]", e.ErrorCode())
 }
 
 // Unwrap 返回原始错误，支持 errors.Is 和 errors.As
 func (e *CustomError) Unwrap() error {
 	if e.Err == nil {
-		return fmt.Errorf("%s,%s, %s", e.Type, e.Code, e.Message)
+		return fmt.Errorf("%d-%s", e.ErrorCode(), e.Message)
 	}
-
 	return e.Err
 }
 
 // ErrorCode 获取错误代码
 // 格式为：错误类型-业务模块-错误编码
 func (e *CustomError) ErrorCode() ErrorCode {
-	return ErrorCode(fmt.Sprintf("%s-%s-%s", e.Type, e.Module, e.Code))
+	return ErrorCode(int(e.Type) + int(e.Module) + int(e.Code))
 }
 
 // NewError 创建错误
-func NewError(module string, code int, message string) *CustomError {
+func NewError(module ErrorModule, code int, message string) *CustomError {
 	return &CustomError{
-		Type:    HandlerError,
+		Type:    HANDLER,
 		Module:  module,
 		Code:    code,
 		Message: message,
@@ -63,9 +70,9 @@ func NewError(module string, code int, message string) *CustomError {
 }
 
 // NewHandlerError 创建业务逻辑错误
-func NewHandlerError(module string, code int, message string) *CustomError {
+func NewHandlerError(module ErrorModule, code int, message string) *CustomError {
 	return &CustomError{
-		Type:    HandlerError,
+		Type:    HANDLER,
 		Module:  module,
 		Code:    code,
 		Message: message,
@@ -73,9 +80,9 @@ func NewHandlerError(module string, code int, message string) *CustomError {
 }
 
 // NewThirdPartyError 创建第三方库错误
-func NewThirdPartyError(module string, code int, message string, err error) *CustomError {
+func NewThirdPartyError(module ErrorModule, code int, message string, err error) *CustomError {
 	return &CustomError{
-		Type:    ThirdPartyError,
+		Type:    THIRD_PARTY,
 		Module:  module,
 		Code:    code,
 		Message: message,
@@ -84,9 +91,9 @@ func NewThirdPartyError(module string, code int, message string, err error) *Cus
 }
 
 // NewDaoError 创建系统错误
-func NewDaoError(module string, code int, message string) *CustomError {
+func NewDaoError(module ErrorModule, code int, message string) *CustomError {
 	return &CustomError{
-		Type:    ServiceError,
+		Type:    DAO,
 		Module:  module,
 		Code:    code,
 		Message: message,
@@ -99,7 +106,7 @@ func IsHandlerError(err error) bool {
 		return false
 	}
 	if e, ok := err.(*CustomError); ok {
-		return e.Type == HandlerError
+		return e.Type == HANDLER
 	}
 	return false
 }
@@ -110,7 +117,7 @@ func IsThirdPartyError(err error) bool {
 		return false
 	}
 	if e, ok := err.(*CustomError); ok {
-		return e.Type == ThirdPartyError
+		return e.Type == THIRD_PARTY
 	}
 	return false
 }
@@ -121,18 +128,15 @@ func IsServiceError(err error) bool {
 		return false
 	}
 	if e, ok := err.(*CustomError); ok {
-		return e.Type == ServiceError
+		return e.Type == DAO
 	}
 	return false
 }
 
 // GetErrorCode 获取错误代码
 func GetErrorCode(err error) ErrorCode {
-	if err == nil {
-		return ""
-	}
 	if e, ok := err.(*CustomError); ok {
 		return e.ErrorCode()
 	}
-	return ""
+	return 0
 }

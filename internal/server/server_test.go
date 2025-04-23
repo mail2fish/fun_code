@@ -14,6 +14,7 @@ import (
 	"github.com/jun/fun_code/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -56,7 +57,8 @@ func TestNewServer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := tt.config(t)
-			s, err := NewServer(cfg)
+			logger := zap.NewExample()
+			s, err := NewServer(cfg, logger)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, s)
@@ -89,8 +91,8 @@ func TestServer_setupRoutes(t *testing.T) {
 			SecretKey: "test_key",
 		},
 	}
-
-	s, err := NewServer(cfg)
+	logger := zap.NewExample()
+	s, err := NewServer(cfg, logger)
 	assert.NoError(t, err)
 
 	// 测试公开路由
@@ -286,7 +288,8 @@ func createTestServer(t *testing.T) *Server {
 			SecretKey: "test_key",
 		},
 	}
-	s, err := NewServer(cfg)
+	logger := zap.NewExample()
+	s, err := NewServer(cfg, logger)
 	require.NoError(t, err)
 	return s
 }

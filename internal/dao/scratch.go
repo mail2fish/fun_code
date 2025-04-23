@@ -158,10 +158,16 @@ func (s *ScratchDaoImpl) SaveProject(userID uint, projectID uint, name string, c
 func (s *ScratchDaoImpl) CountProjects(userID uint) (int64, error) {
 	var total int64
 
-	// 计算总数
-	if err := s.db.Model(&model.ScratchProject{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
-		return 0, err
+	if userID == 0 {
+		if err := s.db.Model(&model.ScratchProject{}).Count(&total).Error; err != nil {
+			return 0, err
+		}
+	} else {
+		if err := s.db.Model(&model.ScratchProject{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
+			return 0, err
+		}
 	}
+
 	return total, nil
 }
 

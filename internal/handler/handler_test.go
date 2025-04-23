@@ -323,6 +323,11 @@ func (m *MockUserDao) UpdateUserProfile(userID uint, nickname string, email stri
 	return args.Error(0)
 }
 
+func (m *MockUserDao) GetUsersByIDs(ids []uint) ([]model.User, error) {
+	args := m.Called(ids)
+	return args.Get(0).([]model.User), args.Error(1)
+}
+
 // 修改 setupTestHandler 函数，添加 MockFileService 并调整返回顺序
 func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockUserDao, *MockScratchDao) {
 	gin.SetMode(gin.TestMode)

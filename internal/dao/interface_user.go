@@ -15,4 +15,5 @@ type UserDao interface {
 	DeleteUser(id uint) error
 	HardDeleteUser(id uint) error
 	CountUsers() (int64, error)
+	GetUsersByIDs(ids []uint) ([]model.User, error)
 }

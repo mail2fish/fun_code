@@ -13,10 +13,10 @@ func TestLoadConfig(t *testing.T) {
 	tempDir := t.TempDir()
 
 	tests := []struct {
-		name      string
-		content   string
-		wantErr   bool
-		validate  func(*testing.T, *Config)
+		name     string
+		content  string
+		wantErr  bool
+		validate func(*testing.T, *Config)
 	}{
 		{
 			name: "有效配置",
@@ -58,7 +58,7 @@ server:
 			},
 		},
 		{
-			name: "配置文件不存在",
+			name:    "配置文件不存在",
 			content: "",
 			wantErr: true,
 			validate: func(t *testing.T, cfg *Config) {
@@ -92,16 +92,6 @@ server:
 			tt.validate(t, cfg)
 		})
 	}
-}
-
-func TestNewConfig(t *testing.T) {
-	cfg := NewConfig()
-	assert.NotNil(t, cfg)
-	assert.Equal(t, ":8080", cfg.Server.Port)
-	assert.Equal(t, "sqlite", cfg.Database.Driver)
-	assert.Equal(t, "fun_code.db", cfg.Database.DSN)
-	assert.Equal(t, "your-secret-key", cfg.JWT.SecretKey)
-	assert.Equal(t, filepath.Join(os.TempDir(), "fun_code_files"), cfg.Storage.BasePath)
 }
 
 func TestConfig_Validate(t *testing.T) {
