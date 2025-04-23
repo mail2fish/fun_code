@@ -3,21 +3,26 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/server"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "fun_code",
-	Short: "A file management system with user authentication",
-	Long: `Fun Code is a web-based file management system that provides:
-- User registration and authentication
-- File upload and download
-- Directory management
-- File listing and organization`,
+	Short: "A web-based scratch backend system",
+	Long: `Fun Code is a web-based scratch backend system that provides:
+- Scratch project user management
+- Scratch project management
+`,
 }
+
+const defaultBaseDir = "funcode_data"
+
+var defaultConfigPath = filepath.Join(defaultBaseDir, "config.yaml")
 
 var serveCmd = &cobra.Command{
 	Use:   "serve",
@@ -26,8 +31,26 @@ var serveCmd = &cobra.Command{
 		// 获取配置文件路径
 		configPath, err := cmd.Flags().GetString("config")
 		if err != nil {
-			fmt.Printf("获取配置文件路径失败: %v\n", err)
+			fmt.Printf("Failed to get config file path: %v\n", err)
 			os.Exit(1)
+		}
+
+		// If no explicit config file path is provided, and the default config file defaultConfigPath does not exist,
+		// create it in the user's home directory.
+		if configPath == "" || configPath == defaultConfigPath {
+			if _, err = os.Stat(defaultConfigPath); err == nil {
+				configPath = defaultConfigPath
+			} else {
+				// If the config file does not exist, create a default config file
+				cfg := config.NewConfig(defaultBaseDir)
+				if err = cfg.Save(defaultConfigPath); err != nil {
+					fmt.Printf("Failed to create default config file: %v\n", err)
+					os.Exit(1)
+				}
+				// Print the config file path and notify the user in English
+				fmt.Printf("Config file created at: %s\n", defaultConfigPath)
+				configPath = defaultConfigPath
+			}
 		}
 
 		// 加载配置
@@ -37,10 +60,26 @@ var serveCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		// 初始化 zap logger, 用于日志记录,根据 cfg 区分不同环境
+		var logger *zap.Logger
+		if cfg.Env == "production" {
+			logger, err = zap.NewProduction()
+			if err != nil {
+				fmt.Println("Failed to initialize production logger:", err)
+				os.Exit(1)
+			}
+		} else {
+			logger, err = zap.NewDevelopment()
+			if err != nil {
+				fmt.Println("Failed to initialize development logger:", err)
+				os.Exit(1)
+			}
+		}
+
 		// 初始化服务器
-		srv, err := server.NewServer(cfg)
+		srv, err := server.NewServer(cfg, logger)
 		if err != nil {
-			fmt.Printf("初始化服务器失败: %v\n", err)
+			fmt.Println("Failed to initialize server:", err)
 			os.Exit(1)
 		}
 
@@ -53,9 +92,9 @@ var serveCmd = &cobra.Command{
 }
 
 func init() {
-	serveCmd.Flags().IntP("port", "p", 8080, "服务器监听端口")
-	serveCmd.Flags().StringP("config", "c", "./config.yaml", "配置文件路径")
+	rootCmd.PersistentFlags().StringP("config", "c", defaultConfigPath, "config file path")
 	rootCmd.AddCommand(serveCmd)
+	rootCmd.Run = serveCmd.Run // 设置 serveCmd 为默认命令
 }
 
 func main() {

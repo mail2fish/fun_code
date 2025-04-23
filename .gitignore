@@ -28,3 +28,7 @@ config.yaml
 fun_code.db
 .air.toml
 tmp
+
+.DS_Store
+.cursor/*
+.trae/*
