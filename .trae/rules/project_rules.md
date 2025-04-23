@@ -1,7 +1,0 @@
-- 始终用中文对话
-- 项目根目录下的 cmd, internal 是 golang 项目的目录
-- locales 是 i18n 的目录，格式为 yaml
-- 项目的根目录下有 .trae 目录，
-- 项目根目录下的 web/react-router-www 是 react 19 的项目
-- 项目根目录下的 web/scratch 是 react16 的项目
-- 给 golang 的方法或函数生成单元测试

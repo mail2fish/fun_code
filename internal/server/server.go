@@ -26,22 +26,7 @@ type Server struct {
 	router  *gin.Engine
 }
 
-func NewServer(cfg *config.Config) (*Server, error) {
-
-	// 初始化 zap logger, 用于日志记录,根据 cfg 区分不同环境
-	var logger *zap.Logger
-	var err error
-	if cfg.Env == "production" {
-		logger, err = zap.NewProduction()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		logger, err = zap.NewDevelopment()
-		if err != nil {
-			return nil, err
-		}
-	}
+func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 
 	// 初始化数据库
 	db, err := gorm.Open(sqlite.Open(cfg.Database.DSN), &gorm.Config{})

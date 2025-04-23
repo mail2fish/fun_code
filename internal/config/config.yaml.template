@@ -1,0 +1,35 @@
+# 服务运行环境配置
+# - development: 开发环境,输出详细日志,方便调试
+# - production: 生产环境,仅输出重要日志,提升性能
+env: "{{ .Env }}"
+# 数据库配置
+database:
+  # 数据库驱动类型,目前支持 sqlite
+  driver: "sqlite"
+  # 数据库连接字符串
+  dsn: "{{ .Database.DSN }}"
+
+# 文件存储配置  
+storage:
+  # 文件存储根目录路径
+  basePath: "{{ .Storage.BasePath }}"
+
+# JWT认证配置
+jwt:
+  # JWT签名密钥
+  secretKey: "{{ .JWT.SecretKey }}"
+
+# HTTP服务器配置
+server:
+  # 服务监听端口
+  port: "{{ .Server.Port }}"
+
+# Scratch编辑器配置
+scratch_editor:
+  # 编辑器访问地址
+  host: "{{ .ScratchEditor.Host }}"
+
+# 国际化配置
+i18n:
+  # 默认语言,目前支持zh-CN(简体中文)
+  default_lang: "zh-CN"

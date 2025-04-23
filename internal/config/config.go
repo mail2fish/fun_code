@@ -2,11 +2,20 @@ package config
 
 import (
 	"errors"
+	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"text/template"
 
+	_ "embed"
+
+	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 )
+
+//go:embed config.yaml.template
+var ConfigTemplate string
 
 type DatabaseConfig struct {
 	Driver string `yaml:"driver"`
@@ -66,22 +75,93 @@ func LoadConfig(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-func NewConfig() *Config {
+func NewConfig(baseDir string) *Config {
+
+	// 从 8080 开始，依次尝试 TCP 端口号是否可用
+	port := 8080
+	var listenAddr string
+	for ; port <= 8089; port++ {
+		addr := fmt.Sprintf(":%d", port)
+		listener, err := net.Listen("tcp", addr)
+		if err != nil {
+			continue
+		}
+		// 获取监听的 IP 地址
+		host := "localhost"
+		if addrs, err := net.InterfaceAddrs(); err == nil {
+			for _, addr := range addrs {
+				// 检查IP地址
+				if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+					if ipnet.IP.To4() != nil {
+						host = ipnet.IP.String()
+						break
+					}
+				}
+			}
+		}
+		listenAddr = host
+		// 关闭监听
+		listener.Close()
+
+		break
+	}
+
+	secretKey := uuid.New().String()
+	listenPort := fmt.Sprintf(":%d", port)
+	dsn := filepath.Join(baseDir, "fun_code.db")
+	host := fmt.Sprintf("http://%s:%s", listenAddr, listenPort)
+
 	return &Config{
+		Env: "development",
 		Database: DatabaseConfig{
 			Driver: "sqlite",
-			DSN:    "fun_code.db",
+			DSN:    dsn,
 		},
 		Storage: StorageConfig{
-			BasePath: filepath.Join(os.TempDir(), "fun_code_files"),
+			BasePath: filepath.Join(baseDir, "fun_code_files"),
 		},
 		JWT: JWTConfig{
-			SecretKey: "your-secret-key",
+			SecretKey: secretKey,
 		},
 		Server: ServerConfig{
-			Port: ":8080",
+			Port: listenPort,
+		},
+		ScratchEditor: ScratchEditorConfig{
+			Host: host,
 		},
 	}
+}
+
+func (c *Config) Save(path string) error {
+	// 文件夹不存在则创建
+	dir := filepath.Dir(path)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
+	}
+
+	// 文件不存在则创建, 基于 config.yaml.template
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		// 加载模版
+		template, err := template.New("config").Parse(ConfigTemplate)
+		if err != nil {
+			return err
+		}
+		// 渲染模版，并写入文件
+		file, err := os.Create(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		err = template.Execute(file, c)
+		if err != nil {
+			fmt.Println("render template error", err.Error())
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *Config) Validate() error {

@@ -104,7 +104,7 @@ func TestCanReadProject(t *testing.T) {
 	defer os.RemoveAll(tempDir) // 测试结束后清理
 
 	db := testutils.SetupTestDB()
-	service := NewScratchDao(db, tempDir)
+	scratchDao := NewScratchDao(db, tempDir)
 
 	// 先创建一个项目用于测试
 	userID := uint(1)
@@ -112,7 +112,7 @@ func TestCanReadProject(t *testing.T) {
 	content := []byte(`{"test":"content"}`)
 
 	// 保存项目
-	projectID, err := service.SaveProject(userID, 0, name, content)
+	projectID, err := scratchDao.SaveProject(userID, 0, name, content)
 	if err != nil {
 		t.Fatalf("SaveProject() error = %v", err)
 	}
@@ -143,7 +143,7 @@ func TestCanReadProject(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// 执行测试
-			got := service.ProjectUserID(tt.projectID)
+			_, got := scratchDao.GetProjectUserID(tt.projectID)
 
 			// 验证结果
 			if got != tt.want {
