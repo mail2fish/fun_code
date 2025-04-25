@@ -47,12 +47,17 @@ func (h *Handler) GetMenuList(c *gin.Context) {
 			Items: []MenuItem{
 				{
 					Title:    "用户列表",
-					URL:      "/www/users/list",
+					URL:      "/www/admin/users/list",
 					IsActive: false,
 				},
 				{
 					Title:    "创建用户",
-					URL:      "/www/users/create",
+					URL:      "/www/admin/users/create",
+					IsActive: false,
+				},
+				{
+					Title:    "所有程序列表",
+					URL:      "/www/admin/scratch/projects",
 					IsActive: false,
 				},
 			},

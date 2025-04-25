@@ -40,6 +40,11 @@ func (h *Handler) PostCreateUser(c *gin.Context) {
 		Role:     req.Role,
 	}
 
+	// 如果 Nickname 为空，则使用 Username 作为 Nickname
+	if user.Nickname == "" {
+		user.Nickname = user.Username
+	}
+
 	// 调用服务层创建用户
 	err := h.dao.UserDao.CreateUser(user)
 	if err != nil {

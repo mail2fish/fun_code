@@ -7,8 +7,8 @@ export default [
     route("/www/classes/create", "routes/create_class.tsx"),
     route("/www/classes/list", "routes/list_classes.tsx"),
     route("/www/classes/:classId/edit", "routes/edit_class.tsx"),  
-    route("/www/users/list", "routes/list_users.tsx"),
-    // route("/www/users/:userId/edit", "routes/edit_user.tsx"),
-    route("/www/users/create", "routes/create_user.tsx"),
-
+    route("/www/admin/users/list", "routes/list_users.tsx"),
+    route("/www/admin/users/:userId/edit", "routes/edit_user.tsx"),
+    route("/www/admin/users/create", "routes/create_user.tsx"),
+    route("/www/admin/scratch/projects", "routes/admin_scratch_projects.tsx"),
 ] satisfies RouteConfig;

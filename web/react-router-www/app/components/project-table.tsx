@@ -28,12 +28,19 @@ import { HOST_URL } from "~/config";
 export interface Project {
   id: string
   name: string
+  user_id: string
   created_at?: string
   createdAt?: string
 }
 
+export interface User {
+  id: string
+  name: string
+}
+
 export interface ProjectsData{
   projects: Project[]
+  users: User[]
   total: number
   showForward:boolean
   showBackward:boolean 
@@ -109,7 +116,8 @@ export function ProjectTable({
           <TableHeader>
             <TableRow>
             <TableHead>项目序号</TableHead>
-              <TableHead>项目名称</TableHead>
+              <TableHead>项目名称</TableHead>            
+               {projectsData.users.length > 0 && <TableHead>创建者</TableHead>}
               <TableHead>创建时间</TableHead>
               <TableHead className="w-[150px]">操作</TableHead>
             </TableRow>
@@ -124,6 +132,9 @@ export function ProjectTable({
                   <TableCell className="font-medium">
                   <a href={`${HOST_URL}/projects/scratch/open/${project.id}`} > {project.name || "未命名项目"} </a>   
                   </TableCell>
+                  {projectsData.users.length > 0 && <TableCell>
+                    {projectsData.users.find(user => user.id === project.user_id)?.name || "未知"}
+                  </TableCell>}
                   <TableCell>
                     {formatDate(project.created_at || project.createdAt)}
                   </TableCell>

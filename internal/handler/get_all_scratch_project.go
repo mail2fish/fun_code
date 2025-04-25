@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/custom_error"
+	"github.com/jun/fun_code/internal/model"
 )
 
 // GetAllScratchProject 获取所有scratch项目
@@ -15,6 +16,7 @@ import (
 // @Produce json
 // @Success 200 {array} model.ScratchProject
 // @Router /admin/scratch/projects [get]
+
 func (h *Handler) GetAllScratchProject(c *gin.Context) {
 	// 获取分页参数
 	pageSizeStr := c.DefaultQuery("pageSize", "20")
@@ -86,11 +88,23 @@ func (h *Handler) GetAllScratchProject(c *gin.Context) {
 	c.JSON(http.StatusOK, ResponseOk{
 		Data: gin.H{
 			"projects": projects,
-			"users":    users,
+			"users":    h.OnlyUsersIDAndNickname(users),
 		},
 		Meta: Meta{
 			Total:   int(total),
 			HasMore: hasMore,
 		},
 	})
+}
+
+// OnlyUsersIDAndNickname 格式化用户列表，只返回用户ID和用户名
+func (h *Handler) OnlyUsersIDAndNickname(users []model.User) []gin.H {
+	userMap := make([]gin.H, len(users))
+	for i, user := range users {
+		userMap[i] = gin.H{
+			"id":   user.ID,
+			"name": user.Nickname,
+		}
+	}
+	return userMap
 }

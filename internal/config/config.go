@@ -49,6 +49,7 @@ type I18nConfig struct {
 // Config 应用配置
 type Config struct {
 	Env           string              `yaml:"env"`
+	AdminPassword string              `yaml:"admin_password"`
 	Database      DatabaseConfig      `yaml:"database"`
 	Storage       StorageConfig       `yaml:"storage"`
 	JWT           JWTConfig           `yaml:"jwt"`
@@ -106,19 +107,21 @@ func NewConfig(baseDir string) *Config {
 		break
 	}
 
+	// 生成随机密钥
 	secretKey := uuid.New().String()
 	listenPort := fmt.Sprintf(":%d", port)
 	dsn := filepath.Join(baseDir, "fun_code.db")
 	host := fmt.Sprintf("http://%s:%s", listenAddr, listenPort)
 
 	return &Config{
-		Env: "development",
+		Env:           "development",
+		AdminPassword: uuid.New().String()[:9],
 		Database: DatabaseConfig{
 			Driver: "sqlite",
 			DSN:    dsn,
 		},
 		Storage: StorageConfig{
-			BasePath: filepath.Join(baseDir, "fun_code_files"),
+			BasePath: filepath.Join(baseDir, "upload_files"),
 		},
 		JWT: JWTConfig{
 			SecretKey: secretKey,

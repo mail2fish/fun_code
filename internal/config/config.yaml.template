@@ -2,6 +2,8 @@
 # - development: 开发环境,输出详细日志,方便调试
 # - production: 生产环境,仅输出重要日志,提升性能
 env: "{{ .Env }}"
+# 管理员用户默认密码
+admin_password: {{ .AdminPassword }}
 # 数据库配置
 database:
   # 数据库驱动类型,目前支持 sqlite

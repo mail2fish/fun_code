@@ -285,7 +285,7 @@ export default function ListUserPage() {
               disabled={isButtonCooling}
             >
               <Link 
-                to="/www/users/create" 
+                to="/www/admin/users/create" 
                 onClick={handleNewUserClick}
                 className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
               >
@@ -342,7 +342,7 @@ export default function ListUserPage() {
                               title="编辑"
                               asChild
                             >
-                              <Link to={`/www/users/${user.id}/edit`}>
+                              <Link to={`/www/admin/users/${user.id}/edit`}>
                                 <IconEdit className="h-4 w-4" />
                               </Link>
                             </Button>

@@ -12,6 +12,7 @@ import (
 	"github.com/jun/fun_code/internal/database"
 	"github.com/jun/fun_code/internal/handler"
 	"github.com/jun/fun_code/internal/i18n"
+	"github.com/jun/fun_code/internal/model"
 	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
@@ -61,6 +62,22 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 		ClassDao:   dao.NewClassDao(db),
 		UserDao:    dao.NewUserDao(db),
 	}
+
+	// 如果admin 用户不存在，则创建新用户
+	admin, err := dao.UserDao.GetUserByUsername("admin")
+	if err != nil {
+		logger.Error("failed to get admin user", zap.Error(err))
+	}
+	if admin == nil {
+		admin = &model.User{
+			Username: "admin",
+			Password: cfg.AdminPassword,
+		}
+		if err := dao.UserDao.CreateUser(admin); err != nil {
+			logger.Error("failed to create admin user", zap.Error(err))
+		}
+	}
+
 	// 初始化处理器
 	h := handler.NewHandler(
 		dao, i18nService, logger, cfg)

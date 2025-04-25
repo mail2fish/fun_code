@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useNavigate } from "react-router"
+import { useNavigate, useParams } from "react-router"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -40,19 +40,10 @@ import {
   SelectValue,
 } from "~/components/ui/select"
 
-// 导入自定义的 fetch 函数
 import { fetchWithAuth } from "~/utils/api"
-
-// API 服务
 import { HOST_URL } from "~/config"
 
-// 表单验证 Schema
 const formSchema = z.object({
-  username: z.string().min(3, {
-    message: "用户名至少需要 3 个字符",
-  }).max(50, {
-    message: "用户名不能超过 50 个字符",
-  }),
   nickname: z.string().max(50, {
     message: "昵称不能超过 50 个字符",
   }).optional(),
@@ -65,56 +56,59 @@ const formSchema = z.object({
     .refine((val) => val === undefined || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
       message: "请输入有效的邮箱地址",
     }),
-  password: z.string().min(6, {
-    message: "密码至少需要 6 个字符",
-  }).max(100, {
+  password: z.string().max(100, {
     message: "密码不能超过 100 个字符",
-  }),
+  }).optional(),
   role: z.enum(["admin", "teacher", "student"], {
     required_error: "请选择用户角色",
   }),
 });
 
-// 创建用户
-async function createUser(userData: z.infer<typeof formSchema>) {
+async function getUser(userId: string) {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/admin/users/create`, {
-      method: "POST",
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/users/${userId}`);
+    if (!response.ok) {
+      throw new Error(`API 错误: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("获取用户信息失败:", error);
+    throw error;
+  }
+}
+
+async function updateUser(userId: string, userData: z.infer<typeof formSchema>) {
+  try {
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/users/${userId}`, {
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        username: userData.username,
-        nickname: userData.nickname || "",
-        email: userData.email || "",
-        password: userData.password,
-        role: userData.role,
-      }),
+      body: JSON.stringify(userData),
     });
 
     const data = await response.json();
-    console.log("API 响应:", data);
-
     if (!response.ok) {
       throw new Error(data.error || `API 错误: ${response.status}`);
     }
 
     return data;
   } catch (error) {
-    console.error("创建用户失败:", error);
+    console.error("更新用户失败:", error);
     throw error;
   }
 }
 
-export default function CreateUserPage() {
+export default function EditUserPage() {
   const navigate = useNavigate();
+  const { userId } = useParams();
+  const [isLoading, setIsLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [username, setUsername] = React.useState("");
 
-  // 初始化表单
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: "",
       nickname: "",
       email: "",
       password: "",
@@ -122,14 +116,35 @@ export default function CreateUserPage() {
     },
   });
 
-  // 提交表单
+  React.useEffect(() => {
+    async function loadUser() {
+      try {
+        const resp = await getUser(userId!);
+        const userData = resp.data;
+        setUsername(userData.username);
+        form.reset({
+          nickname: userData.nickname || "",
+          email: userData.email || "",
+          role: userData.role,
+        });
+      } catch (error) {
+        toast.error("加载用户信息失败");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    if (userId) {
+      loadUser();
+    }
+  }, [userId, form]);
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setIsSubmitting(true);
-      const result = await createUser(values);
-      console.log("表单提交成功:", result);
+      await updateUser(userId!, values);
       
-      toast.success("用户创建成功", {
+      toast.success("用户更新成功", {
         description: "即将跳转到用户列表页面",
         duration: 2000,
         style: {
@@ -138,13 +153,11 @@ export default function CreateUserPage() {
         }
       });
       
-      // 创建成功后跳转到用户列表页
       setTimeout(() => {
         navigate("/www/admin/users/list");
       }, 2000);
     } catch (error) {
-      console.error("提交表单失败:", error);
-      toast.error("创建失败", {
+      toast.error("更新失败", {
         description: error instanceof Error ? error.message : "未知错误",
         duration: 2000,
         style: {
@@ -155,6 +168,10 @@ export default function CreateUserPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (isLoading) {
+    return <div>加载中...</div>;
   }
 
   return (
@@ -176,13 +193,13 @@ export default function CreateUserPage() {
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/www/users/list">
+                  <BreadcrumbLink href="/www/admin/users/list">
                     用户管理
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>创建新用户</BreadcrumbPage>
+                  <BreadcrumbPage>编辑用户</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -192,30 +209,24 @@ export default function CreateUserPage() {
           <div className="mx-auto w-full max-w-2xl">
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-medium">创建新用户</h3>
+                <h3 className="text-lg font-medium">编辑用户</h3>
                 <p className="text-sm text-muted-foreground">
-                  填写以下信息创建一个新的用户账号。
+                  修改用户信息。用户名不可更改。
                 </p>
               </div>
               <Separator />
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>用户名</FormLabel>
-                        <FormControl>
-                          <Input placeholder="请输入用户名" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          用户名将用于登录系统
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <FormItem>
+                    <FormLabel>用户名</FormLabel>
+                    <FormControl>
+                      <Input value={username} disabled />
+                    </FormControl>
+                    <FormDescription>
+                      用户名不可修改
+                    </FormDescription>
+                  </FormItem>
+                  
                   <FormField
                     control={form.control}
                     name="nickname"
@@ -232,6 +243,7 @@ export default function CreateUserPage() {
                       </FormItem>
                     )}
                   />
+                  
                   <FormField
                     control={form.control}
                     name="email"
@@ -248,6 +260,7 @@ export default function CreateUserPage() {
                       </FormItem>
                     )}
                   />
+                  
                   <FormField
                     control={form.control}
                     name="password"
@@ -255,22 +268,27 @@ export default function CreateUserPage() {
                       <FormItem>
                         <FormLabel>密码</FormLabel>
                         <FormControl>
-                          <Input placeholder="请输入密码" type="password" {...field} />
+                          <Input 
+                            placeholder="留空表示不修改密码" 
+                            type="password" 
+                            {...field} 
+                          />
                         </FormControl>
                         <FormDescription>
-                          密码至少需要 6 个字符
+                          如不修改密码请留空
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  
                   <FormField
                     control={form.control}
                     name="role"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>角色</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="选择用户角色" />
@@ -289,17 +307,18 @@ export default function CreateUserPage() {
                       </FormItem>
                     )}
                   />
+                  
                   <div className="flex justify-end space-x-4">
                     <Button 
                       variant="outline" 
                       type="button"
-                      onClick={() => navigate("/www/users/list")}
+                      onClick={() => navigate("/www/admin/users/list")}
                       disabled={isSubmitting}
                     >
                       取消
                     </Button>
                     <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? "创建中..." : "创建用户"}
+                      {isSubmitting ? "保存中..." : "保存修改"}
                     </Button>
                   </div>
                 </form>

@@ -9,6 +9,21 @@ import (
 	"github.com/jun/fun_code/internal/handler"
 )
 
+//	@title			FuncCode API
+//	@version		0.0.1
+//	@description	This is a sample server celler server.
+//	@termsOfService	hhttps://github.com/mail2fish/fun_code
+
+//	@contact.name	Jack Yu
+//	@contact.url
+//	@contact.email	mail2fish@gmail.com
+
+//	@license.name	Apache 2.0
+//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host		localhost:8080
+// @BasePath	/api/
+
 func (s *Server) setupRoutes() {
 
 	// 添加新的CORS中间件
@@ -79,7 +94,7 @@ func (s *Server) setupRoutes() {
 			admin.GET("/users/list", s.handler.RequirePermission("manage_users"), s.handler.GetListUsers)
 			admin.PUT("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.PutUpdateUser)
 			admin.DELETE("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.DeleteUser)
-
+			admin.GET("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.GetUser)
 			// 获取所有scratch项目
 			admin.GET("/scratch/projects", s.handler.GetAllScratchProject)
 		}

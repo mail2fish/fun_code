@@ -37,7 +37,7 @@ async function getScratchProjects(beginID = "0",pageSize = 10,forward = false,as
       params.append('beginID', beginID.toString());
     }
     
-    const response = await fetchWithAuth(`${HOST_URL}/api/scratch/projects?${params.toString()}`);
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/scratch/projects?${params.toString()}`);
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`);
     } 
@@ -68,7 +68,7 @@ const defaultPageSize = 10; // 每页显示的项目数量
 export default function Page() {
   const [projectsData, setProjectsData] = React.useState<ProjectsData>({
     projects: [],
-    users: [],
+    users: [],    
     total: 0,
     showForward: false,
     showBackward: false,
@@ -101,7 +101,7 @@ export default function Page() {
       // 如果向后翻页
       if (forard) {        
         page++;
-        if (response.hasMore) {
+        if (response.meta.hasMore) {
           showForward = true;
         }
         if (page > 1) {
@@ -114,13 +114,13 @@ export default function Page() {
           showBackward = true;
         }
         // 只有在有更多数据或不是第一页时才显示向前按钮
-        showForward = response.hasMore || page > 0;
+        showForward = response.meta.hasMore || page > 0;
       }
 
       setProjectsData({
-        projects: response.data || [],
-        users: response.users || [],  
-        total: response.total || 0,
+        projects: response.data.projects || [],
+        users: response.data.users || [],
+        total: response.meta.total || 0,
         showForward: showForward,
         showBackward: showBackward,
         currentPage: page,
