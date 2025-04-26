@@ -7,9 +7,14 @@ SCRATCH_DIR=web/scratch
 BUILD_DIR=build
 DIST_DIR=dist
 
+# 平台相关变量
+PLATFORMS=windows linux darwin
+ARCHITECTURES=amd64 arm64
+WINDOWS_EXT=.exe
+
 # 默认目标
 .PHONY: all
-all: build
+all: build-all
 
 # 清理构建文件
 .PHONY: clean
@@ -30,13 +35,7 @@ frontend-deps:
 	cd $(FRONTEND_DIR) && $(NPM) install
 	cd $(SCRATCH_DIR) && $(NPM) install
 
-# 构建 Go 项目
-.PHONY: build-go
-build-go: deps build-frontend build-scratch
-	mkdir -p $(BUILD_DIR)
-	$(GO) build -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/fun_code
-
-# 构建 React 前端
+# 构建前端项目
 .PHONY: build-frontend
 build-frontend: frontend-deps
 	cd $(FRONTEND_DIR) && $(NPM) run build
@@ -46,9 +45,23 @@ build-frontend: frontend-deps
 build-scratch: frontend-deps
 	cd $(SCRATCH_DIR) && BUILD_MODE=dist $(NPM) run build
 
+# 构建指定平台的 Go 项目
+.PHONY: build-go-%
+build-go-%: deps build-frontend build-scratch
+	@echo "Building for $*"
+	@$(eval GOOS = $(word 1,$(subst -, ,$*)))
+	@$(eval GOARCH = $(word 2,$(subst -, ,$*)))
+	@$(eval EXT = $(if $(filter windows,$(GOOS)),$(WINDOWS_EXT),))
+	@mkdir -p $(BUILD_DIR)/$(GOOS)-$(GOARCH)
+	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO) build -o $(BUILD_DIR)/$(GOOS)-$(GOARCH)/$(BINARY_NAME)$(EXT) ./cmd/fun_code
+
+# 构建所有平台的 Go 项目
+.PHONY: build-go-all
+build-go-all: $(foreach platform,$(PLATFORMS),$(foreach arch,$(ARCHITECTURES),build-go-$(platform)-$(arch)))
+
 # 构建所有项目
-.PHONY: build
-build:  build-go
+.PHONY: build-all
+build-all: build-go-all
 
 # 运行开发服务器
 .PHONY: dev
@@ -98,14 +111,14 @@ lint:
 .PHONY: help
 help:
 	@echo "可用命令:"
-	@echo "  all              - 构建所有项目"
+	@echo "  all              - 构建所有平台的项目"
 	@echo "  clean            - 清理构建文件"
 	@echo "  deps             - 安装 Go 依赖"
 	@echo "  frontend-deps    - 安装前端依赖"
-	@echo "  build-go         - 构建 Go 项目"
+	@echo "  build-go-all     - 构建所有平台的 Go 项目"
+	@echo "  build-go-{os}-{arch} - 构建指定平台的 Go 项目"
 	@echo "  build-frontend   - 构建 React 前端"
 	@echo "  build-scratch    - 构建 Scratch 项目"
-	@echo "  build            - 构建所有项目"
 	@echo "  dev              - 运行 Go 开发服务器"
 	@echo "  dev-frontend     - 运行前端开发服务器"
 	@echo "  dev-scratch      - 运行 Scratch 开发服务器"
@@ -114,4 +127,10 @@ help:
 	@echo "  test-scratch     - 运行 Scratch 测试"
 	@echo "  fmt              - 格式化代码"
 	@echo "  lint             - 检查代码质量"
-	@echo "  help             - 显示帮助信息" 
+	@echo "  help             - 显示帮助信息"
+	@echo ""
+	@echo "支持的平台和架构组合:"
+	@echo "  windows-amd64    - Windows 64位"
+	@echo "  linux-amd64      - Linux 64位"
+	@echo "  darwin-amd64     - macOS Intel"
+	@echo "  darwin-arm64     - macOS ARM" 
