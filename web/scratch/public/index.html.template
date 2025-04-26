@@ -8,7 +8,42 @@
     <meta name="description" content="Scratch 编辑器" />
     <!-- <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" /> -->
-    <title>Scratch 编辑器</title>      
+    <title>Scratch 编辑器</title>
+    <style>
+      .loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: white;
+        z-index: 9999;
+      }
+      .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #4D97FF;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+      .loading-text {
+        color: #4D97FF;
+        font-size: 16px;
+        text-align: center;
+        max-width: 80%;
+        line-height: 1.5;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>    
     <script>
       // 全局配置对象
       window.SCRATCH_CONFIG = {
@@ -29,6 +64,16 @@
   </head>
   <body>
     <noscript>您需要启用 JavaScript 来运行此应用。</noscript>
+    <div id="loading" class="loading">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">首次见面，准备时间稍长，请耐心等待，后续访问会更快哦！</div>
+    </div>
     <div id="root"></div>
+    <script>
+      window.addEventListener('load', function() {
+        document.getElementById('loading').style.display = 'none';
+      });
+    </script>
+    
   </body>
 </html>
