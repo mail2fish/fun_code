@@ -52,8 +52,37 @@ build-go-%: deps build-frontend build-scratch
 	@$(eval GOOS = $(word 1,$(subst -, ,$*)))
 	@$(eval GOARCH = $(word 2,$(subst -, ,$*)))
 	@$(eval EXT = $(if $(filter windows,$(GOOS)),$(WINDOWS_EXT),))
-	@mkdir -p $(BUILD_DIR)/$(GOOS)-$(GOARCH)
-	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO) build -o $(BUILD_DIR)/$(GOOS)-$(GOARCH)/$(BINARY_NAME)$(EXT) ./cmd/fun_code
+	@$(eval CGO_FLAG = 1) # 保持 CGO 启用
+	@$(eval CC_CMD = ) # 默认 CC 为空
+	@# 根据目标平台设置交叉编译器
+	@if [ "$(GOOS)" = "linux" ]; then \
+		CC_CMD="CC=x86_64-unknown-linux-gnu-gcc"; \
+	elif [ "$(GOOS)" = "windows" ]; then \
+		CC_CMD="CC=x86_64-w64-mingw32-gcc"; \
+	fi; \
+	@echo "Using CGO_ENABLED=$(CGO_FLAG) and CC command: $$CC_CMD"; \
+	mkdir -p $(BUILD_DIR)/$(GOOS)-$(GOARCH); \
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_FLAG) $$CC_CMD $(GO) build -o $(BUILD_DIR)/$(GOOS)-$(GOARCH)/$(BINARY_NAME)$(EXT) ./cmd/fun_code
+
+# 构建指定平台的 Go 项目 (仅 Go 部分)
+.PHONY: build-only-go-%
+build-only-go-%: deps
+	@echo "Building for $*"
+	@$(eval GOOS = $(word 1,$(subst -, ,$*)))
+	@$(eval GOARCH = $(word 2,$(subst -, ,$*)))
+	@$(eval EXT = $(if $(filter windows,$(GOOS)),$(WINDOWS_EXT),))
+	@$(eval CGO_FLAG = 1) # 保持 CGO 启用
+	@$(eval CC_CMD = ) # 默认 CC 为空
+	@# 根据目标平台设置交叉编译器
+	@if [ "$(GOOS)" = "linux" ]; then \
+		CC_CMD="CC=x86_64-unknown-linux-gnu-gcc"; \
+	elif [ "$(GOOS)" = "windows" ]; then \
+		CC_CMD="CC=x86_64-w64-mingw32-gcc"; \
+	fi; \
+	@echo "Using CGO_ENABLED=$(CGO_FLAG) and CC command: $$CC_CMD"; \
+	mkdir -p $(BUILD_DIR)/$(GOOS)-$(GOARCH); \
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_FLAG) $$CC_CMD $(GO) build -o $(BUILD_DIR)/$(GOOS)-$(GOARCH)/$(BINARY_NAME)$(EXT) ./cmd/fun_code
+
 
 # 构建所有平台的 Go 项目
 .PHONY: build-go-all
@@ -133,4 +162,4 @@ help:
 	@echo "  windows-amd64    - Windows 64位"
 	@echo "  linux-amd64      - Linux 64位"
 	@echo "  darwin-amd64     - macOS Intel"
-	@echo "  darwin-arm64     - macOS ARM" 
+	@echo "  darwin-arm64     - macOS ARM"
