@@ -27,7 +27,7 @@ clean:
 # 安装 Go 依赖
 .PHONY: deps
 deps:
-	$(GO) mod download
+	$(GO) mod tidy
 
 # 安装前端依赖
 .PHONY: frontend-deps

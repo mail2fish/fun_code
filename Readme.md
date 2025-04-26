@@ -16,7 +16,30 @@ FunCode 是一个少儿图形化编程Scratch的自托管服务程序（Self-Hos
 
 ### 2.2 构建指令
 ```
-make build
+可用命令:
+  all              - 构建所有平台的项目
+  clean            - 清理构建文件
+  deps             - 安装 Go 依赖
+  frontend-deps    - 安装前端依赖
+  build-go-all     - 构建所有平台的 Go 项目
+  build-go-{os}-{arch} - 构建指定平台的 Go 项目
+  build-frontend   - 构建 React 前端
+  build-scratch    - 构建 Scratch 项目
+  dev              - 运行 Go 开发服务器
+  dev-frontend     - 运行前端开发服务器
+  dev-scratch      - 运行 Scratch 开发服务器
+  test             - 运行 Go 测试
+  test-frontend    - 运行前端测试
+  test-scratch     - 运行 Scratch 测试
+  fmt              - 格式化代码
+  lint             - 检查代码质量
+  help             - 显示帮助信息
+
+支持的平台和架构组合:
+  windows-amd64    - Windows 64位
+  linux-amd64      - Linux 64位
+  darwin-amd64     - macOS Intel
+  darwin-arm64     - macOS ARM
 ```
 生成的可执行文件在 build 目录下
 
