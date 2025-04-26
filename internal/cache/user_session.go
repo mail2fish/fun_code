@@ -20,7 +20,7 @@ type UserSessionCache struct {
 }
 
 // NewUserSessionCache 创建一个新的会话缓存实例
-func NewUserSessionCache(cache Cache) *UserSessionCache {
+func NewUserSessionCache(cache Cache) SessionCache {
 	return &UserSessionCache{
 		cache: cache,
 	}
@@ -33,7 +33,7 @@ func (c *UserSessionCache) GetSession(userID uint) (*model.UserSession, bool) {
 	if !found {
 		return nil, false
 	}
-	
+
 	session, ok := data.(*model.UserSession)
 	return session, ok
 }
@@ -43,7 +43,7 @@ func (c *UserSessionCache) SetSession(session *model.UserSession) {
 	if session == nil {
 		return
 	}
-	
+
 	key := fmt.Sprintf("session:%d", session.UserID)
 	// 计算过期时间
 	expiration := time.Until(session.ExpiresAt)
@@ -51,7 +51,7 @@ func (c *UserSessionCache) SetSession(session *model.UserSession) {
 		// 如果已过期，不缓存
 		return
 	}
-	
+
 	c.cache.Set(key, session, expiration)
 }
 

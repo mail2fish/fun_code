@@ -21,10 +21,11 @@ import (
 )
 
 type Server struct {
-	config  *config.Config
-	db      *gorm.DB
-	handler *handler.Handler
-	router  *gin.Engine
+	config    *config.Config
+	db        *gorm.DB
+	handler   *handler.Handler
+	router    *gin.Engine
+	etagCache cache.ETagCache
 }
 
 func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
@@ -47,6 +48,7 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 	// 创建一个新的会话缓存实例
 	c := cache.NewGoCache()
 	sessionCache := cache.NewUserSessionCache(c)
+	etagCache := cache.NewETagCache(c)
 
 	// 初始化 I18n 服务
 	i18nService, err := i18n.NewI18nService(cfg.I18n.DefaultLang)
@@ -88,10 +90,11 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 
 	// 创建服务器实例
 	s := &Server{
-		config:  cfg,
-		db:      db,
-		handler: h,
-		router:  r,
+		config:    cfg,
+		db:        db,
+		handler:   h,
+		router:    r,
+		etagCache: etagCache,
 	}
 
 	// 设置路由
