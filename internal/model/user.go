@@ -19,3 +19,9 @@ type User struct {
 	Role      string         `gorm:"size:20;default:'student'" json:"role"` // 用户角色: admin, teacher, student
 	Files     []File         `json:"files,omitempty"`
 }
+
+const (
+	RoleAdmin   = "admin"
+	RoleTeacher = "teacher"
+	RoleStudent = "student"
+)

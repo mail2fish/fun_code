@@ -72,6 +72,7 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 		admin = &model.User{
 			Username: "admin",
 			Password: cfg.AdminPassword,
+			Role:     model.RoleAdmin,
 		}
 		if err := dao.UserDao.CreateUser(admin); err != nil {
 			logger.Error("failed to create admin user", zap.Error(err))
