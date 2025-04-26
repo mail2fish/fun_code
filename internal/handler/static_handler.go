@@ -41,6 +41,7 @@ func NewStaticHandler(cache cache.ETagCache) (*StaticHandler, error) {
 	return &StaticHandler{
 		wwwFS:     http.FS(wwwSubFS),
 		scratchFS: http.FS(scratchSubFS),
+		cache:     cache,
 	}, nil
 }
 

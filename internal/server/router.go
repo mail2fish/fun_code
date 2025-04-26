@@ -27,7 +27,7 @@ import (
 func (s *Server) setupRoutes() {
 
 	// 添加新的CORS中间件
-	if s.config.Env == "dev" {
+	if s.config.Env == "development" {
 		s.router.Use(cors.New(cors.Config{
 			AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:8601"},
 			AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
