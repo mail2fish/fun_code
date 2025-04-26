@@ -41,7 +41,7 @@ func (s *AuthDaoImpl) GenerateCookie(token string) *http.Cookie {
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true, // 仅通过 HTTPS 发送
+		Secure:   false, // 仅通过 HTTPS 发送
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   86400, // 24小时
 	}
