@@ -1,1 +1,1 @@
-export const HOST_URL = import.meta.env.VITE_HOST_URL || 'http://localhost:8080';
+export const HOST_URL = import.meta.env.VITE_HOST_URL ;

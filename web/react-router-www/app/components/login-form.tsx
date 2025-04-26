@@ -86,12 +86,12 @@ export function LoginForm({
         <div className="grid gap-3">
           <div className="flex items-center">
             <Label htmlFor="password">密码</Label>
-            <a
+            {/* <a
               href="#"
               className="ml-auto text-sm underline-offset-4 hover:underline"
             >
               忘记密码?
-            </a>
+            </a> */}
           </div>
           <Input 
             id="password" 
@@ -107,12 +107,12 @@ export function LoginForm({
           {isLoading ? "登录中..." : "登录"}
         </Button>
       </div>
-      <div className="text-center text-sm">
+      {/* <div className="text-center text-sm">
         还没有账户?{" "}
         <a href="/register" className="underline underline-offset-4">
           注册
         </a>
-      </div>
+      </div> */}
     </form>
   )
 }
