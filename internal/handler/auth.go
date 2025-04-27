@@ -6,6 +6,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	ErrorCodeUnauthorized = 1
+)
+
 func (h *Handler) Register(c *gin.Context) {
 	var req struct {
 		Username string `json:"username" binding:"required"`
@@ -90,14 +94,30 @@ func (h *Handler) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := getToken(c)
 		if token == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "未提供认证token"})
+			// 移除 c.JSON 调用
+			// e := custom_error.NewHandlerError(custom_error.AUTH, ErrorCodeUnauthorized, "unauthorized", nil)
+			// c.JSON(http.StatusUnauthorized, ResponseError{
+			// 	Code:    int(e.ErrorCode()),
+			// 	Message: e.Message,
+			// 	Error:   e.Error(),
+			// })
+			// 重定向到首页
+			c.Redirect(http.StatusFound, "/")
 			c.Abort()
 			return
 		}
 
 		claims, err := h.dao.AuthDao.ValidateToken(token)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的token"})
+			// 移除 c.JSON 调用
+			// e := custom_error.NewHandlerError(custom_error.AUTH, ErrorCodeUnauthorized, "unauthorized", err)
+			// c.JSON(http.StatusUnauthorized, ResponseError{
+			// 	Code:    int(e.ErrorCode()),
+			// 	Message: e.Message,
+			// 	Error:   e.Error(),
+			// })
+			// 重定向到首页
+			c.Redirect(http.StatusFound, "/")
 			c.Abort()
 			return
 		}

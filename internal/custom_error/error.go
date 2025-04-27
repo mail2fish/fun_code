@@ -21,15 +21,6 @@ const (
 // ErrorCode 定义错误代码
 type ErrorCode int
 
-// ErrorModule 定义错误模块
-type ErrorModule int
-
-const (
-	UNKNOWN ErrorModule = 0
-	USER    ErrorModule = 100000
-	SCRATCH ErrorModule = 200000
-)
-
 // CustomError 自定义应用错误类型
 type CustomError struct {
 	Type    ErrorType   // 错误类型

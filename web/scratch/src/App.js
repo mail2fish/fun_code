@@ -22,7 +22,8 @@ const getConfig = () => {
     basePath: "./",
     assetHost: "",
     host: "http://localhost:8080",
-    projectsRoute: "/www/scratch/projects"
+    projectsRoute: "/www/scratch/projects",
+    projectTitle: ""
   };
 };
 
@@ -53,6 +54,7 @@ const App = () => {
           basePath={config.basePath}
           assetHost={config.assetHost}
           onClickLogo={onClickLogo}
+          projectTitle={config.projectTitle}
         />
       </div>      
     </Provider>

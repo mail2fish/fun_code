@@ -48,7 +48,7 @@
       // 全局配置对象
       window.SCRATCH_CONFIG = {
         canSave: true,
-        canRemix: true,
+        canRemix: false,
         canCreateNew: true,
         canEditTitle: true,
         enableCommunity: false,
@@ -58,7 +58,8 @@
         basePath: "/scratch/",
         assetHost: "{{ .Host }}/assets/scratch",
         host: "{{ .Host }}",
-        projectsRoute: "/www/scratch/projects"
+        projectsRoute: "/www/scratch/projects",
+        projectTitle: "{{ .ProjectTitle }}"
       };    
     </script>
   </head>

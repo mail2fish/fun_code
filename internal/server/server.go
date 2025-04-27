@@ -115,8 +115,9 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 		r.Use(ginzap.Ginzap(logger, time.RFC3339, true))
 		r.Use(ginzap.RecoveryWithZap(logger, true))
 	} else {
-		gin.SetMode(gin.DebugMode)
 		r = gin.Default()
+		gin.SetMode(gin.DebugMode)
+
 	}
 
 	// 创建服务器实例

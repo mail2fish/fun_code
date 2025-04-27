@@ -18,8 +18,15 @@ import (
 )
 
 const (
-	ErrorCodeInvalidProjectID = 1
-	ErrorCodeGetProjectFailed = 2
+	ErrorCodeInvalidProjectID     = 1
+	ErrorCodeGetProjectFailed     = 2
+	ErrorCodeNoPermission         = 3
+	ErrorCodeInvalidAssetID       = 4
+	ErrorCodeSaveProjectFailed    = 5
+	ErrorCodeReadBodyFailed       = 6
+	ErrorCodeCreateAssetDirFailed = 7
+	ErrorCodeSaveAssetFailed      = 8
+	ErrorCodeGetAssetFailed       = 9
 )
 
 // NewScratchProject 创建一个新的Scratch项目处理程序
@@ -60,11 +67,13 @@ func (h *Handler) GetNewScratchProject(c *gin.Context) {
 
 	// 准备模板数据，新项目不需要项目ID
 	data := struct {
-		ProjectID string
-		Host      string
+		ProjectID    string
+		Host         string
+		ProjectTitle string
 	}{
-		ProjectID: "0",                         // 新项目使用0作为ID
-		Host:      h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
+		ProjectID:    "0",                         // 新项目使用0作为ID
+		Host:         h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
+		ProjectTitle: "Scratch Project",
 	}
 
 	// 设置响应头
@@ -94,17 +103,24 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		return
 	}
 	// 获取项目创建者ID
-	userID, ok := h.dao.ScratchDao.GetProjectUserID(uint(id))
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取项目失败",
+	project, err := h.dao.ScratchDao.GetProject(uint(id))
+	if err != nil {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
+	userID := project.UserID
 	// 判断用户是否是项目创建者或者为管理员
 	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "无权限访问",
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeNoPermission, "no_permission", err)
+		c.JSON(http.StatusUnauthorized, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
@@ -112,8 +128,11 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 	// 从嵌入的文件系统中获取index.html
 	scratchFS, err := fs.Sub(web.ScratchStaticFiles, "scratch/dist")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "无法访问静态文件",
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
@@ -121,8 +140,11 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 	// 读取index.html文件
 	htmlContent, err := fs.ReadFile(scratchFS, "index.html")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "无法读取index.html",
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
@@ -133,19 +155,24 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 	// 创建模板
 	tmpl, err := template.New("scratch").Parse(htmlStr)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "解析模板失败",
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
 
 	// 准备模板数据，新项目不需要项目ID
 	data := struct {
-		ProjectID string
-		Host      string
+		ProjectID    string
+		Host         string
+		ProjectTitle string
 	}{
-		ProjectID: projectID,                   // 新项目使用0作为ID
-		Host:      h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
+		ProjectID:    projectID,                   // 新项目使用0作为ID
+		Host:         h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
+		ProjectTitle: project.Name,
 	}
 
 	// 设置响应头
@@ -422,14 +449,35 @@ func (h *Handler) GetLibraryAsset(c *gin.Context) {
 	// 从嵌入的文件系统中获取资源文件
 	assetData, err := web.GetScratchAsset(filename)
 	if err != nil {
+
+		// 获取 assetID 字符串长度，把它分成 4 段
+		assetIDLength := len(filename)
+		if assetIDLength < 36 {
+			e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidAssetID, "invalid_asset_id", nil)
+			c.JSON(http.StatusBadRequest, ResponseError{
+				Code:    int(e.ErrorCode()),
+				Message: e.Message,
+				Error:   e.Error(),
+			})
+			return
+		}
+
+		assetID1 := filename[:assetIDLength/4]
+		assetID2 := filename[assetIDLength/4 : assetIDLength/2]
+		assetID3 := filename[assetIDLength/2 : assetIDLength*3/4]
+		assetID4 := filename[assetIDLength*3/4:]
+
 		// 使用 scratch 服务的基础路径
-		filePath := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), "assets", filename)
+		filePath := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), "assets", assetID1, assetID2, assetID3, assetID4)
 
 		// 尝试从文件系统中读取资源文件
 		assetData, err = os.ReadFile(filePath)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "资源文件不存在",
+			e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetAssetFailed, "get_asset_failed", err)
+			c.JSON(http.StatusNotFound, ResponseError{
+				Code:    int(e.ErrorCode()),
+				Message: e.Message,
+				Error:   e.Error(),
 			})
 			return
 		}
@@ -462,20 +510,27 @@ func (h *Handler) GetLibraryAsset(c *gin.Context) {
 
 // UploadScratchAsset 处理上传的Scratch资源文件
 func (h *Handler) UploadScratchAsset(c *gin.Context) {
-	// 获取当前用户ID
-	// userID := h.getUserID(c)
-	// if userID == 0 {
-	// 	c.JSON(http.StatusUnauthorized, gin.H{
-	// 		"error": "未授权",
-	// 	})
-	// 	return
-	// }
 
 	// 获取资源ID
 	assetID := c.Param("asset_id")
 	if assetID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效的资源ID",
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidAssetID, "invalid_asset_id", nil)
+		c.JSON(http.StatusBadRequest, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+
+	// 获取 assetID 字符串长度，把它分成 4 段
+	assetIDLength := len(assetID)
+	if assetIDLength < 36 {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidAssetID, "invalid_asset_id", nil)
+		c.JSON(http.StatusBadRequest, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
@@ -483,15 +538,21 @@ func (h *Handler) UploadScratchAsset(c *gin.Context) {
 	// 读取请求体中的二进制数据
 	bodyData, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "读取请求数据失败: " + err.Error(),
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeReadBodyFailed, "read_body_failed", err)
+		c.JSON(http.StatusBadRequest, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
 
 	if len(bodyData) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "请求体为空",
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeReadBodyFailed, "read_body_failed", nil)
+		c.JSON(http.StatusBadRequest, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
@@ -513,20 +574,31 @@ func (h *Handler) UploadScratchAsset(c *gin.Context) {
 		contentType = "application/json"
 	}
 
+	assetID1 := assetID[:assetIDLength/4]
+	assetID2 := assetID[assetIDLength/4 : assetIDLength/2]
+	assetID3 := assetID[assetIDLength/2 : assetIDLength*3/4]
+	assetID4 := assetID[assetIDLength*3/4:]
+
 	// 使用 scratch 服务的基础路径
-	assetDir := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), "assets")
+	assetDir := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), "assets", assetID1, assetID2, assetID3)
 	if err := os.MkdirAll(assetDir, 0755); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "创建资源目录失败: " + err.Error(),
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeCreateAssetDirFailed, "create_asset_dir_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
 
 	// 保存文件
-	filePath := filepath.Join(assetDir, assetID)
+	filePath := filepath.Join(assetDir, assetID4)
 	if err := os.WriteFile(filePath, bodyData, 0644); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "保存文件失败: " + err.Error(),
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeSaveAssetFailed, "save_asset_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
