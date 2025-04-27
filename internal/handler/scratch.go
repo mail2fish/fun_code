@@ -535,6 +535,9 @@ func (h *Handler) UploadScratchAsset(c *gin.Context) {
 		return
 	}
 
+	//  最多只读取2MB
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2*1024*1024)
+
 	// 读取请求体中的二进制数据
 	bodyData, err := io.ReadAll(c.Request.Body)
 	if err != nil {
