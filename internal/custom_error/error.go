@@ -25,7 +25,8 @@ type ErrorCode int
 type ErrorModule int
 
 const (
-	USER ErrorModule = 100000
+	UNKNOWN ErrorModule = 0
+	USER    ErrorModule = 100000
 )
 
 // CustomError 自定义应用错误类型

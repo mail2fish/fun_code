@@ -2,10 +2,11 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
+	"time"
 
+	ginzap "github.com/gin-contrib/zap"
 	"github.com/jun/fun_code/internal/cache"
 	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/dao"
@@ -18,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"moul.io/zapgorm2"
 )
 
 type Server struct {
@@ -26,14 +28,26 @@ type Server struct {
 	handler   *handler.Handler
 	router    *gin.Engine
 	etagCache cache.ETagCache
+	logger    *zap.Logger
 }
 
 func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 
+	gormConfig := &gorm.Config{}
+
+	if cfg.Env == "production" {
+		gormLogger := zapgorm2.New(logger)
+		gormLogger.SetAsDefault()
+		gormConfig.Logger = gormLogger
+	}
+
 	// 初始化数据库
-	db, err := gorm.Open(sqlite.Open(cfg.Database.DSN), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(cfg.Database.DSN), gormConfig)
 	if err != nil {
 		return nil, err
+	}
+	if cfg.Env == "development" {
+		db = db.Debug()
 	}
 
 	// 自动迁移数据库结构
@@ -85,8 +99,19 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 	h := handler.NewHandler(
 		dao, i18nService, logger, cfg)
 
-	// 初始化路由
-	r := gin.Default()
+	// 初始化路由，开发环境使用默认路由，生产环境使用自定义路由
+	// 路由使用 zap logger 记录日志
+	var r *gin.Engine
+	if cfg.Env == "development" {
+		gin.SetMode(gin.DebugMode)
+		r = gin.Default()
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+		r = gin.New()
+		// Add Zap logger middleware
+		r.Use(ginzap.Ginzap(logger, time.RFC3339, true))
+		r.Use(ginzap.RecoveryWithZap(logger, true))
+	}
 
 	// 创建服务器实例
 	s := &Server{
@@ -95,6 +120,7 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 		handler:   h,
 		router:    r,
 		etagCache: etagCache,
+		logger:    logger,
 	}
 
 	// 设置路由
@@ -104,6 +130,6 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 }
 
 func (s *Server) Start() error {
-	log.Printf("Server starting on %s", s.config.Server.Port)
+	s.logger.Info("Server starting on %s", zap.String("port", s.config.Server.Port))
 	return s.router.Run(s.config.Server.Port)
 }
