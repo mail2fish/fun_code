@@ -15,17 +15,19 @@ import (
 )
 
 type AuthDaoImpl struct {
+	isDemo       bool
 	db           *gorm.DB
 	jwtKey       []byte
 	sessionCache cache.SessionCache
 }
 
 // 修改 NewAuthDao 函数，添加缓存参数
-func NewAuthDao(db *gorm.DB, jwtKey []byte, sessionCache cache.SessionCache) AuthDao {
+func NewAuthDao(db *gorm.DB, jwtKey []byte, sessionCache cache.SessionCache, isDemo bool) AuthDao {
 	return &AuthDaoImpl{
 		db:           db,
 		jwtKey:       jwtKey,
 		sessionCache: sessionCache,
+		isDemo:       isDemo,
 	}
 }
 
@@ -58,8 +60,15 @@ func (s *AuthDaoImpl) Login(username, password string) (string, *http.Cookie, er
 		return "", nil, err
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return "", nil, errors.New("密码错误")
+	// 验证密码
+	if s.isDemo {
+		if password != "demo123456" {
+			return "", nil, errors.New("密码错误")
+		}
+	} else {
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+			return "", nil, errors.New("密码错误")
+		}
 	}
 
 	// 生成 sessionID

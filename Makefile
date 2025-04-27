@@ -1,7 +1,7 @@
 # 定义变量
 GO=go
 NPM=npm
-BINARY_NAME=fun_code
+BINARY_NAME=funcode
 FRONTEND_DIR=web/react-router-www
 SCRATCH_DIR=web/scratch
 BUILD_DIR=build

@@ -20,9 +20,9 @@ var rootCmd = &cobra.Command{
 `,
 }
 
-const defaultBaseDir = "funcode_data"
+const defaultBaseDir = "funcode_server"
 
-var defaultConfigPath = filepath.Join(defaultBaseDir, "config.yaml")
+var defaultConfigPath = filepath.Join(defaultBaseDir, "config", "config.yaml")
 
 var serveCmd = &cobra.Command{
 	Use:   "serve",

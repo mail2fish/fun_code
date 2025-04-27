@@ -9,6 +9,7 @@ import (
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/jun/fun_code/internal/cache"
 	"github.com/jun/fun_code/internal/config"
+	"github.com/jun/fun_code/internal/custom_error"
 	"github.com/jun/fun_code/internal/dao"
 	"github.com/jun/fun_code/internal/database"
 	"github.com/jun/fun_code/internal/handler"
@@ -19,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 	"moul.io/zapgorm2"
 )
 
@@ -36,9 +38,10 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 	gormConfig := &gorm.Config{}
 
 	if cfg.Env == "production" {
-		gormLogger := zapgorm2.New(logger)
-		gormLogger.SetAsDefault()
-		gormConfig.Logger = gormLogger
+		cloger := zapgorm2.New(logger)
+		cloger.SetAsDefault()
+		cloger.LogLevel = gormlogger.Silent
+		gormConfig.Logger = cloger
 	}
 
 	// 初始化数据库
@@ -46,7 +49,7 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cfg.Env == "development" {
+	if cfg.Env != "production" {
 		db = db.Debug()
 	}
 
@@ -71,8 +74,10 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 		// 继续执行，不要因为 i18n 初始化失败而中断服务启动
 	}
 
-	dao := &dao.Dao{
-		AuthDao:    dao.NewAuthDao(db, []byte(cfg.JWT.SecretKey), sessionCache),
+	isDemo := cfg.Env == "demo"
+
+	fDao := &dao.Dao{
+		AuthDao:    dao.NewAuthDao(db, []byte(cfg.JWT.SecretKey), sessionCache, isDemo),
 		FileDao:    dao.NewFileDao(db, cfg.Storage.BasePath),
 		ScratchDao: dao.NewScratchDao(db, filepath.Join(cfg.Storage.BasePath, "scratch")),
 		ClassDao:   dao.NewClassDao(db),
@@ -80,8 +85,9 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 	}
 
 	// 如果admin 用户不存在，则创建新用户
-	admin, err := dao.UserDao.GetUserByUsername("admin")
-	if err != nil {
+	admin, err := fDao.UserDao.GetUserByUsername("admin")
+
+	if err != nil && !custom_error.IsCustomError(err, custom_error.DAO, custom_error.USER, dao.ErrorCodeQueryNotFound) {
 		logger.Error("failed to get admin user", zap.Error(err))
 	}
 	if admin == nil {
@@ -90,27 +96,27 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 			Password: cfg.AdminPassword,
 			Role:     model.RoleAdmin,
 		}
-		if err := dao.UserDao.CreateUser(admin); err != nil {
+		if err := fDao.UserDao.CreateUser(admin); err != nil {
 			logger.Error("failed to create admin user", zap.Error(err))
 		}
 	}
 
 	// 初始化处理器
 	h := handler.NewHandler(
-		dao, i18nService, logger, cfg)
+		fDao, i18nService, logger, cfg)
 
 	// 初始化路由，开发环境使用默认路由，生产环境使用自定义路由
 	// 路由使用 zap logger 记录日志
 	var r *gin.Engine
-	if cfg.Env == "development" {
-		gin.SetMode(gin.DebugMode)
-		r = gin.Default()
-	} else {
+	if cfg.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 		r = gin.New()
 		// Add Zap logger middleware
 		r.Use(ginzap.Ginzap(logger, time.RFC3339, true))
 		r.Use(ginzap.RecoveryWithZap(logger, true))
+	} else {
+		gin.SetMode(gin.DebugMode)
+		r = gin.Default()
 	}
 
 	// 创建服务器实例
@@ -130,6 +136,6 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 }
 
 func (s *Server) Start() error {
-	s.logger.Info("Server starting on %s", zap.String("port", s.config.Server.Port))
+	fmt.Printf("Server starting on %s\n", s.config.Server.Port)
 	return s.router.Run(s.config.Server.Port)
 }

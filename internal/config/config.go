@@ -110,18 +110,21 @@ func NewConfig(baseDir string) *Config {
 	// 生成随机密钥
 	secretKey := uuid.New().String()
 	listenPort := fmt.Sprintf(":%d", port)
-	dsn := filepath.Join(baseDir, "fun_code.db")
-	host := fmt.Sprintf("http://%s:%s", listenAddr, listenPort)
+	dsn := filepath.Join(baseDir, "sqlite", "fun_code.db")
+	host := fmt.Sprintf("http://%s:%d", listenAddr, port)
+	password := uuid.New().String()[:8]
 
 	return &Config{
-		Env:           "development",
-		AdminPassword: uuid.New().String()[:9],
+		// Env:           "production",
+		// Env:           "development",
+		Env:           "demo",
+		AdminPassword: password,
 		Database: DatabaseConfig{
 			Driver: "sqlite",
 			DSN:    dsn,
 		},
 		Storage: StorageConfig{
-			BasePath: filepath.Join(baseDir, "upload_files"),
+			BasePath: filepath.Join(baseDir, "data", "upload_files"),
 		},
 		JWT: JWTConfig{
 			SecretKey: secretKey,
@@ -135,13 +138,35 @@ func NewConfig(baseDir string) *Config {
 	}
 }
 
-func (c *Config) Save(path string) error {
+func initDir(path string) error {
 	// 文件夹不存在则创建
 	dir := filepath.Dir(path)
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("init dir: %s\n", filepath.Join(currentDir, dir))
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (c *Config) Save(path string) error {
+	// 初始化 config 文件夹
+	if err := initDir(path); err != nil {
+		return err
+	}
+
+	// 初始化 sqlite 文件夹
+	if err := initDir(c.Database.DSN); err != nil {
+		return err
+	}
+	// 初始化 data 文件夹
+	if err := initDir(c.Storage.BasePath); err != nil {
+		return err
 	}
 
 	// 文件不存在则创建, 基于 config.yaml.template
@@ -163,6 +188,9 @@ func (c *Config) Save(path string) error {
 			return err
 		}
 	}
+
+	// 输出默认 admin 密码
+	fmt.Printf("admin password: %s\n", c.AdminPassword)
 
 	return nil
 }

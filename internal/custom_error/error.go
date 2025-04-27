@@ -141,3 +141,11 @@ func GetErrorCode(err error) ErrorCode {
 	}
 	return 0
 }
+
+func IsCustomError(err error, typ ErrorType, module ErrorModule, code int) bool {
+	if e, ok := err.(*CustomError); ok {
+		r := e.Type == typ && e.Module == module && e.Code == code
+		return r
+	}
+	return false
+}

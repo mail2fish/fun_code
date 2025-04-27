@@ -20,7 +20,7 @@ func TestAuth(t *testing.T) {
 	jwtKey := []byte("test_key")
 	c := cache.NewGoCache()
 	sessionCache := cache.NewUserSessionCache(c)
-	authService := NewAuthDao(db, jwtKey, sessionCache)
+	authService := NewAuthDao(db, jwtKey, sessionCache, false)
 
 	tests := []struct {
 		name     string
@@ -74,7 +74,7 @@ func TestAuthService_Login(t *testing.T) {
 	jwtKey := []byte("test_key")
 	c := cache.NewGoCache()
 	sessionCache := cache.NewUserSessionCache(c)
-	authService := NewAuthDao(db, jwtKey, sessionCache)
+	authService := NewAuthDao(db, jwtKey, sessionCache,false)
 
 	// 创建测试用户
 	password := "password123"
@@ -156,7 +156,7 @@ func TestAuthService_GenerateCookie(t *testing.T) {
 	jwtKey := []byte("test_key")
 	c := cache.NewGoCache()
 	sessionCache := cache.NewUserSessionCache(c)
-	authService := NewAuthDao(db, jwtKey, sessionCache)
+	authService := NewAuthDao(db, jwtKey, sessionCache,false)
 
 	token := "test.token.string"
 	cookie := authService.GenerateCookie(token)
@@ -175,7 +175,7 @@ func TestAuthService_ValidateToken(t *testing.T) {
 	jwtKey := []byte("test_key")
 	c := cache.NewGoCache()
 	sessionCache := cache.NewUserSessionCache(c)
-	authService := NewAuthDao(db, jwtKey, sessionCache)
+	authService := NewAuthDao(db, jwtKey, sessionCache,false)
 
 	// 创建测试用户
 	user := model.User{
