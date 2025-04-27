@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/custom_error"
+	"github.com/jun/fun_code/internal/model"
 	"github.com/jun/fun_code/web"
 )
 
@@ -27,6 +28,7 @@ const (
 	ErrorCodeCreateAssetDirFailed = 7
 	ErrorCodeSaveAssetFailed      = 8
 	ErrorCodeGetAssetFailed       = 9
+	ErrorCodeUnauthorized         = 10
 )
 
 // NewScratchProject 创建一个新的Scratch项目处理程序
@@ -510,6 +512,17 @@ func (h *Handler) GetLibraryAsset(c *gin.Context) {
 
 // UploadScratchAsset 处理上传的Scratch资源文件
 func (h *Handler) UploadScratchAsset(c *gin.Context) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		e := custom_error.NewHandlerError(custom_error.USER, ErrorCodeUnauthorized, "unauthorized", nil)
+		c.JSON(http.StatusUnauthorized, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
 
 	// 获取资源ID
 	assetID := c.Param("asset_id")
@@ -598,6 +611,23 @@ func (h *Handler) UploadScratchAsset(c *gin.Context) {
 	filePath := filepath.Join(assetDir, assetID4)
 	if err := os.WriteFile(filePath, bodyData, 0644); err != nil {
 		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeSaveAssetFailed, "save_asset_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+
+	// 保存用户资源
+	err = h.dao.UserAssetDao.CreateUserAsset(&model.UserAsset{
+		UserID:    userID,
+		AssetID:   assetID,
+		AssetType: contentType,
+		Size:      int64(len(bodyData)),
+	})
+	if err != nil {
+		e := custom_error.NewHandlerError(custom_error.USER_ASSET, ErrorCodeSaveAssetFailed, "save_asset_failed", err)
 		c.JSON(http.StatusInternalServerError, ResponseError{
 			Code:    int(e.ErrorCode()),
 			Message: e.Message,

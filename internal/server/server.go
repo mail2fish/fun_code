@@ -77,11 +77,12 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 	isDemo := cfg.Env == "demo"
 
 	fDao := &dao.Dao{
-		AuthDao:    dao.NewAuthDao(db, []byte(cfg.JWT.SecretKey), sessionCache, isDemo),
-		FileDao:    dao.NewFileDao(db, cfg.Storage.BasePath),
-		ScratchDao: dao.NewScratchDao(db, filepath.Join(cfg.Storage.BasePath, "scratch")),
-		ClassDao:   dao.NewClassDao(db),
-		UserDao:    dao.NewUserDao(db),
+		AuthDao:      dao.NewAuthDao(db, []byte(cfg.JWT.SecretKey), sessionCache, isDemo),
+		FileDao:      dao.NewFileDao(db, cfg.Storage.BasePath),
+		ScratchDao:   dao.NewScratchDao(db, filepath.Join(cfg.Storage.BasePath, "scratch")),
+		ClassDao:     dao.NewClassDao(db),
+		UserDao:      dao.NewUserDao(db),
+		UserAssetDao: dao.NewUserAssetDao(db),
 	}
 
 	// 如果admin 用户不存在，则创建新用户

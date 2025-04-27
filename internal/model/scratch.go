@@ -6,13 +6,17 @@ import (
 
 // ScratchProject 表示一个Scratch项目
 type ScratchProject struct {
-	ID        uint      `json:"id" gorm:"primaryKey;autoIncrement"` // 修改为 uint 类型，并添加自增属性
+	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"` // 修改为 uint 类型，并添加自增属性
 	MD5       string    `json:"md5"`
-	UserID    uint      `json:"user_id"`
+	UserID    uint      `gorm:"index" json:"user_id"`
 	Name      string    `json:"name"`
-	ClassID   uint      `json:"class_id"`
-	CourseID  uint      `json:"course_id"`
+	ClassID   uint      `gorm:"index" json:"class_id"`
+	CourseID  uint      `gorm:"index" json:"course_id"`
 	FilePath  string    `json:"file_path"` // 文件在文件系统中的路径
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (s *ScratchProject) TableName() string {
+	return "scratch_projects"
 }

@@ -39,5 +39,10 @@ func RunMigrations(db *gorm.DB) error {
 	if err := db.AutoMigrate(&model.File{}, &model.ScratchProject{}); err != nil {
 		return err
 	}
+
+	// 迁移用户资源模型
+	if err := db.AutoMigrate(&model.UserAsset{}); err != nil {
+		return err
+	}
 	return nil
 }

@@ -20,6 +20,10 @@ type User struct {
 	Files     []File         `json:"files,omitempty"`
 }
 
+func (u *User) TableName() string {
+	return "users"
+}
+
 const (
 	RoleAdmin   = "admin"
 	RoleTeacher = "teacher"

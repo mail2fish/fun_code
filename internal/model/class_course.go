@@ -8,8 +8,8 @@ import (
 
 // ClassCourse 班级与课程的关联表
 type ClassCourse struct {
-	ClassID     uint      `json:"class_id" gorm:"not null"`          // 班级ID
-	CourseID    uint      `json:"course_id" gorm:"not null"`         // 课程ID
+	ClassID     uint      `json:"class_id" gorm:"not null;index"`    // 班级ID
+	CourseID    uint      `json:"course_id" gorm:"not null;index"`   // 课程ID
 	StartDate   time.Time `json:"start_date"`                        // 开始日期
 	EndDate     time.Time `json:"end_date"`                          // 结束日期
 	IsPublished bool      `json:"is_published" gorm:"default:false"` // 是否发布
@@ -18,3 +18,6 @@ type ClassCourse struct {
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
 }
 
+func (c *ClassCourse) TableName() string {
+	return "class_courses"
+}

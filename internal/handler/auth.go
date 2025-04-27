@@ -6,10 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	ErrorCodeUnauthorized = 1
-)
-
 func (h *Handler) Register(c *gin.Context) {
 	var req struct {
 		Username string `json:"username" binding:"required"`

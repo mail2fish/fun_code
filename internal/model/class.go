@@ -8,7 +8,7 @@ import (
 
 // Class 班级模型
 type Class struct {
-	ID          uint           `json:"id" gorm:"primarykey"`
+	ID          uint           `json:"id" gorm:"primarykey;autoIncrement"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
@@ -22,4 +22,8 @@ type Class struct {
 	Students    []User         `json:"students" gorm:"many2many:class_users"`  // 学生列表
 	Courses     []Course       `json:"courses" gorm:"many2many:class_courses"` // 课程列表
 	IsActive    bool           `json:"is_active" gorm:"default:true"`          // 是否激活
+}
+
+func (c *Class) TableName() string {
+	return "classes"
 }
