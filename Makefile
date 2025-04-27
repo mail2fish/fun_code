@@ -6,6 +6,7 @@ FRONTEND_DIR=web/react-router-www
 SCRATCH_DIR=web/scratch
 BUILD_DIR=build
 DIST_DIR=dist
+BUILD_FRONTEND ?= false
 
 # 平台相关变量
 PLATFORMS=windows linux darwin
@@ -47,42 +48,25 @@ build-scratch: frontend-deps
 
 # 构建指定平台的 Go 项目
 .PHONY: build-go-%
-build-go-%: deps build-frontend build-scratch
+build-go-%: deps
+	@if [ "$(BUILD_FRONTEND)" = "true" ]; then \
+		$(MAKE) build-frontend build-scratch; \
+	fi
 	@echo "Building for $*"
-	@$(eval GOOS = $(word 1,$(subst -, ,$*)))
-	@$(eval GOARCH = $(word 2,$(subst -, ,$*)))
-	@$(eval EXT = $(if $(filter windows,$(GOOS)),$(WINDOWS_EXT),))
-	@$(eval CGO_FLAG = 1) # 保持 CGO 启用
-	@$(eval CC_CMD = ) # 默认 CC 为空
-	@# 根据目标平台设置交叉编译器
+	$(eval GOOS = $(word 1,$(subst -, ,$*)))
+	$(eval GOARCH = $(word 2,$(subst -, ,$*)))
+	$(eval EXT = $(if $(filter windows,$(GOOS)),$(WINDOWS_EXT),))
+	$(eval CGO_FLAG = 1) # 保持 CGO 启用
+	$(eval CC_CMD = ) # 默认 CC 为空
+	# 根据目标平台设置交叉编译器
 	@if [ "$(GOOS)" = "linux" ]; then \
 		CC_CMD="CC=x86_64-unknown-linux-gnu-gcc"; \
 	elif [ "$(GOOS)" = "windows" ]; then \
 		CC_CMD="CC=x86_64-w64-mingw32-gcc"; \
 	fi; \
-	@echo "Using CGO_ENABLED=$(CGO_FLAG) and CC command: $$CC_CMD"; \
+	echo "Using CGO_ENABLED=$(CGO_FLAG) and CC command: $$CC_CMD"; \
 	mkdir -p $(BUILD_DIR)/$(GOOS)-$(GOARCH); \
-	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_FLAG) $$CC_CMD $(GO) build -o $(BUILD_DIR)/$(GOOS)-$(GOARCH)/$(BINARY_NAME)$(EXT) ./cmd/fun_code
-
-# 构建指定平台的 Go 项目 (仅 Go 部分)
-.PHONY: build-only-go-%
-build-only-go-%: deps
-	@echo "Building for $*"
-	@$(eval GOOS = $(word 1,$(subst -, ,$*)))
-	@$(eval GOARCH = $(word 2,$(subst -, ,$*)))
-	@$(eval EXT = $(if $(filter windows,$(GOOS)),$(WINDOWS_EXT),))
-	@$(eval CGO_FLAG = 1) # 保持 CGO 启用
-	@$(eval CC_CMD = ) # 默认 CC 为空
-	@# 根据目标平台设置交叉编译器
-	@if [ "$(GOOS)" = "linux" ]; then \
-		CC_CMD="CC=x86_64-unknown-linux-gnu-gcc"; \
-	elif [ "$(GOOS)" = "windows" ]; then \
-		CC_CMD="CC=x86_64-w64-mingw32-gcc"; \
-	fi; \
-	@echo "Using CGO_ENABLED=$(CGO_FLAG) and CC command: $$CC_CMD"; \
-	mkdir -p $(BUILD_DIR)/$(GOOS)-$(GOARCH); \
-	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_FLAG) $$CC_CMD $(GO) build -o $(BUILD_DIR)/$(GOOS)-$(GOARCH)/$(BINARY_NAME)$(EXT) ./cmd/fun_code
-
+	export $$CC_CMD; GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_FLAG) $(GO) build -o $(BUILD_DIR)/$(GOOS)-$(GOARCH)/$(BINARY_NAME)$(EXT) ./cmd/fun_code # <-- 修改这一行，使用 export
 
 # 构建所有平台的 Go 项目
 .PHONY: build-go-all
@@ -163,3 +147,6 @@ help:
 	@echo "  linux-amd64      - Linux 64位"
 	@echo "  darwin-amd64     - macOS Intel"
 	@echo "  darwin-arm64     - macOS ARM"
+	@echo ""
+	@echo "构建选项:"
+	@echo "  BUILD_FRONTEND=true|false - 控制是否构建前端项目（默认为 true）"

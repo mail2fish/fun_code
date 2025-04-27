@@ -186,3 +186,15 @@ sudo apt install iptables-persistent
 # 如果之后修改了规则，需要手动保存：
 sudo netfilter-persistent save
 ```
+
+## 跨平台编译
+
+使用 sqlite 需要安装 cgo，所以需要安装交叉编译工具链。
+
+### Mac
+
+```
+# 安装交叉编译工具链
+brew install mingw-w64
+
+```
