@@ -1,17 +1,24 @@
 package dao
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
+	"github.com/jun/fun_code/internal/custom_error"
 	"github.com/jun/fun_code/internal/model"
 
 	"gorm.io/gorm"
+)
+
+const (
+	ErrorCodeCreateDirectoryFailed = 1
+	ErrorCodeWriteFileFailed       = 2
+	ErrorCodeReadFileFailed        = 3
 )
 
 // ScratchDaoImpl 实现了ScratchService接口
@@ -57,10 +64,12 @@ func (s *ScratchDaoImpl) GetProjectBinary(projectID uint) ([]byte, error) {
 		return nil, err
 	}
 
+	filename := filepath.Join(project.FilePath, fmt.Sprintf("%d_%s.json", project.ID, project.MD5))
+
 	// 从文件系统读取项目内容
-	content, err := os.ReadFile(project.FilePath)
+	content, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("读取项目文件失败: %w", err)
+		return nil, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeReadFileFailed, "read file failed", err)
 	}
 
 	return content, nil
@@ -75,9 +84,13 @@ func (s *ScratchDaoImpl) SaveProject(userID uint, projectID uint, name string, c
 	now := time.Now()
 	year := now.Format("2006")
 	month := now.Format("01")
+	day := now.Format("02")
+
+	md5 := md5.Sum(content)
+	md5Str := hex.EncodeToString(md5[:])
 
 	// 构建文件路径
-	dirPath := filepath.Join(s.basePath, fmt.Sprintf("%d", userID), year, month)
+	dirPath := filepath.Join(s.basePath, year, month, day, fmt.Sprintf("%d", userID))
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -89,30 +102,26 @@ func (s *ScratchDaoImpl) SaveProject(userID uint, projectID uint, name string, c
 			// 创建新项目记录
 			project = model.ScratchProject{
 				UserID:    userID,
+				MD5:       md5Str,
 				Name:      name,
 				CreatedAt: now,
 				UpdatedAt: now,
+				FilePath:  dirPath,
 			}
 
 			// 先创建数据库记录以获取ID
 			if err := s.db.Create(&project).Error; err != nil {
-				return 0, err
+				return 0, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeInsertFailed, "create project failed", err)
 			}
 
 			// 使用生成的ID构建文件名
-			filePath := filepath.Join(dirPath, strconv.FormatUint(uint64(project.ID), 10)+".json")
-			project.FilePath = filePath
-
-			// 更新文件路径
-			if err := s.db.Save(&project).Error; err != nil {
-				return 0, err
-			}
+			filename := filepath.Join(dirPath, fmt.Sprintf("%d_%s.json", project.ID, project.MD5))
 
 			// 写入文件
-			if err := ioutil.WriteFile(filePath, content, 0644); err != nil {
+			if err := os.WriteFile(filename, content, 0644); err != nil {
 				// 如果写入文件失败，删除数据库记录
 				s.db.Delete(&project)
-				return 0, fmt.Errorf("写入文件失败: %w", err)
+				return 0, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeWriteFileFailed, "write file failed", err)
 			}
 		} else {
 			return 0, result.Error
@@ -124,31 +133,22 @@ func (s *ScratchDaoImpl) SaveProject(userID uint, projectID uint, name string, c
 		}
 
 		// 构建新的文件路径
-		filePath := filepath.Join(dirPath, strconv.FormatUint(uint64(project.ID), 10)+".json")
+		filePath := filepath.Join(dirPath, fmt.Sprintf("%d_%s.json", project.ID, md5Str))
 
-		// 如果文件路径变更，需要创建新目录
-		if project.FilePath != filePath {
-			if err := os.MkdirAll(dirPath, 0755); err != nil {
-				return 0, fmt.Errorf("创建目录失败: %w", err)
+		// 如果文件不存在,则写入
+		if _, err := os.Stat(filePath); err != nil {
+			// 写入文件
+			if err := os.WriteFile(filePath, content, 0644); err != nil {
+				return 0, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeWriteFileFailed, "write file failed", err)
 			}
-		}
-
-		// 写入文件
-		if err := ioutil.WriteFile(filePath, content, 0644); err != nil {
-			return 0, fmt.Errorf("写入文件失败: %w", err)
-		}
-
-		// 如果文件路径变更，删除旧文件
-		if project.FilePath != filePath {
-			os.Remove(project.FilePath)
 		}
 
 		// 更新项目记录
 		project.Name = name
-		project.FilePath = filePath
+		project.MD5 = md5Str
 		project.UpdatedAt = now
 		if err := s.db.Save(&project).Error; err != nil {
-			return 0, err
+			return 0, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeUpdateFailed, "save project failed", err)
 		}
 	}
 

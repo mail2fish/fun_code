@@ -27,6 +27,7 @@ type ErrorModule int
 const (
 	UNKNOWN ErrorModule = 0
 	USER    ErrorModule = 100000
+	SCRATCH ErrorModule = 200000
 )
 
 // CustomError 自定义应用错误类型
@@ -71,12 +72,13 @@ func NewError(module ErrorModule, code int, message string) *CustomError {
 }
 
 // NewHandlerError 创建业务逻辑错误
-func NewHandlerError(module ErrorModule, code int, message string) *CustomError {
+func NewHandlerError(module ErrorModule, code int, message string, err error) *CustomError {
 	return &CustomError{
 		Type:    HANDLER,
 		Module:  module,
 		Code:    code,
 		Message: message,
+		Err:     err,
 	}
 }
 
@@ -92,12 +94,13 @@ func NewThirdPartyError(module ErrorModule, code int, message string, err error)
 }
 
 // NewDaoError 创建系统错误
-func NewDaoError(module ErrorModule, code int, message string) *CustomError {
+func NewDaoError(module ErrorModule, code int, message string, err error) *CustomError {
 	return &CustomError{
 		Type:    DAO,
 		Module:  module,
 		Code:    code,
 		Message: message,
+		Err:     err,
 	}
 }
 

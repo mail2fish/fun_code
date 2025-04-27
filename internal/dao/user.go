@@ -26,7 +26,7 @@ func (s *UserDaoImpl) GetUserByID(id uint) (*model.User, error) {
 	if err := s.db.First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// 使用 NewDaoError 报告业务错误（未找到）
-			return nil, custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found")
+			return nil, custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found", err)
 		}
 		// 使用 NewThirdPartyError 包装数据库查询错误
 		return nil, custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
@@ -39,7 +39,7 @@ func (s *UserDaoImpl) GetUserByUsername(username string) (*model.User, error) {
 	var user model.User
 	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found")
+			return nil, custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found", err)
 		}
 		return nil, custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
 	}
@@ -51,7 +51,7 @@ func (s *UserDaoImpl) GetUserByEmail(email string) (*model.User, error) {
 	var user model.User
 	if err := s.db.Where("email = ?", email).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found")
+			return nil, custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found", err)
 		}
 		return nil, custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
 	}
@@ -138,7 +138,7 @@ func (s *UserDaoImpl) UpdateUser(id uint, updates map[string]interface{}) error 
 	var user model.User
 	if err := s.db.First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found")
+			return custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found", err)
 		}
 		return custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
 	}
@@ -163,7 +163,7 @@ func (s *UserDaoImpl) UpdateUser(id uint, updates map[string]interface{}) error 
 		err := s.db.Where("username = ? AND id <> ?", username, id).First(&existingUser).Error
 		if err == nil {
 			// 用户名已被使用，是业务错误，使用 UpdateFailed 码表示更新冲突
-			return custom_error.NewDaoError(custom_error.USER, ErrorCodeUpdateFailed, "user.username_taken")
+			return custom_error.NewDaoError(custom_error.USER, ErrorCodeUpdateFailed, "user.username_taken", err)
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			// 其他数据库查询错误
 			return custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
@@ -178,7 +178,7 @@ func (s *UserDaoImpl) UpdateUser(id uint, updates map[string]interface{}) error 
 		err := s.db.Where("email = ? AND id <> ?", email, id).First(&existingUser).Error
 		if err == nil {
 			// 邮箱已被使用，是业务错误，使用 UpdateFailed 码表示更新冲突
-			return custom_error.NewDaoError(custom_error.USER, ErrorCodeUpdateFailed, "user.email_taken")
+			return custom_error.NewDaoError(custom_error.USER, ErrorCodeUpdateFailed, "user.email_taken", err)
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			// 其他数据库查询错误
 			return custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
@@ -200,7 +200,7 @@ func (s *UserDaoImpl) UpdateUserProfile(id uint, nickname, email string) error {
 	var user model.User
 	if err := s.db.First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found")
+			return custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found", err)
 		}
 		return custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
 	}
@@ -215,7 +215,7 @@ func (s *UserDaoImpl) UpdateUserProfile(id uint, nickname, email string) error {
 		err := s.db.Where("email = ? AND id <> ?", email, id).First(&existingUser).Error
 		if err == nil {
 			// 邮箱已被使用，是业务错误，使用 UpdateFailed 码表示更新冲突
-			return custom_error.NewDaoError(custom_error.USER, ErrorCodeUpdateFailed, "user.email_taken")
+			return custom_error.NewDaoError(custom_error.USER, ErrorCodeUpdateFailed, "user.email_taken", err)
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
 		}
@@ -236,7 +236,7 @@ func (s *UserDaoImpl) ChangePassword(id uint, oldPassword, newPassword string) e
 	var user model.User
 	if err := s.db.First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found")
+			return custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found", err)
 		}
 		return custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
 	}
@@ -244,13 +244,13 @@ func (s *UserDaoImpl) ChangePassword(id uint, oldPassword, newPassword string) e
 	// 验证旧密码
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword)); err != nil {
 		// 旧密码不正确，是业务错误，使用 UpdateFailed 码表示更新前验证失败
-		return custom_error.NewDaoError(custom_error.USER, ErrorCodeUpdateFailed, "user.old_password_incorrect")
+		return custom_error.NewDaoError(custom_error.USER, ErrorCodeUpdateFailed, "user.old_password_incorrect", err)
 	}
 
 	// 检查新密码是否为空
 	if newPassword == "" {
 		// 新密码不能为空，是业务错误，使用 UpdateFailed 码表示更新数据无效
-		return custom_error.NewDaoError(custom_error.USER, ErrorCodeUpdateFailed, "user.password_empty")
+		return custom_error.NewDaoError(custom_error.USER, ErrorCodeUpdateFailed, "user.password_empty", nil)
 	}
 
 	// 加密新密码
@@ -274,7 +274,7 @@ func (s *UserDaoImpl) DeleteUser(id uint) error {
 	var user model.User
 	if err := s.db.First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found")
+			return custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found", err)
 		}
 		return custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
 	}
@@ -294,7 +294,7 @@ func (s *UserDaoImpl) HardDeleteUser(id uint) error {
 	// 使用 Unscoped() 查找包括已软删除的用户，以防重复删除或删除不存在的用户
 	if err := s.db.Unscoped().First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found")
+			return custom_error.NewDaoError(custom_error.USER, ErrorCodeQueryNotFound, "user.not_found", err)
 		}
 		return custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
 	}
@@ -314,7 +314,7 @@ func (s *UserDaoImpl) CreateUser(user *model.User) error {
 	err := s.db.Where("username = ?", user.Username).First(&existingUser).Error
 	if err == nil {
 		// 用户名已被注册，是业务错误，使用 InsertFailed 码表示插入冲突
-		return custom_error.NewDaoError(custom_error.USER, ErrorCodeInsertFailed, "user.username_taken")
+		return custom_error.NewDaoError(custom_error.USER, ErrorCodeInsertFailed, "user.username_taken", err)
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		// 其他数据库查询错误
 		return custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
@@ -327,7 +327,7 @@ func (s *UserDaoImpl) CreateUser(user *model.User) error {
 		err = s.db.Where("email = ?", user.Email).First(&existingUser).Error
 		if err == nil {
 			// 邮箱已被注册，是业务错误，使用 InsertFailed 码表示插入冲突
-			return custom_error.NewDaoError(custom_error.USER, ErrorCodeInsertFailed, "user.email_taken")
+			return custom_error.NewDaoError(custom_error.USER, ErrorCodeInsertFailed, "user.email_taken", err)
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			// 其他数据库查询错误
 			return custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
@@ -338,7 +338,7 @@ func (s *UserDaoImpl) CreateUser(user *model.User) error {
 	// 检查密码是否为空
 	if user.Password == "" {
 		// 密码不能为空，是业务错误，使用 InsertFailed 码表示插入数据无效
-		return custom_error.NewDaoError(custom_error.USER, ErrorCodeInsertFailed, "user.password_empty")
+		return custom_error.NewDaoError(custom_error.USER, ErrorCodeInsertFailed, "user.password_empty", nil)
 	}
 
 	// 如果密码未加密，则进行加密

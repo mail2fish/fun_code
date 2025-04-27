@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,7 +13,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jun/fun_code/internal/custom_error"
 	"github.com/jun/fun_code/web"
+)
+
+const (
+	ErrorCodeInvalidProjectID = 1
+	ErrorCodeGetProjectFailed = 2
 )
 
 // NewScratchProject 创建一个新的Scratch项目处理程序
@@ -139,7 +144,7 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		ProjectID string
 		Host      string
 	}{
-		ProjectID: "0",                         // 新项目使用0作为ID
+		ProjectID: projectID,                   // 新项目使用0作为ID
 		Host:      h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
 	}
 
@@ -162,8 +167,11 @@ func (h *Handler) GetScratchProject(c *gin.Context) {
 	// 将 projectID 字符串转换为 uint 类型
 	id, err := strconv.ParseUint(projectID, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效的项目ID",
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidProjectID, "invalid_project_id", err)
+		c.JSON(http.StatusBadRequest, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
@@ -171,23 +179,32 @@ func (h *Handler) GetScratchProject(c *gin.Context) {
 	// 获取项目创建者ID
 	userID, ok := h.dao.ScratchDao.GetProjectUserID(uint(id))
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取项目失败",
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
 	// 判断用户是否是项目创建者或者为管理员
 	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "无权限访问",
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
+		c.JSON(http.StatusUnauthorized, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
 
 	projectData, err := h.dao.ScratchDao.GetProjectBinary(uint(id))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取项目失败",
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
@@ -202,7 +219,6 @@ func (h *Handler) GetScratchProject(c *gin.Context) {
 
 // PutSaveScratchProject 保存Scratch项目
 func (h *Handler) PutSaveScratchProject(c *gin.Context) {
-	log.Println("dbg SaveScratchProject")
 
 	// 新增：从路径参数获取项目ID
 	projectID := c.Param("id")
