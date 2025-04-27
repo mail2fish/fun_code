@@ -1,0 +1,1 @@
+supervisord service stop && supervisord service start

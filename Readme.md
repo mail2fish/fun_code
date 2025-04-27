@@ -144,4 +144,45 @@ go build -o ./fun_code ./cmd/fun_code/main.go
 ⚠️**注意：构建服务端之前，必须要先构建客户端的静态文件，因为服务端需要使用客户端构建后的静态文件。** 
 
 
+### 2.3 Linux 下部署
 
+#### 2.3.1 supervisord
+
+用于管理服务的守护进程。
+
+https://github.com/ochinchina/supervisord
+
+注意不要用 root 账号运行，配置参考 deploy/supervisord.conf
+
+#### 2.3.2 映射 80 端口
+
+```
+sudo sysctl net.ipv4.ip_forward=1
+
+# 使其永久生效，编辑 /etc/sysctl.conf 或在 /etc/sysctl.d/ 下创建新文件，添加:
+# net.ipv4.ip_forward = 1
+# 然后运行 sudo sysctl -p
+```
+
+
+```
+sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+```
+
+如果你希望从本机（localhost）访问 80 端口也能转发到 8080，还需要添加 OUTPUT 链规则：
+
+```
+sudo iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 80 -j REDIRECT --to-port 8080
+# 对于 IPv6 (如果需要):
+# sudo ip6tables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+# sudo ip6tables -t nat -A OUTPUT -p tcp -d ::1 --dport 80 -j REDIRECT --to-port 8080
+```
+
+
+```
+sudo apt update
+sudo apt install iptables-persistent
+# 安装过程中会提示是否保存当前 IPv4 和 IPv6 规则，选择 "是"。
+# 如果之后修改了规则，需要手动保存：
+sudo netfilter-persistent save
+```
