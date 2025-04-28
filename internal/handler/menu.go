@@ -76,7 +76,7 @@ func (h *Handler) GetMenuList(c *gin.Context) {
 			},
 			{
 				Title:    "新建Scratch程序",
-				URL:      "/www/scratch/projects/new",
+				URL:      "/projects/scratch/new",
 				IsActive: false,
 			},
 		},
