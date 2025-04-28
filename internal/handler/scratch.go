@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -486,6 +487,8 @@ func (h *Handler) PostCreateScratchProject(c *gin.Context) {
 	})
 }
 
+var safeFilenameRegex = regexp.MustCompile(`[^a-zA-Z0-9_.-]`)
+
 // GetLibraryAsset 获取Scratch库资源文件
 func (h *Handler) GetLibraryAsset(c *gin.Context) {
 	// 获取文件名参数
@@ -496,6 +499,9 @@ func (h *Handler) GetLibraryAsset(c *gin.Context) {
 		})
 		return
 	}
+
+	// 去除不安全的字符，使用正则表达式
+	filename = safeFilenameRegex.ReplaceAllString(filename, "")
 
 	// 从嵌入的文件系统中获取资源文件
 	assetData, err := web.GetScratchAsset(filename)
@@ -584,6 +590,9 @@ func (h *Handler) UploadScratchAsset(c *gin.Context) {
 		})
 		return
 	}
+
+	// 去除不安全的字符，使用正则表达式
+	assetID = safeFilenameRegex.ReplaceAllString(assetID, "")
 
 	// 获取 assetID 字符串长度，把它分成 4 段
 	assetIDLength := len(assetID)
