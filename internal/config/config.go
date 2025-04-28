@@ -35,7 +35,8 @@ type ServerConfig struct {
 }
 
 type ScratchEditorConfig struct {
-	Host string `yaml:"host"`
+	Host               string `yaml:"host"`
+	DisallowedProjects []uint `yaml:"disallowed_projects"`
 }
 
 // 在现有的 config.go 文件中添加 I18n 配置

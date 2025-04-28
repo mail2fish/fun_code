@@ -69,13 +69,15 @@ func (h *Handler) GetNewScratchProject(c *gin.Context) {
 
 	// 准备模板数据，新项目不需要项目ID
 	data := struct {
-		ProjectID    string
-		Host         string
-		ProjectTitle string
+		CanSaveProject bool
+		ProjectID      string
+		Host           string
+		ProjectTitle   string
 	}{
-		ProjectID:    "0",                         // 新项目使用0作为ID
-		Host:         h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
-		ProjectTitle: "Scratch Project",
+		CanSaveProject: true,
+		ProjectID:      "0",                         // 新项目使用0作为ID
+		Host:           h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
+		ProjectTitle:   "Scratch Project",
 	}
 
 	// 设置响应头
@@ -166,15 +168,26 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		return
 	}
 
+	// 如果项目ID存在在不允许保存的数组中，则不允许保存
+	canSaveProject := true
+	for _, id := range h.config.ScratchEditor.DisallowedProjects {
+		if project.ID == id {
+			canSaveProject = false
+			break
+		}
+	}
+
 	// 准备模板数据，新项目不需要项目ID
 	data := struct {
-		ProjectID    string
-		Host         string
-		ProjectTitle string
+		CanSaveProject bool
+		ProjectID      string
+		Host           string
+		ProjectTitle   string
 	}{
-		ProjectID:    projectID,                   // 新项目使用0作为ID
-		Host:         h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
-		ProjectTitle: project.Name,
+		CanSaveProject: canSaveProject,
+		ProjectID:      projectID,                   // 新项目使用0作为ID
+		Host:           h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
+		ProjectTitle:   project.Name,
 	}
 
 	// 设置响应头
@@ -260,19 +273,40 @@ func (h *Handler) PutSaveScratchProject(c *gin.Context) {
 	}
 
 	// 获取项目创建者ID
-	userID, ok := h.dao.ScratchDao.GetProjectUserID(uint(id))
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取项目失败",
+	project, err := h.dao.ScratchDao.GetProject(uint(id))
+
+	if err != nil {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
+	userID := project.UserID
 	// 判断用户是否是项目创建者或者为管理员
 	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "无权限访问",
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeNoPermission, "no_permission", err)
+		c.JSON(http.StatusUnauthorized, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
+	}
+
+	// 如果项目ID存在在不允许保存的数组中，则不允许保存
+	for _, id := range h.config.ScratchEditor.DisallowedProjects {
+		if project.ID == id {
+			e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeNoPermission, "no_permission", err)
+			c.JSON(http.StatusUnauthorized, ResponseError{
+				Code:    int(e.ErrorCode()),
+				Message: e.Message,
+				Error:   e.Error(),
+			})
+			return
+		}
 	}
 
 	// 修改后的请求体结构
@@ -299,8 +333,11 @@ func (h *Handler) PutSaveScratchProject(c *gin.Context) {
 	// 由于 SaveProject 返回 uint 类型，需要将 projectID 声明为 uint
 	_, err = h.dao.ScratchDao.SaveProject(userID, uint(id), title, r)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "保存项目失败: " + err.Error(),
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeSaveProjectFailed, "save_project_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}

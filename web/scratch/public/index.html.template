@@ -47,7 +47,7 @@
     <script>
       // 全局配置对象
       window.SCRATCH_CONFIG = {
-        canSave: true,
+        canSave: {{ .CanSaveProject }},
         canRemix: false,
         canCreateNew: true,
         canEditTitle: true,

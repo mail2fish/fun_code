@@ -30,6 +30,7 @@ server:
 scratch_editor:
   # 编辑器访问地址
   host: "{{ .ScratchEditor.Host }}"
+  disallowed_projects: []
 
 # 国际化配置
 i18n:
