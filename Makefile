@@ -60,7 +60,7 @@ build-go-%: deps
 	$(eval CC_CMD = ) # 默认 CC 为空
 	# 根据目标平台设置交叉编译器
 	@if [ "$(GOOS)" = "linux" ]; then \
-		CC_CMD="CC=x86_64-unknown-linux-gnu-gcc"; \
+		CC_CMD="CC=x86_64-linux-musl-gcc"; \
 	elif [ "$(GOOS)" = "windows" ]; then \
 		CC_CMD="CC=x86_64-w64-mingw32-gcc"; \
 	fi; \

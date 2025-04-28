@@ -196,5 +196,6 @@ sudo netfilter-persistent save
 ```
 # 安装交叉编译工具链
 brew install mingw-w64
-
+# 安装 cgo
+brew install filosottile/musl-cross/musl-cross
 ```
