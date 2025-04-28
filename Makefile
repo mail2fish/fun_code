@@ -56,17 +56,9 @@ build-go-%: deps
 	$(eval GOOS = $(word 1,$(subst -, ,$*)))
 	$(eval GOARCH = $(word 2,$(subst -, ,$*)))
 	$(eval EXT = $(if $(filter windows,$(GOOS)),$(WINDOWS_EXT),))
-	$(eval CGO_FLAG = 1) # 保持 CGO 启用
-	$(eval CC_CMD = ) # 默认 CC 为空
-	# 根据目标平台设置交叉编译器
-	@if [ "$(GOOS)" = "linux" ]; then \
-		CC_CMD="CC=x86_64-linux-musl-gcc"; \
-	elif [ "$(GOOS)" = "windows" ]; then \
-		CC_CMD="CC=x86_64-w64-mingw32-gcc"; \
-	fi; \
-	echo "Using CGO_ENABLED=$(CGO_FLAG) and CC command: $$CC_CMD"; \
+	$(eval CGO_FLAG = 0) # 
 	mkdir -p $(BUILD_DIR)/$(GOOS)-$(GOARCH); \
-	export $$CC_CMD; GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_FLAG) $(GO) build -o $(BUILD_DIR)/$(GOOS)-$(GOARCH)/$(BINARY_NAME)$(EXT) ./cmd/fun_code # <-- 修改这一行，使用 export
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_FLAG) $(GO) build -o $(BUILD_DIR)/$(GOOS)-$(GOARCH)/$(BINARY_NAME)$(EXT) ./cmd/fun_code
 
 # 构建所有平台的 Go 项目
 .PHONY: build-go-all
@@ -128,8 +120,8 @@ help:
 	@echo "  clean            - 清理构建文件"
 	@echo "  deps             - 安装 Go 依赖"
 	@echo "  frontend-deps    - 安装前端依赖"
-	@echo "  build-go-all     - 构建所有平台的 Go 项目"
-	@echo "  build-go-{os}-{arch} - 构建指定平台的 Go 项目"
+	@echo "  build-go-all     - 构建所有平台的 Go 项目（纯 Go 模式，无 CGO）"
+	@echo "  build-go-{os}-{arch} - 构建指定平台的 Go 项目（纯 Go 模式，无 CGO）"
 	@echo "  build-frontend   - 构建 React 前端"
 	@echo "  build-scratch    - 构建 Scratch 项目"
 	@echo "  dev              - 运行 Go 开发服务器"
@@ -149,4 +141,4 @@ help:
 	@echo "  darwin-arm64     - macOS ARM"
 	@echo ""
 	@echo "构建选项:"
-	@echo "  BUILD_FRONTEND=true|false - 控制是否构建前端项目（默认为 true）"
+	@echo "  BUILD_FRONTEND=true|false - 控制是否构建前端项目（默认为 false）"
