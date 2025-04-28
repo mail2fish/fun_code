@@ -35,8 +35,8 @@ type ServerConfig struct {
 }
 
 type ScratchEditorConfig struct {
-	Host               string `yaml:"host"`
-	DisallowedProjects []uint `yaml:"disallowed_projects"`
+	Host                 string `yaml:"host"`
+	CreateProjectLimiter int    `yaml:"create_project_limiter"`
 }
 
 // 在现有的 config.go 文件中添加 I18n 配置
@@ -47,9 +47,15 @@ type I18nConfig struct {
 	DefaultLang string `yaml:"default_lang"`
 }
 
+type Protected struct {
+	Users    []uint `yaml:"users"`
+	Projects []uint `yaml:"projects"`
+}
+
 // Config 应用配置
 type Config struct {
 	Env           string              `yaml:"env"`
+	Protected     Protected           `yaml:"protected"`
 	AdminPassword string              `yaml:"admin_password"`
 	Database      DatabaseConfig      `yaml:"database"`
 	Storage       StorageConfig       `yaml:"storage"`
@@ -120,6 +126,9 @@ func NewConfig(baseDir string) *Config {
 		// Env:           "development",
 		Env:           "demo",
 		AdminPassword: password,
+		Protected: Protected{
+			Users: []uint{1},
+		},
 		Database: DatabaseConfig{
 			Driver: "sqlite",
 			DSN:    dsn,
@@ -134,7 +143,8 @@ func NewConfig(baseDir string) *Config {
 			Port: listenPort,
 		},
 		ScratchEditor: ScratchEditorConfig{
-			Host: host,
+			Host:                 host,
+			CreateProjectLimiter: 3,
 		},
 	}
 }

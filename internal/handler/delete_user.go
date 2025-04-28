@@ -2,10 +2,16 @@ package handler
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/custom_error"
+)
+
+const (
+	ErrorCodeInvalidID     = 1
+	ErrorCodeProtectedUser = 2
 )
 
 // DeleteUser 删除用户
@@ -14,17 +20,25 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 	userIDStr := c.Param("user_id")
 	userID, err := strconv.ParseUint(userIDStr, 10, 64)
 	if err != nil {
-		lang := h.i18n.GetDefaultLanguage()
-		if l := c.GetHeader("Accept-Language"); l != "" {
-			lang = l
-		}
-		msg := h.i18n.Translate("common.invalid_id", lang)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": msg,
+		e := custom_error.NewHandlerError(custom_error.USER, ErrorCodeInvalidID, "invalid_id", err)
+		c.JSON(http.StatusBadRequest, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
 		})
 		return
 	}
 
+	// 判断是否为保护用户
+	if slices.Contains(h.config.Protected.Users, uint(userID)) {
+		e := custom_error.NewHandlerError(custom_error.USER, ErrorCodeProtectedUser, "protected_user", nil)
+		c.JSON(http.StatusBadRequest, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
 	// 执行删除操作
 	err = h.dao.UserDao.DeleteUser(uint(userID))
 	if err != nil {

@@ -168,9 +168,9 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		return
 	}
 
-	// 如果项目ID存在在不允许保存的数组中，则不允许保存
+	// 如果项目ID存在保护的数组中，则不允许保存
 	canSaveProject := true
-	for _, id := range h.config.ScratchEditor.DisallowedProjects {
+	for _, id := range h.config.Protected.Projects {
 		if project.ID == id {
 			canSaveProject = false
 			break
@@ -297,7 +297,7 @@ func (h *Handler) PutSaveScratchProject(c *gin.Context) {
 	}
 
 	// 如果项目ID存在在不允许保存的数组中，则不允许保存
-	for _, id := range h.config.ScratchEditor.DisallowedProjects {
+	for _, id := range h.config.Protected.Projects {
 		if project.ID == id {
 			e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeNoPermission, "no_permission", err)
 			c.JSON(http.StatusUnauthorized, ResponseError{
@@ -360,6 +360,18 @@ func (h *Handler) DeleteScratchProject(c *gin.Context) {
 		return
 	}
 
+	// 如果项目ID存在在不允许保存的数组中，则不允许保存
+	for _, protectedID := range h.config.Protected.Projects {
+		if uint(id) == protectedID {
+			e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeNoPermission, "no_permission", err)
+			c.JSON(http.StatusBadRequest, ResponseError{
+				Code:    int(e.ErrorCode()),
+				Message: e.Message,
+				Error:   e.Error(),
+			})
+			return
+		}
+	}
 	// 获取项目创建者ID
 	userID, ok := h.dao.ScratchDao.GetProjectUserID(uint(id))
 	if !ok {
@@ -417,7 +429,7 @@ func (h *Handler) PostCreateScratchProject(c *gin.Context) {
 	}
 
 	// 检查是否超过限制（3分钟内最多3次）
-	if len(validTimes) >= 3 {
+	if len(validTimes) >= h.config.ScratchEditor.CreateProjectLimiter {
 		h.createProjectLimiterLock.Unlock()
 		c.JSON(http.StatusTooManyRequests, gin.H{
 			"error": "操作过于频繁，请稍后再试",

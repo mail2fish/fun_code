@@ -222,11 +222,7 @@ export default function ListUserPage() {
       await deleteUser(id)
       toast("用户已成功删除")
       // 删除成功后重新加载当前页
-      if (usersData.users.length > 1) {
-        fetchUsers(usersData.users[0].id.toString(), false, false)
-      } else {
-        fetchUsers("0", false, false)
-      }
+      fetchUsers("0", false, false)
     } catch (error) {
       console.error("删除用户失败:", error)
       toast("删除用户时出现错误")

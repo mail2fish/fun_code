@@ -50,6 +50,7 @@ async function getScratchProjects(beginID = "0",pageSize = 10,forward = false,as
 
 // 删除项目
 async function deleteScratchProject(id: string) {
+  console.log("删除项目",id);
   try {
     const response = await fetchWithAuth(`${HOST_URL}/api/scratch/projects/${id}`, {
       method: "DELETE",
@@ -158,6 +159,7 @@ export default function Page() {
 
   // 处理页码变化
   const handlePageChange = (beginID: string,forward:boolean,asc:boolean) => {
+    console.log("handlePageChange",beginID,forward,asc);
     fetchProjects(beginID,forward,asc);
   };
 
@@ -167,11 +169,8 @@ export default function Page() {
     try {
       await deleteScratchProject(id);
       // 删除成功后重新加载当前页
-      if (projectsData.projects.length > 0) {
-        fetchProjects(projectsData.projects[0].id.toString(), false);
-      } else {
-        fetchProjects("0", false);
-      }
+      console.log("删除成功后重新加载当前页");
+       fetchProjects("0", false,false);
     } catch (error) {
       console.error("删除项目失败:", error);
       throw error;

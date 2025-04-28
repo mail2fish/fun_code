@@ -4,6 +4,7 @@
 env: "{{ .Env }}"
 # 管理员用户默认密码
 admin_password: {{ .AdminPassword }}
+protected_users: [1]
 # 数据库配置
 database:
   # 数据库驱动类型,目前支持 sqlite
@@ -30,7 +31,8 @@ server:
 scratch_editor:
   # 编辑器访问地址
   host: "{{ .ScratchEditor.Host }}"
-  disallowed_projects: []
+  protected_projects: []
+  create_project_limiter: 3
 
 # 国际化配置
 i18n:

@@ -167,11 +167,7 @@ export default function Page() {
     try {
       await deleteScratchProject(id);
       // 删除成功后重新加载当前页
-      if (projectsData.projects.length > 0) {
-        fetchProjects(projectsData.projects[0].id.toString(), false);
-      } else {
         fetchProjects("0", false);
-      }
     } catch (error) {
       console.error("删除项目失败:", error);
       throw error;
