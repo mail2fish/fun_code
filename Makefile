@@ -56,7 +56,7 @@ build-go-%: deps
 	$(eval GOOS = $(word 1,$(subst -, ,$*)))
 	$(eval GOARCH = $(word 2,$(subst -, ,$*)))
 	$(eval EXT = $(if $(filter windows,$(GOOS)),$(WINDOWS_EXT),))
-	$(eval CGO_FLAG = 0) # 
+	$(eval CGO_FLAG = 1) # 
 	mkdir -p $(BUILD_DIR)/$(GOOS)-$(GOARCH); \
 	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_FLAG) $(GO) build -o $(BUILD_DIR)/$(GOOS)-$(GOARCH)/$(BINARY_NAME)$(EXT) ./cmd/fun_code
 
