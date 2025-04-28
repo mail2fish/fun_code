@@ -52,7 +52,7 @@ func (m *MockAuthService) Logout(token string) (*http.Cookie, error) {
 
 // 修改 TestHandler_Login 测试函数
 func TestHandler_Login(t *testing.T) {
-	r, mockAuth, _, _, _ := setupTestHandler()
+	r, mockDao := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -102,7 +102,7 @@ func TestHandler_Login(t *testing.T) {
 
 			if username, ok := tt.reqBody["username"].(string); ok {
 				password, _ := tt.reqBody["password"].(string)
-				mockAuth.On("Login", username, password).Return(tt.mockToken, tt.mockCookie, tt.mockErr).Maybe()
+				mockDao.AuthDao.On("Login", username, password).Return(tt.mockToken, tt.mockCookie, tt.mockErr).Maybe()
 			}
 
 			r.ServeHTTP(w, req)
@@ -134,7 +134,7 @@ func TestHandler_Login(t *testing.T) {
 					assert.True(t, found, "未找到预期的 cookie")
 				}
 			}
-			mockAuth.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
 		})
 	}
 }
@@ -328,8 +328,43 @@ func (m *MockUserDao) GetUsersByIDs(ids []uint) ([]model.User, error) {
 	return args.Get(0).([]model.User), args.Error(1)
 }
 
+type MockUserAssetDao struct {
+	mock.Mock
+}
+
+func (m *MockUserAssetDao) CreateUserAsset(userAsset *model.UserAsset) error {
+	args := m.Called(userAsset)
+	return args.Error(0)
+}
+
+func (m *MockUserAssetDao) GetUserAsset(userID uint, assetID string) (*model.UserAsset, error) {
+	args := m.Called(userID, assetID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.UserAsset), args.Error(1)
+}
+
+func (m *MockUserAssetDao) DeleteUserAsset(id uint) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
+func (m *MockUserAssetDao) ListUserAssetsWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.UserAsset, bool, error) {
+	args := m.Called(userID, pageSize, beginID, forward, asc)
+	return args.Get(0).([]model.UserAsset), args.Bool(1), args.Error(2)
+}
+
+type MockDao struct {
+	AuthDao      *MockAuthService
+	FileDao      *MockFileService
+	UserDao      *MockUserDao
+	ScratchDao   *MockScratchDao
+	UserAssetDao *MockUserAssetDao
+}
+
 // 修改 setupTestHandler 函数，添加 MockFileService 并调整返回顺序
-func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockUserDao, *MockScratchDao) {
+func setupTestHandler() (*gin.Engine, *MockDao) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
@@ -337,16 +372,24 @@ func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockU
 	mockFile := new(MockFileService)
 	mockUserDao := new(MockUserDao)
 	mockScratch := new(MockScratchDao)
+	mockUserAsset := new(MockUserAssetDao)
+
 	i18n, err := i18n.NewI18nService("en")
 	if err != nil {
 		panic(err)
 	}
-	cfg := &config.Config{ScratchEditor: config.ScratchEditorConfig{Host: "http://localhost"}}
+	cfg := &config.Config{
+		ScratchEditor: config.ScratchEditorConfig{
+			Host:                 "http://localhost",
+			CreateProjectLimiter: 20,
+		},
+	}
 	mockDao := &dao.Dao{
-		AuthDao:    mockAuth,
-		FileDao:    mockFile, // 正确赋值 FileDao
-		UserDao:    mockUserDao,
-		ScratchDao: mockScratch,
+		AuthDao:      mockAuth,
+		FileDao:      mockFile, // 正确赋值 FileDao
+		UserDao:      mockUserDao,
+		ScratchDao:   mockScratch,
+		UserAssetDao: mockUserAsset,
 	}
 	h := NewHandler(mockDao, i18n, zap.NewNop(), cfg)
 
@@ -370,14 +413,31 @@ func setupTestHandler() (*gin.Engine, *MockAuthService, *MockFileService, *MockU
 		auth.PUT("/scratch/projects/:id", h.PutSaveScratchProject)
 		auth.GET("/scratch/projects", h.ListScratchProjects)
 		auth.DELETE("/scratch/projects/:id", h.DeleteScratchProject)
+
 	}
 
-	return r, mockAuth, mockFile, mockUserDao, mockScratch
+	assets := r.Group("/assets")
+	assets.Use(h.AuthMiddleware())
+	// 添加新的路由用于获取Scratch资源文件
+	{
+		assets.GET("/scratch/:filename", h.GetLibraryAsset)
+		assets.POST("/scratch/:asset_id", h.UploadScratchAsset)
+	}
+
+	d := &MockDao{
+		AuthDao:      mockAuth,
+		FileDao:      mockFile,
+		UserDao:      mockUserDao,
+		ScratchDao:   mockScratch,
+		UserAssetDao: mockUserAsset,
+	}
+
+	return r, d
 }
 
 // 修改现有测试函数，添加 mockScratch 参数
 func TestHandler_Register(t *testing.T) {
-	r, mockAuth, _, _, _ := setupTestHandler() // 使用下划线忽略不需要的返回值
+	r, mockDao := setupTestHandler() // 使用下划线忽略不需要的返回值
 
 	tests := []struct {
 		name       string
@@ -415,19 +475,19 @@ func TestHandler_Register(t *testing.T) {
 			if username, ok := tt.reqBody["username"].(string); ok {
 				password, _ := tt.reqBody["password"].(string)
 				email, _ := tt.reqBody["email"].(string)
-				mockAuth.On("Register", username, password, email).Return(tt.mockReturn).Maybe()
+				mockDao.AuthDao.On("Register", username, password, email).Return(tt.mockReturn).Maybe()
 			}
 
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
-			mockAuth.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
 		})
 	}
 }
 
 func TestHandler_AuthMiddleware(t *testing.T) {
-	r, mockAuth, mockFile, _, _ := setupTestHandler()
+	r, mocdDao := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -449,8 +509,8 @@ func TestHandler_AuthMiddleware(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockAuth.On("ValidateToken", tt.token).Return(tt.mockClaims, tt.mockErr)
-			mockFile.On("ListFiles", tt.mockClaims.UserID, (*uint)(nil)).Return([]model.File{}, nil)
+			mocdDao.AuthDao.On("ValidateToken", tt.token).Return(tt.mockClaims, tt.mockErr)
+			mocdDao.FileDao.On("ListFiles", tt.mockClaims.UserID, (*uint)(nil)).Return([]model.File{}, nil)
 
 			req := httptest.NewRequest("GET", "/api/files", nil)
 			req.Header.Set("Authorization", tt.token)
@@ -459,14 +519,14 @@ func TestHandler_AuthMiddleware(t *testing.T) {
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
-			mockAuth.AssertExpectations(t)
-			mockFile.AssertExpectations(t)
+			mocdDao.AuthDao.AssertExpectations(t)
+			mocdDao.FileDao.AssertExpectations(t)
 		})
 	}
 }
 
 func TestHandler_CreateDirectory(t *testing.T) {
-	r, mockAuth, mockFile, _, _ := setupTestHandler()
+	r, mockDao := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -486,8 +546,8 @@ func TestHandler_CreateDirectory(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
-			mockFile.On("CreateDirectory", uint(1), tt.reqBody["name"].(string), (*uint)(nil)).Return(tt.mockErr)
+			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
+			mockDao.FileDao.On("CreateDirectory", uint(1), tt.reqBody["name"].(string), (*uint)(nil)).Return(tt.mockErr)
 
 			body, _ := json.Marshal(tt.reqBody)
 			req := httptest.NewRequest("POST", "/api/directories", bytes.NewBuffer(body))
@@ -498,14 +558,14 @@ func TestHandler_CreateDirectory(t *testing.T) {
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
-			mockAuth.AssertExpectations(t)
-			mockFile.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
+			mockDao.FileDao.AssertExpectations(t)
 		})
 	}
 }
 
 func TestHandler_UploadFile(t *testing.T) {
-	r, mockAuth, mockFile, _, _ := setupTestHandler()
+	r, mockDao := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -530,8 +590,8 @@ func TestHandler_UploadFile(t *testing.T) {
 			part.Write(content)
 			writer.Close()
 
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
-			mockFile.On("UploadFile", uint(1), tt.fileName, (*uint)(nil), "application/octet-stream", int64(len(content)), mock.Anything).Return(tt.mockErr)
+			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
+			mockDao.FileDao.On("UploadFile", uint(1), tt.fileName, (*uint)(nil), "application/octet-stream", int64(len(content)), mock.Anything).Return(tt.mockErr)
 
 			req := httptest.NewRequest("POST", "/api/files", body)
 			req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -541,14 +601,14 @@ func TestHandler_UploadFile(t *testing.T) {
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
-			mockAuth.AssertExpectations(t)
-			mockFile.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
+			mockDao.FileDao.AssertExpectations(t)
 		})
 	}
 }
 
 func TestHandler_ListFiles(t *testing.T) {
-	r, mockAuth, mockFile, _, _ := setupTestHandler()
+	r, mockDao := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -574,8 +634,8 @@ func TestHandler_ListFiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
-			mockFile.On("ListFiles", uint(1), (*uint)(nil)).Return(tt.files, tt.mockErr)
+			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
+			mockDao.FileDao.On("ListFiles", uint(1), (*uint)(nil)).Return(tt.files, tt.mockErr)
 
 			req := httptest.NewRequest("GET", "/api/files", nil)
 			req.Header.Set("Authorization", "Bearer valid.token.string")
@@ -590,14 +650,14 @@ func TestHandler_ListFiles(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.files, response)
 			}
-			mockAuth.AssertExpectations(t)
-			mockFile.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
+			mockDao.FileDao.AssertExpectations(t)
 		})
 	}
 }
 
 func TestHandler_DownloadFile(t *testing.T) {
-	r, mockAuth, mockFile, _, _ := setupTestHandler()
+	r, mockDao := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -629,14 +689,14 @@ func TestHandler_DownloadFile(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// 设置认证中间件的mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
+			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 
 			// 设置GetFile的mock
 			if tt.fileID != "invalid" {
 				if tt.mockErr == nil {
-					mockFile.On("GetFile", uint(1), uint(1)).Return(tt.mockFile, tt.mockErr)
+					mockDao.FileDao.On("GetFile", uint(1), uint(1)).Return(tt.mockFile, tt.mockErr)
 				} else {
-					mockFile.On("GetFile", uint(1), uint(999)).Return((*model.File)(nil), tt.mockErr)
+					mockDao.FileDao.On("GetFile", uint(1), uint(999)).Return((*model.File)(nil), tt.mockErr)
 				}
 			}
 
@@ -653,14 +713,14 @@ func TestHandler_DownloadFile(t *testing.T) {
 				assert.Equal(t, tt.wantStatus, w.Code)
 				assert.Contains(t, resp["error"].(string), tt.mockErr.Error())
 			}
-			mockAuth.AssertExpectations(t)
-			mockFile.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
+			mockDao.FileDao.AssertExpectations(t)
 		})
 	}
 }
 
 func TestHandler_DeleteFile(t *testing.T) {
-	r, mockAuth, mockFile, _, _ := setupTestHandler()
+	r, mockDao := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -695,18 +755,18 @@ func TestHandler_DeleteFile(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// 设置认证中间件的mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
+			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 
 			// 设置DeleteFile的mock
 			if tt.fileID != "invalid" {
-				mockFile.On("DeleteFile", uint(1), uint(1)).Return(tt.mockErr).Once()
+				mockDao.FileDao.On("DeleteFile", uint(1), uint(1)).Return(tt.mockErr).Once()
 			}
 
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
-			mockAuth.AssertExpectations(t)
-			mockFile.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
+			mockDao.FileDao.AssertExpectations(t)
 		})
 	}
 }

@@ -228,7 +228,7 @@ export default function Page() {
                 className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
               >
                 <IconPlus className="mr-2 h-4 w-4" />
-                {isButtonCooling ? "请稍候..." : "新建项目"}
+                {isButtonCooling ? "请稍候..." : "新建Scratch程序"}
               </Link>
             </Button>
           </div>

@@ -10,12 +10,13 @@ import (
 	"testing"
 
 	"github.com/jun/fun_code/internal/dao"
+	"github.com/jun/fun_code/internal/model"
 	"github.com/stretchr/testify/assert"
 )
 
 // 添加 Scratch 相关测试函数
 func TestHandler_GetScratchProject(t *testing.T) {
-	r, mockAuth, _, _, mockScratch := setupTestHandler()
+	r, mockDao := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -54,13 +55,13 @@ func TestHandler_GetScratchProject(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// 设置认证中间件的mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
+			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 
 			// 设置GetProject的mock
 			if tt.projectID != "invalid" {
 				id, _ := strconv.ParseUint(tt.projectID, 10, 64)
-				mockScratch.On("GetProjectUserID", uint(id)).Return(uint(1), true).Once()
-				mockScratch.On("GetProjectBinary", uint(id)).Return(tt.mockData, tt.mockErr).Once()
+				mockDao.ScratchDao.On("GetProjectUserID", uint(id)).Return(uint(1), true).Once()
+				mockDao.ScratchDao.On("GetProjectBinary", uint(id)).Return(tt.mockData, tt.mockErr).Once()
 			}
 
 			r.ServeHTTP(w, req)
@@ -74,14 +75,14 @@ func TestHandler_GetScratchProject(t *testing.T) {
 				// 检查响应体是否与模拟数据一致
 				assert.Equal(t, string(tt.mockData), w.Body.String())
 			}
-			mockAuth.AssertExpectations(t)
-			mockScratch.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
+			mockDao.ScratchDao.AssertExpectations(t)
 		})
 	}
 }
 
 func TestHandler_SaveScratchProject(t *testing.T) {
-	r, mockAuth, _, _, mockScratch := setupTestHandler()
+	r, mockDao := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -130,27 +131,30 @@ func TestHandler_SaveScratchProject(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// 设置认证中间件的mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
+			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 
 			// 设置SaveProject的mock
 			if tt.projectID != "invalid" {
 				id, _ := strconv.ParseUint(tt.projectID, 10, 64)
 				contentBytes, _ := json.Marshal(tt.reqBody)
-				mockScratch.On("GetProjectUserID", uint(id)).Return(uint(1), true).Once()
-				mockScratch.On("SaveProject", uint(1), uint(id), "Scratch Project", contentBytes).Return(tt.mockID, tt.mockErr).Once()
+				mockDao.ScratchDao.On("GetProject", uint(id)).Return(&model.ScratchProject{
+					ID:     uint(id),
+					UserID: 1,
+				}, nil).Once()
+				mockDao.ScratchDao.On("SaveProject", uint(1), uint(id), "Scratch Project", contentBytes).Return(tt.mockID, tt.mockErr).Once()
 			}
 
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
-			mockAuth.AssertExpectations(t)
-			mockScratch.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
+			mockDao.ScratchDao.AssertExpectations(t)
 		})
 	}
 }
 
 func TestHandler_DeleteScratchProject(t *testing.T) {
-	r, mockAuth, _, _, mockScratch := setupTestHandler()
+	r, mockDao := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -185,26 +189,26 @@ func TestHandler_DeleteScratchProject(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// 设置认证中间件的mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
+			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 
 			// 设置DeleteProject的mock
 			if tt.projectID != "invalid" {
 				id, _ := strconv.ParseUint(tt.projectID, 10, 64)
-				mockScratch.On("GetProjectUserID", uint(id)).Return(uint(1), true).Once()
-				mockScratch.On("DeleteProject", uint(1), uint(id)).Return(tt.mockErr).Once()
+				mockDao.ScratchDao.On("GetProjectUserID", uint(id)).Return(uint(1), true).Once()
+				mockDao.ScratchDao.On("DeleteProject", uint(1), uint(id)).Return(tt.mockErr).Once()
 			}
 
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
-			mockAuth.AssertExpectations(t)
-			mockScratch.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
+			mockDao.ScratchDao.AssertExpectations(t)
 		})
 	}
 }
 
 func TestHandler_CreateScratchProject(t *testing.T) {
-	r, mockAuth, _, _, mockScratch := setupTestHandler()
+	r, mockDao := setupTestHandler()
 
 	tests := []struct {
 		name       string
@@ -253,19 +257,19 @@ func TestHandler_CreateScratchProject(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			// 设置认证中间件的mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
+			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
 
 			// 只有当setupMock为true时才设置SaveProject的mock
 			if tt.setupMock {
 				contentBytes, _ := json.Marshal(tt.reqBody)
-				mockScratch.On("SaveProject", uint(1), uint(0), "Scratch Project", contentBytes).Return(tt.mockID, tt.mockErr).Once()
+				mockDao.ScratchDao.On("SaveProject", uint(1), uint(0), "Scratch Project", contentBytes).Return(tt.mockID, tt.mockErr).Once()
 			}
 
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
-			mockAuth.AssertExpectations(t)
-			mockScratch.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
+			mockDao.ScratchDao.AssertExpectations(t)
 		})
 	}
 }

@@ -48,7 +48,7 @@ func TestHandler_ScratchProjectPermission(t *testing.T) {
 			currentUserID: 1,
 			isAdmin:       false,
 			wantStatus:    http.StatusUnauthorized,
-			errorMessage:  "无权限访问",
+			errorMessage:  "1200002",
 		},
 		{
 			name:          "项目不存在",
@@ -57,21 +57,21 @@ func TestHandler_ScratchProjectPermission(t *testing.T) {
 			currentUserID: 1,
 			isAdmin:       false,
 			wantStatus:    http.StatusInternalServerError,
-			errorMessage:  "获取项目失败",
+			errorMessage:  "1200002",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, mockAuth, _, mockUserDao, mockScratch := setupTestHandler()
+			r, mockDao := setupTestHandler()
 
 			// 设置认证中间件的 mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: tt.currentUserID}, nil).Once()
-			mockAuth.On("HasPermission", "admin").Return(tt.isAdmin).Maybe()
+			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: tt.currentUserID}, nil).Once()
+			mockDao.AuthDao.On("HasPermission", "admin").Return(tt.isAdmin).Maybe()
 
 			// 设置用户 mock
 			if tt.projectID != "999" {
-				mockUserDao.On("GetUserByID", tt.currentUserID).Return(&model.User{
+				mockDao.UserDao.On("GetUserByID", tt.currentUserID).Return(&model.User{
 					ID:   tt.currentUserID,
 					Role: map[bool]string{true: "admin", false: "user"}[tt.isAdmin],
 				}, nil).Maybe()
@@ -80,15 +80,15 @@ func TestHandler_ScratchProjectPermission(t *testing.T) {
 
 			// 设置项目 mock
 			if tt.projectID != "999" {
-				mockScratch.On("GetProjectUserID", uint(projectID)).Return(uint(tt.projectUserID), true).Maybe()
-				mockScratch.On("GetProject", uint(projectID)).Return(&model.ScratchProject{
+				mockDao.ScratchDao.On("GetProjectUserID", uint(projectID)).Return(uint(tt.projectUserID), true).Maybe()
+				mockDao.ScratchDao.On("GetProject", uint(projectID)).Return(&model.ScratchProject{
 					ID:     uint(projectID),
 					UserID: tt.projectUserID,
 				}, nil).Maybe()
-				mockScratch.On("GetProjectBinary", uint(projectID)).Return([]byte("{}"), nil).Maybe()
+				mockDao.ScratchDao.On("GetProjectBinary", uint(projectID)).Return([]byte("{}"), nil).Maybe()
 			} else {
-				mockScratch.On("GetProjectUserID", uint(projectID)).Return(uint(0), false).Maybe()
-				mockScratch.On("GetProject", uint(999)).Return(nil, errors.New("项目不存在")).Maybe()
+				mockDao.ScratchDao.On("GetProjectUserID", uint(projectID)).Return(uint(0), false).Maybe()
+				mockDao.ScratchDao.On("GetProject", uint(999)).Return(nil, errors.New("项目不存在")).Maybe()
 			}
 
 			req := httptest.NewRequest("GET", "/api/scratch/projects/"+tt.projectID, nil)
@@ -103,9 +103,9 @@ func TestHandler_ScratchProjectPermission(t *testing.T) {
 				json.Unmarshal(w.Body.Bytes(), &resp)
 				assert.Contains(t, resp["error"].(string), tt.errorMessage)
 			}
-			mockAuth.AssertExpectations(t)
-			mockUserDao.AssertExpectations(t)
-			mockScratch.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
+			mockDao.UserDao.AssertExpectations(t)
+			mockDao.ScratchDao.AssertExpectations(t)
 		})
 	}
 }
@@ -144,7 +144,7 @@ func TestHandler_ScratchProjectSavePermission(t *testing.T) {
 			currentUserID: 1,
 			isAdmin:       false,
 			wantStatus:    http.StatusUnauthorized,
-			errorMessage:  "无权限访问",
+			errorMessage:  "1200003",
 		},
 		{
 			name:          "项目不存在",
@@ -153,31 +153,35 @@ func TestHandler_ScratchProjectSavePermission(t *testing.T) {
 			currentUserID: 1,
 			isAdmin:       false,
 			wantStatus:    http.StatusInternalServerError,
-			errorMessage:  "获取项目失败",
+			errorMessage:  "1200002",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, mockAuth, _, mockUserDao, mockScratch := setupTestHandler()
+			r, mockDao := setupTestHandler()
 
 			// 设置认证中间件的 mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: tt.currentUserID}, nil)
-			mockAuth.On("HasPermission", "admin").Return(tt.isAdmin).Maybe()
+			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: tt.currentUserID}, nil)
+			mockDao.AuthDao.On("HasPermission", "admin").Return(tt.isAdmin).Maybe()
 
 			// 设置用户 mock
-			mockUserDao.On("GetUserByID", tt.currentUserID).Return(&model.User{
+			mockDao.UserDao.On("GetUserByID", tt.currentUserID).Return(&model.User{
 				ID:   tt.currentUserID,
 				Role: map[bool]string{true: "admin", false: "user"}[tt.isAdmin],
 			}, nil).Maybe()
 
 			id, _ := strconv.ParseUint(tt.projectID, 10, 64)
 			if tt.projectID != "999" {
-				mockScratch.On("GetProjectUserID", uint(id)).Return(tt.projectUserID, true)
-				mockScratch.On("SaveProject", tt.projectUserID, uint(id), "Scratch Project", []byte(`{"test":"data"}`)).Return(uint(id), nil).Maybe()
+				mockDao.ScratchDao.On("GetProject", uint(id)).Return(&model.ScratchProject{
+					ID:     uint(id),
+					UserID: tt.projectUserID,
+				}, nil).Maybe()
+				mockDao.ScratchDao.On("SaveProject", tt.projectUserID, uint(id), "Scratch Project", []byte(`{"test":"data"}`)).Return(uint(id), nil).Maybe()
 			} else {
-				mockScratch.On("GetProjectUserID", uint(id)).Return(uint(0), false)
-				mockScratch.On("SaveProject", tt.projectUserID, uint(id), "Scratch Project", []byte(`{"test":"data"}`)).Return(uint(0), errors.New("项目不存在")).Maybe()
+				mockDao.ScratchDao.On("GetProject", uint(id)).Return(nil, errors.New("获取项目失败")).Maybe()
+				mockDao.ScratchDao.On("GetProjectUserID", uint(id)).Return(uint(0), false).Maybe()
+				mockDao.ScratchDao.On("SaveProject", tt.projectUserID, uint(id), "Scratch Project", []byte(`{"test":"data"}`)).Return(uint(0), errors.New("项目不存在")).Maybe()
 			}
 
 			body := bytes.NewBuffer([]byte(`{"test":"data"}`))
@@ -194,9 +198,9 @@ func TestHandler_ScratchProjectSavePermission(t *testing.T) {
 				json.Unmarshal(w.Body.Bytes(), &resp)
 				assert.Contains(t, resp["error"].(string), tt.errorMessage)
 			}
-			mockAuth.AssertExpectations(t)
-			mockUserDao.AssertExpectations(t)
-			mockScratch.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
+			mockDao.UserDao.AssertExpectations(t)
+			mockDao.ScratchDao.AssertExpectations(t)
 		})
 	}
 }
@@ -241,22 +245,22 @@ func TestHandler_ScratchProjectDeletePermission(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, mockAuth, _, mockUserDao, mockScratch := setupTestHandler()
+			r, mockDao := setupTestHandler()
 
 			// 设置认证中间件的 mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: tt.currentUserID}, nil)
-			mockAuth.On("HasPermission", "admin").Return(tt.isAdmin).Maybe()
+			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: tt.currentUserID}, nil)
+			mockDao.AuthDao.On("HasPermission", "admin").Return(tt.isAdmin).Maybe()
 
 			// 设置用户 mock
-			mockUserDao.On("GetUserByID", tt.currentUserID).Return(&model.User{
+			mockDao.UserDao.On("GetUserByID", tt.currentUserID).Return(&model.User{
 				ID:   tt.currentUserID,
 				Role: map[bool]string{true: "admin", false: "user"}[tt.isAdmin],
 			}, nil).Maybe()
 
 			// 设置项目 mock
 			id, _ := strconv.ParseUint(tt.projectID, 10, 64)
-			mockScratch.On("GetProjectUserID", uint(id)).Return(tt.projectUserID, true)
-			mockScratch.On("DeleteProject", tt.projectUserID, uint(id)).Return(nil).Maybe()
+			mockDao.ScratchDao.On("GetProjectUserID", uint(id)).Return(tt.projectUserID, true)
+			mockDao.ScratchDao.On("DeleteProject", tt.projectUserID, uint(id)).Return(nil).Maybe()
 
 			req := httptest.NewRequest("DELETE", "/api/scratch/projects/"+tt.projectID, nil)
 			req.Header.Set("Authorization", "valid.token.string")
@@ -270,9 +274,9 @@ func TestHandler_ScratchProjectDeletePermission(t *testing.T) {
 				json.Unmarshal(w.Body.Bytes(), &resp)
 				assert.Contains(t, resp["error"].(string), tt.errorMessage)
 			}
-			mockAuth.AssertExpectations(t)
-			mockUserDao.AssertExpectations(t)
-			mockScratch.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
+			mockDao.UserDao.AssertExpectations(t)
+			mockDao.ScratchDao.AssertExpectations(t)
 		})
 	}
 }
@@ -311,32 +315,32 @@ func TestHandler_ProjectPermission(t *testing.T) {
 			currentUserID: 1,
 			isAdmin:       false,
 			wantStatus:    http.StatusUnauthorized,
-			errorMessage:  "无权限访问",
+			errorMessage:  "1200002",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, mockAuth, _, mockUserDao, mockScratch := setupTestHandler()
+			r, mockDao := setupTestHandler()
 
 			// 设置认证中间件的 mock
-			mockAuth.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: tt.currentUserID}, nil).Once()
-			mockAuth.On("HasPermission", "admin").Return(tt.isAdmin).Maybe()
+			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: tt.currentUserID}, nil).Once()
+			mockDao.AuthDao.On("HasPermission", "admin").Return(tt.isAdmin).Maybe()
 
 			// 设置用户 mock
-			mockUserDao.On("GetUserByID", tt.currentUserID).Return(&model.User{
+			mockDao.UserDao.On("GetUserByID", tt.currentUserID).Return(&model.User{
 				ID:   tt.currentUserID,
 				Role: map[bool]string{true: "admin", false: "user"}[tt.isAdmin],
 			}, nil).Maybe()
 
 			// 设置项目 mock
 			id, _ := strconv.ParseUint(tt.projectID, 10, 64)
-			mockScratch.On("GetProjectUserID", uint(id)).Return(tt.projectUserID, true).Once()
-			mockScratch.On("GetProject", uint(id)).Return(&model.ScratchProject{
+			mockDao.ScratchDao.On("GetProjectUserID", uint(id)).Return(tt.projectUserID, true).Once()
+			mockDao.ScratchDao.On("GetProject", uint(id)).Return(&model.ScratchProject{
 				ID:     uint(id),
 				UserID: tt.projectUserID,
 			}, nil).Maybe()
-			mockScratch.On("GetProjectBinary", uint(id)).Return([]byte("{}"), nil).Maybe()
+			mockDao.ScratchDao.On("GetProjectBinary", uint(id)).Return([]byte("{}"), nil).Maybe()
 
 			req := httptest.NewRequest("GET", "/api/scratch/projects/"+tt.projectID, nil)
 			req.Header.Set("Authorization", "valid.token.string")
@@ -350,9 +354,9 @@ func TestHandler_ProjectPermission(t *testing.T) {
 				json.Unmarshal(w.Body.Bytes(), &resp)
 				assert.Contains(t, resp["error"].(string), tt.errorMessage)
 			}
-			mockAuth.AssertExpectations(t)
-			mockUserDao.AssertExpectations(t)
-			mockScratch.AssertExpectations(t)
+			mockDao.AuthDao.AssertExpectations(t)
+			mockDao.UserDao.AssertExpectations(t)
+			mockDao.ScratchDao.AssertExpectations(t)
 		})
 	}
 }
