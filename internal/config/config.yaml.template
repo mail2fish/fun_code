@@ -4,7 +4,12 @@
 env: "{{ .Env }}"
 # 管理员用户默认密码
 admin_password: {{ .AdminPassword }}
-protected_users: [1]
+# 保护帐号，项目
+protected:
+  # 不允许删除
+  users: [1]
+  # 不允许删除，修改
+  projects: []
 # 数据库配置
 database:
   # 数据库驱动类型,目前支持 sqlite
