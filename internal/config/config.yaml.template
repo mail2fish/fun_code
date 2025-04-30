@@ -2,7 +2,7 @@
 # - development: 开发环境,输出详细日志,方便调试
 # - production: 生产环境,仅输出重要日志,提升性能
 env: "{{ .Env }}"
-# 管理员用户默认密码
+# 管理员初始密码（仅在首次生成配置文件时有效，后台修改后会覆盖此值）
 admin_password: {{ .AdminPassword }}
 # 保护帐号，项目
 protected:

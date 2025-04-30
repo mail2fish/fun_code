@@ -129,9 +129,9 @@ func NewConfig(baseDir string) *Config {
 	password := uuid.New().String()[:8]
 
 	return &Config{
-		// Env:           "production",
+		Env: "production",
 		// Env:           "development",
-		Env:           "demo",
+		// Env:           "demo",
 		AdminPassword: password,
 		Protected: Protected{
 			Users: []uint{1},
@@ -168,7 +168,7 @@ func initDir(path string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("init dir: %s\n", filepath.Join(currentDir, dir))
+	fmt.Printf("Initializing directory: %s\n", filepath.Join(currentDir, dir))
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return err
@@ -216,8 +216,12 @@ func (c *Config) Save(path string) error {
 		}
 	}
 
+	// Print the config file path and notify the user in English
+	fmt.Printf("Config file created at: %s\n", path)
+
 	// 输出默认 admin 密码
-	fmt.Printf("admin password: %s\n", c.AdminPassword)
+	// Print default admin password and indicate where to find it
+	fmt.Printf("Default admin password: %s (You can also find it in config.yaml file)\n", c.AdminPassword)
 
 	return nil
 }

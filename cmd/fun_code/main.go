@@ -48,8 +48,6 @@ var serveCmd = &cobra.Command{
 					fmt.Printf("Failed to create default config file: %v\n", err)
 					os.Exit(1)
 				}
-				// Print the config file path and notify the user in English
-				fmt.Printf("Config file created at: %s\n", defaultConfigPath)
 				configPath = defaultConfigPath
 			}
 		}

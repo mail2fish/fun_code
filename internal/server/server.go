@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -138,6 +139,34 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 }
 
 func (s *Server) Start() error {
-	fmt.Printf("Server starting on %s\n", s.config.Server.Port)
+	host, err := getLocalIP()
+	if err != nil {
+		host = "localhost"
+	}
+	fmt.Printf("Service is running and accessible at:\n- Local access: http://localhost%s\n- Network access: http://%s%s\n", s.config.Server.Port, host, s.config.Server.Port)
+
 	return s.router.Run(s.config.Server.Port)
+}
+
+// 获取当前 IP
+func getLocalIP() (string, error) {
+	// 获取所有网络接口
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "localhost", err
+	}
+
+	// 遍历所有地址
+	for _, addr := range addrs {
+		// 检查是否为 IP 网络地址
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			// 检查是否为 IPv4 地址
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String(), nil
+			}
+		}
+	}
+
+	// 如果没有找到合适的 IP 地址，返回 localhost
+	return "localhost", nil
 }
