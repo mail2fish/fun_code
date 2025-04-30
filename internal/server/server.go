@@ -150,23 +150,20 @@ func (s *Server) Start() error {
 
 // 获取当前 IP
 func getLocalIP() (string, error) {
-	// 获取所有网络接口
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return "localhost", err
 	}
 
-	// 遍历所有地址
 	for _, addr := range addrs {
-		// 检查是否为 IP 网络地址
 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			// 检查是否为 IPv4 地址
-			if ipnet.IP.To4() != nil {
-				return ipnet.IP.String(), nil
+			if ipv4 := ipnet.IP.To4(); ipv4 != nil {
+				// 跳过169.254.x.x的APIPA地址
+				if !ipv4.IsLinkLocalUnicast() {
+					return ipv4.String(), nil
+				}
 			}
 		}
 	}
-
-	// 如果没有找到合适的 IP 地址，返回 localhost
 	return "localhost", nil
 }
