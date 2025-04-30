@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"testing"
 
 	"github.com/jun/fun_code/internal/dao"
@@ -88,8 +89,10 @@ func TestHandler_UploadScratchAsset(t *testing.T) {
 			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: tt.userID}, nil).Maybe()
 
 			// 只有当用户已授权且不是不安全的assetID时才设置mock
-			if tt.userID != 0 && tt.wantStatus != http.StatusBadRequest {
-				mockDao.ScratchDao.On("GetScratchBasePath").Return("/tmp/scratch").Maybe()
+			if tt.userID != 0 && tt.wantStatus != http.StatusNotFound {
+				// 使用 filepath.Join 来确保路径格式正确
+				basePath := filepath.Join("tmp", "scratch")
+				mockDao.ScratchDao.On("GetScratchBasePath").Return(basePath).Maybe()
 				if tt.expectedAsset != nil {
 					mockDao.UserAssetDao.On("CreateUserAsset", tt.expectedAsset).Return(tt.mockErr).Once()
 				}
@@ -108,7 +111,7 @@ func TestHandler_UploadScratchAsset(t *testing.T) {
 			}
 
 			mockDao.AuthDao.AssertExpectations(t)
-			if tt.userID != 0 && tt.wantStatus != http.StatusBadRequest {
+			if tt.userID != 0 && tt.wantStatus != http.StatusNotFound {
 				mockDao.ScratchDao.AssertExpectations(t)
 				if tt.expectedAsset != nil {
 					mockDao.UserAssetDao.AssertExpectations(t)

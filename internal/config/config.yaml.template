@@ -14,13 +14,13 @@ protected:
 database:
   # 数据库驱动类型,目前支持 sqlite
   driver: "sqlite"
-  # 数据库连接字符串
-  dsn: "{{ .Database.DSN }}"
+  # 数据库连接字符串 (建议使用单引号，以避免 Windows 路径中的反斜杠被错误转义)
+  dsn: '{{ .Database.DSN }}'
 
 # 文件存储配置  
 storage:
-  # 文件存储根目录路径
-  basePath: "{{ .Storage.BasePath }}"
+  # 文件存储根目录路径 (建议使用单引号，以避免 Windows 路径中的反斜杠被错误转义)
+  basePath: '{{ .Storage.BasePath }}'
 
 # JWT认证配置
 jwt:
@@ -34,8 +34,8 @@ server:
 
 # Scratch编辑器配置
 scratch_editor:
-  # 编辑器访问地址
-  host: "{{ .ScratchEditor.Host }}"
+  # 编辑器访问地址 (建议使用单引号，以避免 Windows 路径中的反斜杠被错误转义)
+  host: '{{ .ScratchEditor.Host }}'
   protected_projects: []
   create_project_limiter: 3
 
@@ -48,7 +48,7 @@ i18n:
 logger:
   # info, debug, warn, error
   level: {{ .Logger.Level }}
-  # 日志输出目录
-  directory: "{{ .Logger.Directory }}"
+  # 日志输出目录 (建议使用单引号，以避免 Windows 路径中的反斜杠被错误转义)
+  directory: '{{ .Logger.Directory }}'
   # "stdout" 表示输出到控制台，其他值将被视为日志文件名
-  output: {{ .Logger.Output }}
+  output: '{{ .Logger.Output }}'
