@@ -75,9 +75,9 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 	if filePath == "" { // 如果 TrimPrefix 后为空，说明是根目录，映射到 index.html
 		filePath = "index.html"
 	}
-	// 清理路径，防止路径遍历攻击
-	filePath = filepath.Clean(filePath)
-	if strings.HasPrefix(filePath, "..") {
+	// 清理路径，防止路径遍历攻击，并确保使用 '/' 作为分隔符
+	filePath = filepath.ToSlash(filepath.Clean(filePath))
+	if strings.HasPrefix(filePath, "..") { // Clean 之后仍然需要检查 ".."
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}

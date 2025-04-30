@@ -34,7 +34,7 @@ server:
 
 # Scratch编辑器配置
 scratch_editor:
-  # 编辑器访问地址 (建议使用单引号，以避免 Windows 路径中的反斜杠被错误转义)
+  # 默认不需要填写，编辑器访问地址 (建议使用单引号，以避免 Windows 路径中的反斜杠被错误转义)
   host: '{{ .ScratchEditor.Host }}'
   protected_projects: []
   create_project_limiter: 3

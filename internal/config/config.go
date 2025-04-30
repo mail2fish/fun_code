@@ -94,7 +94,7 @@ func NewConfig(baseDir string) *Config {
 
 	// 从 8080 开始，依次尝试 TCP 端口号是否可用
 	port := 8080
-	var listenAddr string
+	// var listenAddr string
 	for ; port <= 8089; port++ {
 		addr := fmt.Sprintf(":%d", port)
 		listener, err := net.Listen("tcp", addr)
@@ -102,19 +102,19 @@ func NewConfig(baseDir string) *Config {
 			continue
 		}
 		// 获取监听的 IP 地址
-		host := "localhost"
-		if addrs, err := net.InterfaceAddrs(); err == nil {
-			for _, addr := range addrs {
-				// 检查IP地址
-				if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-					if ipnet.IP.To4() != nil {
-						host = ipnet.IP.String()
-						break
-					}
-				}
-			}
-		}
-		listenAddr = host
+		// host := "localhost"
+		// if addrs, err := net.InterfaceAddrs(); err == nil {
+		// 	for _, addr := range addrs {
+		// 		// 检查IP地址
+		// 		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+		// 			if ipnet.IP.To4() != nil {
+		// 				host = ipnet.IP.String()
+		// 				break
+		// 			}
+		// 		}
+		// 	}
+		// }
+		// listenAddr = host
 		// 关闭监听
 		listener.Close()
 
@@ -124,7 +124,8 @@ func NewConfig(baseDir string) *Config {
 	// 生成随机密钥
 	secretKey := uuid.New().String()
 	listenPort := fmt.Sprintf(":%d", port)
-	host := fmt.Sprintf("http://%s:%d", listenAddr, port)
+	// host := fmt.Sprintf("http://%s:%d", listenAddr, port)
+
 	password := uuid.New().String()[:8]
 
 	return &Config{
@@ -149,7 +150,7 @@ func NewConfig(baseDir string) *Config {
 			Port: listenPort,
 		},
 		ScratchEditor: ScratchEditorConfig{
-			Host:                 host,
+			// Host:                 host,
 			CreateProjectLimiter: 3,
 		},
 		Logger: LoggerConfig{
