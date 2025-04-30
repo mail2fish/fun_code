@@ -43,3 +43,12 @@ scratch_editor:
 i18n:
   # 默认语言,目前支持zh-CN(简体中文)
   default_lang: "zh-CN"
+
+# 日志配置
+logger:
+  # info, debug, warn, error
+  level: {{ .Logger.Level }}
+  # 日志输出目录
+  directory: "{{ .Logger.Directory }}"
+  # "stdout" 表示输出到控制台，其他值将被视为日志文件名
+  output: {{ .Logger.Output }}

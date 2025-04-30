@@ -9,6 +9,7 @@ import (
 	"github.com/jun/fun_code/internal/server"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var rootCmd = &cobra.Command{
@@ -62,30 +63,52 @@ var serveCmd = &cobra.Command{
 
 		// 初始化 zap logger, 用于日志记录,根据 cfg 区分不同环境
 		var logger *zap.Logger
-		if cfg.Env == "production" {
-			logger, err = zap.NewProduction()
-			if err != nil {
-				fmt.Println("Failed to initialize production logger:", err)
-				os.Exit(1)
-			}
-		} else {
-			logger, err = zap.NewDevelopment()
-			if err != nil {
-				fmt.Println("Failed to initialize development logger:", err)
-				os.Exit(1)
-			}
+		var logLevel zapcore.Level
+		switch cfg.Logger.Level { // 假设 cfg.LogLevel 是字符串，比如 "info", "debug", "warn"
+		case "debug":
+			logLevel = zapcore.DebugLevel
+		case "warn":
+			logLevel = zapcore.WarnLevel
+		case "error":
+			logLevel = zapcore.ErrorLevel
+		default:
+			logLevel = zapcore.InfoLevel
 		}
+
+		var writeSyncer zapcore.WriteSyncer
+		if cfg.Logger.Output == "stdout" {
+			writeSyncer = zapcore.AddSync(os.Stdout)
+		} else {
+			logFile := filepath.Join(cfg.Logger.Directory, cfg.Logger.Output)
+			fileWriter, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				fmt.Println("无法打开日志文件:", err)
+				os.Exit(1)
+			}
+			writeSyncer = zapcore.AddSync(fileWriter)
+		}
+
+		encoderConfig := zap.NewProductionEncoderConfig()
+		core := zapcore.NewCore(
+			zapcore.NewJSONEncoder(encoderConfig),
+			writeSyncer,
+			logLevel,
+		)
+		logger = zap.New(core)
+		defer logger.Sync()
 
 		// 初始化服务器
 		srv, err := server.NewServer(cfg, logger)
 		if err != nil {
 			fmt.Println("Failed to initialize server:", err)
+			logger.Sync()
 			os.Exit(1)
 		}
 
 		// 启动服务
 		if err := srv.Start(); err != nil {
 			fmt.Printf("服务器启动失败: %v\n", err)
+			logger.Sync()
 			os.Exit(1)
 		}
 	},

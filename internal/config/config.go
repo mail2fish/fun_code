@@ -52,6 +52,12 @@ type Protected struct {
 	Projects []uint `yaml:"projects"`
 }
 
+type LoggerConfig struct {
+	Level     string `yaml:"level"`
+	Directory string `yaml:"directory"` // 日志文件存储目录
+	Output    string `yaml:"output"`    // 日志输出方式，可选值为 "stdout" 和 "file"
+}
+
 // Config 应用配置
 type Config struct {
 	Env           string              `yaml:"env"`
@@ -63,6 +69,7 @@ type Config struct {
 	Server        ServerConfig        `yaml:"server"`
 	ScratchEditor ScratchEditorConfig `yaml:"scratch_editor"`
 	I18n          I18nConfig          `yaml:"i18n"`
+	Logger        LoggerConfig        `yaml:"logger"` // 新增 Logger 配置
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -117,7 +124,6 @@ func NewConfig(baseDir string) *Config {
 	// 生成随机密钥
 	secretKey := uuid.New().String()
 	listenPort := fmt.Sprintf(":%d", port)
-	dsn := filepath.Join(baseDir, "sqlite", "fun_code.db")
 	host := fmt.Sprintf("http://%s:%d", listenAddr, port)
 	password := uuid.New().String()[:8]
 
@@ -131,7 +137,7 @@ func NewConfig(baseDir string) *Config {
 		},
 		Database: DatabaseConfig{
 			Driver: "sqlite",
-			DSN:    dsn,
+			DSN:    filepath.Join(baseDir, "sqlite", "fun_code.db"),
 		},
 		Storage: StorageConfig{
 			BasePath: filepath.Join(baseDir, "data", "upload_files"),
@@ -145,6 +151,11 @@ func NewConfig(baseDir string) *Config {
 		ScratchEditor: ScratchEditorConfig{
 			Host:                 host,
 			CreateProjectLimiter: 3,
+		},
+		Logger: LoggerConfig{
+			Level:     "error",
+			Directory: filepath.Join(baseDir, "logs"),
+			Output:    "stdout",
 		},
 	}
 }
@@ -177,6 +188,10 @@ func (c *Config) Save(path string) error {
 	}
 	// 初始化 data 文件夹
 	if err := initDir(c.Storage.BasePath); err != nil {
+		return err
+	}
+	// 初始化 logs 文件夹
+	if err := initDir(c.Logger.Directory); err != nil {
 		return err
 	}
 
