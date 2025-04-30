@@ -120,7 +120,10 @@ func init() {
 	rootCmd.Run = serveCmd.Run // 设置 serveCmd 为默认命令
 }
 
+var GitCommit string
+
 func main() {
+	fmt.Printf("Git Commit: %s\n", GitCommit)
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
