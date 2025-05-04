@@ -1,3 +1,25 @@
+# v0.0.2
+A bug fix release.
+## Bug Fixes
+
+Fixed the issue where updating and saving Scratch projects was not possible.
+
+## Scratch bundle.js Cache Optimization
+
+Changed the cache duration to one year.
+
+# v0.0.2
+一个修复类版本。
+## Bug 修复
+
+修复无法保存更新Scratch项目的问题。
+
+## Scratch bundle.js 缓存优化
+
+把缓存时间改成了一年。
+
+--- 
+
 # v0.0.1
 The first version of fun_code supports the following features:
 
