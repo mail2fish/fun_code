@@ -32,17 +32,17 @@ deps:
 # 安装前端依赖
 .PHONY: frontend-deps
 frontend-deps:
-	cd $(FRONTEND_DIR) && $(NPM) install
-	cd $(SCRATCH_DIR) && $(NPM) install
 
 # 构建前端项目
 .PHONY: build-frontend
-build-frontend: frontend-deps
+build-frontend: 
+	cd $(FRONTEND_DIR) && $(NPM) install
 	cd $(FRONTEND_DIR) && $(NPM) run build
 
 # 构建 Scratch 项目
 .PHONY: build-scratch
-build-scratch: frontend-deps
+build-scratch: 
+	cd $(SCRATCH_DIR) && $(NPM) install
 	cd $(SCRATCH_DIR) && BUILD_MODE=dist $(NPM) run build
 
 # 构建指定平台的 Go 项目
@@ -57,7 +57,7 @@ build-go-%: deps
 	$(eval EXT = $(if $(filter windows,$(GOOS)),$(WINDOWS_EXT),))
 	$(eval CGO_FLAG = 1) # 
 	mkdir -p $(BUILD_DIR)/$(GOOS)-$(GOARCH); \
-	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_FLAG) $(GO) build -ldflags "-X 'main.GitCommit=$(GIT_COMMIT)'" -o $(BUILD_DIR)/$(GOOS)-$(GOARCH)/$(BINARY_NAME)$(EXT) ./cmd/fun_code
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_FLAG) $(GO) build -ldflags "-X 'main.GitCommit=$(GIT_COMMIT)'" -o $(BUILD_DIR)/$(GOOS)-$(GOARCH)/$(BINARY_NAME)_$(GOOS)_$(GOARCH)$(EXT) ./cmd/fun_code	
 
 # 构建所有平台的 Go 项目
 .PHONY: build-go-all
