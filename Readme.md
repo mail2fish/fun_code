@@ -12,7 +12,7 @@ FunCode 是一个少儿图形化编程Scratch的自托管服务程序（Self-Hos
 
 ### 下载
 
-下载地址：下载地址：URL_ADDRESS.com/mail2fish/fun_code/releases
+下载地址：https://github.com/mail2fish/fun_code/releases
 
 ### 运行
 
