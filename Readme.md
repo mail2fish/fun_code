@@ -1,6 +1,6 @@
 # FunCode
 
-## 1. 简介
+## 简介
 
 FunCode 是一个少儿图形化编程Scratch的自托管服务程序（Self-Hosted Service）。它构建后只有一个可执行程序文件，但集成了学员管理系统、Scratch图形化编程系统以及服务端存储。用户下载后，无论使用的是Windows、Mac还是Linux操作系统，只需简单运行该程序，即可拥有一个部署在本地的Web服务。学员可以通过浏览器访问Scratch图形化编程系统，编辑后程序文件直接保存在服务端。它无需专门的服务器，可以选择把它部署到互联网上，也可以只在局域网内运行，所以特别适合小型的少儿编程培训机构。
  
@@ -8,15 +8,78 @@ FunCode 是一个少儿图形化编程Scratch的自托管服务程序（Self-Hos
 
 目前有QQ群：749870231，欢迎加入一起讨论。
 
-## 2. 构建指南
+## 安装运行指南
 
-### 2.1 前置依赖
+### 下载
+
+下载地址：下载地址：URL_ADDRESS.com/mail2fish/fun_code/releases
+
+### 运行
+
+程序运行后会自动创建一个 funcode_server 目录，用于存储服务配置信息和学员的程序文件。
+
+建议将 funcode 程序放置在一个独立的目录下，便于统一管理相关文件。
+
+#### 在 Windows 下运行
+
+#### 在 Mac 或 Linux 下运行
+
+打开终端，进入 funcode 程序所在目录后，执行以下命令：
+
+<span style="color:red">注意：请根据实际下载的程序名称，将命令中的 ./funcode_darwin_arm64 替换为对应的文件名。</span>
+
+
+```
+chmod +x ./funcode_darwin_arm64
+./funcode_darwin_arm64
+```
+
+程序正常运行后，界面如下图所示：
+
+![在 Mac 下运行效果](doc/images/run_in_mac.png)
+
+首次运行时会自动创建一个管理员账号，用户名为 admin，密码会在终端中提示一次。之后可在 funcode_server/config/config.yaml 文件中查看默认密码。若在管理后台修改过密码，则该默认密码将失效。
+
+### 访问服务
+
+打开浏览器，访问终端中提示的地址，即可访问服务。
+
+![在浏览器中访问服务](doc/images/login.png)
+
+### 系统界面
+
+登录后，会进入管理后台，在管理后台中可以管理学员、项目、班级等信息。
+
+![在浏览器中访问服务](doc/images/admin.png)
+
+### 访问 Scratch 图形化编程系统
+
+点击界面中的新建Scratch程序按钮，即可进入 Scratch 图形化编程系统。
+
+![在浏览器中访问服务](doc/images/scratch.png)
+
+### 创建用户界面
+
+在管理后台中，点击创建用户按钮，即可打开新建用户界面。
+
+![在浏览器中访问服务](doc/images/create_user.png)
+
+## 构建指南
+
+### 前置依赖
 - Go 1.24+
 - NodeJs 23.9.0+
 
-### 2.2 构建指令
+### 构建指令
+
+获取帮助信息
+
 ```
-可用命令:
+make help
+```
+
+make 可用命令:
+```
   all              - 构建所有平台的项目
   clean            - 清理构建文件
   deps             - 安装 Go 依赖
@@ -43,13 +106,13 @@ FunCode 是一个少儿图形化编程Scratch的自托管服务程序（Self-Hos
 ```
 生成的可执行文件在 build 目录下
 
-## 2. 开发指南
+## 开发指南
 
 项目分为两个部分，一个是服务端，另一个是网页的客户端。
 
 构建服务端之前必须先构建客户端，否则即使服务端构建成功，也会因为缺少前端界面，而无法使用。
 
-### 2.1 客户端
+### 客户端
 
 客户端代码主要在 web 目录下, 包含两个部分 scratch 和 react-router-www。
 
@@ -189,13 +252,4 @@ sudo netfilter-persistent save
 
 ## 跨平台编译
 
-使用 sqlite 需要安装 cgo，所以需要安装交叉编译工具链。
-
-### Mac
-
-```
-# 安装交叉编译工具链
-brew install mingw-w64
-# 安装 cgo
-brew install filosottile/musl-cross/musl-cross
-```
+使用 sqlite 需要安装 cgo。

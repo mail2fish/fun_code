@@ -1,12 +1,12 @@
-# v0.0.2
-A bug fix release.
-## Bug Fixes
+  # v0.0.2
+  A bug fix release.
+  ## Bug Fixes
 
-Fixed the issue where updating and saving Scratch projects was not possible.
+  Fixed the issue where updating and saving Scratch projects was not possible.
 
-## Scratch bundle.js Cache Optimization
+  ## Scratch bundle.js Cache Optimization
 
-Changed the cache duration to one year.
+  Changed the cache duration to one year.
 
 # v0.0.2
 一个修复类版本。
