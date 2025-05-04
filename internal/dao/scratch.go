@@ -89,13 +89,13 @@ func (s *ScratchDaoImpl) SaveProject(userID uint, projectID uint, name string, c
 	md5 := md5.Sum(content)
 	md5Str := hex.EncodeToString(md5[:])
 
-	// 相对路径目录
-	relativeDir := filepath.Join(year, month, day, fmt.Sprintf("%d", userID))
-	// 构建文件路径
-	dirPath := filepath.Join(s.basePath, relativeDir)
-
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			// 相对路径目录
+			relativeDir := filepath.Join(year, month, day, fmt.Sprintf("%d", userID))
+			// 构建文件路径
+			dirPath := filepath.Join(s.basePath, relativeDir)
+
 			// 创建目录
 			if err := os.MkdirAll(dirPath, 0755); err != nil {
 				return 0, fmt.Errorf("创建目录失败: %w", err)
@@ -134,6 +134,8 @@ func (s *ScratchDaoImpl) SaveProject(userID uint, projectID uint, name string, c
 			return 0, errors.New("无权修改此项目")
 		}
 
+		dirPath := filepath.Join(s.basePath, project.FilePath)
+
 		// 构建新的文件路径
 		filename := filepath.Join(dirPath, fmt.Sprintf("%d_%s.json", project.ID, md5Str))
 
@@ -141,6 +143,7 @@ func (s *ScratchDaoImpl) SaveProject(userID uint, projectID uint, name string, c
 		if _, err := os.Stat(filename); err != nil {
 			// 写入文件
 			if err := os.WriteFile(filename, content, 0644); err != nil {
+				fmt.Printf("write file failed: %v\n", err)
 				return 0, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeWriteFileFailed, "write file failed", err)
 			}
 		}
