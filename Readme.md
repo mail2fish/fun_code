@@ -4,7 +4,7 @@
 
 ## Introduction
 
-FunCode is a self-hosted service program for children's graphical programming with Scratch. After building, it is only a single executable file, but it integrates a student management system, Scratch graphical programming system, and server-side storage. After downloading, users can simply run the program on Windows, Mac, or Linux to have a locally deployed web service. Students can access the Scratch graphical programming system via browser, and their program files are saved directly on the server. No dedicated server is required; you can deploy it on the Internet or run it only in a local area network, making it especially suitable for small children's programming training institutions.
+FunCode is a self-hosted Scratch graphical programming service designed specifically for children. After building, it contains only a single executable file, integrating a student management system, Scratch graphical programming system, and server-side storage. After downloading, users can run the program on Windows, Mac, or Linux to quickly deploy a local programming service system for children. Students can log in with their username and password via browser to access the Scratch graphical programming system, and their edited program files are saved directly on the server. No dedicated server is required; it can be deployed on the Internet or run only within a local area network, making it especially suitable for small children's programming training institutions.
 
 This project is still under development. If you are interested, you are welcome to join and improve it together.
 
