@@ -1,32 +1,34 @@
 # FunCode
 
-## 简介
+[中文](/Readme.zh.md) | [English](/Readme.md)
 
-FunCode 是一个少儿图形化编程Scratch的自托管服务程序（Self-Hosted Service）。它构建后只有一个可执行程序文件，但集成了学员管理系统、Scratch图形化编程系统以及服务端存储。用户下载后，无论使用的是Windows、Mac还是Linux操作系统，只需简单运行该程序，即可拥有一个部署在本地的Web服务。学员可以通过浏览器访问Scratch图形化编程系统，编辑后程序文件直接保存在服务端。它无需专门的服务器，可以选择把它部署到互联网上，也可以只在局域网内运行，所以特别适合小型的少儿编程培训机构。
- 
-这个项目目前还在开发中，有兴趣的朋友可以加入一起完善。
+## Introduction
 
-目前有QQ群：749870231，欢迎加入一起讨论。
+FunCode is a self-hosted service program for children's graphical programming with Scratch. After building, it is only a single executable file, but it integrates a student management system, Scratch graphical programming system, and server-side storage. After downloading, users can simply run the program on Windows, Mac, or Linux to have a locally deployed web service. Students can access the Scratch graphical programming system via browser, and their program files are saved directly on the server. No dedicated server is required; you can deploy it on the Internet or run it only in a local area network, making it especially suitable for small children's programming training institutions.
 
-## 安装运行指南
+This project is still under development. If you are interested, you are welcome to join and improve it together.
 
-### 下载
+Currently, there is a QQ group: 749870231. Welcome to join and discuss.
 
-下载地址：https://github.com/mail2fish/fun_code/releases
+## Installation and Usage Guide
 
-### 运行
+### Download
 
-程序运行后会自动创建一个 funcode_server 目录，用于存储服务配置信息和学员的程序文件。
+Download address: https://github.com/mail2fish/fun_code/releases
 
-建议将 funcode 程序放置在一个独立的目录下，便于统一管理相关文件。
+### Run
 
-#### 在 Windows 下运行
+After running the program, a `funcode_server` directory will be automatically created to store service configuration information and students' program files.
 
-#### 在 Mac 或 Linux 下运行
+It is recommended to place the funcode program in a separate directory for unified management of related files.
 
-打开终端，进入 funcode 程序所在目录后，执行以下命令：
+#### Running on Windows
 
-<span style="color:red">注意：请根据实际下载的程序名称，将命令中的 ./funcode_darwin_arm64 替换为对应的文件名。</span>
+#### Running on Mac or Linux
+
+Open the terminal, go to the directory where the funcode program is located, and execute the following commands:
+
+<span style="color:red">Note: Please replace ./funcode_darwin_arm64 in the command with the actual downloaded program name.</span>
 
 
 ```
@@ -34,54 +36,55 @@ chmod +x ./funcode_darwin_arm64
 ./funcode_darwin_arm64
 ```
 
-程序正常运行后，界面如下图所示：
 
-![在 Mac 下运行效果](doc/images/run_in_mac.png)
+After the program runs normally, the interface is as shown below:
 
-首次运行时会自动创建一个管理员账号，用户名为 admin，密码会在终端中提示一次。之后可在 funcode_server/config/config.yaml 文件中查看默认密码。若在管理后台修改过密码，则该默认密码将失效。
+![Running on Mac](doc/images/run_in_mac.png)
 
-此外，首次运行时，默认监听端口为 8080。如果 8080 端口已被占用，程序会自动递增端口号，尝试其他可用端口（如 8081）。
+On the first run, an administrator account will be automatically created. The username is admin, and the password will be prompted once in the terminal. You can later check the default password in the `funcode_server/config/config.yaml` file. If you change the password in the admin panel later, the default password will become invalid.
 
+In addition, on the first run, the default listening port is 8080. If port 8080 is already occupied, the program will automatically increment the port number and try other available ports (such as 8081).
 
-### 访问服务
+### Access the Service
 
-打开浏览器，访问终端中提示的地址，即可访问服务。
+Open your browser and visit the address shown in the terminal to access the service.
 
-![在浏览器中访问服务](doc/images/login.png)
+![Accessing the service in browser](doc/images/login.png)
 
-### 系统界面
+### System Interface
 
-登录后，会进入管理后台，在管理后台中可以管理学员、项目、班级等信息。
+After logging in, you will enter the admin panel, where you can manage students, projects, classes, and other information.
 
-![在浏览器中访问服务](doc/images/admin.png)
+![Admin panel](doc/images/admin.png)
 
-### 访问 Scratch 图形化编程系统
+### Access the Scratch Graphical Programming System
 
-点击界面中的新建Scratch程序按钮，即可进入 Scratch 图形化编程系统。
+Click the "New Scratch Project" button in the interface to enter the Scratch graphical programming system.
 
-![在浏览器中访问服务](doc/images/scratch.png)
+![Scratch system](doc/images/scratch.png)
 
-### 创建用户界面
+### Create User Interface
 
-在管理后台中，点击创建用户按钮，即可打开新建用户界面。
+In the admin panel, click the "Create User" button to open the new user interface.
 
-![在浏览器中访问服务](doc/images/create_user.png)
+![Create user](doc/images/create_user.png)
 
-## 构建指南
+## Build Guide
 
-### 前置依赖
+### Prerequisites
 - Go 1.24+
 - NodeJs 23.9.0+
 
-### 构建指令
+### Build Commands
 
-获取帮助信息
+Get help information
 
 ```
 make help
 ```
 
-make 可用命令:
+Available make commands:
+
 ```
   all              - 构建所有平台的项目
   clean            - 清理构建文件
@@ -107,34 +110,34 @@ make 可用命令:
   darwin-amd64     - macOS Intel
   darwin-arm64     - macOS ARM
 ```
-生成的可执行文件在 build 目录下
 
-## 开发指南
+The generated executable files are in the build directory.
 
-项目分为两个部分，一个是服务端，另一个是网页的客户端。
+## Development Guide
 
-构建服务端之前必须先构建客户端，否则即使服务端构建成功，也会因为缺少前端界面，而无法使用。
+The project is divided into two parts: the server and the web client.
 
-### 客户端
+You must build the client before building the server; otherwise, even if the server is built successfully, it will not work due to the lack of the frontend.
 
-客户端代码主要在 web 目录下, 包含两个部分 scratch 和 react-router-www。
+### Client
 
-scratch 是 Scratch 图形化编程系统的客户端代码，react-router-www 是学员管理系统的客户端代码。
+The client code is mainly in the web directory, including two parts: scratch and react-router-www.
 
-#### 2.1.1 前置依赖
+scratch is the client code for the Scratch graphical programming system, and react-router-www is the client code for the student management system.
 
-安装 NodeJs
+#### 2.1.1 Prerequisites
 
-#### 2.1.2 Scratch 客户端
+Install NodeJs
 
-代码在 web/scratch 目录下，这部份代码，只是简单的封装了 Scratch GUI 的 API 构建一个界面。
+#### 2.1.2 Scratch Client
 
+The code is in the web/scratch directory. This part simply wraps the Scratch GUI API to build an interface.
 
-##### 2.1.2.1 构建 Scratch GUI
+##### 2.1.2.1 Build Scratch GUI
 
-在构建 web/scratch 之前，需要先构建 Scratch GUI。
+Before building web/scratch, you need to build Scratch GUI first.
 
-注意不能使用 npm 安装 scratch-gui，因为修改了一些代码，所以需要从源码构建。
+Note: Do not use npm to install scratch-gui, because some code has been modified, so you need to build from source.
 
 ```
 git clone https://github.com/mail2fish/scratch-gui/
@@ -145,14 +148,14 @@ BUILD_MODE=dist npm run build
 npm link    
 ```
 
-mail2fish/scratch-gui/ 是从 https://github.com/scratchfoundation/scratch-gui  Fork 出来的一个魔改版本，它的 develop 分支会和原库同步。
 
-注意：使用项目的 main_fun_code 分支。
+mail2fish/scratch-gui/ is a forked and customized version from https://github.com/scratchfoundation/scratch-gui. Its develop branch will be synchronized with the original repository.
 
+Note: Use the project's main_fun_code branch.
 
-##### 2.1.2.2 构建 web/Scratch 
+##### 2.1.2.2 Build web/Scratch
 
-构建静态文件
+Build static files
 
 ```
 cd web/scratch
@@ -161,7 +164,7 @@ npm install
 npm run build
 ```
 
-启动 dev 环境
+Start dev environment
 
 ```
 cd web/scratch
@@ -169,15 +172,14 @@ npm link scratch-gui
 npm start
 ```
 
+#### 2.1.3 Student Management System
 
-#### 2.1.3 学员管理系统
+The code is in the web/react-router-www directory. This is a student management system developed based on ReactRouter and [shadcn](https://ui.shadcn.com/).
 
-代码在 web/react-router-www 目录下, 这是一个基于 ReactRouter 和 [shadcn](https://ui.shadcn.com/) 开发的学员管理系统。
+The project uses React-Router, so you need to install [React-Router](https://reactrouter.com/)
 
-项目使用 React-Router 构建，所以需要安装 [React-Router](https://reactrouter.com/)
+Build static files
 
-
-构建静态文件
 
 ```
 cd web/react-router-www
@@ -186,48 +188,51 @@ npm run build
 
 ```
 
-启动 dev 环境
+Start dev environment
+
 ```
 cd web/react-router-www
 npm install
 npm run dev
 ```
 
-### 2.2 服务端
+### 2.2 Server
 
-服务端使用Go语言开发，基于Gin，GORM 框架，使用 Sqllite 数据库。
+The server is developed in Go, based on Gin and GORM frameworks, and uses SQLite database.
 
-代码主要在 internal 目录下。
+The code is mainly in the internal directory.
+
 
 ```
 go mod tidy
 go build -o ./fun_code ./cmd/fun_code/main.go
 ```
-构建程序只需要 go build 即可。
 
-构建完成后，会生成一个可执行文件，运行该文件即可启动服务端。
+You only need to run go build to build the program.
 
-⚠️**注意：构建服务端之前，必须要先构建客户端的静态文件，因为服务端需要使用客户端构建后的静态文件。** 
+After the build is complete, an executable file will be generated. Run this file to start the server.
 
+⚠️**Note: Before building the server, you must first build the client static files, because the server needs to use the static files built by the client.** 
 
-### 2.3 Linux 下部署
+### 2.3 Deployment on Linux
 
 #### 2.3.1 supervisord
 
-用于管理服务的守护进程。
+Used to manage the service as a daemon process.
 
 https://github.com/ochinchina/supervisord
 
-注意不要用 root 账号运行，配置参考 deploy/supervisord.conf
+Do not run as root. Refer to deploy/supervisord.conf for configuration.
 
-#### 2.3.2 映射 80 端口
+#### 2.3.2 Map port 80
+
 
 ```
 sudo sysctl net.ipv4.ip_forward=1
 
-# 使其永久生效，编辑 /etc/sysctl.conf 或在 /etc/sysctl.d/ 下创建新文件，添加:
+# To make it permanent, edit /etc/sysctl.conf or create a new file under /etc/sysctl.d/, add:
 # net.ipv4.ip_forward = 1
-# 然后运行 sudo sysctl -p
+# Then run sudo sysctl -p
 ```
 
 
@@ -235,11 +240,12 @@ sudo sysctl net.ipv4.ip_forward=1
 sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
 ```
 
-如果你希望从本机（localhost）访问 80 端口也能转发到 8080，还需要添加 OUTPUT 链规则：
+
+If you want to forward port 80 from localhost to 8080, you also need to add an OUTPUT chain rule:
 
 ```
 sudo iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 80 -j REDIRECT --to-port 8080
-# 对于 IPv6 (如果需要):
+# For IPv6 (if needed):
 # sudo ip6tables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
 # sudo ip6tables -t nat -A OUTPUT -p tcp -d ::1 --dport 80 -j REDIRECT --to-port 8080
 ```
@@ -248,11 +254,12 @@ sudo iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 80 -j REDIRECT --to-p
 ```
 sudo apt update
 sudo apt install iptables-persistent
-# 安装过程中会提示是否保存当前 IPv4 和 IPv6 规则，选择 "是"。
-# 如果之后修改了规则，需要手动保存：
+# During installation, you will be prompted whether to save the current IPv4 and IPv6 rules, select "Yes".
+# If you modify the rules later, you need to save them manually:
 sudo netfilter-persistent save
 ```
 
-## 跨平台编译
+## Cross-platform Compilation
 
-使用 sqlite 需要安装 cgo。
+Using sqlite requires installing cgo.
+
