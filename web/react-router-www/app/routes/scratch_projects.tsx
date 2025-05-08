@@ -223,7 +223,6 @@ export default function Page() {
             >
               <Link 
                 to={`${HOST_URL}/projects/scratch/new`} 
-                target="_blank"
                 onClick={handleNewProjectClick}
                 className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
               >
