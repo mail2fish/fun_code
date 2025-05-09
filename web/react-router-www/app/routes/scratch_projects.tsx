@@ -221,14 +221,14 @@ export default function Page() {
               asChild
               disabled={isButtonCooling}
             >
-              <Link 
-                to={`${HOST_URL}/projects/scratch/new`} 
+              <a 
+                href={`${HOST_URL}/projects/scratch/new`} 
                 onClick={handleNewProjectClick}
                 className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
               >
                 <IconPlus className="mr-2 h-4 w-4" />
                 {isButtonCooling ? "请稍候..." : "新建Scratch程序"}
-              </Link>
+              </a>
             </Button>
           </div>
         </header>
