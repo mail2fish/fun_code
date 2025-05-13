@@ -115,7 +115,8 @@ export function ProjectTable({
         <Table>
           <TableHeader>
             <TableRow>
-            <TableHead>项目序号</TableHead>
+              <TableHead>项目序号</TableHead>
+              <TableHead>缩略图</TableHead>
               <TableHead>项目名称</TableHead>            
                {projectsData.users.length > 0 && <TableHead>创建者</TableHead>}
               <TableHead>创建时间</TableHead>
@@ -128,6 +129,9 @@ export function ProjectTable({
                 <TableRow key={project.id || Math.random()}>
                   <TableCell className="font-medium">
                   {project.id} 
+                  </TableCell>
+                  <TableCell>
+                    <img src={`${HOST_URL}/api/scratch/projects/${project.id}/thumbnail`}  alt="缩略图" />
                   </TableCell>
                   <TableCell className="font-medium">
                   <a href={`${HOST_URL}/projects/scratch/open/${project.id}`} > {project.name || "未命名项目"} </a>   

@@ -76,6 +76,8 @@ func (s *Server) setupRoutes() {
 		auth.GET("/scratch/projects/:id", s.handler.GetScratchProject)
 		auth.POST("/scratch/projects/", s.handler.PostCreateScratchProject)
 		auth.PUT("/scratch/projects/:id", s.handler.PutSaveScratchProject)
+		auth.PUT("/scratch/projects/:id/thumbnail", s.handler.PutUpdateProjectThumbnail)
+		auth.GET("/scratch/projects/:id/thumbnail", s.handler.GetProjectThumbnail)
 		auth.GET("/scratch/projects", s.handler.ListScratchProjects)
 		auth.DELETE("/scratch/projects/:id", s.handler.DeleteScratchProject)
 

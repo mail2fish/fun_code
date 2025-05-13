@@ -23,7 +23,8 @@ const getConfig = () => {
     assetHost: "",
     host: "http://localhost:8080",
     projectsRoute: "/www/scratch/projects",
-    projectTitle: ""
+    projectTitle: "",
+
   };
 };
 
@@ -32,14 +33,30 @@ const onClickLogo = () => {
   window.location = cfg.projectsRoute;
 };
 
+
 const App = () => {
   // 获取配置
   const config = getConfig();
   const WrappedGui = compose(
     AppStateHOC,
-)(GUI);
+  )(GUI);
+
+  const onUpdateProjectThumbnail = async (projectId, thumbnail) => {
+    // 更新项目缩略图
+    console.log('onUpdateProjectThumbnail', projectId, thumbnail);
+    // 调用后端接口更新项目缩略图
+    const response =await fetch(`${config.host}/api/scratch/projects/${projectId}/thumbnail`, {
+      method: 'PUT',
+      body: thumbnail ,
+    });
+    if (response.ok) {
+      console.log('更新项目缩略图成功');
+    } else {
+      console.log('更新项目缩略图失败');
+    }
+  };
   
-  return (
+  return (    
     <Provider store={store}>
       <div className="scratch-editor" style={{ height: '100vh' }}>
         <WrappedGui
@@ -55,6 +72,7 @@ const App = () => {
           assetHost={config.assetHost}
           onClickLogo={onClickLogo}
           projectTitle={config.projectTitle}
+          onUpdateProjectThumbnail={onUpdateProjectThumbnail}
         />
       </div>      
     </Provider>

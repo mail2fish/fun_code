@@ -7,7 +7,7 @@ module.exports = {
   entry: './src/index.js',
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'bundle.js',
+    filename: 'bundle.[contenthash].js',
     publicPath: '/static/scratch/'  // 修改这里，指定公共路径
   },
   // 添加 resolve 配置到模块导出对象内部

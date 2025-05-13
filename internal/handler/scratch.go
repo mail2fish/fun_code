@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io"
 	"io/fs"
@@ -30,6 +31,7 @@ const (
 	ErrorCodeSaveAssetFailed      = 8
 	ErrorCodeGetAssetFailed       = 9
 	ErrorCodeUnauthorized         = 10
+	ErrorCodeGetThumbnailFailed   = 11
 )
 
 // NewScratchProject 创建一个新的Scratch项目处理程序
@@ -263,7 +265,7 @@ func (h *Handler) GetScratchProject(c *gin.Context) {
 // PutSaveScratchProject 保存Scratch项目
 func (h *Handler) PutSaveScratchProject(c *gin.Context) {
 
-	// 新增：从路径参数获取项目ID
+	// 从路径参数获取项目ID
 	projectID := c.Param("id")
 	id, err := strconv.ParseUint(projectID, 10, 64)
 	if err != nil {
@@ -701,4 +703,170 @@ func (h *Handler) UploadScratchAsset(c *gin.Context) {
 		"assetID":      assetID,
 		"content_type": contentType,
 	})
+}
+
+// PutUpdateProjectThumbnail 更新Scratch项目缩略图
+func (h *Handler) PutUpdateProjectThumbnail(c *gin.Context) {
+
+	// 从路径参数获取项目ID
+	projectID := c.Param("id")
+	id, err := strconv.ParseUint(projectID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的项目ID",
+		})
+		return
+	}
+
+	// 获取项目创建者ID
+	project, err := h.dao.ScratchDao.GetProject(uint(id))
+
+	if err != nil {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+	userID := project.UserID
+	// 判断用户是否是项目创建者或者为管理员
+	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeNoPermission, "no_permission", err)
+		c.JSON(http.StatusUnauthorized, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+
+	// 如果项目ID存在在不允许保存的数组中，则不允许保存
+	for _, id := range h.config.Protected.Projects {
+		if project.ID == id {
+			e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeNoPermission, "no_permission", err)
+			c.JSON(http.StatusUnauthorized, ResponseError{
+				Code:    int(e.ErrorCode()),
+				Message: e.Message,
+				Error:   e.Error(),
+			})
+			return
+		}
+	}
+
+	//读取 body，最多只读取 2M
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2*1024*1024)
+
+	// 读取请求体中的二进制数据
+	bodyData, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeReadBodyFailed, "read_body_failed", err)
+		c.JSON(http.StatusBadRequest, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+
+	if len(bodyData) == 0 {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeReadBodyFailed, "read_body_failed", nil)
+		c.JSON(http.StatusBadRequest, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+
+	dirPath := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), project.FilePath)
+	// 构建新的文件路径
+	filename := filepath.Join(dirPath, fmt.Sprintf("%d.png", project.ID))
+
+	// 保存文件
+	if err := os.WriteFile(filename, bodyData, 0644); err != nil {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeSaveAssetFailed, "save_asset_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"status": "ok",
+	})
+}
+
+// GetProjectThumbnail 获取Scratch项目缩略图
+func (h *Handler) GetProjectThumbnail(c *gin.Context) {
+	// 从路径参数获取项目ID
+	projectID := c.Param("id")
+	id, err := strconv.ParseUint(projectID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的项目ID",
+		})
+		return
+	}
+
+	// 获取项目创建者ID
+	project, err := h.dao.ScratchDao.GetProject(uint(id))
+
+	if err != nil {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+	userID := project.UserID
+	// 判断用户是否是项目创建者或者为管理员
+	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeNoPermission, "no_permission", err)
+		c.JSON(http.StatusUnauthorized, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+
+	// 使用 scratch 服务的基础路径
+	dirPath := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), project.FilePath)
+	// 构建新的文件路径
+	filename := filepath.Join(dirPath, fmt.Sprintf("%d.png", project.ID))
+
+	// 如果文件不存在，则返回404
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetThumbnailFailed, "get_thumbnail_failed", err)
+		c.JSON(http.StatusNotFound, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+
+	// 读取文件
+	bodyData, err := os.ReadFile(filename)
+	if err != nil {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetThumbnailFailed, "get_thumbnail_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+
+	// 设置响应头
+	c.Header("Content-Type", "image/png")
+	c.Header("Content-Length", strconv.Itoa(len(bodyData)))
+
+	// 直接写入字节数据
+	c.Writer.Write(bodyData)
 }
