@@ -10,6 +10,9 @@ type ScratchDao interface {
 	// GetProject 获取指定ID的Scratch项目
 	GetProject(projectID uint) (*model.ScratchProject, error)
 
+	// CreateProject 创建空Scratch项目
+	CreateProject(userID uint) (uint, error)
+
 	// SaveProject 保存Scratch项目
 	SaveProject(userID uint, projectID uint, name string, content []byte) (uint, error)
 

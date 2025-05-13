@@ -69,10 +69,46 @@ func (s *ScratchDaoImpl) GetProjectBinary(projectID uint) ([]byte, error) {
 	// 从文件系统读取项目内容
 	content, err := os.ReadFile(filename)
 	if err != nil {
-		return nil, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeReadFileFailed, "read file failed", err)
+		return s.getExampleProject(), nil
 	}
 
 	return content, nil
+}
+
+// CreateProject 创建空Scratch项目
+func (s *ScratchDaoImpl) CreateProject(userID uint) (uint, error) {
+	var project model.ScratchProject
+
+	now := time.Now()
+	year := now.Format("2006")
+	month := now.Format("01")
+	day := now.Format("02")
+	// 相对路径目录
+	relativeDir := filepath.Join(year, month, day, fmt.Sprintf("%d", userID))
+	// 构建文件路径
+	dirPath := filepath.Join(s.basePath, relativeDir)
+
+	// 创建目录
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		return 0, fmt.Errorf("创建目录失败: %w", err)
+	}
+
+	// 创建新项目记录
+	project = model.ScratchProject{
+		UserID:    userID,
+		MD5:       "",
+		Name:      "Scratch作品",
+		CreatedAt: now,
+		UpdatedAt: now,
+		FilePath:  relativeDir,
+	}
+
+	// 先创建数据库记录以获取ID
+	if err := s.db.Create(&project).Error; err != nil {
+		return 0, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeInsertFailed, "create project failed", err)
+	}
+
+	return project.ID, nil
 }
 
 // SaveProject 保存Scratch项目
@@ -318,7 +354,7 @@ func (s *ScratchDaoImpl) DeleteProject(userID uint, projectID uint) error {
 
 // getExampleProject 返回示例项目
 func (s *ScratchDaoImpl) getExampleProject() []byte {
-	result := `{"targets":[{"isStage":true,"name":"Stage","variables":{"` + "`" + `jEk@4|i[#Fk?(8x)AV.-my variable":["my variable",0]},"lists":{},"broadcasts":{},"blocks":{},"comments":{},"currentCostume":0,"costumes":[{"name":"backdrop1","dataFormat":"svg","assetId":"cd21514d0531fdffb22204e0ec5ed84a","md5ext":"cd21514d0531fdffb22204e0ec5ed84a.svg","rotationCenterX":240,"rotationCenterY":180}],"sounds":[{"name":"pop","assetId":"83a9787d4cb6f3b7632b4ddfebf74367","dataFormat":"wav","format":"","rate":48000,"sampleCount":1123,"md5ext":"83a9787d4cb6f3b7632b4ddfebf74367.wav"}],"volume":100,"layerOrder":0,"tempo":60,"videoTransparency":50,"videoState":"on","textToSpeechLanguage":null},{"isStage":false,"name":"Sprite1","variables":{},"lists":{},"broadcasts":{},"blocks":{"MvnU:C*rPc=Q7{LV-*F9":{"opcode":"motion_movesteps","next":";YZXVOf%nL3([N],fGSi","parent":null,"inputs":{"STEPS":[1,[4,"10"]]},"fields":{},"shadow":false,"topLevel":true,"x":156,"y":283},";YZXVOf%nL3([N],fGSi":{"opcode":"motion_movesteps","next":null,"parent":"MvnU:C*rPc=Q7{LV-*F9","inputs":{"STEPS":[1,[4,"10"]]},"fields":{},"shadow":false,"topLevel":false}},"comments":{},"currentCostume":0,"costumes":[{"name":"costume1","bitmapResolution":1,"dataFormat":"svg","assetId":"bcf454acf82e4504149f7ffe07081dbc","md5ext":"bcf454acf82e4504149f7ffe07081dbc.svg","rotationCenterX":48,"rotationCenterY":50},{"name":"costume2","bitmapResolution":1,"dataFormat":"svg","assetId":"0fb9be3e8397c983338cb71dc84d0b25","md5ext":"0fb9be3e8397c983338cb71dc84d0b25.svg","rotationCenterX":46,"rotationCenterY":53}],"sounds":[{"name":"Meow","assetId":"83c36d806dc92327b9e7049a565c6bff","dataFormat":"wav","format":"","rate":48000,"sampleCount":40681,"md5ext":"83c36d806dc92327b9e7049a565c6bff.wav"}],"volume":100,"layerOrder":1,"visible":true,"x":0,"y":0,"size":100,"direction":90,"draggable":false,"rotationStyle":"all around"}],"monitors":[],"extensions":[],"meta":{"semver":"3.0.0","vm":"11.0.0-beta.2","agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"}}`
+	result := `{"targets":[{"isStage":true,"name":"Stage","variables":{"` + "`" + `jEk@4|i[#Fk?(8x)AV.-my variable":["my variable",0]},"lists":{},"broadcasts":{},"blocks":{},"comments":{},"currentCostume":0,"costumes":[{"name":"背景1","dataFormat":"svg","assetId":"cd21514d0531fdffb22204e0ec5ed84a","md5ext":"cd21514d0531fdffb22204e0ec5ed84a.svg","rotationCenterX":240,"rotationCenterY":180}],"sounds":[{"name":"啵","assetId":"83a9787d4cb6f3b7632b4ddfebf74367","dataFormat":"wav","format":"","rate":48000,"sampleCount":1123,"md5ext":"83a9787d4cb6f3b7632b4ddfebf74367.wav"}],"volume":100,"layerOrder":0,"tempo":60,"videoTransparency":50,"videoState":"on","textToSpeechLanguage":null},{"isStage":false,"name":"角色1","variables":{},"lists":{},"broadcasts":{},"blocks":{},"comments":{},"currentCostume":0,"costumes":[{"name":"造型1","bitmapResolution":1,"dataFormat":"svg","assetId":"bcf454acf82e4504149f7ffe07081dbc","md5ext":"bcf454acf82e4504149f7ffe07081dbc.svg","rotationCenterX":48,"rotationCenterY":50},{"name":"造型2","bitmapResolution":1,"dataFormat":"svg","assetId":"0fb9be3e8397c983338cb71dc84d0b25","md5ext":"0fb9be3e8397c983338cb71dc84d0b25.svg","rotationCenterX":46,"rotationCenterY":53}],"sounds":[{"name":"Meow","assetId":"83c36d806dc92327b9e7049a565c6bff","dataFormat":"wav","format":"","rate":48000,"sampleCount":40681,"md5ext":"83c36d806dc92327b9e7049a565c6bff.wav"}],"volume":100,"layerOrder":1,"visible":true,"x":0,"y":0,"size":100,"direction":90,"draggable":false,"rotationStyle":"all around"}],"monitors":[],"extensions":[],"meta":{"semver":"3.0.0","vm":"5.0.251","agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"}}`
 	return []byte(result)
 }
 

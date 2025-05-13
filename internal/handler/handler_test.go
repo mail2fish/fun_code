@@ -254,6 +254,11 @@ func (m *MockScratchDao) ListProjectsWithPagination(userID uint, pageSize uint, 
 	return args.Get(0).([]model.ScratchProject), args.Bool(1), args.Error(2)
 }
 
+func (m *MockScratchDao) CreateProject(userID uint) (uint, error) {
+	args := m.Called(userID)
+	return args.Get(0).(uint), args.Error(1)
+}
+
 // MockUserDao 是 UserDao 的模拟实现
 type MockUserDao struct {
 	mock.Mock
