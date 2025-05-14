@@ -14,6 +14,7 @@ import (
 	"github.com/jun/fun_code/internal/dao/testutils"
 	"github.com/jun/fun_code/internal/model"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 // 测试 ListScratchProjects 处理函数
@@ -30,7 +31,7 @@ func TestListScratchProjects(t *testing.T) {
 
 	// 设置数据库和服务
 	db := testutils.SetupTestDB()
-	scratchService := dao.NewScratchDao(db, tempDir)
+	scratchService := dao.NewScratchDao(db, tempDir, zap.NewNop())
 
 	// 创建配置
 	cfg := &config.Config{

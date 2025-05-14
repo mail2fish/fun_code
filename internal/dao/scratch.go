@@ -11,6 +11,7 @@ import (
 
 	"github.com/jun/fun_code/internal/custom_error"
 	"github.com/jun/fun_code/internal/model"
+	"go.uber.org/zap"
 
 	"gorm.io/gorm"
 )
@@ -25,13 +26,15 @@ const (
 type ScratchDaoImpl struct {
 	db       *gorm.DB
 	basePath string // 文件存储的基础路径
+	logger   *zap.Logger
 }
 
 // NewScratchDao 创建一个新的ScratchService实例
-func NewScratchDao(db *gorm.DB, basePath string) ScratchDao {
+func NewScratchDao(db *gorm.DB, basePath string, logger *zap.Logger) ScratchDao {
 	return &ScratchDaoImpl{
 		db:       db,
 		basePath: basePath,
+		logger:   logger,
 	}
 }
 
@@ -339,13 +342,29 @@ func (s *ScratchDaoImpl) DeleteProject(userID uint, projectID uint) error {
 		return errors.New("无权删除此项目")
 	}
 
-	// 删除文件
-	if err := os.Remove(project.FilePath); err != nil && !os.IsNotExist(err) {
+	// 根据通配符，遍历文件，删除文件
+	pattern := filepath.Join(s.basePath, project.FilePath, fmt.Sprintf("%d_*.json", project.ID))
+	files, err := filepath.Glob(pattern)
+	if err != nil {
 		return fmt.Errorf("删除项目文件失败: %w", err)
+	}
+
+	for _, file := range files {
+		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("删除项目文件失败: %w", err)
+		}
+	}
+
+	// 删除缩略图
+	thumbnail := filepath.Join(s.basePath, project.FilePath, fmt.Sprintf("%d.png", project.ID))
+	if err := os.Remove(thumbnail); err != nil && !os.IsNotExist(err) {
+		s.logger.Error("删除缩略图失败", zap.Error(err))
+		return fmt.Errorf("删除缩略图失败: %w", err)
 	}
 
 	// 删除数据库记录
 	if err := s.db.Delete(&project).Error; err != nil {
+		s.logger.Error("删除数据库记录失败", zap.Error(err))
 		return err
 	}
 
