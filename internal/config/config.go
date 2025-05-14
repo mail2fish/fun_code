@@ -60,6 +60,7 @@ type LoggerConfig struct {
 
 // Config 应用配置
 type Config struct {
+	Version       int                 `yaml:"version"`
 	Env           string              `yaml:"env"`
 	Protected     Protected           `yaml:"protected"`
 	AdminPassword string              `yaml:"admin_password"`

@@ -87,12 +87,14 @@ var serveCmd = &cobra.Command{
 		}
 
 		encoderConfig := zap.NewProductionEncoderConfig()
+		encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
+
 		core := zapcore.NewCore(
 			zapcore.NewJSONEncoder(encoderConfig),
 			writeSyncer,
 			logLevel,
 		)
-		logger = zap.New(core)
+		logger = zap.New(core, zap.AddCaller())
 		defer logger.Sync()
 
 		// 初始化服务器

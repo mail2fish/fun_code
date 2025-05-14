@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
+	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/custom_error"
 	"github.com/jun/fun_code/internal/model"
 	"go.uber.org/zap"
@@ -26,14 +28,16 @@ const (
 type ScratchDaoImpl struct {
 	db       *gorm.DB
 	basePath string // 文件存储的基础路径
+	cfg      *config.Config
 	logger   *zap.Logger
 }
 
 // NewScratchDao 创建一个新的ScratchService实例
-func NewScratchDao(db *gorm.DB, basePath string, logger *zap.Logger) ScratchDao {
+func NewScratchDao(db *gorm.DB, basePath string, cfg *config.Config, logger *zap.Logger) ScratchDao {
 	return &ScratchDaoImpl{
 		db:       db,
 		basePath: basePath,
+		cfg:      cfg,
 		logger:   logger,
 	}
 }
@@ -196,7 +200,53 @@ func (s *ScratchDaoImpl) SaveProject(userID uint, projectID uint, name string, c
 		}
 	}
 
+	// 删除超出配置限制的历史文件
+	go s.deleteHistoryFile(projectID, project.FilePath)
+
 	return project.ID, nil
+}
+
+const (
+	defaultHistoryFileLimit = 20
+)
+
+// 异步删除超出配置限制的历史文件，默认最多20个历史文件
+func (s *ScratchDaoImpl) deleteHistoryFile(projectID uint, path string) error {
+	// 获取项目文件
+	files, err := filepath.Glob(filepath.Join(s.basePath, path, fmt.Sprintf("%d_*.json", projectID)))
+	if err != nil {
+		return err
+	}
+
+	// 获取文件创建时间
+
+	histories := make([]model.History, len(files))
+	for i, file := range files {
+		info, err := os.Stat(file)
+		if err != nil {
+			return err
+		}
+		histories[i] = model.History{
+			Filename:  file,
+			CreatedAt: info.ModTime(),
+		}
+	}
+
+	// 删除超出配置限制的历史文件
+	if len(files) > defaultHistoryFileLimit {
+
+		// 按创建时间逆序排序
+		sort.Slice(histories, func(i, j int) bool {
+			return histories[i].CreatedAt.Before(histories[j].CreatedAt)
+		})
+
+		// 删除超出配置限制的历史文件
+		for i := 0; i < len(files)-defaultHistoryFileLimit; i++ {
+			os.Remove(histories[i].Filename)
+		}
+	}
+
+	return nil
 }
 
 func (s *ScratchDaoImpl) CountProjects(userID uint) (int64, error) {

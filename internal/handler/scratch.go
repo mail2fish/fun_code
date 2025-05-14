@@ -841,11 +841,6 @@ func (h *Handler) GetProjectThumbnail(c *gin.Context) {
 	c.Writer.Write(bodyData)
 }
 
-type history struct {
-	Filename  string    `json:"filename"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
 // GetScratchProjectHistories 获取Scratch项目历史记录
 func (h *Handler) GetScratchProjectHistories(c *gin.Context) {
 	// 从路径参数获取项目ID
@@ -897,14 +892,14 @@ func (h *Handler) GetScratchProjectHistories(c *gin.Context) {
 	}
 
 	// 遍历文件名，获取文件创建时间，
-	histories := make([]history, len(files))
+	histories := make([]model.History, len(files))
 
 	for i, file := range files {
 		info, err := os.Stat(file)
 		if err != nil {
 			continue
 		}
-		histories[i] = history{
+		histories[i] = model.History{
 			Filename:  file,
 			CreatedAt: info.ModTime(),
 		}

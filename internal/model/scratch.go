@@ -20,3 +20,8 @@ type ScratchProject struct {
 func (s *ScratchProject) TableName() string {
 	return "scratch_projects"
 }
+
+type History struct {
+	Filename  string    `json:"filename"`
+	CreatedAt time.Time `json:"created_at"`
+}
