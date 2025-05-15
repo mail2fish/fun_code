@@ -165,7 +165,7 @@ export function ProjectTable({
                             asChild
                             className="py-0 min-h-0 h-auto"
                           >
-                            <a href={`${HOST_URL}/projects/scratch/open/${project.id}`}>
+                            <a href='#'>
                               <IconTrash className="h-4 w-4 mr-1" />
                               删除
                             </a>
