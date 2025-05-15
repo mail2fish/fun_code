@@ -143,22 +143,32 @@ export function ProjectTable({
                     {formatDate(project.created_at || project.createdAt)}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                    <div className="flex flex-col items-start gap-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         title="编辑"
                         asChild
+                        className="py-0 min-h-0 h-auto"
                       >
                         <a href={`${HOST_URL}/projects/scratch/open/${project.id}`}>
-                          <IconEdit className="h-4 w-4" />
+                          <IconEdit className="h-4 w-4 mr-1" />
+                          编辑
                         </a>
                       </Button>
-               
                       <Dialog>
                         <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" title="删除">
-                            <IconTrash className="h-4 w-4" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="删除"
+                            asChild
+                            className="py-0 min-h-0 h-auto"
+                          >
+                            <a href={`${HOST_URL}/projects/scratch/open/${project.id}`}>
+                              <IconTrash className="h-4 w-4 mr-1" />
+                              删除
+                            </a>
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
@@ -182,9 +192,16 @@ export function ProjectTable({
                           </DialogFooter>
                         </DialogContent>
                       </Dialog>
-                      <Button variant="ghost" size="icon" title="历史" asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="历史"
+                        asChild
+                        className="py-0 min-h-0 h-auto"
+                      >
                         <a href={`/www/scratch/project/${project.id}/histories`}>
-                          <IconHistory className="h-4 w-4" />
+                          <IconHistory className="h-4 w-4 mr-1" />
+                          历史
                         </a>
                       </Button>
                     </div>
