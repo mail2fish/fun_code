@@ -4,6 +4,7 @@ export default [
     index("routes/login.tsx"),
     route("/www/dashboard", "routes/dashboard.tsx"),
     route("/www/scratch/projects", "routes/scratch_projects.tsx"),
+    route("/www/scratch/project/:projectId/histories", "routes/scratch_project_histories.tsx"),
     route("/www/classes/create", "routes/create_class.tsx"),
     route("/www/classes/list", "routes/list_classes.tsx"),
     route("/www/classes/:classId/edit", "routes/edit_class.tsx"),  

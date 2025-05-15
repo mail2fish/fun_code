@@ -56,7 +56,7 @@ func (s *ScratchDaoImpl) GetProjectUserID(projectID uint) (uint, bool) {
 }
 
 // GetProjectBinary 获取指定ID的Scratch项目
-func (s *ScratchDaoImpl) GetProjectBinary(projectID uint) ([]byte, error) {
+func (s *ScratchDaoImpl) GetProjectBinary(projectID uint, md5 string) ([]byte, error) {
 	// 如果projectID为0，返回示例项目
 	if projectID == 0 {
 		return s.getExampleProject(), nil
@@ -70,8 +70,11 @@ func (s *ScratchDaoImpl) GetProjectBinary(projectID uint) ([]byte, error) {
 		}
 		return nil, err
 	}
+	if md5 == "" {
+		md5 = project.MD5
+	}
 
-	filename := filepath.Join(s.basePath, project.FilePath, fmt.Sprintf("%d_%s.json", project.ID, project.MD5))
+	filename := filepath.Join(s.basePath, project.FilePath, fmt.Sprintf("%d_%s.json", project.ID, md5))
 
 	// 从文件系统读取项目内容
 	content, err := os.ReadFile(filename)

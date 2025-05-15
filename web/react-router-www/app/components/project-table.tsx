@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link } from "react-router"
-import { IconEdit, IconTrash, IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
+import { IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconHistory } from "@tabler/icons-react"
 
 import { Button } from "~/components/ui/button"
 import {
@@ -131,7 +131,7 @@ export function ProjectTable({
                   {project.id} 
                   </TableCell>
                   <TableCell>
-                    <img src={`${HOST_URL}/api/scratch/projects/${project.id}/thumbnail`}  alt="缩略图" />
+                    <img src={`${HOST_URL}/api/scratch/projects/${project.id}/thumbnail`} className="border border-gray-300 rounded-md"   alt="缩略图" />
                   </TableCell>
                   <TableCell className="font-medium">
                   <a href={`${HOST_URL}/projects/scratch/open/${project.id}`} > {project.name || "未命名项目"} </a>   
@@ -151,9 +151,10 @@ export function ProjectTable({
                         asChild
                       >
                         <a href={`${HOST_URL}/projects/scratch/open/${project.id}`}>
-                                          <IconEdit className="h-4 w-4" />
-                                        </a>
+                          <IconEdit className="h-4 w-4" />
+                        </a>
                       </Button>
+               
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="ghost" size="icon" title="删除">
@@ -181,6 +182,11 @@ export function ProjectTable({
                           </DialogFooter>
                         </DialogContent>
                       </Dialog>
+                      <Button variant="ghost" size="icon" title="历史" asChild>
+                        <a href={`/www/scratch/project/${project.id}/histories`}>
+                          <IconHistory className="h-4 w-4" />
+                        </a>
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>

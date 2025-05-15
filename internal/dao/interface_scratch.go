@@ -5,7 +5,7 @@ import "github.com/jun/fun_code/internal/model"
 // ScratchDao 定义了Scratch项目服务的接口
 type ScratchDao interface {
 	// GetProjectBinary 获取指定ID的Scratch项目的二进制内容
-	GetProjectBinary(projectID uint) ([]byte, error)
+	GetProjectBinary(projectID uint, filename string) ([]byte, error)
 
 	// GetProject 获取指定ID的Scratch项目
 	GetProject(projectID uint) (*model.ScratchProject, error)

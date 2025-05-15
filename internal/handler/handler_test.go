@@ -194,8 +194,8 @@ type MockScratchDao struct {
 	mock.Mock
 }
 
-func (m *MockScratchDao) GetProjectBinary(projectID uint) ([]byte, error) {
-	args := m.Called(projectID)
+func (m *MockScratchDao) GetProjectBinary(projectID uint, md5 string) ([]byte, error) {
+	args := m.Called(projectID, md5)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

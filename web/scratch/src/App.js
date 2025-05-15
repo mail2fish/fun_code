@@ -42,8 +42,6 @@ const App = () => {
   )(GUI);
 
   const onUpdateProjectThumbnail = async (projectId, thumbnail) => {
-    // 更新项目缩略图
-    console.log('onUpdateProjectThumbnail', projectId, thumbnail);
     // 调用后端接口更新项目缩略图
     const response =await fetch(`${config.host}/api/scratch/projects/${projectId}/thumbnail`, {
       method: 'PUT',

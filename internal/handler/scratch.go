@@ -176,8 +176,24 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 }
 
 func (h *Handler) GetScratchProject(c *gin.Context) {
-	projectID := c.Param("id")
+	rawID := c.Param("id")
+	splitID := strings.Split(rawID, "_")
 
+	if len(splitID) == 0 {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidProjectID, "invalid_project_id", nil)
+		c.JSON(http.StatusBadRequest, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+	}
+
+	projectID := splitID[0]
+
+	historyID := ""
+	if len(splitID) == 2 {
+		historyID = splitID[1]
+	}
 	// 从 service 获取项目数据
 	// 将 projectID 字符串转换为 uint 类型
 	id, err := strconv.ParseUint(projectID, 10, 64)
@@ -213,7 +229,7 @@ func (h *Handler) GetScratchProject(c *gin.Context) {
 		return
 	}
 
-	projectData, err := h.dao.ScratchDao.GetProjectBinary(uint(id))
+	projectData, err := h.dao.ScratchDao.GetProjectBinary(uint(id), historyID)
 	if err != nil {
 		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
 		c.JSON(http.StatusInternalServerError, ResponseError{
@@ -235,8 +251,22 @@ func (h *Handler) GetScratchProject(c *gin.Context) {
 // PutSaveScratchProject 保存Scratch项目
 func (h *Handler) PutSaveScratchProject(c *gin.Context) {
 
+	rawID := c.Param("id")
+	splitID := strings.Split(rawID, "_")
+
+	if len(splitID) == 0 {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidProjectID, "invalid_project_id", nil)
+		c.JSON(http.StatusBadRequest, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+
+	projectID := splitID[0]
+
 	// 从路径参数获取项目ID
-	projectID := c.Param("id")
 	id, err := strconv.ParseUint(projectID, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -316,8 +346,8 @@ func (h *Handler) PutSaveScratchProject(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-		"id":     id,
+		"status":       "ok",
+		"content-name": id,
 	})
 }
 
@@ -679,7 +709,20 @@ func (h *Handler) UploadScratchAsset(c *gin.Context) {
 func (h *Handler) PutUpdateProjectThumbnail(c *gin.Context) {
 
 	// 从路径参数获取项目ID
-	projectID := c.Param("id")
+	rawID := c.Param("id")
+	splitID := strings.Split(rawID, "_")
+
+	if len(splitID) == 0 {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidProjectID, "invalid_project_id", nil)
+		c.JSON(http.StatusBadRequest, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+
+	projectID := splitID[0]
 	id, err := strconv.ParseUint(projectID, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -899,8 +942,10 @@ func (h *Handler) GetScratchProjectHistories(c *gin.Context) {
 		if err != nil {
 			continue
 		}
+		filename := filepath.Base(file)
+		filename = strings.TrimSuffix(filename, ".json")
 		histories[i] = model.History{
-			Filename:  file,
+			Filename:  filename,
 			CreatedAt: info.ModTime(),
 		}
 	}
@@ -910,66 +955,22 @@ func (h *Handler) GetScratchProjectHistories(c *gin.Context) {
 		return histories[i].CreatedAt.After(histories[j].CreatedAt)
 	})
 
+	data := struct {
+		ProjectID uint            `json:"project_id"`
+		Name      string          `json:"name"`
+		CreatedAt time.Time       `json:"created_at"`
+		UpdatedAt time.Time       `json:"updated_at"`
+		Histories []model.History `json:"histories"`
+	}{
+		ProjectID: project.ID,
+		Name:      project.Name,
+		CreatedAt: project.CreatedAt,
+		UpdatedAt: project.UpdatedAt,
+		Histories: histories,
+	}
+
 	// 返回项目历史记录列表，包含文件创建时间
 	c.JSON(http.StatusOK, gin.H{
-		"data": histories,
+		"data": data,
 	})
-}
-
-func (h *Handler) GetScratchProjectHistory(c *gin.Context) {
-	projectID := c.Param("id")
-	// historyID := c.Param("history_id")
-
-	// 从 service 获取项目数据
-	// 将 projectID 字符串转换为 uint 类型
-	id, err := strconv.ParseUint(projectID, 10, 64)
-	if err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidProjectID, "invalid_project_id", err)
-		c.JSON(http.StatusBadRequest, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 获取项目创建者ID
-	userID, ok := h.dao.ScratchDao.GetProjectUserID(uint(id))
-	if !ok {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-	// 判断用户是否是项目创建者或者为管理员
-	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
-		c.JSON(http.StatusUnauthorized, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	projectData, err := h.dao.ScratchDao.GetProjectBinary(uint(id))
-	if err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 设置响应头为二进制数据
-	c.Header("Content-Type", "application/octet-stream")
-	c.Header("Content-Length", strconv.Itoa(len(projectData)))
-
-	// 直接写入字节数据
-	c.Writer.Write(projectData)
 }
