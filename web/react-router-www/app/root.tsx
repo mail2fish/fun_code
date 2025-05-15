@@ -15,7 +15,7 @@ import "@fontsource/inter/600.css"
 import "@fontsource/inter/700.css"
 
 export const links: Route.LinksFunction = () => [
-  // 移除 Google Fonts 相关的链接
+  { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" }
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
