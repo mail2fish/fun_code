@@ -1,12 +1,43 @@
-  # v0.0.2
-  A bug fix release.
-  ## Bug Fixes
+# v0.0.3
 
-  Fixed the issue where updating and saving Scratch projects was not possible.
+## Feature Updates
 
-  ## Scratch bundle.js Cache Optimization
+* Added history version feature: every time a Scratch program is saved, a version is generated. Users can select a historical version for editing, with up to 20 versions retained.
+* Added Scratch program thumbnails, allowing users to visually identify each program.
 
-  Changed the cache duration to one year.
+## Bug Fixes
+
+* Fixed the issue where the Scratch Editor's delete dialog was positioned too low to be fully visible on low-resolution screens.
+* Fixed the issue where refreshing the new program creation page would generate a new program.
+
+
+# v0.0.3
+
+## 功能更新
+
+* 增加历史版本功能，每次保持Scratch程序，都会生成一个版本，用户可以选择历史版本进行编辑，最多保存 20 个版本。
+* 增加了Scratch程序的缩略图，可以直接看图知道是什么程序。
+
+
+## Bug 修复
+
+* 修复低分辨率情况下，Scratch Editor 删除对话框位置太靠下，无法看完整
+* 修复刷新创建新程序页面会产生新程序的问题
+
+
+--- 
+
+# v0.0.2
+
+A bug fix release.
+
+## Bug Fixes
+
+Fixed the issue where updating and saving Scratch projects was not possible.
+
+## Scratch bundle.js Cache Optimization
+
+Changed the cache duration to one year.
 
 # v0.0.2
 一个修复类版本。
