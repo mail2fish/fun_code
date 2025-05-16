@@ -131,7 +131,9 @@ export function ProjectTable({
                   {project.id} 
                   </TableCell>
                   <TableCell>
-                    <img src={`${HOST_URL}/api/scratch/projects/${project.id}/thumbnail`} className="border border-gray-300 rounded-md"   alt="缩略图" />
+                    <a href={`${HOST_URL}/projects/scratch/open/${project.id}`}>
+                      <img src={`${HOST_URL}/api/scratch/projects/${project.id}/thumbnail`} className="border border-gray-300 rounded-md" alt="缩略图" />
+                    </a>
                   </TableCell>
                   <TableCell className="font-medium">
                   <a href={`${HOST_URL}/projects/scratch/open/${project.id}`} > {project.name || "未命名项目"} </a>   
