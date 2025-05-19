@@ -72,6 +72,7 @@ export function ProjectTable({
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
   const [userOptions, setUserOptions] = React.useState<User[]>([])
   const [selectedUser, setSelectedUser] = React.useState<string>("__all__")
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc")
 
   // 无限滚动相关状态
   const [projects, setProjects] = React.useState<Project[]>([])
@@ -96,7 +97,7 @@ export function ProjectTable({
     fetchUsers()
   }, [])
 
-  // 监听筛选用户变化，重置缓存并加载初始数据
+  // 监听筛选用户和排序变化，重置缓存并加载初始数据
   React.useEffect(() => {
     setProjects([])
     setHasMoreTop(true)
@@ -104,7 +105,7 @@ export function ProjectTable({
     setLocalInitialLoading(true)
     fetchData({ direction: "down", reset: true })
     // eslint-disable-next-line
-  }, [selectedUser])
+  }, [selectedUser, sortOrder])
 
   // 滚动监听
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -122,7 +123,7 @@ export function ProjectTable({
     const pageSize = 20
     let beginID = "0"
     let forward = true
-    let asc = false
+    let asc = sortOrder === "asc"
     let userId = selectedUser === "__all__" ? undefined : selectedUser
     if (!reset && projects.length > 0) {
       if (direction === "up") {
@@ -227,7 +228,6 @@ export function ProjectTable({
     <div className="flex flex-col gap-2 h-[90vh]">
       {showUserFilter && userOptions.length > 0 && (
         <div className="flex items-center gap-2 px-2 sticky top-0 z-10 bg-white/80 backdrop-blur">
-          <span className="text-sm">筛选用户：</span>
           <Select value={selectedUser} onValueChange={setSelectedUser}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="全部用户" />
@@ -237,6 +237,15 @@ export function ProjectTable({
               {userOptions.map(u => (
                 <SelectItem key={u.id} value={u.id}>{u.nickname}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={sortOrder} onValueChange={v => setSortOrder(v as "asc" | "desc")}> 
+            <SelectTrigger className="w-28">
+              <SelectValue placeholder="排序" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="desc">最新优先</SelectItem>
+              <SelectItem value="asc">最旧优先</SelectItem>
             </SelectContent>
           </Select>
         </div>
