@@ -132,3 +132,41 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* 自定义滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #e5e7eb; /* tailwind gray-200 */
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1; /* tailwind gray-300 */
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 暗色模式适配 */
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background: #334155; /* tailwind slate-700 */
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #64748b; /* tailwind slate-500 */
+  }
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #e5e7eb transparent;
+}
+@media (prefers-color-scheme: dark) {
+  * {
+    scrollbar-color: #334155 transparent;
+  }
+}
