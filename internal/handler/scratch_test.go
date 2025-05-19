@@ -61,7 +61,7 @@ func TestHandler_GetScratchProject(t *testing.T) {
 			if tt.projectID != "invalid" {
 				id, _ := strconv.ParseUint(tt.projectID, 10, 64)
 				mockDao.ScratchDao.On("GetProjectUserID", uint(id)).Return(uint(1), true).Once()
-				mockDao.ScratchDao.On("GetProjectBinary", uint(id)).Return(tt.mockData, tt.mockErr).Once()
+				mockDao.ScratchDao.On("GetProjectBinary", uint(id), "").Return(tt.mockData, tt.mockErr).Once()
 			}
 
 			r.ServeHTTP(w, req)

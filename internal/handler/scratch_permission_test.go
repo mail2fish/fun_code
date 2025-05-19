@@ -85,7 +85,7 @@ func TestHandler_ScratchProjectPermission(t *testing.T) {
 					ID:     uint(projectID),
 					UserID: tt.projectUserID,
 				}, nil).Maybe()
-				mockDao.ScratchDao.On("GetProjectBinary", uint(projectID)).Return([]byte("{}"), nil).Maybe()
+				mockDao.ScratchDao.On("GetProjectBinary", uint(projectID), "").Return([]byte("{}"), nil).Maybe()
 			} else {
 				mockDao.ScratchDao.On("GetProjectUserID", uint(projectID)).Return(uint(0), false).Maybe()
 				mockDao.ScratchDao.On("GetProject", uint(999)).Return(nil, errors.New("项目不存在")).Maybe()
@@ -340,7 +340,7 @@ func TestHandler_ProjectPermission(t *testing.T) {
 				ID:     uint(id),
 				UserID: tt.projectUserID,
 			}, nil).Maybe()
-			mockDao.ScratchDao.On("GetProjectBinary", uint(id)).Return([]byte("{}"), nil).Maybe()
+			mockDao.ScratchDao.On("GetProjectBinary", uint(id), "").Return([]byte("{}"), nil).Maybe()
 
 			req := httptest.NewRequest("GET", "/api/scratch/projects/"+tt.projectID, nil)
 			req.Header.Set("Authorization", "valid.token.string")
