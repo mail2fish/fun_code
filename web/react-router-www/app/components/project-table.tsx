@@ -57,6 +57,7 @@ interface ProjectTableProps {
   isLoading: boolean
   onDeleteProject: (id: string) => Promise<void>
   onPageChange?: (nextCursor: string,forward:boolean,asc:boolean) => void
+  showUserFilter?: boolean
 }
 
 export function ProjectTable({ 
@@ -64,6 +65,7 @@ export function ProjectTable({
   isLoading, 
   onDeleteProject,
   onPageChange,
+  showUserFilter = false,
 }: ProjectTableProps) {
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
   const [userOptions, setUserOptions] = React.useState<User[]>([])
@@ -211,7 +213,7 @@ export function ProjectTable({
 
   return (
     <div className="flex flex-col gap-2 h-[90vh]">
-      {userOptions.length > 0 && (
+      {showUserFilter && userOptions.length > 0 && (
         <div className="flex items-center gap-2 px-2 sticky top-0 z-10 bg-white/80 backdrop-blur">
           <span className="text-sm">筛选用户：</span>
           <Select value={selectedUser} onValueChange={setSelectedUser}>
@@ -253,7 +255,7 @@ export function ProjectTable({
                     <div className="font-medium text-base line-clamp-1">
                       <a href={`${HOST_URL}/projects/scratch/open/${project.id}`}>{project.name || "未命名项目"}</a>
                     </div>
-                    {userOptions.length > 0 && (
+                    {showUserFilter && userOptions.length > 0 && (
                       <div className="text-sm text-muted-foreground">创建者：{creator}</div>
                     )}
                     <div className="text-sm text-muted-foreground">创建时间：{formatDate(project.created_at || project.createdAt)}</div>

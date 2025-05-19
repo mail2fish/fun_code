@@ -242,6 +242,7 @@ export default function Page() {
             isLoading={isLoading} 
             onDeleteProject={handleDeleteProject}
             onPageChange={handlePageChange}
+            showUserFilter={true}
           />
         </div>
       </SidebarInset>
