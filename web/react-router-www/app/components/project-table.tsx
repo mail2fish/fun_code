@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link } from "react-router"
-import { IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconHistory } from "@tabler/icons-react"
+import { IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconHistory, IconRefresh } from "@tabler/icons-react"
 
 import { Button } from "~/components/ui/button"
 import {
@@ -226,8 +226,10 @@ export function ProjectTable({
 
   return (
     <div className="flex flex-col gap-2 h-[90vh]">
-      {showUserFilter && userOptions.length > 0 && (
         <div className="flex items-center gap-2 px-2 sticky top-0 z-10 bg-white/80 backdrop-blur">
+
+      {showUserFilter && userOptions.length > 0 && (
+        <div className="flex items-center gap-2">
           <Select value={selectedUser} onValueChange={setSelectedUser}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="全部用户" />
@@ -250,6 +252,23 @@ export function ProjectTable({
           </Select>
         </div>
       )}
+        <div className="flex-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setProjects([])
+              setHasMoreTop(true)
+              setHasMoreBottom(true)
+              setLocalInitialLoading(true)
+              fetchData({ direction: "down", reset: true })
+            }}
+          >
+            <IconRefresh className="h-4 w-4 mr-1" />
+            刷新
+          </Button>
+        </div>
+      </div>
       <div
         ref={scrollRef}
         className="flex-1 overflow-auto px-1"
