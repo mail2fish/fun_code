@@ -61,6 +61,10 @@ interface ProjectTableProps {
   projectsApiUrl: string
 }
 
+// 缓存相关常量
+const CACHE_KEY = 'projectTableCacheV1';
+const CACHE_EXPIRE = 60 * 60 * 1000; // 1小时
+
 export function ProjectTable({ 
    projectsData, 
   isLoading, 
@@ -71,8 +75,30 @@ export function ProjectTable({
 }: ProjectTableProps) {
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
   const [userOptions, setUserOptions] = React.useState<User[]>([])
-  const [selectedUser, setSelectedUser] = React.useState<string>("__all__")
-  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc")
+  // 先尝试从localStorage读取缓存
+  const getInitialCache = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      const { data, ts } = JSON.parse(raw);
+      if (Date.now() - ts > CACHE_EXPIRE) return null;
+      if (showUserFilter) {
+        return data;
+      } else {
+        return {
+          beginID: data.beginID,
+          sortOrder: data.sortOrder,
+        };
+      }
+    } catch {
+      return null;
+    }
+  };
+  const initialCache = getInitialCache();
+  const [selectedUser, setSelectedUser] = React.useState<string>(initialCache?.selectedUser || "__all__")
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">(initialCache?.sortOrder || "desc")
+  // beginID 只用于缓存和恢复，不作为state
 
   // 无限滚动相关状态
   const [projects, setProjects] = React.useState<Project[]>([])
@@ -82,6 +108,17 @@ export function ProjectTable({
   const [loadingBottom, setLoadingBottom] = React.useState(false)
   const [localInitialLoading, setLocalInitialLoading] = React.useState(true)
   const scrollRef = React.useRef<HTMLDivElement>(null)
+
+  // 写入缓存
+  const saveCache = React.useCallback((beginID: string) => {
+    if (typeof window === 'undefined') return;
+    const data = {
+      beginID,
+      sortOrder,
+      selectedUser,
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+  }, [sortOrder, selectedUser]);
 
   // 获取用户列表
   React.useEffect(() => {
@@ -103,7 +140,9 @@ export function ProjectTable({
     setHasMoreTop(true)
     setHasMoreBottom(true)
     setLocalInitialLoading(true)
-    fetchData({ direction: "down", reset: true })
+    // beginID 设为 initialCache.beginID 或 0
+    saveCache(initialCache?.beginID || "0");
+    fetchData({ direction: "down", reset: true, customBeginID: initialCache?.beginID || "0" })
     // eslint-disable-next-line
   }, [selectedUser, sortOrder])
 
@@ -119,13 +158,15 @@ export function ProjectTable({
   }
 
   // 数据请求
-  async function fetchData({ direction, reset = false }: { direction: "up" | "down", reset?: boolean }) {
+  async function fetchData({ direction, reset = false, customBeginID }: { direction: "up" | "down", reset?: boolean, customBeginID?: string }) {
     const pageSize = 20
     let beginID = "0"
     let forward = true
     let asc = sortOrder === "asc"
     let userId = selectedUser === "__all__" ? undefined : selectedUser
-    if (!reset && projects.length > 0) {
+    if (reset && customBeginID) {
+      beginID = customBeginID;
+    } else if (!reset && projects.length > 0) {
       if (direction === "up") {
         beginID = projects[0].id
         forward = false
@@ -146,7 +187,6 @@ export function ProjectTable({
       const res = await fetchWithAuth(`${projectsApiUrl}?${params.toString()}`)
       const resp = await res.json()
 
-
       // 兼容不同接口返回结构
       let newProjects: Project[] = [];
       if (Array.isArray(resp.data)) {
@@ -161,19 +201,33 @@ export function ProjectTable({
         setHasMoreTop(true)
         setHasMoreBottom(true)
         setLocalInitialLoading(false)
+        // 缓存第一页的beginID
+        if (newProjects.length > 0) {
+          saveCache(newProjects[0].id)
+        } else {
+          saveCache("0")
+        }
         return
       }
       if (direction === "up") {
         if (newProjects.length === 0) setHasMoreTop(false)
         setProjects(prev => {
           const merged = [...newProjects, ...prev]
-          return merged.slice(-30)
+          // 缓存最新的beginID
+          let mergedProjects = merged.slice(0, 30)
+          console.log("up",mergedProjects)
+          if (mergedProjects.length > 0) saveCache(mergedProjects[0].id)
+          return mergedProjects
         })
       } else {
         if (newProjects.length === 0) setHasMoreBottom(false)
         setProjects(prev => {
           const merged = [...prev, ...newProjects]
-          return merged.slice(0, 30)
+          // 缓存最新的beginID
+          let mergedProjects = merged.slice(-30)
+          console.log("down",mergedProjects)
+          if (mergedProjects.length > 0) saveCache(mergedProjects[0].id)
+          return mergedProjects
         })
       }
     } finally {
@@ -261,7 +315,7 @@ export function ProjectTable({
               setHasMoreTop(true)
               setHasMoreBottom(true)
               setLocalInitialLoading(true)
-              fetchData({ direction: "down", reset: true })
+              fetchData({ direction: "down", reset: true, customBeginID: initialCache?.beginID || "0" })
             }}
           >
             <IconRefresh className="h-4 w-4 mr-1" />
