@@ -136,12 +136,16 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 		}
 	}
 
+	//  如果不是 index.html 文件，则设置 Cache-Control 头
+	if filePath != "index.html" {
+		c.Header("Cache-Control", "public, max-age=31536000") // 设置为最长缓存时间 1 年
+		// 设置 Expires 头
+		expiredTime := time.Now().Add(31536000 * time.Second) // 1 小时后过期
+		c.Header("Expires", expiredTime.Format(time.RFC1123))
+	}
+
 	// 设置响应头
 	c.Header("ETag", etag)
-	c.Header("Cache-Control", "public, max-age=31536000") // 设置为最长缓存时间 1 年
-	// 设置 Expires 头
-	expiredTime := time.Now().Add(31536000 * time.Second) // 1 小时后过期
-	c.Header("Expires", expiredTime.Format(time.RFC1123))
 
 	// 获取 Content-Type
 	contentType := mime.TypeByExtension(filepath.Ext(filePath))
