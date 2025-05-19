@@ -256,11 +256,13 @@ export function ProjectTable({
               return (
                 <Card key={project.id || Math.random()} className="flex flex-col h-full">
                   <div className="w-full h-40 flex items-center justify-center rounded-t-xl bg-gray-50">
-                    <img
-                      src={`${HOST_URL}/api/scratch/projects/${project.id}/thumbnail`}
-                      className="max-h-32 object-contain"
-                      alt="缩略图"
-                    />
+                    <a href={`${HOST_URL}/projects/scratch/open/${project.id}`}>
+                      <img
+                        src={`${HOST_URL}/api/scratch/projects/${project.id}/thumbnail`}
+                        className="max-h-32 object-contain"
+                        alt="缩略图"
+                      />
+                    </a>
                   </div>
                   <CardContent className="flex flex-col gap-2 flex-1">
                     <div className="text-xs text-muted-foreground">项目序号：{project.id}</div>
