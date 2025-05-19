@@ -23,6 +23,7 @@ func (h *Handler) GetAllScratchProject(c *gin.Context) {
 	beginIDStr := c.DefaultQuery("beginID", "0")
 	forwardStr := c.DefaultQuery("forward", "true")
 	ascStr := c.DefaultQuery("asc", "true")
+	userIDStr := c.DefaultQuery("userId", "")
 
 	pageSize, err := strconv.Atoi(pageSizeStr)
 	if err != nil || pageSize <= 0 || pageSize > 100 {
@@ -34,11 +35,16 @@ func (h *Handler) GetAllScratchProject(c *gin.Context) {
 		beginID = 0
 	}
 
+	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil {
+		userID = 0
+	}
+
 	// 获取语言
 	lang := c.GetHeader("Accept-Language")
 
 	// 获取项目总数
-	total, err := h.dao.ScratchDao.CountProjects(0)
+	total, err := h.dao.ScratchDao.CountProjects(uint(userID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ResponseError{
 			Code:    int(custom_error.GetErrorCode(err)),
@@ -53,7 +59,7 @@ func (h *Handler) GetAllScratchProject(c *gin.Context) {
 	forward := forwardStr == "true"
 
 	// 获取项目列表
-	projects, hasMore, err := h.dao.ScratchDao.ListProjectsWithPagination(0, uint(pageSize), uint(beginID), forward, asc)
+	projects, hasMore, err := h.dao.ScratchDao.ListProjectsWithPagination(uint(userID), uint(pageSize), uint(beginID), forward, asc)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ResponseError{
 			Code:    int(custom_error.GetErrorCode(err)),

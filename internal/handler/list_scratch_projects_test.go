@@ -31,7 +31,7 @@ func TestListScratchProjects(t *testing.T) {
 
 	// 设置数据库和服务
 	db := testutils.SetupTestDB()
-	scratchService := dao.NewScratchDao(db, tempDir, zap.NewNop())
+	scratchService := dao.NewScratchDao(db, tempDir, &config.Config{}, zap.NewNop())
 
 	// 创建配置
 	cfg := &config.Config{

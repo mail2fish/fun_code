@@ -58,6 +58,7 @@ interface ProjectTableProps {
   onDeleteProject: (id: string) => Promise<void>
   onPageChange?: (nextCursor: string,forward:boolean,asc:boolean) => void
   showUserFilter?: boolean
+  projectsApiUrl: string
 }
 
 export function ProjectTable({ 
@@ -66,6 +67,7 @@ export function ProjectTable({
   onDeleteProject,
   onPageChange,
   showUserFilter = false,
+  projectsApiUrl,
 }: ProjectTableProps) {
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
   const [userOptions, setUserOptions] = React.useState<User[]>([])
@@ -140,9 +142,19 @@ export function ProjectTable({
       params.append("asc", String(asc))
       if (beginID !== "0") params.append("beginID", beginID)
       if (userId) params.append("userId", userId)
-      const res = await fetchWithAuth(`${HOST_URL}/api/scratch/projects?${params.toString()}`)
-      const data = await res.json()
-      const newProjects: Project[] = data.data || []
+      const res = await fetchWithAuth(`${projectsApiUrl}?${params.toString()}`)
+      const resp = await res.json()
+
+
+      // 兼容不同接口返回结构
+      let newProjects: Project[] = [];
+      if (Array.isArray(resp.data)) {
+        newProjects = resp.data;
+      } else if (Array.isArray(resp.data.projects)) {
+        newProjects = resp.data.projects;
+      } else {
+        newProjects = [];
+      }
       if (reset) {
         setProjects(newProjects)
         setHasMoreTop(true)

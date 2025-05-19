@@ -40,7 +40,7 @@ func TestGetProject(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// 执行测试
-			result, err := service.GetProjectBinary(tt.projectID)
+			result, err := service.GetProjectBinary(tt.projectID, tempDir)
 
 			// 验证结果
 			if (err != nil) != tt.wantErr {
@@ -85,7 +85,7 @@ func TestSaveProject(t *testing.T) {
 	}
 
 	// 读取项目并验证内容
-	readContent, err := service.GetProjectBinary(savedID)
+	readContent, err := service.GetProjectBinary(savedID, tempDir)
 	if err != nil {
 		t.Fatalf("GetProject() error = %v", err)
 	}

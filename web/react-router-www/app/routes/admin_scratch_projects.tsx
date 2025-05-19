@@ -243,6 +243,7 @@ export default function Page() {
             onDeleteProject={handleDeleteProject}
             onPageChange={handlePageChange}
             showUserFilter={true}
+            projectsApiUrl={`${HOST_URL}/api/admin/scratch/projects`}
           />
         </div>
       </SidebarInset>

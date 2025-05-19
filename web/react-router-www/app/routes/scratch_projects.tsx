@@ -244,6 +244,7 @@ export default function Page() {
             isLoading={isLoading} 
             onDeleteProject={handleDeleteProject}
             onPageChange={handlePageChange}
+            projectsApiUrl={`${HOST_URL}/api/scratch/projects`}
           />
         </div>
       </SidebarInset>

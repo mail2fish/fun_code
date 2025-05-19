@@ -33,6 +33,7 @@ const (
 	ErrorCodeGetAssetFailed       = 9
 	ErrorCodeUnauthorized         = 10
 	ErrorCodeGetThumbnailFailed   = 11
+	ErrorCodeInvalidUserID        = 12
 )
 
 // NewScratchProject 创建一个新的Scratch项目处理程序
