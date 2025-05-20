@@ -100,6 +100,7 @@ func (s *Server) setupRoutes() {
 			admin.PUT("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.PutUpdateUser)
 			admin.DELETE("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.DeleteUser)
 			admin.GET("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.GetUser)
+			admin.GET("/users/search", s.handler.RequirePermission("manage_users"), s.handler.GetSearchUsers)
 			// 获取所有scratch项目
 			admin.GET("/scratch/projects", s.handler.GetAllScratchProject)
 		}

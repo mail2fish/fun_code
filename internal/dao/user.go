@@ -382,3 +382,12 @@ func (s *UserDaoImpl) GetUsersByIDs(ids []uint) ([]model.User, error) {
 	}
 	return users, nil
 }
+
+// SearchUsers 搜索用户
+func (s *UserDaoImpl) SearchUsers(keyword string) ([]model.User, error) {
+	var users []model.User
+	if err := s.db.Where("username LIKE ? OR email LIKE ? OR nickname LIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%").Find(&users).Error; err != nil {
+		return nil, custom_error.NewThirdPartyError(custom_error.USER, ErrorCodeQueryFailed, "user.db_query_failed", err)
+	}
+	return users, nil
+}

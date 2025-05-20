@@ -264,6 +264,11 @@ type MockUserDao struct {
 	mock.Mock
 }
 
+func (m *MockUserDao) SearchUsers(keyword string) ([]model.User, error) {
+	args := m.Called(keyword)
+	return args.Get(0).([]model.User), args.Error(1)
+}
+
 func (m *MockUserDao) GetUserByID(id uint) (*model.User, error) {
 	args := m.Called(id)
 	if args.Get(0) == nil {

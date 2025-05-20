@@ -34,6 +34,7 @@ const (
 	ErrorCodeUnauthorized         = 10
 	ErrorCodeGetThumbnailFailed   = 11
 	ErrorCodeInvalidUserID        = 12
+	ErrorCodeSearchFailed         = 13
 )
 
 // NewScratchProject 创建一个新的Scratch项目处理程序
