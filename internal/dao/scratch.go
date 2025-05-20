@@ -449,3 +449,19 @@ func (s *ScratchDaoImpl) GetProject(projectID uint) (*model.ScratchProject, erro
 func (s *ScratchDaoImpl) GetScratchBasePath() string {
 	return s.basePath
 }
+
+func (s *ScratchDaoImpl) SearchProjects(userID uint, keyword string) ([]model.ScratchProject, error) {
+	var projects []model.ScratchProject
+
+	if userID == 0 {
+		if err := s.db.Where("name LIKE ?", "%"+keyword+"%").Find(&projects).Error; err != nil {
+			return nil, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeQueryFailed, "scratch.db_query_failed", err)
+		}
+	} else {
+		if err := s.db.Where("user_id = ? AND name LIKE ?", userID, "%"+keyword+"%").Find(&projects).Error; err != nil {
+			return nil, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeQueryFailed, "scratch.db_query_failed", err)
+		}
+	}
+
+	return projects, nil
+}

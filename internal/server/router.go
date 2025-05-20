@@ -80,6 +80,7 @@ func (s *Server) setupRoutes() {
 		auth.GET("/scratch/projects/:id/thumbnail", s.handler.GetProjectThumbnail)
 		auth.GET("/scratch/projects/:id/histories", s.handler.GetScratchProjectHistories)
 		auth.GET("/scratch/projects", s.handler.ListScratchProjects)
+		auth.GET("/scratch/projects/search", s.handler.GetSearchScratch)
 		auth.DELETE("/scratch/projects/:id", s.handler.DeleteScratchProject)
 
 		{

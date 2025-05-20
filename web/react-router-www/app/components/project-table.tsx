@@ -76,6 +76,8 @@ export function ProjectTable({
   const [searchKeyword, setSearchKeyword] = React.useState("");
   const [searching, setSearching] = React.useState(false);
   const [searchResults, setSearchResults] = React.useState<User[]>([]);
+  const [projectKeyword, setProjectKeyword] = React.useState("");
+  const [searchingProject, setSearchingProject] = React.useState(false);
   // 先尝试从localStorage读取缓存
   const getInitialCache = () => {
     if (typeof window === 'undefined') return null;
@@ -154,7 +156,7 @@ export function ProjectTable({
     setSearching(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/search?keyword=${encodeURIComponent(searchKeyword)}`);
+        const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/search?keyword=${encodeURIComponent(searchKeyword)}&user_id=${selectedUser}`);
         const data = await res.json();
         if (Array.isArray(data.data)) {
           setSearchResults(data.data);
@@ -169,6 +171,44 @@ export function ProjectTable({
     }, 300);
     return () => clearTimeout(timer);
   }, [searchKeyword]);
+
+  // 项目名称搜索逻辑（带防抖）
+  React.useEffect(() => {
+    if (!projectKeyword || projectKeyword.length < 1) {
+      // 关键字为空或长度小于1时恢复原有无限滚动逻辑
+      setProjects([]);
+      setHasMoreTop(true);
+      setHasMoreBottom(true);
+      setLocalInitialLoading(true);
+      fetchData({ direction: "down", reset: true, customBeginID: initialCache?.beginID || "0" });
+      return;
+    }
+    setSearchingProject(true);
+    const timer = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams();
+        params.append("keyword", projectKeyword);
+        if (selectedUser && selectedUser !== "__all__") params.append("userId", selectedUser);
+        const res = await fetchWithAuth(`${HOST_URL}/api/scratch/projects/search?${params.toString()}`);
+        const data = await res.json();
+        let newProjects: Project[] = [];
+        if (Array.isArray(data.data)) {
+          newProjects = data.data;
+        } else if (Array.isArray(data.data?.projects)) {
+          newProjects = data.data.projects;
+        }
+        setProjects(newProjects);
+        setHasMoreTop(false);
+        setHasMoreBottom(false);
+        setLocalInitialLoading(false);
+      } catch (e) {
+        setProjects([]);
+      } finally {
+        setSearchingProject(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [projectKeyword, selectedUser]);
 
   // 监听筛选用户和排序变化，重置缓存并加载初始数据
   React.useEffect(() => {
@@ -314,75 +354,89 @@ export function ProjectTable({
 
   return (
     <div className="flex flex-col gap-2 h-[90vh]">
-        <div className="flex items-center gap-2 px-2 sticky top-0 z-10 bg-white/80 backdrop-blur">
-
-      {showUserFilter && userOptions.length > 0 && (
-        <div className="flex items-center gap-2">
-          <Select value={selectedUser} onValueChange={(value) => {
-            setSelectedUser(value)
-            saveCache("0")
-            setSearchKeyword(""); // 选择后清空搜索
-          }}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="全部用户" />
-            </SelectTrigger>
-            <SelectContent>
-              <div className="px-2 py-1">
-                <input
-                  className="w-full outline-none bg-transparent text-sm px-2 py-1 border rounded-md h-8"
-                  placeholder="搜索用户"
-                  value={searchKeyword}
-                  onChange={e => setSearchKeyword(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <SelectItem value="__all__">全部用户</SelectItem>
-              {(searchKeyword ? searchResults : userOptions).map(u => (
-                <SelectItem key={u.id} value={u.id}>{u.nickname}</SelectItem>
-              ))}
-              {searching && <div className="px-2 py-1 text-xs text-muted-foreground">搜索中...</div>}
-              {searchKeyword && !searching && searchResults.length === 0 && (
-                <div className="px-2 py-1 text-xs text-muted-foreground">无匹配用户</div>
-              )}
-            </SelectContent>
-          </Select>
-          <Select value={sortOrder} onValueChange={v => {
-            setSortOrder(v as "asc" | "desc")
-            saveCache("0")
-          }}> 
-            <SelectTrigger className="w-28">
-              <SelectValue placeholder="排序" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="desc">最新优先</SelectItem>
-              <SelectItem value="asc">最旧优先</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-        <div className="flex-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setProjects([])
-              setHasMoreTop(true)
-              setHasMoreBottom(true)
-              setLocalInitialLoading(true)
-              fetchData({ direction: "down", reset: true, customBeginID: initialCache?.beginID || "0" })
-            }}
-          >
-            <IconRefresh className="h-4 w-4 mr-1" />
-            刷新
-          </Button>
-        </div>
+      <div className="flex items-center gap-2 px-2 sticky top-0 z-10 bg-white/80 backdrop-blur">
+        {/* 用户筛选和排序 */}
+        {showUserFilter && userOptions.length > 0 && (
+          <>
+            <Select value={selectedUser} onValueChange={(value) => {
+              setSelectedUser(value)
+              saveCache("0")
+              setSearchKeyword(""); // 选择后清空搜索
+            }}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="全部用户" />
+              </SelectTrigger>
+              <SelectContent>
+                <div className="px-2 py-1">
+                  <input
+                    className="w-full outline-none bg-transparent text-sm px-2 py-1 border rounded-md h-8"
+                    placeholder="搜索用户"
+                    value={searchKeyword}
+                    onChange={e => setSearchKeyword(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <SelectItem value="__all__">全部用户</SelectItem>
+                {(searchKeyword ? searchResults : userOptions).map(u => (
+                  <SelectItem key={u.id} value={u.id}>{u.nickname}</SelectItem>
+                ))}
+                {searching && <div className="px-2 py-1 text-xs text-muted-foreground">搜索中...</div>}
+                {searchKeyword && !searching && searchResults.length === 0 && (
+                  <div className="px-2 py-1 text-xs text-muted-foreground">无匹配用户</div>
+                )}
+              </SelectContent>
+            </Select>
+            <Select value={sortOrder} onValueChange={v => {
+              setSortOrder(v as "asc" | "desc")
+              saveCache("0")
+            }}> 
+              <SelectTrigger className="w-28">
+                <SelectValue placeholder="排序" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">最新优先</SelectItem>
+                <SelectItem value="asc">最旧优先</SelectItem>
+              </SelectContent>
+            </Select>
+          </>
+        )}
+        {/* 项目名称搜索栏 */}
+        <input
+          className="w-48 h-8 px-3 border border-input rounded-md bg-background text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition"
+          placeholder="搜索项目名称"
+          value={projectKeyword}
+          onChange={e => setProjectKeyword(e.target.value)}
+          style={{ boxSizing: 'border-box' }}
+        />
+        {/* 刷新按钮 */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 px-3 text-sm font-normal rounded-md border shadow-sm"
+          onClick={() => {
+            setProjects([])
+            setHasMoreTop(true)
+            setHasMoreBottom(true)
+            setLocalInitialLoading(true)
+            fetchData({ direction: "down", reset: true, customBeginID: initialCache?.beginID || "0" })
+          }}
+        >
+          <IconRefresh className="h-4 w-4 mr-1" />
+          刷新
+        </Button>
       </div>
       <div
         ref={scrollRef}
         className="flex-1 overflow-auto px-1"
         style={{ WebkitOverflowScrolling: 'touch' }}
-        onScroll={handleScroll}
+        onScroll={projectKeyword ? undefined : handleScroll}
       >
+        {projectKeyword.length >= 1 && searchingProject && (
+          <div className="text-center text-xs text-muted-foreground py-2">搜索中...</div>
+        )}
+        {projectKeyword.length >= 1 && !searchingProject && projects.length === 0 && (
+          <div className="text-center text-xs text-muted-foreground py-2">无匹配项目</div>
+        )}
         {loadingTop && <div className="text-center text-xs text-muted-foreground py-2">加载中...</div>}
         {!hasMoreTop && <div className="text-center text-xs text-muted-foreground py-2">已到顶部</div>}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">

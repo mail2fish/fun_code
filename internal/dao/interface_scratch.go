@@ -28,4 +28,6 @@ type ScratchDao interface {
 	GetScratchBasePath() string
 
 	CountProjects(userID uint) (int64, error)
+
+	SearchProjects(userID uint, keyword string) ([]model.ScratchProject, error)
 }
