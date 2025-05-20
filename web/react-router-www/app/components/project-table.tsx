@@ -73,6 +73,9 @@ export function ProjectTable({
 }: ProjectTableProps) {
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
   const [userOptions, setUserOptions] = React.useState<User[]>([])
+  const [searchKeyword, setSearchKeyword] = React.useState("");
+  const [searching, setSearching] = React.useState(false);
+  const [searchResults, setSearchResults] = React.useState<User[]>([]);
   // 先尝试从localStorage读取缓存
   const getInitialCache = () => {
     if (typeof window === 'undefined') return null;
@@ -141,6 +144,31 @@ export function ProjectTable({
     }
     fetchUsers()
   }, [])
+
+  // 搜索用户（带防抖）
+  React.useEffect(() => {
+    if (!searchKeyword) {
+      setSearchResults([]);
+      return;
+    }
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/search?keyword=${encodeURIComponent(searchKeyword)}`);
+        const data = await res.json();
+        if (Array.isArray(data.data)) {
+          setSearchResults(data.data);
+        } else {
+          setSearchResults([]);
+        }
+      } catch (e) {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchKeyword]);
 
   // 监听筛选用户和排序变化，重置缓存并加载初始数据
   React.useEffect(() => {
@@ -293,15 +321,29 @@ export function ProjectTable({
           <Select value={selectedUser} onValueChange={(value) => {
             setSelectedUser(value)
             saveCache("0")
+            setSearchKeyword(""); // 选择后清空搜索
           }}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="全部用户" />
             </SelectTrigger>
             <SelectContent>
+              <div className="px-2 py-1">
+                <input
+                  className="w-full outline-none bg-transparent text-sm px-2 py-1 border rounded-md h-8"
+                  placeholder="搜索用户"
+                  value={searchKeyword}
+                  onChange={e => setSearchKeyword(e.target.value)}
+                  autoFocus
+                />
+              </div>
               <SelectItem value="__all__">全部用户</SelectItem>
-              {userOptions.map(u => (
+              {(searchKeyword ? searchResults : userOptions).map(u => (
                 <SelectItem key={u.id} value={u.id}>{u.nickname}</SelectItem>
               ))}
+              {searching && <div className="px-2 py-1 text-xs text-muted-foreground">搜索中...</div>}
+              {searchKeyword && !searching && searchResults.length === 0 && (
+                <div className="px-2 py-1 text-xs text-muted-foreground">无匹配用户</div>
+              )}
             </SelectContent>
           </Select>
           <Select value={sortOrder} onValueChange={v => {
