@@ -122,7 +122,7 @@ export default function Page() {
           <ProjectTable 
             onDeleteProject={handleDeleteProject}
             projectsApiUrl={`${HOST_URL}/api/scratch/projects`}
-            showUserFilter={true}
+            showUserFilter={false}
           />
         </div>
       </SidebarInset>
