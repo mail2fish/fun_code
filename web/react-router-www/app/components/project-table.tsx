@@ -53,8 +53,8 @@ export interface ProjectsData{
 
 
 interface ProjectTableProps {
-  projectsData: ProjectsData
-  isLoading: boolean
+  projectsData?: ProjectsData
+  isLoading?: boolean
   onDeleteProject: (id: string) => Promise<void>
   onPageChange?: (nextCursor: string,forward:boolean,asc:boolean) => void
   showUserFilter?: boolean
@@ -66,8 +66,6 @@ const CACHE_KEY = 'projectTableCacheV1';
 const CACHE_EXPIRE = 60 * 60 * 1000; // 1小时
 
 export function ProjectTable({ 
-   projectsData, 
-  isLoading, 
   onDeleteProject,
   onPageChange,
   showUserFilter = false,
@@ -112,6 +110,16 @@ export function ProjectTable({
   // 写入缓存
   const saveCache = React.useCallback((beginID: string) => {
     if (typeof window === 'undefined') return;
+
+    let bID=parseInt(beginID)
+
+    if (sortOrder === "asc" && bID > 0) {
+      bID = bID - 1
+    } else if (sortOrder === "desc" && bID > 0) {
+      bID = bID + 1
+    }
+    beginID = bID.toString()
+
     const data = {
       beginID,
       sortOrder,
@@ -215,7 +223,6 @@ export function ProjectTable({
           const merged = [...newProjects, ...prev]
           // 缓存最新的beginID
           let mergedProjects = merged.slice(0, 30)
-          console.log("up",mergedProjects)
           if (mergedProjects.length > 0) saveCache(mergedProjects[0].id)
           return mergedProjects
         })
@@ -225,7 +232,6 @@ export function ProjectTable({
           const merged = [...prev, ...newProjects]
           // 缓存最新的beginID
           let mergedProjects = merged.slice(-30)
-          console.log("down",mergedProjects)
           if (mergedProjects.length > 0) saveCache(mergedProjects[0].id)
           return mergedProjects
         })
@@ -274,7 +280,7 @@ export function ProjectTable({
     }
   }
 
-  if (isLoading || localInitialLoading) {
+  if (localInitialLoading) {
     return <div className="text-center py-4">加载中...</div>
   }
 
@@ -284,7 +290,10 @@ export function ProjectTable({
 
       {showUserFilter && userOptions.length > 0 && (
         <div className="flex items-center gap-2">
-          <Select value={selectedUser} onValueChange={setSelectedUser}>
+          <Select value={selectedUser} onValueChange={(value) => {
+            setSelectedUser(value)
+            saveCache("0")
+          }}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="全部用户" />
             </SelectTrigger>
@@ -295,7 +304,10 @@ export function ProjectTable({
               ))}
             </SelectContent>
           </Select>
-          <Select value={sortOrder} onValueChange={v => setSortOrder(v as "asc" | "desc")}> 
+          <Select value={sortOrder} onValueChange={v => {
+            setSortOrder(v as "asc" | "desc")
+            saveCache("0")
+          }}> 
             <SelectTrigger className="w-28">
               <SelectValue placeholder="排序" />
             </SelectTrigger>
