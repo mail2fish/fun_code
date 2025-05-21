@@ -386,7 +386,19 @@ export function ProjectTable({
                 )}
               </SelectContent>
             </Select>
-            <Select value={sortOrder} onValueChange={v => {
+           
+          </>
+        )}
+        {/* 项目名称搜索栏 */}
+        <input
+          className="w-48 h-8 px-3 border border-input rounded-md bg-background text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition"
+          placeholder="搜索项目名称"
+          value={projectKeyword}
+          onChange={e => setProjectKeyword(e.target.value)}
+          style={{ boxSizing: 'border-box' }}
+        />
+
+        <Select value={sortOrder} onValueChange={v => {
               setSortOrder(v as "asc" | "desc")
               saveCache("0")
             }}> 
@@ -398,16 +410,7 @@ export function ProjectTable({
                 <SelectItem value="asc">最旧优先</SelectItem>
               </SelectContent>
             </Select>
-          </>
-        )}
-        {/* 项目名称搜索栏 */}
-        <input
-          className="w-48 h-8 px-3 border border-input rounded-md bg-background text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition"
-          placeholder="搜索项目名称"
-          value={projectKeyword}
-          onChange={e => setProjectKeyword(e.target.value)}
-          style={{ boxSizing: 'border-box' }}
-        />
+        
         {/* 刷新按钮 */}
         <Button
           variant="outline"
