@@ -58,7 +58,7 @@ build-go-%: deps
 	$(eval CGO_FLAG = 1) # 
 	mkdir -p $(BUILD_DIR)/$(GOOS)-$(GOARCH); \
 	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_FLAG) $(GO) build -ldflags "-X 'main.GitCommit=$(GIT_COMMIT)'" -o $(BUILD_DIR)/$(GOOS)-$(GOARCH)/$(BINARY_NAME)_$(GOOS)_$(GOARCH)_$(GIT_COMMIT)$(EXT) ./cmd/fun_code; \
-	cd $(BUILD_DIR)/$(GOOS)-$(GOARCH) && tar -cjf $(BINARY_NAME)_$(GOOS)_$(GOARCH)_$(GIT_COMMIT).tar.bz2 $(BINARY_NAME)_$(GOOS)_$(GOARCH)_$(GIT_COMMIT)$(EXT)
+	cd $(BUILD_DIR)/$(GOOS)-$(GOARCH) && tar -cjf $(BINARY_NAME)_$(GOOS)_$(GOARCH)_$(GIT_COMMIT).tar.bz2 $(BINARY_NAME)_$(GOOS)_$(GOARCH)_$(GIT_COMMIT)$(EXT) && sha1sum $(BINARY_NAME)_$(GOOS)_$(GOARCH)_$(GIT_COMMIT).tar.bz2 > $(BINARY_NAME)_$(GOOS)_$(GOARCH)_$(GIT_COMMIT).tar.bz2.sha1
 
 # 构建所有平台的 Go 项目
 .PHONY: build-go-all
