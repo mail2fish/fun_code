@@ -1,3 +1,23 @@
+# v0.0.4
+
+## Feature Updates
+
+* Added sorting functionality to the Scratch project list
+* Support searching Scratch projects by project name
+* Support filtering Scratch projects by user
+
+# v0.0.4
+
+## 功能更新
+
+* 新增 Scratch 项目列表排序功能
+* 支持按项目名称搜索 Scratch 项目
+* 支持按用户筛选 Scratch 项目
+
+
+
+---
+
 # v0.0.3
 
 ## Feature Updates
