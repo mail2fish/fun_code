@@ -421,7 +421,7 @@ export function ProjectTable({
             setHasMoreTop(true)
             setHasMoreBottom(true)
             setLocalInitialLoading(true)
-            fetchData({ direction: "down", reset: true, customBeginID: initialCache?.beginID || "0" })
+            fetchData({ direction: "down", reset: true, customBeginID: "0" })
           }}
         >
           <IconRefresh className="h-4 w-4 mr-1" />
