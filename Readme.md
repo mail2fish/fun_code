@@ -8,7 +8,7 @@ FunCode Scratch Editor is an ultra-lightweight open-source graphical programming
 
 This project is still under development. If you are interested, you are welcome to join and improve it together.
 
-Currently, there is a QQ group: 749870231. Welcome to join and discuss.
+Currently, there is a QQ group: 749870231 . Welcome to join and discuss.
 
 ## Installation and Usage Guide
 

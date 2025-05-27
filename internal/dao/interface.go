@@ -12,6 +12,7 @@ type Dao struct {
 	CourseDao    CourseDao
 	ScratchDao   ScratchDao
 	UserAssetDao UserAssetDao
+	ShareDao     ShareDao
 }
 
 type AuthDao interface {

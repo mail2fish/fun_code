@@ -9,4 +9,5 @@ const (
 	SCRATCH    ErrorModule = 200000
 	AUTH       ErrorModule = 300000
 	USER_ASSET ErrorModule = 400000
+	SHARE      ErrorModule = 500000
 )

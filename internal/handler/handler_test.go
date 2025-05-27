@@ -194,6 +194,11 @@ type MockScratchDao struct {
 	mock.Mock
 }
 
+func (m *MockScratchDao) SearchProjects(userID uint, keyword string) ([]model.ScratchProject, error) {
+	args := m.Called(userID, keyword)
+	return args.Get(0).([]model.ScratchProject), args.Error(1)
+}
+
 func (m *MockScratchDao) GetProjectBinary(projectID uint, md5 string) ([]byte, error) {
 	args := m.Called(projectID, md5)
 	if args.Get(0) == nil {
