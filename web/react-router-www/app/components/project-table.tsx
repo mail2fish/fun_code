@@ -87,10 +87,13 @@ export function ProjectTable({
       const { data, ts } = JSON.parse(raw);
       if (Date.now() - ts > CACHE_EXPIRE) return null;
       if (showUserFilter) {
+        // 缓存 beginID 会产生一些奇怪的问题，暂时先禁用
+        data.beginID = 0;
         return data;
       } else {
         return {
-          beginID: data.beginID,
+        // 缓存 beginID 会产生一些奇怪的问题，暂时先禁用
+          beginID: 0,
           sortOrder: data.sortOrder,
         };
       }
