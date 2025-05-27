@@ -264,11 +264,6 @@ func (m *MockScratchDao) CreateProject(userID uint) (uint, error) {
 	return args.Get(0).(uint), args.Error(1)
 }
 
-func (m *MockScratchDao) SearchProjects(userID uint, keyword string) ([]model.ScratchProject, error) {
-	args := m.Called(userID, keyword)
-	return args.Get(0).([]model.ScratchProject), args.Error(1)
-}
-
 // MockUserDao 是 UserDao 的模拟实现
 type MockUserDao struct {
 	mock.Mock
