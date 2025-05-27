@@ -1,8 +1,6 @@
 module github.com/jun/fun_code
 
-go 1.23.0
-
-toolchain go1.24.0
+go 1.24.0
 
 require (
 	github.com/gin-contrib/cors v1.7.4
@@ -40,6 +38,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/mail2fish/gorails v0.0.0-20250513063700-a621c280426c // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -56,3 +55,5 @@ require (
 	golang.org/x/sys v0.31.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
+
+replace github.com/mail2fish/gorails => /Users/jun/projects/src/gorails

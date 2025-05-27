@@ -7,6 +7,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/handler"
+	"github.com/mail2fish/gorails/gorails"
 )
 
 //	@title			FuncCode API
@@ -81,6 +82,10 @@ func (s *Server) setupRoutes() {
 		auth.GET("/scratch/projects/:id/histories", s.handler.GetScratchProjectHistories)
 		auth.GET("/scratch/projects", s.handler.ListScratchProjects)
 		auth.GET("/scratch/projects/search", s.handler.GetSearchScratch)
+
+		// ShareRoute 注册分享相关的路由
+		auth.POST("/shares", gorails.Wrap(s.handler.CreateShareHandler, nil))
+
 		auth.DELETE("/scratch/projects/:id", s.handler.DeleteScratchProject)
 
 		{
