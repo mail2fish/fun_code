@@ -323,14 +323,20 @@ export default function ListUserPage() {
                     users.map((user) => (
                       <TableRow key={user.id || Math.random()}>
                         <TableCell className="font-medium">
-                          {user.username}
+                          <Link to={`/www/admin/users/${user.id}/edit`}>
+                            {user.username}
+                          </Link>
                         </TableCell>
                         <TableCell>
                           <Link to={`/www/admin/users/${user.id}/edit`}>
                             {user.nickname}
                           </Link>
-                        </TableCell>  
-                        <TableCell>{user.email}</TableCell>
+                        </TableCell>
+                        <TableCell>
+                          <Link to={`/www/admin/users/${user.id}/edit`}>
+                            {user.email}
+                          </Link>
+                        </TableCell>
                         <TableCell>{user.role}</TableCell>
                         <TableCell>{formatDate(user.created_at)}</TableCell>
                         <TableCell>{formatDate(user.updated_at)}</TableCell>
