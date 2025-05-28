@@ -325,7 +325,11 @@ export default function ListUserPage() {
                         <TableCell className="font-medium">
                           {user.username}
                         </TableCell>
-                        <TableCell>{user.nickname}</TableCell>
+                        <TableCell>
+                          <Link to={`/www/admin/users/${user.id}/edit`}>
+                            {user.nickname}
+                          </Link>
+                        </TableCell>  
                         <TableCell>{user.email}</TableCell>
                         <TableCell>{user.role}</TableCell>
                         <TableCell>{formatDate(user.created_at)}</TableCell>
