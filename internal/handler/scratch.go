@@ -94,10 +94,22 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		return
 	}
 	userID := project.UserID
+	loginedUserID := h.getUserID(c)
 	// 判断用户是否是项目创建者或者为管理员
-	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
+	if userID != loginedUserID && !h.hasPermission(c, PermissionManageAll) {
 		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeNoPermission, "no_permission", err)
 		c.JSON(http.StatusUnauthorized, ResponseError{
+			Code:    int(e.ErrorCode()),
+			Message: e.Message,
+			Error:   e.Error(),
+		})
+		return
+	}
+
+	user, err := h.dao.UserDao.GetUserByID(loginedUserID)
+	if err != nil {
+		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
+		c.JSON(http.StatusInternalServerError, ResponseError{
 			Code:    int(e.ErrorCode()),
 			Message: e.Message,
 			Error:   e.Error(),
@@ -159,11 +171,17 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		ProjectID      string
 		Host           string
 		ProjectTitle   string
+		CanRemix       bool
+		UserName       string
+		NickName       string
 	}{
 		CanSaveProject: canSaveProject,
 		ProjectID:      rawID,                       // 新项目使用0作为ID
 		Host:           h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
 		ProjectTitle:   project.Name,
+		CanRemix:       project.UserID == loginedUserID,
+		UserName:       user.Username,
+		NickName:       user.Nickname,
 	}
 
 	// 设置响应头

@@ -47,8 +47,10 @@
     <script>
       // 全局配置对象
       window.SCRATCH_CONFIG = {
+        username: "{{ .UserName }}",
+        nickname: "{{ .NickName }}",
         canSave: {{ .CanSaveProject }},
-        canRemix: false,
+        canRemix: {{ .CanRemix }},
         canCreateNew: true,
         canEditTitle: true,
         enableCommunity: false,

@@ -4,3 +4,23 @@
   display: flex;
   flex-direction: column;
 }
+
+.login-container {
+  display: flex;
+  align-items: center;
+}
+
+.login-button {
+  background-color: #4D97FF;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.login-button:hover {
+  background-color: #3373CC;
+}
