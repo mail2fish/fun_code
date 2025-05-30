@@ -4,10 +4,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"net/http"
 
 	"github.com/jun/fun_code/internal/config"
-	"github.com/jun/fun_code/internal/custom_error"
+	"github.com/jun/fun_code/internal/global"
 	"github.com/jun/fun_code/internal/model"
+	"github.com/mail2fish/gorails/gorails"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -48,7 +50,7 @@ func (s *ShareDaoImpl) CreateShare(req *CreateShareRequest) (*model.Share, error
 	var project model.ScratchProject
 	if err := s.db.First(&project, req.ProjectID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeProjectNotFound, "项目不存在", err)
+			return nil, gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, 1, "项目不存在", err)
 		}
 		return nil, err
 	}
@@ -57,7 +59,7 @@ func (s *ShareDaoImpl) CreateShare(req *CreateShareRequest) (*model.Share, error
 	var user model.User
 	if err := s.db.First(&user, req.UserID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeUserNotFound, "用户不存在", err)
+			return nil, gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, 1, "用户不存在", err)
 		}
 		return nil, err
 	}
@@ -65,7 +67,7 @@ func (s *ShareDaoImpl) CreateShare(req *CreateShareRequest) (*model.Share, error
 	// 生成唯一的分享token
 	shareToken, err := s.generateShareToken()
 	if err != nil {
-		return nil, custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeTokenGenerationFailed, "生成分享token失败", err)
+		return nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeTokenGenerationFailed, "生成分享token失败", err)
 	}
 
 	// 设置默认访问次数限制
@@ -92,7 +94,7 @@ func (s *ShareDaoImpl) CreateShare(req *CreateShareRequest) (*model.Share, error
 	}
 
 	if err := s.db.Create(share).Error; err != nil {
-		return nil, custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeShareCreateFailed, "创建分享失败", err)
+		return nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeShareCreateFailed, "创建分享失败", err)
 	}
 
 	s.logger.Info("分享链接创建成功",
@@ -113,7 +115,7 @@ func (s *ShareDaoImpl) GetShareByToken(token string) (*model.Share, error) {
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeShareNotFound, "分享链接不存在", err)
+			return nil, gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeShareNotFound, "分享链接不存在", err)
 		}
 		return nil, err
 	}
@@ -124,11 +126,11 @@ func (s *ShareDaoImpl) GetShareByToken(token string) (*model.Share, error) {
 // CheckShareAccess 检查分享是否可访问（包括访问次数限制）
 func (s *ShareDaoImpl) CheckShareAccess(share *model.Share) error {
 	if !share.IsActive {
-		return custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeShareInactive, "分享链接已被禁用", nil)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeShareInactive, "分享链接已被禁用", nil)
 	}
 
 	if share.IsExpired() {
-		return custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeShareExpired, "分享链接已过期", nil)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeShareExpired, "分享链接已过期", nil)
 	}
 
 	if share.IsViewLimitReached() {
@@ -138,7 +140,7 @@ func (s *ShareDaoImpl) CheckShareAccess(share *model.Share) error {
 			zap.Uint("share_id", share.ID),
 			zap.Int64("view_count", share.ViewCount),
 			zap.Int64("max_views", share.MaxViews))
-		return custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeViewLimitReached, "分享链接访问次数已达上限，已自动关闭", nil)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeViewLimitReached, "分享链接访问次数已达上限，已自动关闭", nil)
 	}
 
 	return nil
@@ -149,7 +151,7 @@ func (s *ShareDaoImpl) RecordView(shareID uint) error {
 	// 获取分享信息
 	var share model.Share
 	if err := s.db.First(&share, shareID).Error; err != nil {
-		return custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeShareNotFound, "分享不存在", err)
+		return gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeShareNotFound, "分享不存在", err)
 	}
 
 	// 检查访问权限（在记录访问前检查）
@@ -165,7 +167,7 @@ func (s *ShareDaoImpl) RecordView(shareID uint) error {
 				"view_count":       gorm.Expr("view_count + 1"),
 				"total_view_count": gorm.Expr("total_view_count + 1"),
 			}).Error; err != nil {
-			return custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeViewRecordFailed, "更新访问次数失败", err)
+			return gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeViewRecordFailed, "更新访问次数失败", err)
 		}
 
 		// 重新获取更新后的分享信息，检查是否需要自动关闭
@@ -200,11 +202,11 @@ func (s *ShareDaoImpl) ReshareProject(shareID uint, userID uint) error {
 		})
 
 	if result.Error != nil {
-		return custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeShareUpdateFailed, "重新分享失败", result.Error)
+		return gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeShareUpdateFailed, "重新分享失败", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
-		return custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeShareNotFound, "分享不存在或无权限", nil)
+		return gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeShareNotFound, "分享不存在或无权限", nil)
 	}
 
 	s.logger.Info("项目重新分享成功",
@@ -243,11 +245,11 @@ func (s *ShareDaoImpl) UpdateShare(shareID uint, userID uint, updates map[string
 		Updates(updates)
 
 	if result.Error != nil {
-		return custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeShareUpdateFailed, "更新分享失败", result.Error)
+		return gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeShareUpdateFailed, "更新分享失败", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
-		return custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeShareNotFound, "分享不存在或无权限", nil)
+		return gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeShareNotFound, "分享不存在或无权限", nil)
 	}
 
 	s.logger.Info("分享信息更新成功",
@@ -264,11 +266,11 @@ func (s *ShareDaoImpl) DeleteShare(shareID uint, userID uint) error {
 		Update("is_active", false)
 
 	if result.Error != nil {
-		return custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeShareDeleteFailed, "删除分享失败", result.Error)
+		return gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeShareDeleteFailed, "删除分享失败", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
-		return custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeShareNotFound, "分享不存在或无权限", nil)
+		return gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeShareNotFound, "分享不存在或无权限", nil)
 	}
 
 	s.logger.Info("分享删除成功",
@@ -283,7 +285,7 @@ func (s *ShareDaoImpl) GetShareStats(shareID uint) (map[string]interface{}, erro
 	var share model.Share
 	if err := s.db.First(&share, shareID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, custom_error.NewThirdPartyError(custom_error.SHARE, ErrorCodeShareNotFound, "分享不存在", err)
+			return nil, gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, ErrorCodeShareNotFound, "分享不存在", err)
 		}
 		return nil, err
 	}

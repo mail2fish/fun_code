@@ -46,7 +46,7 @@ func (h *Handler) CreateShareHandler(c *gin.Context, params *CreateShareParams) 
 	}
 
 	// 获取 shareDao 实例
-	shareDao := c.MustGet("share_dao").(dao.ShareDao)
+	shareDao := h.dao.ShareDao
 
 	// 构建创建分享请求
 	req := &dao.CreateShareRequest{
