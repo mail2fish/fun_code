@@ -61,9 +61,6 @@ const createCustomLocalesInitialState = () => {
         // 导入原始的 locales initial state
         const {localesInitialState} = require('scratch-gui/src/reducers/locales');
         
-        console.log('🌐 正在创建自定义locales初始状态');
-        console.log('🔍 原始messagesByLocale keys:', Object.keys(localesInitialState.messagesByLocale));
-        
         // 创建包含自定义翻译的新 messagesByLocale
         const customMessagesByLocale = { ...localesInitialState.messagesByLocale };
         
@@ -71,7 +68,6 @@ const createCustomLocalesInitialState = () => {
         const chineseLocales = ['zh-cn', 'zh-tw', 'zh'];
         chineseLocales.forEach(locale => {
             if (customMessagesByLocale[locale]) {
-                console.log(`📝 为中文语言 ${locale} 添加自定义翻译`);
                 customMessagesByLocale[locale] = {
                     ...customMessagesByLocale[locale],
                     ...customTranslations
@@ -80,7 +76,6 @@ const createCustomLocalesInitialState = () => {
         });
         
         // 检测当前语言并设置对应的 messages
-        // 使用简单的语言检测，fallback 到 en
         const browserLang = navigator.language || navigator.userLanguage || 'en';
         let currentLocale = 'en';
         
@@ -95,9 +90,6 @@ const createCustomLocalesInitialState = () => {
             currentLocale = 'en';
         }
         
-        console.log('🔍 检测到的语言:', currentLocale);
-        console.log('✅ 自定义翻译已注入到初始状态');
-        
         return {
             ...localesInitialState,
             locale: currentLocale,
@@ -106,9 +98,6 @@ const createCustomLocalesInitialState = () => {
         };
         
     } catch (error) {
-        console.error('❌ 创建自定义locales初始状态失败:', error);
-        console.log('⚠️ 回退到简单的翻译注入方案');
-        
         // 回退方案：返回简单的自定义翻译状态
         return {
             isRtl: false,
@@ -138,55 +127,23 @@ const AppStateHOCWithSession = (WrappedComponent) => {
         }
     );
     
-    // 简化的包装器，只保留必要的调试功能
+    // 简单包装器，设置用户session
     class SessionWrapper extends React.Component {
         componentDidMount() {
             // 从配置中获取用户信息并设置到 session
             const config = getConfig();
             
-            // AppStateHOC 已经暴露了 store，添加调试功能
+            // AppStateHOC 已经暴露了 store，设置用户信息
             setTimeout(() => {
-                if (window._reduxStore) {
-                    // 设置初始用户信息
-                    if (config.username || config.nickname) {
-                        window._reduxStore.dispatch({
-                            type: 'SET_SESSION_USER',
-                            payload: { 
-                                username: config.username || 'Guest',
-                                nickname: config.nickname || '',
-                                token: (config.username || config.nickname) ? 'session-token' : ''
-                            }
-                        });
-                        
-                        console.log('👤 用户信息已初始化:', {
+                if (window._reduxStore && (config.username || config.nickname)) {
+                    window._reduxStore.dispatch({
+                        type: 'SET_SESSION_USER',
+                        payload: { 
                             username: config.username || 'Guest',
-                            nickname: config.nickname || ''
-                        });
-                    }
-                    
-                    // 验证自定义翻译是否已生效
-                    const state = window._reduxStore.getState();
-                    const myStuffMsg = state.locales.messages['gui.accountMenu.myStuff'];
-                    console.log('🔍 验证初始翻译 gui.accountMenu.myStuff:', myStuffMsg);
-                    
-                    if (myStuffMsg === '我的作品') {
-                        console.log('🎉 自定义翻译已在初始化时生效！无需后续强制渲染');
-                    } else {
-                        console.log('⚠️ 初始翻译未生效，可能需要fallback方案');
-                    }
-                    
-                    // 添加简化的调试函数
-                    window.checkTranslations = () => {
-                        const state = window._reduxStore.getState();
-                        console.log('🔍 当前翻译状态:');
-                        console.log('  locale:', state.locales.locale);
-                        console.log('  gui.accountMenu.myStuff:', state.locales.messages['gui.accountMenu.myStuff']);
-                        console.log('  gui.accountMenu.myClasses:', state.locales.messages['gui.accountMenu.myClasses']);
-                        console.log('  gui.accountMenu.profile:', state.locales.messages['gui.accountMenu.profile']);
-                    };
-                    
-                    console.log('🎮 Session state 已注入!');
-                    console.log('🔧 调试命令: window.checkTranslations()');
+                            nickname: config.nickname || '',
+                            token: (config.username || config.nickname) ? 'session-token' : ''
+                        }
+                    });
                 }
             }, 100);
         }
