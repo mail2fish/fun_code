@@ -1,3 +1,25 @@
+# v0.0.5
+
+## Feature Updates
+
+* Added username display to Scratch interface
+
+## Bug Fixes
+
+* Fixed issue where the latest program was sometimes not visible when returning from the scratch editor interface.
+
+
+# v0.0.4
+
+## 功能更新
+
+* Scratch 界面增加用户名显示
+
+## Bug 修复
+
+* 修复有时候从 scratch 编辑器界面返回，看不见最新程序的问题。
+
+
 # v0.0.4
 
 ## Feature Updates
