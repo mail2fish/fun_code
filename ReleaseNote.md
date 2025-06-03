@@ -9,7 +9,7 @@
 * Fixed issue where the latest program was sometimes not visible when returning from the scratch editor interface.
 
 
-# v0.0.4
+# v0.0.5
 
 ## 功能更新
 
