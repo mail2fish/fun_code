@@ -64,15 +64,6 @@ func (s *Server) setupRoutes() {
 
 		auth.GET("/menu/list", s.handler.GetMenuList)
 
-		// 目录操作
-		auth.POST("/directories", s.handler.CreateDirectory)
-
-		// 文件操作
-		auth.POST("/files", s.handler.UploadFile)
-		auth.GET("/files", s.handler.ListFiles)
-		auth.GET("/files/:id", s.handler.DownloadFile)
-		auth.DELETE("/files/:id", s.handler.DeleteFile)
-
 		// Scratch 相关路由
 		auth.GET("/scratch/projects/:id", s.handler.GetScratchProject)
 		auth.POST("/scratch/projects/", s.handler.PostCreateScratchProject)

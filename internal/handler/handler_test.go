@@ -3,7 +3,6 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -19,7 +18,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"gorm.io/gorm"
 )
 
 // MockAuthService 是 AuthService 的模拟实现
@@ -416,11 +414,6 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 	auth := r.Group("/api")
 	auth.Use(h.AuthMiddleware())
 	{
-		auth.POST("/directories", h.CreateDirectory)
-		auth.POST("/files", h.UploadFile)
-		auth.GET("/files", h.ListFiles)
-		auth.GET("/files/:id", h.DownloadFile)
-		auth.DELETE("/files/:id", h.DeleteFile)
 
 		// Scratch 相关路由
 		auth.GET("/scratch/projects/:id", h.GetScratchProject)
@@ -612,170 +605,6 @@ func TestHandler_UploadFile(t *testing.T) {
 			req.Header.Set("Content-Type", writer.FormDataContentType())
 			req.Header.Set("Authorization", "Bearer valid.token.string")
 			w := httptest.NewRecorder()
-
-			r.ServeHTTP(w, req)
-
-			assert.Equal(t, tt.wantStatus, w.Code)
-			mockDao.AuthDao.AssertExpectations(t)
-			mockDao.FileDao.AssertExpectations(t)
-		})
-	}
-}
-
-func TestHandler_ListFiles(t *testing.T) {
-	r, mockDao := setupTestHandler()
-
-	tests := []struct {
-		name       string
-		files      []model.File
-		mockErr    error
-		wantStatus int
-	}{
-		{
-			name: "正常列出文件",
-			files: []model.File{
-				{
-					ID:          1,
-					Name:        "test.txt",
-					Path:        "/tmp/test.txt",
-					ContentType: "text/plain",
-					IsDirectory: false,
-				},
-			},
-			mockErr:    nil,
-			wantStatus: http.StatusOK,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
-			mockDao.FileDao.On("ListFiles", uint(1), (*uint)(nil)).Return(tt.files, tt.mockErr)
-
-			req := httptest.NewRequest("GET", "/api/files", nil)
-			req.Header.Set("Authorization", "Bearer valid.token.string")
-			w := httptest.NewRecorder()
-
-			r.ServeHTTP(w, req)
-
-			assert.Equal(t, tt.wantStatus, w.Code)
-			if tt.wantStatus == http.StatusOK {
-				var response []model.File
-				err := json.Unmarshal(w.Body.Bytes(), &response)
-				assert.NoError(t, err)
-				assert.Equal(t, tt.files, response)
-			}
-			mockDao.AuthDao.AssertExpectations(t)
-			mockDao.FileDao.AssertExpectations(t)
-		})
-	}
-}
-
-func TestHandler_DownloadFile(t *testing.T) {
-	r, mockDao := setupTestHandler()
-
-	tests := []struct {
-		name       string
-		fileID     string
-		mockFile   *model.File
-		mockErr    error
-		wantStatus int
-	}{
-		{
-			name:       "成功下载文件",
-			fileID:     "1",
-			mockFile:   &model.File{Name: "test.txt", ContentType: "text/plain", Path: "testdata/test.txt", IsDirectory: false},
-			mockErr:    nil,
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "文件不存在",
-			fileID:     "999",
-			mockFile:   nil,
-			mockErr:    gorm.ErrRecordNotFound,
-			wantStatus: http.StatusNotFound,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/api/files/"+tt.fileID, nil)
-			req.Header.Set("Authorization", "valid.token.string")
-			w := httptest.NewRecorder()
-
-			// 设置认证中间件的mock
-			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
-
-			// 设置GetFile的mock
-			if tt.fileID != "invalid" {
-				if tt.mockErr == nil {
-					mockDao.FileDao.On("GetFile", uint(1), uint(1)).Return(tt.mockFile, tt.mockErr)
-				} else {
-					mockDao.FileDao.On("GetFile", uint(1), uint(999)).Return((*model.File)(nil), tt.mockErr)
-				}
-			}
-
-			r.ServeHTTP(w, req)
-
-			assert.Equal(t, tt.wantStatus, w.Code)
-			if tt.wantStatus == http.StatusOK {
-				assert.Equal(t, tt.mockFile.ContentType, w.Header().Get("Content-Type"))
-				assert.Contains(t, w.Header().Get("Content-Disposition"), tt.mockFile.Name)
-				assert.FileExists(t, tt.mockFile.Path)
-			} else {
-				var resp map[string]interface{}
-				json.Unmarshal(w.Body.Bytes(), &resp)
-				assert.Equal(t, tt.wantStatus, w.Code)
-				assert.Contains(t, resp["error"].(string), tt.mockErr.Error())
-			}
-			mockDao.AuthDao.AssertExpectations(t)
-			mockDao.FileDao.AssertExpectations(t)
-		})
-	}
-}
-
-func TestHandler_DeleteFile(t *testing.T) {
-	r, mockDao := setupTestHandler()
-
-	tests := []struct {
-		name       string
-		fileID     string
-		mockErr    error
-		wantStatus int
-	}{
-		{
-			name:       "正常删除文件",
-			fileID:     "1",
-			mockErr:    nil,
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "无效的文件ID",
-			fileID:     "invalid",
-			mockErr:    nil,
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:       "删除文件失败",
-			fileID:     "1",
-			mockErr:    errors.New("删除失败"),
-			wantStatus: http.StatusInternalServerError,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("DELETE", "/api/files/"+tt.fileID, nil)
-			req.Header.Set("Authorization", "Bearer valid.token.string")
-			w := httptest.NewRecorder()
-
-			// 设置认证中间件的mock
-			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
-
-			// 设置DeleteFile的mock
-			if tt.fileID != "invalid" {
-				mockDao.FileDao.On("DeleteFile", uint(1), uint(1)).Return(tt.mockErr).Once()
-			}
 
 			r.ServeHTTP(w, req)
 

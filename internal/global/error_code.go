@@ -32,6 +32,10 @@ const (
 	ErrorCodeDBError     = 1001 // 数据库错误
 	ErrorCodeRedisError  = 1002 // Redis错误
 	ErrorCodeConfigError = 1003 // 配置错误
+
+	ErrorCodeInsertFailed = 204 // 插入失败
+	ErrorCodeDeleteFailed = 205 // 删除失败
+	ErrorCodeQueryFailed  = 206 // 查询失败
 )
 
 // 错误消息常量
@@ -66,4 +70,8 @@ const (
 	ErrorMsgDBError     = "数据库错误"
 	ErrorMsgRedisError  = "Redis错误"
 	ErrorMsgConfigError = "配置错误"
+
+	ErrorMsgInsertFailed = "插入失败"
+	ErrorMsgDeleteFailed = "删除失败"
+	ErrorMsgQueryFailed  = "查询失败"
 )

@@ -1,8 +1,11 @@
 package dao
 
 import (
-	"github.com/jun/fun_code/internal/custom_error"
+	"net/http"
+
+	"github.com/jun/fun_code/internal/global"
 	"github.com/jun/fun_code/internal/model"
+	"github.com/mail2fish/gorails/gorails"
 	"gorm.io/gorm"
 )
 
@@ -25,7 +28,7 @@ func NewUserAssetDao(db *gorm.DB) UserAssetDao {
 func (d *UserAssetDaoImpl) CreateUserAsset(userAsset *model.UserAsset) error {
 	err := d.db.Create(userAsset).Error
 	if err != nil {
-		return custom_error.NewThirdPartyError(custom_error.USER_ASSET, ErrorCodeInsertFailed, "user_asset.db_insert_failed", err)
+		return gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_USER_ASSET, global.ErrorCodeInsertFailed, global.ErrorMsgInsertFailed, err)
 	}
 	return nil
 }
@@ -33,7 +36,7 @@ func (d *UserAssetDaoImpl) CreateUserAsset(userAsset *model.UserAsset) error {
 func (d *UserAssetDaoImpl) DeleteUserAsset(id uint) error {
 	err := d.db.Delete(&model.UserAsset{}, id).Error
 	if err != nil {
-		return custom_error.NewThirdPartyError(custom_error.USER_ASSET, ErrorCodeDeleteFailed, "user_asset.db_delete_failed", err)
+		return gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_USER_ASSET, global.ErrorCodeDeleteFailed, global.ErrorMsgDeleteFailed, err)
 	}
 	return nil
 }
@@ -106,7 +109,7 @@ func (d *UserAssetDaoImpl) ListUserAssetsWithPagination(userID uint, pageSize ui
 
 	// 执行查询，多查询一条用于判断是否有更多数据
 	if err := query.Limit(int(pageSize + 1)).Find(&assets).Error; err != nil {
-		return nil, false, custom_error.NewThirdPartyError(custom_error.USER_ASSET, ErrorCodeQueryFailed, "user_asset.db_query_failed", err)
+		return nil, false, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_USER_ASSET, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	// 处理查询结果
