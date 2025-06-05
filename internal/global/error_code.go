@@ -26,6 +26,17 @@ const (
 	ErrorCodeProjectUpdateFailed = 201 // 更新项目失败
 	ErrorCodeProjectDeleteFailed = 202 // 删除项目失败
 	ErrorCodeProjectAccessDenied = 203 // 无权访问项目
+	ErrorCodeInsertFailed        = 204 // 插入失败
+	ErrorCodeDeleteFailed        = 205 // 删除失败
+	ErrorCodeQueryFailed         = 206 // 查询失败
+
+	// File 模块错误码 (300-399)
+	ErrorCodeFileNotFound     = 300 // 文件不存在
+	ErrorCodeFileCreateFailed = 301 // 创建文件失败
+	ErrorCodeFileUpdateFailed = 302 // 更新文件失败
+	ErrorCodeFileDeleteFailed = 303 // 删除文件失败
+	ErrorCodeFileAccessDenied = 304 // 无权访问文件
+	ErrorCodeRecordNotFound   = 305 // 记录不存在
 
 	// 系统错误码 (1000+)
 	ErrorCodeSystemError = 1000 // 系统错误
@@ -33,13 +44,14 @@ const (
 	ErrorCodeRedisError  = 1002 // Redis错误
 	ErrorCodeConfigError = 1003 // 配置错误
 
-	ErrorCodeInsertFailed = 204 // 插入失败
-	ErrorCodeDeleteFailed = 205 // 删除失败
-	ErrorCodeQueryFailed  = 206 // 查询失败
+	ErrorCodeInvalidParams = 306 // 无效的参数
+	ErrorCodeNoPermission  = 307 // 无权限
+	ErrorCodeCreateFailed  = 308 // 创建失败
 )
 
 // 错误消息常量
 const (
+	ErrorMsgInvalidParams = "无效的参数"
 	// Share 模块错误消息
 	ErrorMsgShareNotFound         = "分享不存在"
 	ErrorMsgProjectNotFound       = "项目不存在"
@@ -64,6 +76,17 @@ const (
 	ErrorMsgProjectUpdateFailed = "更新项目失败"
 	ErrorMsgProjectDeleteFailed = "删除项目失败"
 	ErrorMsgProjectAccessDenied = "无权访问项目"
+	ErrorMsgInsertFailed        = "插入失败"
+	ErrorMsgDeleteFailed        = "删除失败"
+	ErrorMsgQueryFailed         = "查询失败"
+
+	// File 模块错误消息
+	ErrorMsgFileNotFound     = "文件不存在"
+	ErrorMsgFileCreateFailed = "创建文件失败"
+	ErrorMsgFileUpdateFailed = "更新文件失败"
+	ErrorMsgFileDeleteFailed = "删除文件失败"
+	ErrorMsgFileAccessDenied = "无权访问文件"
+	ErrorMsgRecordNotFound   = "记录不存在"
 
 	// 系统错误消息
 	ErrorMsgSystemError = "系统错误"
@@ -71,7 +94,5 @@ const (
 	ErrorMsgRedisError  = "Redis错误"
 	ErrorMsgConfigError = "配置错误"
 
-	ErrorMsgInsertFailed = "插入失败"
-	ErrorMsgDeleteFailed = "删除失败"
-	ErrorMsgQueryFailed  = "查询失败"
+	ErrorMsgNoPermission = "无权限"
 )

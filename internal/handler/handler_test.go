@@ -3,7 +3,6 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
-	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +22,14 @@ import (
 // MockAuthService 是 AuthService 的模拟实现
 type MockAuthService struct {
 	mock.Mock
+}
+
+func (m *MockAuthService) GenerateCookie(token string) *http.Cookie {
+	args := m.Called(token)
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(*http.Cookie)
 }
 
 func (m *MockAuthService) Register(username, password, email string) error {
@@ -150,41 +157,32 @@ type MockFileService struct {
 	mock.Mock
 }
 
-func (m *MockFileService) CreateDirectory(userID uint, name string, parentID *uint) error {
-	args := m.Called(userID, name, parentID)
+func (m *MockFileService) CreateFile(file *model.File) error {
+	args := m.Called(file)
 	return args.Error(0)
 }
 
-func (m *MockFileService) UploadFile(userID uint, name string, parentID *uint, contentType string, size int64, reader io.Reader) error {
-	args := m.Called(userID, name, parentID, contentType, size, reader)
-	return args.Error(0)
-}
-
-func (m *MockFileService) GetFile(userID, fileID uint) (*model.File, error) {
-	args := m.Called(userID, fileID)
+func (m *MockFileService) GetFile(fileID uint) (*model.File, error) {
+	args := m.Called(fileID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*model.File), args.Error(1)
 }
 
-func (m *MockFileService) ListFiles(userID uint, parentID *uint) ([]model.File, error) {
-	args := m.Called(userID, parentID)
-	return args.Get(0).([]model.File), args.Error(1)
+func (m *MockFileService) ListFilesWithPagination(pageSize uint, beginID uint, forward, asc bool) ([]*model.File, bool, error) {
+	args := m.Called(pageSize, beginID, forward, asc)
+	return args.Get(0).([]*model.File), args.Bool(1), args.Error(2)
 }
 
-func (m *MockFileService) DeleteFile(userID, fileID uint) error {
-	args := m.Called(userID, fileID)
+func (m *MockFileService) DeleteFile(fileID uint) error {
+	args := m.Called(fileID)
 	return args.Error(0)
 }
 
-// 修复 GenerateCookie 方法的位置和 setupTestHandler 函数
-func (m *MockAuthService) GenerateCookie(token string) *http.Cookie {
-	args := m.Called(token)
-	if args.Get(0) == nil {
-		return nil
-	}
-	return args.Get(0).(*http.Cookie)
+func (m *MockFileService) UpdateFile(fileID uint, updates map[string]interface{}) error {
+	args := m.Called(fileID, updates)
+	return args.Error(0)
 }
 
 // MockScratchDao 是 ScratchService 的模拟实现
