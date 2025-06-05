@@ -12,6 +12,7 @@ import (
 	"github.com/jun/fun_code/internal/dao"
 	"github.com/jun/fun_code/internal/i18n"
 	"github.com/jun/fun_code/internal/model"
+	"github.com/mail2fish/gorails/gorails"
 	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
@@ -157,32 +158,45 @@ type MockFileService struct {
 	mock.Mock
 }
 
-func (m *MockFileService) CreateFile(file *model.File) error {
-	args := m.Called(file)
-	return args.Error(0)
+func (m *MockFileService) GetFileBySHA1(sha1 string) (*model.File, gorails.Error) {
+	args := m.Called(sha1)
+	if args.Get(0) == nil {
+		return nil, args.Error(1).(gorails.Error)
+	}
+	return args.Get(0).(*model.File), args.Error(1).(gorails.Error)
 }
 
-func (m *MockFileService) GetFile(fileID uint) (*model.File, error) {
+func (m *MockFileService) CountFiles() (int64, gorails.Error) {
+	args := m.Called()
+	return args.Get(0).(int64), args.Error(1).(gorails.Error)
+}
+
+func (m *MockFileService) CreateFile(file *model.File) gorails.Error {
+	args := m.Called(file)
+	return args.Error(0).(gorails.Error)
+}
+
+func (m *MockFileService) GetFile(fileID uint) (*model.File, gorails.Error) {
 	args := m.Called(fileID)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return nil, args.Error(1).(gorails.Error)
 	}
-	return args.Get(0).(*model.File), args.Error(1)
+	return args.Get(0).(*model.File), args.Error(1).(gorails.Error)
 }
 
-func (m *MockFileService) ListFilesWithPagination(pageSize uint, beginID uint, forward, asc bool) ([]*model.File, bool, error) {
+func (m *MockFileService) ListFilesWithPagination(pageSize uint, beginID uint, forward, asc bool) ([]*model.File, bool, gorails.Error) {
 	args := m.Called(pageSize, beginID, forward, asc)
-	return args.Get(0).([]*model.File), args.Bool(1), args.Error(2)
+	return args.Get(0).([]*model.File), args.Bool(1), args.Error(2).(gorails.Error)
 }
 
-func (m *MockFileService) DeleteFile(fileID uint) error {
+func (m *MockFileService) DeleteFile(fileID uint) gorails.Error {
 	args := m.Called(fileID)
-	return args.Error(0)
+	return args.Error(0).(gorails.Error)
 }
 
-func (m *MockFileService) UpdateFile(fileID uint, updates map[string]interface{}) error {
+func (m *MockFileService) UpdateFile(fileID uint, updates map[string]interface{}) gorails.Error {
 	args := m.Called(fileID, updates)
-	return args.Error(0)
+	return args.Error(0).(gorails.Error)
 }
 
 // MockScratchDao 是 ScratchService 的模拟实现

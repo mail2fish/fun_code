@@ -14,6 +14,7 @@ type FileDao interface {
 	GetFile(fileID uint) (*model.File, gorails.Error)
 	GetFileBySHA1(sha1 string) (*model.File, gorails.Error)
 	ListFilesWithPagination(pageSize uint, beginID uint, forward, asc bool) ([]*model.File, bool, gorails.Error)
+	CountFiles() (int64, gorails.Error)
 	DeleteFile(fileID uint) gorails.Error
 	UpdateFile(fileID uint, updates map[string]interface{}) gorails.Error
 }
@@ -155,4 +156,13 @@ func (d *FileDaoImpl) ListFilesWithPagination(pageSize uint, beginID uint, forwa
 	}
 
 	return files, hasMore, nil
+}
+
+// CountFiles 获取文件总数
+func (d *FileDaoImpl) CountFiles() (int64, gorails.Error) {
+	var total int64
+	if err := d.db.Model(&model.File{}).Count(&total).Error; err != nil {
+		return 0, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_FILE, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+	return total, nil
 }

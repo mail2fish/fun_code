@@ -102,6 +102,7 @@ func (s *Server) setupRoutes() {
 			admin.GET("/scratch/projects", s.handler.GetAllScratchProject)
 
 			// 文件管理路由
+			admin.GET("/files/list", gorails.Wrap(s.handler.ListFilesHandler, nil))
 			admin.POST("/files/upload", gorails.Wrap(s.handler.PostMultiFileUploadHandler, nil))
 		}
 		// 班级相关路由

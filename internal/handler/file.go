@@ -108,6 +108,50 @@ func (m *MultiFileUploadParams) Parse(c *gin.Context) gorails.Error {
 	return nil
 }
 
+// ListFilesParams 列出文件请求参数
+type ListFilesParams struct {
+	PageSize uint `json:"page_size" form:"page_size"` // 每页数量
+	BeginID  uint `json:"begin_id" form:"begin_id"`   // 起始ID
+	Forward  bool `json:"forward" form:"forward"`     // 是否向前翻页
+	Asc      bool `json:"asc" form:"asc"`             // 是否升序
+}
+
+func (p *ListFilesParams) Parse(c *gin.Context) gorails.Error {
+	// 设置默认值
+	p.PageSize = 20
+	p.BeginID = 0
+	p.Forward = true
+	p.Asc = true
+
+	// 解析页面大小
+	if pageSizeStr := c.DefaultQuery("page_size", "20"); pageSizeStr != "" {
+		if pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32); err == nil {
+			if pageSize > 0 && pageSize <= 100 { // 限制最大页面大小为100
+				p.PageSize = uint(pageSize)
+			}
+		}
+	}
+
+	// 解析起始ID
+	if beginIDStr := c.DefaultQuery("begin_id", "0"); beginIDStr != "" {
+		if beginID, err := strconv.ParseUint(beginIDStr, 10, 32); err == nil {
+			p.BeginID = uint(beginID)
+		}
+	}
+
+	// 解析翻页方向
+	if forwardStr := c.DefaultQuery("forward", "true"); forwardStr != "" {
+		p.Forward = forwardStr != "false"
+	}
+
+	// 解析排序方向
+	if ascStr := c.DefaultQuery("asc", "true"); ascStr != "" {
+		p.Asc = ascStr != "false"
+	}
+
+	return nil
+}
+
 // FileResponse 文件相关响应
 type FileResponse struct {
 	ID          uint   `json:"id"`
@@ -116,6 +160,11 @@ type FileResponse struct {
 	Size        int64  `json:"size"`
 	TagID       uint   `json:"tag_id"`
 	ContentType uint   `json:"content_type"`
+}
+
+// ListFilesResponse 列出文件响应
+type ListFilesResponse struct {
+	Files []*FileResponse `json:"files"` // 文件列表
 }
 
 // MultiFileUploadResponse 多文件上传响应
@@ -156,20 +205,29 @@ func (h *Handler) GetFileHandler(c *gin.Context) (*FileResponse, *gorails.Respon
 }
 
 // ListFilesHandler 列出文件
-func (h *Handler) ListFilesHandler(c *gin.Context) ([]*FileResponse, *gorails.ResponseMeta, gorails.Error) {
-	pageSize, _ := strconv.ParseUint(c.DefaultQuery("page_size", "20"), 10, 32)
-	beginID, _ := strconv.ParseUint(c.DefaultQuery("begin_id", "0"), 10, 32)
-	forward := c.DefaultQuery("forward", "true") == "true"
-	asc := c.DefaultQuery("asc", "true") == "true"
+// @Summary 分页获取文件列表，支持正向和反向翻页
+func (h *Handler) ListFilesHandler(c *gin.Context, params *ListFilesParams) (*ListFilesResponse, *gorails.ResponseMeta, gorails.Error) {
+	// 检查用户权限
+	if !h.hasPermission(c, PermissionManageAll) {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, nil)
+	}
 
-	files, hasMore, err := h.dao.FileDao.ListFilesWithPagination(uint(pageSize), uint(beginID), forward, asc)
+	// 从数据库获取文件列表
+	files, hasMore, err := h.dao.FileDao.ListFilesWithPagination(params.PageSize, params.BeginID, params.Forward, params.Asc)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	responses := make([]*FileResponse, len(files))
+	// 获取文件总数
+	total, err := h.dao.FileDao.CountFiles()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// 构建响应数据
+	fileResponses := make([]*FileResponse, len(files))
 	for i, file := range files {
-		responses[i] = &FileResponse{
+		fileResponses[i] = &FileResponse{
 			ID:          file.ID,
 			Name:        file.GetName(),
 			Description: file.Description,
@@ -179,8 +237,13 @@ func (h *Handler) ListFilesHandler(c *gin.Context) ([]*FileResponse, *gorails.Re
 		}
 	}
 
-	return responses, &gorails.ResponseMeta{
+	response := &ListFilesResponse{
+		Files: fileResponses,
+	}
+
+	return response, &gorails.ResponseMeta{
 		HasNext: hasMore,
+		Total:   int(total),
 	}, nil
 }
 

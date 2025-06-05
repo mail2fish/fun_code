@@ -61,8 +61,13 @@ func (h *Handler) GetMenuList(c *gin.Context) {
 					IsActive: false,
 				},
 				{
-					Title:    "上传资源",
+					Title:    "上传资源文件",
 					URL:      "/www/admin/files/upload",
+					IsActive: false,
+				},
+				{
+					Title:    "资源文件列表",
+					URL:      "/www/admin/files/list",
 					IsActive: false,
 				},
 			},
