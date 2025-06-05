@@ -81,7 +81,7 @@ func (s *Server) setupRoutes() {
 
 		auth.GET("/files/list", gorails.Wrap(s.handler.ListFilesHandler, nil))
 		auth.GET("/files/:id/download", gorails.Wrap(s.handler.DownloadFileHandler, handler.RenderDownloadFile))
-		auth.GET("/files/:id/preview", gorails.Wrap(s.handler.PreviewFileHandler, nil))
+		auth.GET("/files/:id/preview", gorails.Wrap(s.handler.PreviewFileHandler, handler.RenderDownloadFile))
 		auth.DELETE("/files/:id", gorails.Wrap(s.handler.DeleteFileHandler, nil))
 
 		{

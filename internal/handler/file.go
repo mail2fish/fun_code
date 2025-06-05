@@ -1,15 +1,25 @@
 package handler
 
 import (
+	"archive/zip"
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/global"
@@ -558,7 +568,6 @@ func (h *Handler) processUploadedFileWithSHA1(fileHeader *multipart.FileHeader, 
 	// 如果目录不存在，则创建目录
 	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
 		// 根据SHA1创建目录结构
-
 		if err := os.MkdirAll(uploadDir, 0755); err != nil {
 			return nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeCreateFailed, err.Error(), err)
 		}
@@ -605,13 +614,17 @@ func (h *Handler) processUploadedFileWithSHA1(fileHeader *multipart.FileHeader, 
 		return nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeCreateFailed, err.Error(), err)
 	}
 
+	// 异步生成缩略图
+	h.generateThumbnail(file2)
+
 	return &FileResponse{
-		ID:          file2.ID,
-		Name:        file2.GetName(),
-		Description: file2.Description,
-		Size:        file2.Size,
-		TagID:       file2.TagID,
-		ContentType: file2.ContentType,
+		ID:           file2.ID,
+		Name:         file2.GetName(),
+		Description:  file2.Description,
+		Size:         file2.Size,
+		TagID:        file2.TagID,
+		ContentType:  file2.ContentType,
+		OriginalName: file2.OriginalName,
 	}, nil
 }
 
@@ -716,4 +729,302 @@ func (h *Handler) saveFileWithSHA1Verification(src io.Reader, filePath, expected
 	}
 
 	return totalSize, nil
+}
+
+// 生成缩略图
+func (h *Handler) generateThumbnail(f *model.File) {
+	switch f.ContentType {
+	case model.ContentTypeImage:
+		h.generateImageThumbnail(f)
+	case model.ContentTypeAudio:
+		// 音频文件暂不生成缩略图
+	case model.ContentTypeSprite3:
+		h.generateSprite3Thumbnail(f)
+	}
+}
+
+// generateImageThumbnail 生成图片缩略图
+func (h *Handler) generateImageThumbnail(f *model.File) {
+	// 50KB 以下的图片不生成缩略图
+	const minSizeForThumbnail = 50 * 1024 // 50KB
+	if f.Size < minSizeForThumbnail {
+		return
+	}
+
+	// 构建原始文件路径
+	originalPath := h.buildFilePathFromSHA1(f.SHA1, f.ExtName)
+
+	// 检查原始文件是否存在
+	if _, err := os.Stat(originalPath); os.IsNotExist(err) {
+		return
+	}
+
+	// 构建缩略图文件路径
+	thumbnailPath := h.buildThumbnailPath(f.SHA1)
+
+	// 如果缩略图已存在，跳过生成
+	if _, err := os.Stat(thumbnailPath); err == nil {
+		return
+	}
+
+	// 确保缩略图目录存在
+	thumbnailDir := filepath.Dir(thumbnailPath)
+	if err := os.MkdirAll(thumbnailDir, 0755); err != nil {
+		return
+	}
+
+	// 打开原始图片文件
+	file, err := os.Open(originalPath)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	// 解码图片
+	img, err := h.decodeImage(file, f.ExtName)
+	if err != nil {
+		return
+	}
+
+	// 生成缩略图 (170x128)
+	thumbnail := h.resizeImage(img, 170, 128)
+
+	// 保存缩略图
+	h.saveThumbnail(thumbnail, thumbnailPath)
+}
+
+// generateSprite3Thumbnail 生成Scratch项目缩略图
+func (h *Handler) generateSprite3Thumbnail(f *model.File) {
+	// 构建原始文件路径
+	originalPath := h.buildFilePathFromSHA1(f.SHA1, f.ExtName)
+
+	// 检查原始文件是否存在
+	if _, err := os.Stat(originalPath); os.IsNotExist(err) {
+		return
+	}
+
+	// 构建缩略图文件路径 (Scratch缩略图统一保存为PNG)
+	thumbnailPath := h.buildThumbnailPath(f.SHA1)
+
+	// 如果缩略图已存在，跳过生成
+	if _, err := os.Stat(thumbnailPath); err == nil {
+		return
+	}
+
+	// 确保缩略图目录存在
+	thumbnailDir := filepath.Dir(thumbnailPath)
+	if err := os.MkdirAll(thumbnailDir, 0755); err != nil {
+		return
+	}
+
+	// 尝试从.sb3文件提取缩略图
+	thumbnail := h.extractScratchThumbnail(originalPath)
+	if thumbnail != nil {
+		// 保存提取的缩略图
+		h.saveThumbnail(thumbnail, thumbnailPath)
+	} else {
+		// 生成默认的Scratch猫缩略图
+		h.generateDefaultScratchThumbnail(thumbnailPath)
+	}
+}
+
+// buildThumbnailPath 构建缩略图文件路径
+func (h *Handler) buildThumbnailPath(sha1 string) string {
+	if len(sha1) < 40 {
+		return filepath.Join(h.config.Storage.BasePath, "files", "invalid")
+	}
+
+	part1 := sha1[0:10]
+	part2 := sha1[10:20]
+	part3 := sha1[20:30]
+	part4 := sha1[30:40]
+
+	// 缩略图统一使用.jpg扩展名，除非是PNG格式的Scratch缩略图
+	thumbnailExtName := ".png"
+
+	fileName := sha1 + "_thumb" + thumbnailExtName
+	return filepath.Join(h.config.Storage.BasePath, "files", part1, part2, part3, part4, fileName)
+}
+
+// decodeImage 根据文件扩展名解码图片
+func (h *Handler) decodeImage(file *os.File, extName string) (image.Image, error) {
+	// 重置文件读取位置到开头
+	file.Seek(0, 0)
+
+	switch strings.ToLower(extName) {
+	case ".jpg", ".jpeg":
+		return jpeg.Decode(file)
+	case ".png":
+		return png.Decode(file)
+	case ".gif":
+		return gif.Decode(file)
+	default:
+		// 尝试自动检测格式
+		file.Seek(0, 0)
+		img, _, err := image.Decode(file)
+		return img, err
+	}
+}
+
+// resizeImage 简单的图片缩放实现
+func (h *Handler) resizeImage(src image.Image, width, height int) image.Image {
+	srcBounds := src.Bounds()
+	srcW, srcH := srcBounds.Dx(), srcBounds.Dy()
+
+	// 计算保持宽高比的缩放
+	ratioW := float64(width) / float64(srcW)
+	ratioH := float64(height) / float64(srcH)
+	ratio := ratioW
+	if ratioH < ratioW {
+		ratio = ratioH
+	}
+
+	newW := int(float64(srcW) * ratio)
+	newH := int(float64(srcH) * ratio)
+
+	// 创建新图片
+	dst := image.NewRGBA(image.Rect(0, 0, newW, newH))
+
+	// 简单的最近邻缩放
+	for y := 0; y < newH; y++ {
+		for x := 0; x < newW; x++ {
+			srcX := int(float64(x) / ratio)
+			srcY := int(float64(y) / ratio)
+			if srcX >= srcW {
+				srcX = srcW - 1
+			}
+			if srcY >= srcH {
+				srcY = srcH - 1
+			}
+			dst.Set(x, y, src.At(srcX+srcBounds.Min.X, srcY+srcBounds.Min.Y))
+		}
+	}
+
+	return dst
+}
+
+// saveThumbnail 保存缩略图
+func (h *Handler) saveThumbnail(img image.Image, thumbnailPath string) {
+	file, err := os.Create(thumbnailPath)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	// 根据文件扩展名决定编码格式
+	if strings.HasSuffix(thumbnailPath, ".png") {
+		png.Encode(file, img)
+	} else {
+		// 默认使用JPEG格式，质量设为85
+		jpeg.Encode(file, img, &jpeg.Options{Quality: 85})
+	}
+}
+
+// extractScratchThumbnail 从Scratch项目文件提取缩略图
+func (h *Handler) extractScratchThumbnail(filePath string) image.Image {
+	// 打开.sb3文件（ZIP格式）
+	r, err := zip.OpenReader(filePath)
+	if err != nil {
+		return nil
+	}
+	defer r.Close()
+
+	// 解析project.json获取图片资源ID
+	var projectData map[string]interface{}
+	for _, f := range r.File {
+		if f.Name == "project.json" {
+			rc, err := f.Open()
+			if err != nil {
+				continue
+			}
+			defer rc.Close()
+
+			data, err := io.ReadAll(rc)
+			if err != nil {
+				continue
+			}
+
+			if err := json.Unmarshal(data, &projectData); err != nil {
+				continue
+			}
+			break
+		}
+	}
+
+	if projectData == nil {
+		return nil
+	}
+
+	// 从项目数据中提取第一个可用的图片资源
+	imageAssetID := h.findFirstImageAsset(projectData)
+	if imageAssetID == "" {
+		return nil
+	}
+
+	// 从ZIP中提取图片文件
+	for _, f := range r.File {
+		if strings.Contains(f.Name, imageAssetID) {
+			rc, err := f.Open()
+			if err != nil {
+				continue
+			}
+			defer rc.Close()
+
+			// 读取图片数据
+			imgData, err := io.ReadAll(rc)
+			if err != nil {
+				continue
+			}
+
+			// 解码图片
+			img, _, err := image.Decode(bytes.NewReader(imgData))
+			if err != nil {
+				continue
+			}
+
+			// 生成缩略图尺寸
+			return h.resizeImage(img, 200, 200)
+		}
+	}
+
+	return nil
+}
+
+// findFirstImageAsset 从Scratch项目数据中找到第一个图片资源ID
+func (h *Handler) findFirstImageAsset(projectData map[string]interface{}) string {
+	// 查找targets中的costume
+	if targets, ok := projectData["targets"].([]interface{}); ok {
+		for _, target := range targets {
+			if targetMap, ok := target.(map[string]interface{}); ok {
+				if costumes, ok := targetMap["costumes"].([]interface{}); ok {
+					for _, costume := range costumes {
+						if costumeMap, ok := costume.(map[string]interface{}); ok {
+							if assetID, ok := costumeMap["assetId"].(string); ok {
+								if dataFormat, ok := costumeMap["dataFormat"].(string); ok {
+									// 只返回图片格式的资源
+									if dataFormat == "png" || dataFormat == "jpg" || dataFormat == "jpeg" || dataFormat == "svg" {
+										return assetID
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// generateDefaultScratchThumbnail 生成默认的Scratch猫缩略图
+func (h *Handler) generateDefaultScratchThumbnail(thumbnailPath string) {
+	// 创建一个200x200的默认图片（橙色背景）
+	img := image.NewRGBA(image.Rect(0, 0, 200, 200))
+
+	// 填充橙色背景 (Scratch主题色)
+	orange := color.RGBA{255, 171, 25, 255} // Scratch橙色
+	draw.Draw(img, img.Bounds(), &image.Uniform{orange}, image.Point{}, draw.Src)
+
+	// 保存默认缩略图
+	h.saveThumbnail(img, thumbnailPath)
 }
