@@ -89,6 +89,11 @@ func (h *Handler) GetMenuList(c *gin.Context) {
 				URL:      "/projects/scratch/new",
 				IsActive: false,
 			},
+			{
+				Title:    "资源文件列表",
+				URL:      "/www/files/list",
+				IsActive: false,
+			},
 		},
 	})
 

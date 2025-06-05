@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link } from "react-router"
-import { IconPlus, IconUpload } from "@tabler/icons-react"
+import { IconUpload } from "@tabler/icons-react"
 
 import { AppSidebar } from "~/components/my-app-sidebar"
 import { FileTable } from "~/components/file-table"
@@ -20,40 +20,11 @@ import {
   SidebarTrigger,
 } from "~/components/ui/sidebar"
 
-// 导入自定义的 fetch 函数
-import { fetchWithAuth } from "~/utils/api";
-
 // API 服务
 import { HOST_URL } from "~/config";
 
-// 删除文件
-async function deleteFile(id: string) {
-  try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/files/${id}`, {
-      method: "DELETE",
-    });
-    if (!response.ok) {
-      throw new Error(`API 错误: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("删除文件失败:", error);
-    throw error;
-  }
-}
-
 export default function Page() {
   const [error, setError] = React.useState<string | null>(null);
-
-  // 处理删除文件
-  const handleDeleteFile = async (id: string) => {
-    try {
-      await deleteFile(id);
-    } catch (error) {
-      setError("删除文件失败");
-      throw error;
-    }
-  };
 
   return (
     <SidebarProvider>
@@ -70,7 +41,7 @@ export default function Page() {
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
                   <BreadcrumbLink href="#">
-                    文件管理
+                    我的文件
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
@@ -81,17 +52,17 @@ export default function Page() {
             </Breadcrumb>
           </div>
           <div className="ml-auto mr-4">
-            <Button 
+            {/* <Button 
               size="sm" 
               asChild
             >
               <Link 
-                to="/www/admin/files/upload" 
+                to="/www/upload" 
               >
                 <IconUpload className="mr-2 h-4 w-4" />
                 上传文件
               </Link>
-            </Button>
+            </Button> */}
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
@@ -101,10 +72,9 @@ export default function Page() {
             </div>
           )}
           <FileTable 
-            onDeleteFile={handleDeleteFile}
             filesApiUrl={`${HOST_URL}/api/files/list`}
             downloadApiUrl="/api/files/{fileId}/download"
-            showDeleteButton={true}
+            showDeleteButton={false}
           />
         </div>
       </SidebarInset>

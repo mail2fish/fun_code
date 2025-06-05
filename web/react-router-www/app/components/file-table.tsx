@@ -26,11 +26,14 @@ export interface FileItem {
   size: number
   tag_id: number
   content_type: number
+  original_name: string
 }
 
 interface FileTableProps {
-  onDeleteFile: (id: string) => Promise<void>
+  onDeleteFile?: (id: string) => Promise<void>
   filesApiUrl: string
+  downloadApiUrl?: string
+  showDeleteButton?: boolean
 }
 
 // 缓存相关常量
@@ -39,12 +42,14 @@ const CACHE_EXPIRE = 60 * 60 * 1000; // 1小时
 
 // 内容类型常量
 const CONTENT_TYPE_IMAGE = 1;
-const CONTENT_TYPE_AUDIO = 2;
-const CONTENT_TYPE_SPRITE3 = 3;
+const CONTENT_TYPE_AUDIO = 3;
+const CONTENT_TYPE_SPRITE3 = 2;
 
 export function FileTable({ 
   onDeleteFile,
   filesApiUrl,
+  downloadApiUrl,
+  showDeleteButton = true,
 }: FileTableProps) {
   const [deletingId, setDeletingId] = React.useState<number | null>(null)
   const [searchKeyword, setSearchKeyword] = React.useState("");
@@ -258,7 +263,7 @@ export function FileTable({
       case CONTENT_TYPE_AUDIO:
         return "音频"
       case CONTENT_TYPE_SPRITE3:
-        return "Scratch"
+        return "Scratch角色"
       default:
         return "其他"
     }
@@ -266,7 +271,14 @@ export function FileTable({
 
   const handleDownload = async (fileId: number, fileName: string) => {
     try {
-      const response = await fetchWithAuth(`${HOST_URL}/api/admin/files/${fileId}/download`);
+      // 如果指定了 downloadApiUrl，使用它并替换占位符；否则根据是否有删除权限推断API端点
+      let apiUrl: string;
+      if (downloadApiUrl) {
+        apiUrl = downloadApiUrl.replace('{fileId}', fileId.toString());
+      } else {
+        apiUrl = showDeleteButton ? `/api/admin/files/${fileId}/download` : `/api/files/${fileId}/download`;
+      }
+      const response = await fetchWithAuth(`${HOST_URL}${apiUrl}`);
       if (!response.ok) throw new Error('下载失败');
       
       const blob = await response.blob();
@@ -287,6 +299,8 @@ export function FileTable({
 
   // 删除后刷新当前缓存
   const handleDelete = async (id: number) => {
+    if (!onDeleteFile) return;
+    
     setDeletingId(id)
     try {
       await onDeleteFile(id.toString())
@@ -374,7 +388,7 @@ export function FileTable({
                 <div className="w-full h-40 flex items-center justify-center rounded-t-xl bg-gray-50">
                   {file.content_type === CONTENT_TYPE_IMAGE ? (
                     <img
-                      src={`${HOST_URL}/api/admin/files/${file.id}/preview`}
+                      src={`${HOST_URL}/api/files/${file.id}/preview`}
                       className="max-h-32 max-w-full object-contain"
                       alt="文件预览"
                       onError={(e) => {
@@ -396,11 +410,8 @@ export function FileTable({
                 </div>
                 <CardContent className="flex flex-col gap-2 flex-1">
                   <div className="text-xs text-muted-foreground">文件ID：{file.id}</div>
-                  <div className="font-medium text-base line-clamp-2" title={file.name}>
-                    {file.name || "未命名文件"}
-                  </div>
                   {file.description && (
-                    <div className="text-sm text-muted-foreground line-clamp-2" title={file.description}>
+                    <div className="font-medium text-base line-clamp-2" title={file.description}>
                       {file.description}
                     </div>
                   )}
@@ -422,44 +433,46 @@ export function FileTable({
                     size="sm"
                     title="下载"
                     className="py-0 min-h-0 h-auto px-1"
-                    onClick={() => handleDownload(file.id, file.name)}
+                    onClick={() => handleDownload(file.id, file.original_name)}
                   >
                     <IconDownload className="h-4 w-4 mr-1" />
                     下载
                   </Button>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        title="删除"
-                        className="py-0 min-h-0 h-auto px-1"
-                      >
-                        <IconTrash className="h-4 w-4 mr-1" />
-                        删除
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>确认删除</DialogTitle>
-                        <DialogDescription>
-                          您确定要删除文件 "{file.name}" 吗？此操作无法撤销。
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <DialogClose asChild>
-                          <Button variant="outline">取消</Button>
-                        </DialogClose>
-                        <Button 
-                          variant="destructive" 
-                          onClick={() => handleDelete(file.id)}
-                          disabled={deletingId === file.id}
+                  {showDeleteButton && (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="删除"
+                          className="py-0 min-h-0 h-auto px-1"
                         >
-                          {deletingId === file.id ? "删除中..." : "删除"}
+                          <IconTrash className="h-4 w-4 mr-1" />
+                          删除
                         </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>确认删除</DialogTitle>
+                          <DialogDescription>
+                            您确定要删除文件 "{file.original_name}" 吗？此操作无法撤销。
+                          </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button variant="outline">取消</Button>
+                          </DialogClose>
+                          <Button 
+                            variant="destructive" 
+                            onClick={() => handleDelete(file.id)}
+                            disabled={deletingId === file.id}
+                          >
+                            {deletingId === file.id ? "删除中..." : "删除"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  )}
                 </CardFooter>
               </Card>
             ))

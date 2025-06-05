@@ -79,6 +79,11 @@ func (s *Server) setupRoutes() {
 
 		auth.DELETE("/scratch/projects/:id", s.handler.DeleteScratchProject)
 
+		auth.GET("/files/list", gorails.Wrap(s.handler.ListFilesHandler, nil))
+		auth.GET("/files/:id/download", gorails.Wrap(s.handler.DownloadFileHandler, handler.RenderDownloadFile))
+		auth.GET("/files/:id/preview", gorails.Wrap(s.handler.PreviewFileHandler, nil))
+		auth.DELETE("/files/:id", gorails.Wrap(s.handler.DeleteFileHandler, nil))
+
 		{
 			admin := auth.Group("/admin").Use(s.handler.RequirePermission(handler.PermissionManageAll))
 			admin.POST("/classes/create", s.handler.PostCreateClass)
@@ -102,7 +107,6 @@ func (s *Server) setupRoutes() {
 			admin.GET("/scratch/projects", s.handler.GetAllScratchProject)
 
 			// 文件管理路由
-			admin.GET("/files/list", gorails.Wrap(s.handler.ListFilesHandler, nil))
 			admin.POST("/files/upload", gorails.Wrap(s.handler.PostMultiFileUploadHandler, nil))
 		}
 		// 班级相关路由

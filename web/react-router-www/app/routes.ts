@@ -8,6 +8,7 @@ export default [
     route("/www/classes/create", "routes/create_class.tsx"),
     route("/www/classes/list", "routes/list_classes.tsx"),
     route("/www/classes/:classId/edit", "routes/edit_class.tsx"),  
+    route("/www/files/list", "routes/list_files.tsx"),
     route("/www/admin/users/list", "routes/list_users.tsx"),
     route("/www/admin/users/:userId/edit", "routes/edit_user.tsx"),
     route("/www/admin/users/create", "routes/create_user.tsx"),

@@ -154,12 +154,13 @@ func (p *ListFilesParams) Parse(c *gin.Context) gorails.Error {
 
 // FileResponse 文件相关响应
 type FileResponse struct {
-	ID          uint   `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Size        int64  `json:"size"`
-	TagID       uint   `json:"tag_id"`
-	ContentType uint   `json:"content_type"`
+	ID           uint   `json:"id"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Size         int64  `json:"size"`
+	TagID        uint   `json:"tag_id"`
+	ContentType  uint   `json:"content_type"`
+	OriginalName string `json:"original_name"`
 }
 
 // ListFilesResponse 列出文件响应
@@ -182,26 +183,200 @@ type FailedFile struct {
 	Error    string `json:"error"`
 }
 
-// GetFileHandler 获取文件
-func (h *Handler) GetFileHandler(c *gin.Context) (*FileResponse, *gorails.ResponseMeta, gorails.Error) {
-	fileID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+// FileIDParams 下载文件请求参数
+type FileIDParams struct {
+	FileID uint `json:"file_id" uri:"id" binding:"required"` // 文件ID
+}
+
+func (p *FileIDParams) Parse(c *gin.Context) gorails.Error {
+	// 解析路径参数
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+func RenderDownloadFile(c *gin.Context, file []byte, meta *gorails.ResponseMeta) {
+	c.Data(http.StatusOK, "application/octet-stream", file)
+}
+
+// DownloadFileHandler 下载文件
+func (h *Handler) DownloadFileHandler(c *gin.Context, params *FileIDParams) ([]byte, *gorails.ResponseMeta, gorails.Error) {
+	// 从数据库获取文件信息
+	file, err := h.dao.FileDao.GetFile(params.FileID)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+		return nil, nil, err
 	}
 
-	file, err := h.dao.FileDao.GetFile(uint(fileID))
-	if err != nil {
-		return nil, nil, err.(gorails.Error)
+	// 检查权限（可选：检查文件是否属于当前用户或用户是否有访问权限）
+	// userID := h.getUserID(c)
+	// if file.UserID != userID && !h.hasPermission(c, PermissionManageAll) {
+	//     return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, nil)
+	// }
+
+	// 构建文件路径
+	filePath := h.buildFilePathFromSHA1(file.SHA1, file.ExtName)
+
+	// 检查文件是否存在
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeFileNotFound, "文件不存在于存储系统中", err)
 	}
 
-	return &FileResponse{
-		ID:          file.ID,
-		Name:        file.GetName(),
-		Description: file.Description,
-		Size:        file.Size,
-		TagID:       file.TagID,
-		ContentType: file.ContentType,
-	}, nil, nil
+	// 读取文件内容
+	fileData, readErr := os.ReadFile(filePath)
+	if readErr != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeSystemError, "读取文件失败", readErr)
+	}
+
+	// 根据文件类型设置Content-Type
+	contentType := getContentTypeHeader(file.ContentType, file.ExtName)
+
+	// 设置响应头
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Length", strconv.Itoa(len(fileData)))
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", file.GetName()))
+
+	return fileData, nil, nil
+}
+
+// buildFilePathFromSHA1 根据SHA1值和扩展名构建文件路径
+func (h *Handler) buildFilePathFromSHA1(sha1, extName string) string {
+	// 使用与上传时相同的目录结构
+	if len(sha1) < 40 {
+		return filepath.Join(h.config.Storage.BasePath, "files", "invalid")
+	}
+
+	part1 := sha1[0:10]  // 前10个字符
+	part2 := sha1[10:20] // 第11-20个字符
+	part3 := sha1[20:30] // 第21-30个字符
+	part4 := sha1[30:40] // 最后10个字符
+
+	fileName := sha1
+	if extName != "" {
+		fileName = sha1 + extName
+	}
+
+	return filepath.Join(h.config.Storage.BasePath, "files", part1, part2, part3, part4, fileName)
+}
+
+// getContentTypeHeader 根据文件类型和扩展名获取HTTP Content-Type头
+func getContentTypeHeader(contentType uint, extName string) string {
+	// 首先根据数据库中的 ContentType 字段
+	switch contentType {
+	case model.ContentTypeImage:
+		switch extName {
+		case ".jpg", ".jpeg":
+			return "image/jpeg"
+		case ".png":
+			return "image/png"
+		case ".gif":
+			return "image/gif"
+		case ".bmp":
+			return "image/bmp"
+		case ".webp":
+			return "image/webp"
+		default:
+			return "image/jpeg" // 默认图片类型
+		}
+	case model.ContentTypeAudio:
+		switch extName {
+		case ".wav":
+			return "audio/wav"
+		case ".mp3":
+			return "audio/mpeg"
+		case ".ogg":
+			return "audio/ogg"
+		case ".m4a":
+			return "audio/mp4"
+		default:
+			return "audio/wav" // 默认音频类型
+		}
+	case model.ContentTypeSprite3:
+		return "application/json" // Scratch文件通常是JSON格式
+	}
+
+	// 后备方案：根据扩展名判断
+	switch extName {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".gif":
+		return "image/gif"
+	case ".bmp":
+		return "image/bmp"
+	case ".webp":
+		return "image/webp"
+	case ".wav":
+		return "audio/wav"
+	case ".mp3":
+		return "audio/mpeg"
+	case ".ogg":
+		return "audio/ogg"
+	case ".m4a":
+		return "audio/mp4"
+	case ".sb3", ".sb2":
+		return "application/json"
+	case ".json":
+		return "application/json"
+	case ".txt":
+		return "text/plain"
+	case ".pdf":
+		return "application/pdf"
+	default:
+		return "application/octet-stream" // 通用二进制类型
+	}
+}
+
+// PreviewFileParams 预览文件请求参数
+type PreviewFileParams struct {
+	FileID uint `json:"file_id" uri:"id" binding:"required"` // 文件ID
+}
+
+func (p *PreviewFileParams) Parse(c *gin.Context) gorails.Error {
+	// 解析路径参数
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+// PreviewFileHandler 预览文件（用于图片等可直接显示的文件）
+func (h *Handler) PreviewFileHandler(c *gin.Context, params *PreviewFileParams) ([]byte, *gorails.ResponseMeta, gorails.Error) {
+	// 从数据库获取文件信息
+	file, err := h.dao.FileDao.GetFile(params.FileID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// 检查是否为可预览的文件类型
+	if file.ContentType != model.ContentTypeImage {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeInvalidParams, "该文件类型不支持预览", nil)
+	}
+
+	// 构建文件路径
+	filePath := h.buildFilePathFromSHA1(file.SHA1, file.ExtName)
+
+	// 检查文件是否存在
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeFileNotFound, "文件不存在于存储系统中", err)
+	}
+
+	// 读取文件内容
+	fileData, readErr := os.ReadFile(filePath)
+	if readErr != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeSystemError, "读取文件失败", readErr)
+	}
+
+	// 根据文件类型设置Content-Type
+	contentType := getContentTypeHeader(file.ContentType, file.ExtName)
+
+	// 设置响应头（不使用 attachment，直接在浏览器中显示）
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Length", strconv.Itoa(len(fileData)))
+	c.Header("Cache-Control", "public, max-age=3600") // 缓存1小时
+
+	return fileData, nil, nil
 }
 
 // ListFilesHandler 列出文件
@@ -228,12 +403,13 @@ func (h *Handler) ListFilesHandler(c *gin.Context, params *ListFilesParams) (*Li
 	fileResponses := make([]*FileResponse, len(files))
 	for i, file := range files {
 		fileResponses[i] = &FileResponse{
-			ID:          file.ID,
-			Name:        file.GetName(),
-			Description: file.Description,
-			Size:        file.Size,
-			TagID:       file.TagID,
-			ContentType: file.ContentType,
+			ID:           file.ID,
+			Name:         file.GetName(),
+			Description:  file.Description,
+			Size:         file.Size,
+			TagID:        file.TagID,
+			ContentType:  file.ContentType,
+			OriginalName: file.OriginalName,
 		}
 	}
 
@@ -248,15 +424,21 @@ func (h *Handler) ListFilesHandler(c *gin.Context, params *ListFilesParams) (*Li
 }
 
 // DeleteFileHandler 删除文件
-func (h *Handler) DeleteFileHandler(c *gin.Context) (*gorails.ResponseEmpty, *gorails.ResponseMeta, gorails.Error) {
-	fileID, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+func (h *Handler) DeleteFileHandler(c *gin.Context, params *FileIDParams) (*gorails.ResponseEmpty, *gorails.ResponseMeta, gorails.Error) {
+	file, gerr := h.dao.FileDao.GetFile(params.FileID)
+	if gerr != nil {
+		return nil, nil, gerr
 	}
 
-	err = h.dao.FileDao.DeleteFile(uint(fileID))
-	if err != nil {
-		return nil, nil, err.(gorails.Error)
+	// 删除文件
+	filePath := h.buildFilePathFromSHA1(file.SHA1, file.ExtName)
+	if err := os.Remove(filePath); err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeSystemError, "删除文件失败", err)
+	}
+
+	gerr = h.dao.FileDao.DeleteFile(params.FileID)
+	if gerr != nil {
+		return nil, nil, gerr
 	}
 
 	return &gorails.ResponseEmpty{}, nil, nil
@@ -319,7 +501,6 @@ func (h *Handler) PostMultiFileUploadHandler(c *gin.Context, params *MultiFileUp
 		fileResp, err := h.processUploadedFileWithSHA1(
 			fileHeader,
 			userID,
-			params.Names[i],
 			params.Descriptions[i],
 			params.SHA1s[i],
 			params.TagIDs[i],
@@ -340,7 +521,7 @@ func (h *Handler) PostMultiFileUploadHandler(c *gin.Context, params *MultiFileUp
 }
 
 // processUploadedFileWithSHA1 处理带SHA1信息的单个上传文件
-func (h *Handler) processUploadedFileWithSHA1(fileHeader *multipart.FileHeader, userID uint, name, description, expectedSHA1 string, tagID uint) (*FileResponse, gorails.Error) {
+func (h *Handler) processUploadedFileWithSHA1(fileHeader *multipart.FileHeader, userID uint, description, expectedSHA1 string, tagID uint) (*FileResponse, gorails.Error) {
 	// 验证SHA1格式
 	if len(expectedSHA1) != 40 {
 		return nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeInvalidParams, "SHA1格式无效，应为40个字符", nil)
@@ -362,20 +543,25 @@ func (h *Handler) processUploadedFileWithSHA1(fileHeader *multipart.FileHeader, 
 	// 文件已存在，直接返回
 	if file != nil {
 		return &FileResponse{
-			ID:          file.ID,
-			Name:        file.GetName(),
-			Description: file.Description,
-			Size:        file.Size,
-			TagID:       file.TagID,
-			ContentType: file.ContentType,
+			ID:           file.ID,
+			Name:         file.GetName(),
+			Description:  file.Description,
+			Size:         file.Size,
+			TagID:        file.TagID,
+			ContentType:  file.ContentType,
+			OriginalName: file.OriginalName,
 		}, nil
 	}
 
 	// 文件不存在，继续保存文件
 
-	// 根据SHA1创建目录结构
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		return nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeCreateFailed, err.Error(), err)
+	// 如果目录不存在，则创建目录
+	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+		// 根据SHA1创建目录结构
+
+		if err := os.MkdirAll(uploadDir, 0755); err != nil {
+			return nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeCreateFailed, err.Error(), err)
+		}
 	}
 
 	// 打开上传的文件
@@ -404,13 +590,14 @@ func (h *Handler) processUploadedFileWithSHA1(fileHeader *multipart.FileHeader, 
 
 	// 创建文件记录
 	file2 := &model.File{
-		ExtName:     filepath.Ext(fileHeader.Filename),
-		Description: description,
-		Size:        actualFileSize,
-		UserID:      userID,
-		TagID:       tagID,
-		ContentType: contentType2,
-		SHA1:        expectedSHA1,
+		ExtName:      filepath.Ext(fileHeader.Filename),
+		Description:  description,
+		Size:         actualFileSize,
+		UserID:       userID,
+		TagID:        tagID,
+		ContentType:  contentType2,
+		SHA1:         expectedSHA1,
+		OriginalName: fileHeader.Filename,
 	}
 
 	// 保存到数据库
@@ -452,7 +639,7 @@ func getContentTypeFromExtension(ext string) uint {
 		return model.ContentTypeImage // 图片类型
 	case ".wav", ".mp3", ".ogg", ".m4a":
 		return model.ContentTypeAudio // 音频类型
-	case ".sb3", ".sb2":
+	case ".sprite3":
 		return model.ContentTypeSprite3 // Scratch项目文件
 	default:
 		return 0 // 其他类型
