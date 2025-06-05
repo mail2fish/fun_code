@@ -386,7 +386,7 @@ export function FileTable({
             files.map((file) => (
               <Card key={file.id} className="flex flex-col h-full">
                 <div className="w-full h-40 flex items-center justify-center rounded-t-xl bg-gray-50">
-                  {file.content_type === CONTENT_TYPE_IMAGE ? (
+                  {file.content_type === CONTENT_TYPE_IMAGE || file.content_type === CONTENT_TYPE_SPRITE3 ? (
                     <img
                       src={`${HOST_URL}/api/files/${file.id}/preview`}
                       className="max-h-32 max-w-full object-contain"

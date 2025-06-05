@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
@@ -360,16 +359,29 @@ func (h *Handler) PreviewFileHandler(c *gin.Context, params *PreviewFileParams) 
 	}
 
 	// 检查是否为可预览的文件类型
-	if file.ContentType != model.ContentTypeImage {
+	if file.ContentType != model.ContentTypeImage && file.ContentType != model.ContentTypeSprite3 {
 		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeInvalidParams, "该文件类型不支持预览", nil)
 	}
 
-	// 构建文件路径
-	filePath := h.buildFilePathFromSHA1(file.SHA1, file.ExtName)
+	// 构建缩略图路径
+	thumbnailPath := h.buildThumbnailPath(file.SHA1)
+	var filePath string
+	var contentType string
 
-	// 检查文件是否存在
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeFileNotFound, "文件不存在于存储系统中", err)
+	// 检查缩略图是否存在
+	if _, err := os.Stat(thumbnailPath); err == nil {
+		// 缩略图存在，使用缩略图
+		filePath = thumbnailPath
+		contentType = "image/png" // 缩略图统一为PNG格式
+	} else {
+		// 缩略图不存在，回退到原始文件
+		filePath = h.buildFilePathFromSHA1(file.SHA1, file.ExtName)
+		contentType = getContentTypeHeader(file.ContentType, file.ExtName)
+
+		// 检查原始文件是否存在
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeFileNotFound, "文件不存在于存储系统中", err)
+		}
 	}
 
 	// 读取文件内容
@@ -377,9 +389,6 @@ func (h *Handler) PreviewFileHandler(c *gin.Context, params *PreviewFileParams) 
 	if readErr != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeSystemError, "读取文件失败", readErr)
 	}
-
-	// 根据文件类型设置Content-Type
-	contentType := getContentTypeHeader(file.ContentType, file.ExtName)
 
 	// 设置响应头（不使用 attachment，直接在浏览器中显示）
 	c.Header("Content-Type", contentType)
@@ -929,41 +938,10 @@ func (h *Handler) extractScratchThumbnail(filePath string) image.Image {
 	}
 	defer r.Close()
 
-	// 解析project.json获取图片资源ID
-	var projectData map[string]interface{}
-	for _, f := range r.File {
-		if f.Name == "project.json" {
-			rc, err := f.Open()
-			if err != nil {
-				continue
-			}
-			defer rc.Close()
-
-			data, err := io.ReadAll(rc)
-			if err != nil {
-				continue
-			}
-
-			if err := json.Unmarshal(data, &projectData); err != nil {
-				continue
-			}
-			break
-		}
-	}
-
-	if projectData == nil {
-		return nil
-	}
-
-	// 从项目数据中提取第一个可用的图片资源
-	imageAssetID := h.findFirstImageAsset(projectData)
-	if imageAssetID == "" {
-		return nil
-	}
-
 	// 从ZIP中提取图片文件
 	for _, f := range r.File {
-		if strings.Contains(f.Name, imageAssetID) {
+		// 文件名后缀如果是图片格式，则提取图片
+		if strings.HasSuffix(f.Name, ".png") || strings.HasSuffix(f.Name, ".jpg") || strings.HasSuffix(f.Name, ".jpeg") {
 			rc, err := f.Open()
 			if err != nil {
 				continue
@@ -988,32 +966,6 @@ func (h *Handler) extractScratchThumbnail(filePath string) image.Image {
 	}
 
 	return nil
-}
-
-// findFirstImageAsset 从Scratch项目数据中找到第一个图片资源ID
-func (h *Handler) findFirstImageAsset(projectData map[string]interface{}) string {
-	// 查找targets中的costume
-	if targets, ok := projectData["targets"].([]interface{}); ok {
-		for _, target := range targets {
-			if targetMap, ok := target.(map[string]interface{}); ok {
-				if costumes, ok := targetMap["costumes"].([]interface{}); ok {
-					for _, costume := range costumes {
-						if costumeMap, ok := costume.(map[string]interface{}); ok {
-							if assetID, ok := costumeMap["assetId"].(string); ok {
-								if dataFormat, ok := costumeMap["dataFormat"].(string); ok {
-									// 只返回图片格式的资源
-									if dataFormat == "png" || dataFormat == "jpg" || dataFormat == "jpeg" || dataFormat == "svg" {
-										return assetID
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return ""
 }
 
 // generateDefaultScratchThumbnail 生成默认的Scratch猫缩略图
