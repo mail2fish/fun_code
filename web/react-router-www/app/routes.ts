@@ -12,4 +12,5 @@ export default [
     route("/www/admin/users/:userId/edit", "routes/edit_user.tsx"),
     route("/www/admin/users/create", "routes/create_user.tsx"),
     route("/www/admin/scratch/projects", "routes/admin_scratch_projects.tsx"),
+    route("/www/admin/files/upload", "routes/upload_files.tsx"),
 ] satisfies RouteConfig;

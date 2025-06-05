@@ -147,7 +147,7 @@ func (h *Handler) GetFileHandler(c *gin.Context) (*FileResponse, *gorails.Respon
 
 	return &FileResponse{
 		ID:          file.ID,
-		Name:        file.Name,
+		Name:        file.GetName(),
 		Description: file.Description,
 		Size:        file.Size,
 		TagID:       file.TagID,
@@ -171,7 +171,7 @@ func (h *Handler) ListFilesHandler(c *gin.Context) ([]*FileResponse, *gorails.Re
 	for i, file := range files {
 		responses[i] = &FileResponse{
 			ID:          file.ID,
-			Name:        file.Name,
+			Name:        file.GetName(),
 			Description: file.Description,
 			Size:        file.Size,
 			TagID:       file.TagID,
@@ -294,22 +294,21 @@ func (h *Handler) processUploadedFileWithSHA1(fileHeader *multipart.FileHeader, 
 	filePath := filepath.Join(uploadDir, fileName)
 
 	// 检查文件是否存在
-	file, gerr := h.dao.FileDao.GetFileBySHA1(expectedSHA1)
-	if gerr != nil {
-		return nil, gerr
-	}
+	file, _ := h.dao.FileDao.GetFileBySHA1(expectedSHA1)
 
 	// 文件已存在，直接返回
 	if file != nil {
 		return &FileResponse{
 			ID:          file.ID,
-			Name:        name,
+			Name:        file.GetName(),
 			Description: file.Description,
 			Size:        file.Size,
 			TagID:       file.TagID,
 			ContentType: file.ContentType,
 		}, nil
 	}
+
+	// 文件不存在，继续保存文件
 
 	// 根据SHA1创建目录结构
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
@@ -326,7 +325,7 @@ func (h *Handler) processUploadedFileWithSHA1(fileHeader *multipart.FileHeader, 
 	var actualFileSize int64
 
 	// 文件不存在，需要流式保存并计算SHA1
-	actualFileSize, gerr = h.saveFileWithSHA1Verification(src, filePath, expectedSHA1)
+	actualFileSize, gerr := h.saveFileWithSHA1Verification(src, filePath, expectedSHA1)
 	if gerr != nil {
 		os.Remove(filePath) // 清理可能的不完整文件
 		return nil, gerr
@@ -342,12 +341,13 @@ func (h *Handler) processUploadedFileWithSHA1(fileHeader *multipart.FileHeader, 
 
 	// 创建文件记录
 	file2 := &model.File{
-		Name:        expectedSHA1, // 使用SHA1作为文件名
+		ExtName:     filepath.Ext(fileHeader.Filename),
 		Description: description,
 		Size:        actualFileSize,
 		UserID:      userID,
 		TagID:       tagID,
 		ContentType: contentType2,
+		SHA1:        expectedSHA1,
 	}
 
 	// 保存到数据库
@@ -357,7 +357,7 @@ func (h *Handler) processUploadedFileWithSHA1(fileHeader *multipart.FileHeader, 
 
 	return &FileResponse{
 		ID:          file2.ID,
-		Name:        file2.Name,
+		Name:        file2.GetName(),
 		Description: file2.Description,
 		Size:        file2.Size,
 		TagID:       file2.TagID,
@@ -371,7 +371,7 @@ func (h *Handler) getSHA1BasedUploadDir(sha1 string) string {
 	// 例如: sha1 = "1234567890abcdef1234567890abcdef12345678"
 	// 分割为: "1234567890" / "abcdef1234" / "567890abcd" / "ef12345678"
 	if len(sha1) < 40 {
-		return "./uploads/invalid"
+		return filepath.Join(h.config.Storage.BasePath, "files", "invalid")
 	}
 
 	part1 := sha1[0:10]  // 前10个字符
@@ -379,7 +379,7 @@ func (h *Handler) getSHA1BasedUploadDir(sha1 string) string {
 	part3 := sha1[20:30] // 第21-30个字符
 	part4 := sha1[30:40] // 最后10个字符
 
-	return filepath.Join("./uploads", part1, part2, part3, part4)
+	return filepath.Join(h.config.Storage.BasePath, "files", part1, part2, part3, part4)
 }
 
 // getContentTypeFromExtension 根据文件扩展名获取ContentType

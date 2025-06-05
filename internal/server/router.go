@@ -100,6 +100,9 @@ func (s *Server) setupRoutes() {
 			admin.GET("/users/search", s.handler.RequirePermission("manage_users"), s.handler.GetSearchUsers)
 			// 获取所有scratch项目
 			admin.GET("/scratch/projects", s.handler.GetAllScratchProject)
+
+			// 文件管理路由
+			admin.POST("/files/upload", gorails.Wrap(s.handler.PostMultiFileUploadHandler, nil))
 		}
 		// 班级相关路由
 	}

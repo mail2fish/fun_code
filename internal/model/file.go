@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -12,7 +13,7 @@ type File struct {
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
-	Name        string         `gorm:"size:255" json:"name"`
+	ExtName     string         `gorm:"size:255" json:"ext_name"`
 	SHA1        string         `gorm:"size:40;unique" json:"sha1"`
 	Description string         `gorm:"size:1000" json:"description"`
 	Size        int64          `json:"size"`
@@ -23,6 +24,10 @@ type File struct {
 
 func (f *File) TableName() string {
 	return "files"
+}
+
+func (f *File) GetName() string {
+	return fmt.Sprintf("%s%s", f.SHA1, f.ExtName)
 }
 
 const (

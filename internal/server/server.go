@@ -78,8 +78,8 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 	isDemo := cfg.Env == "demo"
 
 	fDao := &dao.Dao{
-		AuthDao: dao.NewAuthDao(db, []byte(cfg.JWT.SecretKey), sessionCache, isDemo),
-		// FileDao:      dao.NewFileDao(db, cfg.Storage.BasePath),
+		AuthDao:      dao.NewAuthDao(db, []byte(cfg.JWT.SecretKey), sessionCache, isDemo),
+		FileDao:      dao.NewFileDao(db),
 		ScratchDao:   dao.NewScratchDao(db, filepath.Join(cfg.Storage.BasePath, "scratch"), cfg, logger),
 		ClassDao:     dao.NewClassDao(db),
 		UserDao:      dao.NewUserDao(db),

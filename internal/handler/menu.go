@@ -60,6 +60,11 @@ func (h *Handler) GetMenuList(c *gin.Context) {
 					URL:      "/www/admin/scratch/projects",
 					IsActive: false,
 				},
+				{
+					Title:    "上传资源",
+					URL:      "/www/admin/files/upload",
+					IsActive: false,
+				},
 			},
 		})
 	}
