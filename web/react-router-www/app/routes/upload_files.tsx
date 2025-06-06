@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { IconUpload, IconFile, IconX, IconTrash } from "@tabler/icons-react";
+import CryptoJS from 'crypto-js';
 
 import { AppSidebar } from "~/components/my-app-sidebar";
 import {
@@ -49,13 +50,37 @@ interface UploadResult {
   }>;
 }
 
-// 计算文件的SHA1哈希值
+// 计算文件的SHA1哈希值 - 兼容非HTTPS环境
 async function calculateSHA1(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest('SHA-1', arrayBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return hashHex;
+  // 检查是否支持 crypto.subtle (HTTPS 或 localhost)
+  if (window.crypto && window.crypto.subtle) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-1', arrayBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return hashHex;
+    } catch (error) {
+      console.warn('crypto.subtle 不可用，使用备用方案:', error);
+    }
+  }
+  
+  // 备用方案：使用 crypto-js 库（兼容 HTTP 环境）
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const arrayBuffer = event.target?.result as ArrayBuffer;
+        const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
+        const hash = CryptoJS.SHA1(wordArray).toString();
+        resolve(hash);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = () => reject(new Error('文件读取失败'));
+    reader.readAsArrayBuffer(file);
+  });
 }
 
 export default function UploadFiles() {

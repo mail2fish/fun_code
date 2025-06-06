@@ -366,14 +366,19 @@ func (h *Handler) PreviewFileHandler(c *gin.Context, params *PreviewFileParams) 
 
 	// 构建缩略图路径
 	thumbnailPath := h.buildThumbnailPath(file.SHA1)
+	svgThumbnailPath := h.buildSVGThumbnailPath(file.SHA1)
 	var filePath string
 	var contentType string
 
-	// 检查缩略图是否存在
-	if _, err := os.Stat(thumbnailPath); err == nil {
-		// 缩略图存在，使用缩略图
+	// 优先检查 SVG 缩略图是否存在
+	if _, err := os.Stat(svgThumbnailPath); err == nil {
+		// SVG 缩略图存在，使用 SVG 缩略图
+		filePath = svgThumbnailPath
+		contentType = "image/svg+xml"
+	} else if _, err := os.Stat(thumbnailPath); err == nil {
+		// PNG 缩略图存在，使用 PNG 缩略图
 		filePath = thumbnailPath
-		contentType = "image/png" // 缩略图统一为PNG格式
+		contentType = "image/png"
 	} else {
 		// 缩略图不存在，回退到原始文件
 		filePath = h.buildFilePathFromSHA1(file.SHA1, file.ExtName)
@@ -464,11 +469,18 @@ func (h *Handler) DeleteFileHandler(c *gin.Context, params *FileIDParams) (*gora
 	// 删除缩略图（如果存在）
 	thumbnailPath := h.buildThumbnailPath(file.SHA1)
 	if _, err := os.Stat(thumbnailPath); err == nil {
-		// 缩略图存在，删除它
+		// PNG 缩略图存在，删除它
 		if err := os.Remove(thumbnailPath); err != nil {
-			// 缩略图删除失败，记录日志但不影响主要流程
-			// 可以考虑添加日志记录：log.Printf("删除缩略图失败: %v", err)
 			h.logger.Error("failed to delete thumbnail", zap.Error(err))
+		}
+	}
+
+	// 删除 SVG 缩略图（如果存在）
+	svgThumbnailPath := h.buildSVGThumbnailPath(file.SHA1)
+	if _, err := os.Stat(svgThumbnailPath); err == nil {
+		// SVG 缩略图存在，删除它
+		if err := os.Remove(svgThumbnailPath); err != nil {
+			h.logger.Error("failed to delete SVG thumbnail", zap.Error(err))
 		}
 	}
 
@@ -832,9 +844,13 @@ func (h *Handler) generateSprite3Thumbnail(f *model.File) {
 
 	// 构建缩略图文件路径 (Scratch缩略图统一保存为PNG)
 	thumbnailPath := h.buildThumbnailPath(f.SHA1)
+	svgThumbnailPath := h.buildSVGThumbnailPath(f.SHA1)
 
-	// 如果缩略图已存在，跳过生成
+	// 如果缩略图已存在（PNG 或 SVG），跳过生成
 	if _, err := os.Stat(thumbnailPath); err == nil {
+		return
+	}
+	if _, err := os.Stat(svgThumbnailPath); err == nil {
 		return
 	}
 
@@ -843,14 +859,18 @@ func (h *Handler) generateSprite3Thumbnail(f *model.File) {
 	if err := os.MkdirAll(thumbnailDir, 0755); err != nil {
 		return
 	}
-
 	// 尝试从.sb3文件提取缩略图
-	thumbnail := h.extractScratchThumbnail(originalPath)
-	if thumbnail != nil {
-		// 保存提取的缩略图
+	thumbnail, svgData := h.extractScratchThumbnail(originalPath)
+	if svgData != nil {
+		// 提取到了 SVG 数据，保存为 SVG 缩略图
+		baseName := filepath.Base(thumbnailPath)
+		sha1 := strings.TrimSuffix(baseName, "_thumb.png")
+		h.saveSVGThumbnail(svgData, sha1)
+	} else if thumbnail != nil {
+		// 提取到了位图，保存为 PNG 缩略图
 		h.saveThumbnail(thumbnail, thumbnailPath)
 	} else {
-		// 生成默认的Scratch猫缩略图
+		// 没有找到合适的图片，生成默认的Scratch猫缩略图
 		h.generateDefaultScratchThumbnail(thumbnailPath)
 	}
 }
@@ -948,20 +968,24 @@ func (h *Handler) saveThumbnail(img image.Image, thumbnailPath string) {
 }
 
 // extractScratchThumbnail 从Scratch项目文件提取缩略图
-func (h *Handler) extractScratchThumbnail(filePath string) image.Image {
+// 返回值：image.Image 表示位图，[]byte 表示 SVG 数据
+func (h *Handler) extractScratchThumbnail(filePath string) (image.Image, []byte) {
 	// 打开.sb3文件（ZIP格式）
 	r, err := zip.OpenReader(filePath)
 	if err != nil {
-		return nil
+		h.logger.Error("extractScratchThumbnail", zap.Error(err))
+		return nil, nil
 	}
 	defer r.Close()
 
 	// 从ZIP中提取图片文件
 	for _, f := range r.File {
+		h.logger.Info("extractScratchThumbnail", zap.String("fileName", f.Name))
 		// 文件名后缀如果是图片格式，则提取图片
-		if strings.HasSuffix(f.Name, ".png") || strings.HasSuffix(f.Name, ".jpg") || strings.HasSuffix(f.Name, ".jpeg") {
+		if h.isImageFile(f.Name) {
 			rc, err := f.Open()
 			if err != nil {
+				h.logger.Error("extractScratchThumbnail", zap.Error(err))
 				continue
 			}
 			defer rc.Close()
@@ -969,21 +993,28 @@ func (h *Handler) extractScratchThumbnail(filePath string) image.Image {
 			// 读取图片数据
 			imgData, err := io.ReadAll(rc)
 			if err != nil {
+				h.logger.Error("extractScratchThumbnail", zap.Error(err))
 				continue
 			}
 
-			// 解码图片
+			// 如果是 SVG 文件，返回 SVG 数据
+			if strings.HasSuffix(strings.ToLower(f.Name), ".svg") {
+				return nil, imgData // 返回 SVG 数据
+			}
+
+			// 解码位图格式
 			img, _, err := image.Decode(bytes.NewReader(imgData))
 			if err != nil {
+				h.logger.Error("extractScratchThumbnail", zap.Error(err))
 				continue
 			}
 
 			// 生成缩略图尺寸
-			return h.resizeImage(img, 200, 200)
+			return h.resizeImage(img, 200, 200), nil
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 // generateDefaultScratchThumbnail 生成默认的Scratch猫缩略图
@@ -997,4 +1028,55 @@ func (h *Handler) generateDefaultScratchThumbnail(thumbnailPath string) {
 
 	// 保存默认缩略图
 	h.saveThumbnail(img, thumbnailPath)
+}
+
+// isImageFile 检查文件名是否为支持的图片格式
+func (h *Handler) isImageFile(fileName string) bool {
+	fileName = strings.ToLower(fileName)
+	return strings.HasSuffix(fileName, ".png") ||
+		strings.HasSuffix(fileName, ".jpg") ||
+		strings.HasSuffix(fileName, ".jpeg") ||
+		strings.HasSuffix(fileName, ".gif") ||
+		strings.HasSuffix(fileName, ".svg")
+	// 注意：SVG 直接作为缩略图使用，不进行位图转换
+}
+
+// saveSVGThumbnail 保存 SVG 缩略图
+func (h *Handler) saveSVGThumbnail(svgData []byte, sha1 string) {
+	// 构建 SVG 缩略图路径
+	svgThumbnailPath := h.buildSVGThumbnailPath(sha1)
+
+	// 确保目录存在
+	thumbnailDir := filepath.Dir(svgThumbnailPath)
+	if err := os.MkdirAll(thumbnailDir, 0755); err != nil {
+		h.logger.Error("saveSVGThumbnail: failed to create directory", zap.Error(err))
+		return
+	}
+
+	file, err := os.Create(svgThumbnailPath)
+	if err != nil {
+		h.logger.Error("saveSVGThumbnail", zap.Error(err))
+		return
+	}
+	defer file.Close()
+
+	_, err = file.Write(svgData)
+	if err != nil {
+		h.logger.Error("saveSVGThumbnail", zap.Error(err))
+	}
+}
+
+// buildSVGThumbnailPath 构建 SVG 缩略图文件路径
+func (h *Handler) buildSVGThumbnailPath(sha1 string) string {
+	if len(sha1) < 40 {
+		return filepath.Join(h.config.Storage.BasePath, "files", "invalid")
+	}
+
+	part1 := sha1[0:10]
+	part2 := sha1[10:20]
+	part3 := sha1[20:30]
+	part4 := sha1[30:40]
+
+	fileName := sha1 + "_thumb.svg"
+	return filepath.Join(h.config.Storage.BasePath, "files", part1, part2, part3, part4, fileName)
 }
