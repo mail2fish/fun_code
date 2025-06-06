@@ -149,12 +149,17 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 			contentType = "text/html; charset=utf-8"
 		}
 	}
-	//  如果不是 index.html 文件，则设置 Cache-Control 头
-	if contentType != "text/html" {
+	// 如果不是 index.html 文件，则设置 Cache-Control 头
+	if !strings.HasSuffix(filePath, "index.html") {
 		c.Header("Cache-Control", "public, max-age=31536000") // 设置为最长缓存时间 1 年
 		// 设置 Expires 头
-		expiredTime := time.Now().Add(31536000 * time.Second) // 1 小时后过期
+		expiredTime := time.Now().Add(31536000 * time.Second) // 1 年后过期
 		c.Header("Expires", expiredTime.Format(time.RFC1123))
+	} else {
+		// index.html 不设置缓存，确保每次都能获取最新版本
+		c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+		c.Header("Pragma", "no-cache")
+		c.Header("Expires", "0")
 	}
 	// 使用 c.Data 提供文件内容
 	c.Data(http.StatusOK, contentType, fileContent)
