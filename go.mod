@@ -8,7 +8,7 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/google/uuid v1.6.0
-	github.com/mail2fish/gorails v0.0.0-20250604135315-ce3bcc60acd0
+	github.com/mail2fish/gorails v0.0.1
 	github.com/nicksnyder/go-i18n/v2 v2.6.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/spf13/cobra v1.8.0
@@ -56,4 +56,3 @@ require (
 	google.golang.org/protobuf v1.36.6 // indirect
 )
 
-// replace github.com/mail2fish/gorails => /Users/jun/projects/src/gorails
