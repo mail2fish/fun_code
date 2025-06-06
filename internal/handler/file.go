@@ -24,6 +24,7 @@ import (
 	"github.com/jun/fun_code/internal/global"
 	"github.com/jun/fun_code/internal/model"
 	"github.com/mail2fish/gorails/gorails"
+	"go.uber.org/zap"
 )
 
 // MultiFileUploadParams 多文件上传请求参数
@@ -449,12 +450,24 @@ func (h *Handler) DeleteFileHandler(c *gin.Context, params *FileIDParams) (*gora
 		return nil, nil, gerr
 	}
 
-	// 删除文件
+	// 删除原始文件
 	filePath := h.buildFilePathFromSHA1(file.SHA1, file.ExtName)
 	if err := os.Remove(filePath); err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeSystemError, "删除文件失败", err)
 	}
 
+	// 删除缩略图（如果存在）
+	thumbnailPath := h.buildThumbnailPath(file.SHA1)
+	if _, err := os.Stat(thumbnailPath); err == nil {
+		// 缩略图存在，删除它
+		if err := os.Remove(thumbnailPath); err != nil {
+			// 缩略图删除失败，记录日志但不影响主要流程
+			// 可以考虑添加日志记录：log.Printf("删除缩略图失败: %v", err)
+			h.logger.Error("failed to delete thumbnail", zap.Error(err))
+		}
+	}
+
+	// 从数据库删除文件记录
 	gerr = h.dao.FileDao.DeleteFile(params.FileID)
 	if gerr != nil {
 		return nil, nil, gerr
