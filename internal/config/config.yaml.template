@@ -27,9 +27,25 @@ jwt:
   # JWT签名密钥
   secretKey: "{{ .JWT.SecretKey }}"
 
-# HTTP服务器配置
+# HTTP/HTTPS服务器配置
 server:
-  # 服务监听端口
+  # 服务器启动模式：
+  # - "default" 或 "http_only": 仅启动HTTP服务
+  # - "https_only": 仅启动HTTPS服务 
+  # - "both": HTTP和HTTPS服务都启动
+  # - "https_redirect": HTTP服务启动但重定向到HTTPS
+  mode: "{{ .Server.Mode }}"
+  # HTTP服务监听端口
+  http_port: "{{ .Server.HTTPPort }}"
+  # HTTPS服务监听端口  
+  https_port: "{{ .Server.HTTPSPort }}"
+  # TLS证书配置（HTTPS模式下必需）
+  tls:
+    # TLS证书文件路径 (建议使用单引号，以避免 Windows 路径中的反斜杠被错误转义)
+    cert_file: '{{ .Server.TLS.CertFile }}'
+    # TLS私钥文件路径 (建议使用单引号，以避免 Windows 路径中的反斜杠被错误转义) 
+    key_file: '{{ .Server.TLS.KeyFile }}'
+  # 兼容旧配置（废弃，建议使用http_port）
   port: "{{ .Server.Port }}"
 
 # Scratch编辑器配置

@@ -39,7 +39,7 @@ chmod +x ./funcode_darwin_arm64
 
 After the program runs normally, the interface is as shown below:
 
-![Running on Mac](doc/images/run_in_mac.png)
+![Running on Mac](docs/images/run_in_mac.png)
 
 On the first run, an administrator account will be automatically created. The username is admin, and the password will be prompted once in the terminal. You can later check the default password in the `funcode_server/config/config.yaml` file. If you change the password in the admin panel later, the default password will become invalid.
 
@@ -49,25 +49,25 @@ In addition, on the first run, the default listening port is 8080. If port 8080 
 
 Open your browser and visit the address shown in the terminal to access the service.
 
-![Accessing the service in browser](doc/images/login.png)
+![Accessing the service in browser](docs/images/login.png)
 
 ### System Interface
 
 After logging in, you will enter the admin panel, where you can manage students, projects, classes, and other information.
 
-![Admin panel](doc/images/admin.png)
+![Admin panel](docs/images/admin.png)
 
 ### Access the Scratch Graphical Programming System
 
 Click the "New Scratch Project" button in the interface to enter the Scratch graphical programming system.
 
-![Scratch system](doc/images/scratch.png)
+![Scratch system](docs/images/scratch.png)
 
 ### Create User Interface
 
 In the admin panel, click the "Create User" button to open the new user interface.
 
-![Create user](doc/images/create_user.png)
+![Create user](docs/images/create_user.png)
 
 ## Build Guide
 

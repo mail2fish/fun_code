@@ -30,7 +30,34 @@ type JWTConfig struct {
 	SecretKey string `yaml:"secretKey"`
 }
 
+// ServerMode 服务器启动模式
+type ServerMode string
+
+const (
+	// ModeHTTPOnly 只启动HTTP服务
+	ModeHTTPOnly ServerMode = "http_only"
+	// ModeHTTPSOnly 只启动HTTPS服务
+	ModeHTTPSOnly ServerMode = "https_only"
+	// ModeBoth HTTP和HTTPS都启动
+	ModeBoth ServerMode = "both"
+	// ModeHTTPSRedirect HTTP重定向到HTTPS
+	ModeHTTPSRedirect ServerMode = "https_redirect"
+	// ModeDefault 默认模式（只有HTTP）
+	ModeDefault ServerMode = "default"
+)
+
+type TLSConfig struct {
+	CertFile string `yaml:"cert_file"`
+	KeyFile  string `yaml:"key_file"`
+}
+
 type ServerConfig struct {
+	Mode      ServerMode `yaml:"mode"`       // 启动模式
+	HTTPPort  string     `yaml:"http_port"`  // HTTP端口
+	HTTPSPort string     `yaml:"https_port"` // HTTPS端口
+	TLS       TLSConfig  `yaml:"tls"`        // TLS证书配置
+
+	// 兼容旧配置
 	Port string `yaml:"port"`
 }
 
@@ -148,7 +175,14 @@ func NewConfig(baseDir string) *Config {
 			SecretKey: secretKey,
 		},
 		Server: ServerConfig{
-			Port: listenPort,
+			Mode:      ModeDefault,
+			HTTPPort:  listenPort,
+			HTTPSPort: ":8443",
+			Port:      listenPort, // 兼容旧配置
+			TLS: TLSConfig{
+				CertFile: "",
+				KeyFile:  "",
+			},
 		},
 		ScratchEditor: ScratchEditorConfig{
 			// Host:                 host,

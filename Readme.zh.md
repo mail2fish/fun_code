@@ -38,7 +38,7 @@ chmod +x ./funcode_darwin_arm64
 
 程序正常运行后，界面如下图所示：
 
-![在 Mac 下运行效果](doc/images/run_in_mac.png)
+![在 Mac 下运行效果](docs/images/run_in_mac.png)
 
 首次运行时会自动创建一个管理员账号，用户名为 admin，密码会在终端中提示一次。之后可在 funcode_server/config/config.yaml 文件中查看默认密码。若在管理后台修改过密码，则该默认密码将失效。
 
@@ -49,25 +49,25 @@ chmod +x ./funcode_darwin_arm64
 
 打开浏览器，访问终端中提示的地址，即可访问服务。
 
-![在浏览器中访问服务](doc/images/login.png)
+![在浏览器中访问服务](docs/images/login.png)
 
 ### 系统界面
 
 登录后，会进入管理后台，在管理后台中可以管理学员、项目、班级等信息。
 
-![在浏览器中访问服务](doc/images/admin.png)
+![在浏览器中访问服务](docs/images/admin.png)
 
 ### 访问 Scratch 图形化编程系统
 
 点击界面中的新建Scratch程序按钮，即可进入 Scratch 图形化编程系统。
 
-![在浏览器中访问服务](doc/images/scratch.png)
+![在浏览器中访问服务](docs/images/scratch.png)
 
 ### 创建用户界面
 
 在管理后台中，点击创建用户按钮，即可打开新建用户界面。
 
-![在浏览器中访问服务](doc/images/create_user.png)
+![在浏览器中访问服务](docs/images/create_user.png)
 
 ## 构建指南
 

@@ -1,10 +1,13 @@
 package server
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	ginzap "github.com/gin-contrib/zap"
@@ -139,13 +142,153 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 }
 
 func (s *Server) Start() error {
+	// 获取本地IP用于显示
 	host, err := getLocalIP()
 	if err != nil {
 		host = "localhost"
 	}
-	fmt.Printf("Service is running and accessible at:\n- Local access: http://localhost%s\n- Network access: http://%s%s\n", s.config.Server.Port, host, s.config.Server.Port)
 
-	return s.router.Run(s.config.Server.Port)
+	// 兼容旧配置：如果使用了旧的Port配置，则设置为默认模式
+	if s.config.Server.Port != "" && s.config.Server.HTTPPort == "" {
+		s.config.Server.HTTPPort = s.config.Server.Port
+		s.config.Server.Mode = config.ModeDefault
+	}
+
+	switch s.config.Server.Mode {
+	case config.ModeHTTPOnly:
+		return s.startHTTPOnly(host)
+	case config.ModeHTTPSOnly:
+		return s.startHTTPSOnly(host)
+	case config.ModeBoth:
+		return s.startBoth(host)
+	case config.ModeHTTPSRedirect:
+		return s.startHTTPSRedirect(host)
+	case config.ModeDefault:
+		fallthrough
+	default:
+		return s.startDefault(host)
+	}
+}
+
+// startHTTPOnly 启动模式1：只有HTTP
+func (s *Server) startHTTPOnly(host string) error {
+	fmt.Printf("Startup Mode: HTTP Only\n")
+	fmt.Printf("Service accessible at:\n- Local access: http://localhost%s\n- Network access: http://%s%s\n",
+		s.config.Server.HTTPPort, host, s.config.Server.HTTPPort)
+
+	return s.router.Run(s.config.Server.HTTPPort)
+}
+
+// startHTTPSOnly 启动模式2：只有HTTPS
+func (s *Server) startHTTPSOnly(host string) error {
+	if err := s.validateTLSConfig(); err != nil {
+		return fmt.Errorf("HTTPS configuration error: %v", err)
+	}
+
+	fmt.Printf("Startup Mode: HTTPS Only\n")
+	fmt.Printf("Service accessible at:\n- Local access: https://localhost%s\n- Network access: https://%s%s\n",
+		s.config.Server.HTTPSPort, host, s.config.Server.HTTPSPort)
+
+	return s.router.RunTLS(s.config.Server.HTTPSPort, s.config.Server.TLS.CertFile, s.config.Server.TLS.KeyFile)
+}
+
+// startBoth 启动模式3：HTTP和HTTPS都启动
+func (s *Server) startBoth(host string) error {
+	if err := s.validateTLSConfig(); err != nil {
+		return fmt.Errorf("HTTPS configuration error: %v", err)
+	}
+
+	fmt.Printf("Startup Mode: HTTP and HTTPS Both\n")
+	fmt.Printf("Service accessible at:\n- HTTP Local access: http://localhost%s\n- HTTP Network access: http://%s%s\n- HTTPS Local access: https://localhost%s\n- HTTPS Network access: https://%s%s\n",
+		s.config.Server.HTTPPort, host, s.config.Server.HTTPPort,
+		s.config.Server.HTTPSPort, host, s.config.Server.HTTPSPort)
+
+	// 启动HTTP服务（在goroutine中）
+	go func() {
+		if err := s.router.Run(s.config.Server.HTTPPort); err != nil {
+			s.logger.Error("HTTP service startup failed", zap.Error(err))
+		}
+	}()
+
+	// 启动HTTPS服务（主线程）
+	return s.router.RunTLS(s.config.Server.HTTPSPort, s.config.Server.TLS.CertFile, s.config.Server.TLS.KeyFile)
+}
+
+// startHTTPSRedirect 启动模式4：强制HTTPS，HTTP重定向
+func (s *Server) startHTTPSRedirect(host string) error {
+	if err := s.validateTLSConfig(); err != nil {
+		return fmt.Errorf("HTTPS configuration error: %v", err)
+	}
+
+	fmt.Printf("Startup Mode: HTTPS Redirect (HTTP redirects to HTTPS)\n")
+	fmt.Printf("Service accessible at:\n- HTTPS Local access: https://localhost%s\n- HTTPS Network access: https://%s%s\n- HTTP requests will be redirected to HTTPS\n",
+		s.config.Server.HTTPSPort, host, s.config.Server.HTTPSPort)
+
+	// 创建HTTP重定向服务器
+	redirectServer := &http.Server{
+		Addr: s.config.Server.HTTPPort,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// 构建HTTPS URL
+			httpsPort := strings.TrimPrefix(s.config.Server.HTTPSPort, ":")
+			var httpsURL string
+			if httpsPort == "443" {
+				httpsURL = "https://" + r.Host + r.RequestURI
+			} else {
+				// 移除可能存在的端口号，然后添加HTTPS端口
+				hostWithoutPort := strings.Split(r.Host, ":")[0]
+				httpsURL = fmt.Sprintf("https://%s:%s%s", hostWithoutPort, httpsPort, r.RequestURI)
+			}
+
+			http.Redirect(w, r, httpsURL, http.StatusMovedPermanently)
+		}),
+	}
+
+	// 启动HTTP重定向服务（在goroutine中）
+	go func() {
+		if err := redirectServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			s.logger.Error("HTTP redirect service startup failed", zap.Error(err))
+		}
+	}()
+
+	// 启动HTTPS服务（主线程）
+	return s.router.RunTLS(s.config.Server.HTTPSPort, s.config.Server.TLS.CertFile, s.config.Server.TLS.KeyFile)
+}
+
+// startDefault 启动模式5：默认启动（只有HTTP）
+func (s *Server) startDefault(host string) error {
+	fmt.Printf("Startup Mode: Default (HTTP Only)\n")
+	fmt.Printf("Service accessible at:\n- Local access: http://localhost%s\n- Network access: http://%s%s\n",
+		s.config.Server.HTTPPort, host, s.config.Server.HTTPPort)
+
+	return s.router.Run(s.config.Server.HTTPPort)
+}
+
+// validateTLSConfig 验证TLS配置
+func (s *Server) validateTLSConfig() error {
+	if s.config.Server.TLS.CertFile == "" {
+		return fmt.Errorf("TLS certificate file path cannot be empty")
+	}
+	if s.config.Server.TLS.KeyFile == "" {
+		return fmt.Errorf("TLS private key file path cannot be empty")
+	}
+
+	// 检查证书文件是否存在
+	if _, err := os.Stat(s.config.Server.TLS.CertFile); os.IsNotExist(err) {
+		return fmt.Errorf("TLS certificate file does not exist: %s", s.config.Server.TLS.CertFile)
+	}
+
+	// 检查私钥文件是否存在
+	if _, err := os.Stat(s.config.Server.TLS.KeyFile); os.IsNotExist(err) {
+		return fmt.Errorf("TLS private key file does not exist: %s", s.config.Server.TLS.KeyFile)
+	}
+
+	// 验证证书和私钥是否匹配
+	_, err := tls.LoadX509KeyPair(s.config.Server.TLS.CertFile, s.config.Server.TLS.KeyFile)
+	if err != nil {
+		return fmt.Errorf("TLS certificate and private key do not match: %v", err)
+	}
+
+	return nil
 }
 
 // 获取当前 IP
