@@ -403,9 +403,9 @@ func (h *Handler) PreviewFileHandler(c *gin.Context, params *PreviewFileParams) 
 // @Summary 分页获取文件列表，支持正向和反向翻页
 func (h *Handler) ListFilesHandler(c *gin.Context, params *ListFilesParams) (*ListFilesResponse, *gorails.ResponseMeta, gorails.Error) {
 	// 检查用户权限
-	if !h.hasPermission(c, PermissionManageAll) {
-		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, nil)
-	}
+	// if !h.hasPermission(c, PermissionManageAll) {
+	// 	return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, nil)
+	// }
 
 	// 从数据库获取文件列表
 	files, hasMore, err := h.dao.FileDao.ListFilesWithPagination(params.PageSize, params.BeginID, params.Forward, params.Asc)
@@ -445,6 +445,11 @@ func (h *Handler) ListFilesHandler(c *gin.Context, params *ListFilesParams) (*Li
 
 // DeleteFileHandler 删除文件
 func (h *Handler) DeleteFileHandler(c *gin.Context, params *FileIDParams) (*gorails.ResponseEmpty, *gorails.ResponseMeta, gorails.Error) {
+
+	if !h.hasPermission(c, PermissionManageAll) {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_FILE, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, nil)
+	}
+
 	file, gerr := h.dao.FileDao.GetFile(params.FileID)
 	if gerr != nil {
 		return nil, nil, gerr
