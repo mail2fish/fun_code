@@ -94,7 +94,7 @@ export default function UploadFiles() {
     if (files.length === 0) return;
 
     // 检查文件数量限制
-    const maxFiles = 10;
+    const maxFiles = 30;
     const currentFileCount = selectedFiles.length;
     const newFileCount = files.length;
     const totalFiles = currentFileCount + newFileCount;
@@ -272,13 +272,13 @@ export default function UploadFiles() {
                       <Button
                         type="button"
                         onClick={() => document.getElementById('fileInput')?.click()}
-                        disabled={isCalculatingHashes || isSubmitting || selectedFiles.length >= 10}
+                        disabled={isCalculatingHashes || isSubmitting || selectedFiles.length >= 30}
                         size="lg"
                       >
-                        {isCalculatingHashes ? '计算文件哈希中...' : selectedFiles.length >= 10 ? '已达文件上限' : '选择文件'}
+                        {isCalculatingHashes ? '计算文件哈希中...' : selectedFiles.length >= 30 ? '已达文件上限' : '选择文件'}
                       </Button>
                       <p className="text-sm text-muted-foreground">
-                        支持多文件上传，最多10个文件，单个文件最大2MB
+                        支持多文件上传，最多30个文件，单个文件最大2MB
                       </p>
                     </div>
                   </div>
@@ -290,11 +290,11 @@ export default function UploadFiles() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label className="text-base font-semibold">
-                      已选文件 ({selectedFiles.length}/10)
+                      已选文件 ({selectedFiles.length}/30)
                     </Label>
                     {selectedFiles.length >= 8 && (
                       <span className="text-sm text-orange-600 font-medium">
-                        {selectedFiles.length >= 10 ? '已达上限' : `还可添加${10 - selectedFiles.length}个文件`}
+                        {selectedFiles.length >= 30 ? '已达上限' : `还可添加${30 - selectedFiles.length}个文件`}
                       </span>
                     )}
                   </div>
