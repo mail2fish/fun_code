@@ -306,11 +306,9 @@ func (s *ShareDaoImpl) UpdateShare(shareID uint, userID uint, updates map[string
 	return nil
 }
 
-// DeleteShare 删除分享（软删除，设置为不活跃）
+// DeleteShare 删除分享（硬删除）
 func (s *ShareDaoImpl) DeleteShare(shareID uint, userID uint) error {
-	result := s.db.Model(&model.Share{}).
-		Where("id = ? AND user_id = ?", shareID, userID).
-		Update("is_active", false)
+	result := s.db.Where("id = ? AND user_id = ?", shareID, userID).Delete(&model.Share{})
 
 	if result.Error != nil {
 		return gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeShareDeleteFailed, global.ErrorMsgShareDeleteFailed, result.Error)
@@ -360,7 +358,7 @@ func (s *ShareDaoImpl) GetShareStats(shareID uint) (map[string]interface{}, erro
 // generateShareToken 生成唯一的分享token
 func (s *ShareDaoImpl) generateShareToken() (string, error) {
 	for i := 0; i < 10; i++ { // 最多尝试10次
-		bytes := make([]byte, 16)
+		bytes := make([]byte, 4)
 		if _, err := rand.Read(bytes); err != nil {
 			return "", err
 		}

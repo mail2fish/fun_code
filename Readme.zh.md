@@ -69,6 +69,12 @@ chmod +x ./funcode_darwin_arm64
 
 ![在浏览器中访问服务](docs/images/create_user.png)
 
+### 资源文件管理
+
+在管理后台中，点击资源文件按钮，即可打开资源文件管理界面。
+
+![在浏览器中访问服务](docs/images/resource.png)
+
 ## 构建指南
 
 ### 前置依赖

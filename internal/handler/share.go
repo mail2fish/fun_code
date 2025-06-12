@@ -56,9 +56,9 @@ func (h *Handler) CreateShareHandler(c *gin.Context, params *CreateShareParams) 
 		UserID:        userID,
 		Title:         params.Title,
 		Description:   params.Description,
-		MaxViews:      params.MaxViews,
-		AllowDownload: params.AllowDownload,
-		AllowRemix:    params.AllowRemix,
+		MaxViews:      params.MaxViews,      // 使用前端传入的值，0表示无限制
+		AllowDownload: params.AllowDownload, // 使用前端传入的值
+		AllowRemix:    params.AllowRemix,    // 使用前端传入的值
 	}
 
 	// 创建分享
@@ -125,6 +125,7 @@ type ShareResponse struct {
 	ShareToken     string `json:"share_token"`
 	ProjectID      uint   `json:"project_id"`
 	ProjectType    int    `json:"project_type"`
+	UserID         uint   `json:"user_id"`
 	Title          string `json:"title"`
 	Description    string `json:"description"`
 	ViewCount      int64  `json:"view_count"`
@@ -171,6 +172,7 @@ func (h *Handler) ListSharesHandler(c *gin.Context, params *ListSharesParams) (*
 			ShareToken:     share.ShareToken,
 			ProjectID:      share.ProjectID,
 			ProjectType:    share.ProjectType,
+			UserID:         share.UserID,
 			Title:          share.Title,
 			Description:    share.Description,
 			ViewCount:      share.ViewCount,
@@ -198,4 +200,38 @@ func (h *Handler) ListSharesHandler(c *gin.Context, params *ListSharesParams) (*
 		HasNext: hasMore,
 		Total:   -1, // 游标分页不提供总数，设为-1表示不可用
 	}, nil
+}
+
+// DeleteShareParams 删除分享请求参数
+type DeleteShareParams struct {
+	ShareID uint `uri:"id" binding:"required"`
+}
+
+func (p *DeleteShareParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 6, "无效的分享ID", err)
+	}
+	return nil
+}
+
+// DeleteShareHandler 删除分享
+func (h *Handler) DeleteShareHandler(c *gin.Context, params *DeleteShareParams) (*interface{}, *gorails.ResponseMeta, gorails.Error) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 7, "用户未登录", nil)
+	}
+
+	// 获取 shareDao 实例
+	shareDao := h.dao.ShareDao
+
+	// 删除分享（软删除）
+	err := shareDao.DeleteShare(params.ShareID, userID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 8, "删除分享失败", err)
+	}
+
+	// 返回空响应表示成功
+	var result interface{} = map[string]string{"message": "删除成功"}
+	return &result, nil, nil
 }

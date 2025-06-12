@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link } from "react-router"
-import { IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconHistory, IconRefresh } from "@tabler/icons-react"
+import { IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconHistory, IconRefresh, IconShare } from "@tabler/icons-react"
 
 import { Button } from "~/components/ui/button"
 import {
@@ -26,6 +26,10 @@ import { toast } from  "sonner"
 import { HOST_URL } from "~/config";
 import { Card, CardContent, CardFooter } from "~/components/ui/card"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "~/components/ui/select"
+import { Input } from "~/components/ui/input"
+import { Label } from "~/components/ui/label"
+import { Textarea } from "~/components/ui/textarea"
+import { Checkbox } from "~/components/ui/checkbox"
 import { fetchWithAuth } from "~/utils/api"
 
 export interface Project {
@@ -72,6 +76,18 @@ export function ProjectTable({
   projectsApiUrl,
 }: ProjectTableProps) {
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
+  const [sharingId, setSharingId] = React.useState<string | null>(null)
+  const [shareDialogOpen, setShareDialogOpen] = React.useState(false)
+  const [shareResultDialogOpen, setShareResultDialogOpen] = React.useState(false)
+  const [shareUrl, setShareUrl] = React.useState("")
+  const [currentShareProject, setCurrentShareProject] = React.useState<Project | null>(null)
+  const [shareForm, setShareForm] = React.useState({
+    title: "",
+    description: "",
+    maxViews: "",
+    allowDownload: false,
+    allowRemix: false,
+  })
   const [userOptions, setUserOptions] = React.useState<User[]>([])
   const [searchKeyword, setSearchKeyword] = React.useState("");
   const [searching, setSearching] = React.useState(false);
@@ -351,6 +367,93 @@ export function ProjectTable({
     }
   }
 
+  // 打开分享对话框
+  const handleShareClick = (project: Project) => {
+    console.log("点击分享，项目:", project)
+    setCurrentShareProject(project)
+    const newShareForm = {
+      title: project.name || "",
+      description: "",
+      maxViews: "",
+      allowDownload: false,
+      allowRemix: true,
+    }
+    console.log("设置分享表单:", newShareForm)
+    setShareForm(newShareForm)
+    setShareDialogOpen(true)
+    console.log("打开分享对话框")
+  }
+
+  // 复制分享链接
+  const handleCopyShareUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      toast("分享链接已复制到剪贴板")
+    } catch (error) {
+      toast("复制失败，请手动复制链接")
+    }
+  }
+
+  // 创建分享
+  const handleCreateShare = async () => {
+    if (!currentShareProject) {
+      console.error("没有选择项目")
+      return
+    }
+    
+    console.log("开始创建分享，项目:", currentShareProject)
+    console.log("分享表单数据:", shareForm)
+    
+    setSharingId(currentShareProject.id)
+    try {
+      const shareData = {
+        project_id: parseInt(currentShareProject.id),
+        project_type: 1, // Scratch项目类型
+        title: shareForm.title || currentShareProject.name,
+        description: shareForm.description,
+        max_views: shareForm.maxViews ? parseInt(shareForm.maxViews) : 0,
+        allow_download: shareForm.allowDownload,
+        allow_remix: shareForm.allowRemix,
+      }
+
+      console.log("发送到API的数据:", shareData)
+
+      const res = await fetchWithAuth(`${HOST_URL}/api/shares`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(shareData),
+      })
+
+      const result = await res.json()
+      console.log("API响应:", result)
+      
+      if (res.ok && result.code === 0) {
+        const shareToken = result.data.share_token
+        const newShareUrl = `${window.location.origin}/share/${shareToken}`
+        
+        console.log("分享创建成功，URL:", newShareUrl)
+        
+        setShareUrl(newShareUrl)
+        setShareDialogOpen(false)
+        setShareResultDialogOpen(true)
+        
+        toast("分享链接已创建成功")
+      } else {
+        console.error("分享创建失败:", result)
+        // 显示具体的错误信息
+        const errorMessage = result.message || result.error || "未知错误"
+        toast(`创建分享失败：${errorMessage}`)
+      }
+    } catch (error) {
+      console.error("创建分享时出错：", error)
+      toast("创建分享时出现网络错误")
+    } finally {
+      setSharingId(null)
+    }
+  }
+
   if (localInitialLoading) {
     return <div className="text-center py-4">加载中...</div>
   }
@@ -470,67 +573,84 @@ export function ProjectTable({
                     )}
                     <div className="text-sm text-muted-foreground">创建时间：{formatDate(project.created_at || project.createdAt)}</div>
                   </CardContent>
-                  <CardFooter className="flex items-center gap-0 px-1 py-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      title="编辑"
-                      asChild
-                      className="py-0 min-h-0 h-auto px-1"
-                    >
-                      <a href={`${HOST_URL}/projects/scratch/open/${project.id}`}>
-                        <IconEdit className="h-4 w-4 mr-1" />
-                        编辑
-                      </a>
-                    </Button>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="删除"
-                          asChild
-                          className="py-0 min-h-0 h-auto px-1"
-                        >
-                          <a href='#'>
-                            <IconTrash className="h-4 w-4 mr-1" />
-                            删除
-                          </a>
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>确认删除</DialogTitle>
-                          <DialogDescription>
-                            您确定要删除项目 "{project.name}" 吗？此操作无法撤销。
-                          </DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter>
-                          <DialogClose asChild>
-                            <Button variant="outline">取消</Button>
-                          </DialogClose>
-                          <Button 
-                            variant="destructive" 
-                            onClick={() => handleDelete(project.id)}
-                            disabled={deletingId === project.id}
+                  <CardFooter className="flex flex-col gap-1 px-1 py-1">
+                    {/* 第一行：编辑和分享 */}
+                    <div className="flex items-center justify-center gap-0 w-full">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="编辑"
+                        asChild
+                        className="py-0 min-h-0 h-auto px-2 flex-1"
+                      >
+                        <a href={`${HOST_URL}/projects/scratch/open/${project.id}`}>
+                          <IconEdit className="h-4 w-4 mr-1" />
+                          编辑
+                        </a>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="分享"
+                        onClick={() => handleShareClick(project)}
+                        disabled={sharingId === project.id}
+                        className="py-0 min-h-0 h-auto px-2 flex-1"
+                      >
+                        <IconShare className="h-4 w-4 mr-1" />
+                        {sharingId === project.id ? "分享中..." : "分享"}
+                      </Button>
+                    </div>
+                    {/* 第二行：删除和历史 */}
+                    <div className="flex items-center justify-center gap-0 w-full">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="删除"
+                            asChild
+                            className="py-0 min-h-0 h-auto px-2 flex-1"
                           >
-                            {deletingId === project.id ? "删除中..." : "删除"}
+                            <a href='#'>
+                              <IconTrash className="h-4 w-4 mr-1" />
+                              删除
+                            </a>
                           </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      title="历史"
-                      asChild
-                      className="py-0 min-h-0 h-auto px-1"
-                    >
-                      <a href={`/www/scratch/project/${project.id}/histories`}>
-                        <IconHistory className="h-4 w-4 mr-1" />
-                        历史
-                      </a>
-                    </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>确认删除</DialogTitle>
+                            <DialogDescription>
+                              您确定要删除项目 "{project.name}" 吗？此操作无法撤销。
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <DialogClose asChild>
+                              <Button variant="outline">取消</Button>
+                            </DialogClose>
+                            <Button 
+                              variant="destructive" 
+                              onClick={() => handleDelete(project.id)}
+                              disabled={deletingId === project.id}
+                            >
+                              {deletingId === project.id ? "删除中..." : "删除"}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="历史"
+                        asChild
+                        className="py-0 min-h-0 h-auto px-2 flex-1"
+                      >
+                        <a href={`/www/scratch/project/${project.id}/histories`}>
+                          <IconHistory className="h-4 w-4 mr-1" />
+                          历史
+                        </a>
+                      </Button>
+                    </div>
                   </CardFooter>
                 </Card>
               )
@@ -542,6 +662,103 @@ export function ProjectTable({
         {loadingBottom && <div className="text-center text-xs text-muted-foreground py-2">加载中...</div>}
         {!hasMoreBottom && <div className="text-center text-xs text-muted-foreground py-2">已到结尾</div>}
       </div>
+
+      {/* 分享对话框 */}
+      <Dialog open={shareDialogOpen} onOpenChange={(open) => {
+        console.log("分享对话框状态变更:", open)
+        setShareDialogOpen(open)
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>分享项目</DialogTitle>
+            <DialogDescription>
+              设置分享参数并生成分享链接
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="share-title">分享标题</Label>
+              <Input
+                id="share-title"
+                value={shareForm.title}
+                onChange={(e) => {
+                  console.log("标题输入变化:", e.target.value)
+                  setShareForm(prev => ({ ...prev, title: e.target.value }))
+                }}
+                placeholder="输入分享标题"
+              />
+              <div className="text-xs text-gray-500 mt-1">当前值: {shareForm.title}</div>
+            </div>
+            <div>
+              <Label htmlFor="share-description">分享描述</Label>
+              <Textarea
+                id="share-description"
+                value={shareForm.description}
+                onChange={(e) => setShareForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="输入分享描述（可选）"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">取消</Button>
+            </DialogClose>
+            <Button 
+              onClick={handleCreateShare}
+              disabled={!currentShareProject || sharingId === currentShareProject?.id}
+            >
+              {sharingId === currentShareProject?.id ? "创建中..." : "创建分享链接"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 分享结果对话框 */}
+      <Dialog open={shareResultDialogOpen} onOpenChange={(open) => {
+        console.log("分享结果对话框状态变更:", open)
+        setShareResultDialogOpen(open)
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>分享链接已创建</DialogTitle>
+            <DialogDescription>
+              您的项目分享链接已成功创建，可以复制链接分享给其他人
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="share-url">分享链接</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="share-url"
+                  value={shareUrl}
+                  readOnly
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyShareUrl}
+                >
+                  复制
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline"
+              onClick={() => window.open(shareUrl, '_blank')}
+            >
+              打开分享
+            </Button>
+            <DialogClose asChild>
+              <Button>完成</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

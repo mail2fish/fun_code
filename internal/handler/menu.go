@@ -90,6 +90,11 @@ func (h *Handler) GetMenuList(c *gin.Context) {
 				IsActive: false,
 			},
 			{
+				Title:    "分享程序列表",
+				URL:      "/www/shares/list",
+				IsActive: false,
+			},
+			{
 				Title:    "新建Scratch程序",
 				URL:      "/projects/scratch/new",
 				IsActive: false,

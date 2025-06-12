@@ -15,8 +15,8 @@ const (
 type Share struct {
 	ID             uint       `json:"id" gorm:"primaryKey;autoIncrement"`
 	ShareToken     string     `json:"share_token" gorm:"type:varchar(64);uniqueIndex;not null;comment:分享链接的唯一标识符"`
-	ProjectID      uint       `json:"project_id" gorm:"not null;index;comment:被分享的项目ID"`
-	ProjectType    int        `json:"project_type" gorm:"not null;default:1;comment:项目类型，1=Scratch项目"`
+	ProjectID      uint       `json:"project_id" gorm:"not null;index:idx_project,unique;comment:被分享的项目ID，每个项目只能被分享一次"`
+	ProjectType    int        `json:"project_type" gorm:"not null;default:1;index:idx_project,unique;comment:项目类型，1=Scratch项目"`
 	UserID         uint       `json:"user_id" gorm:"not null;index;comment:分享者的用户ID"`
 	Title          string     `json:"title" gorm:"type:varchar(255);comment:分享链接的标题"`
 	Description    string     `json:"description" gorm:"type:text;comment:分享链接的描述"`

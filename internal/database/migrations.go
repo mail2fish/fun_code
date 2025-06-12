@@ -44,5 +44,11 @@ func RunMigrations(db *gorm.DB) error {
 	if err := db.AutoMigrate(&model.UserAsset{}); err != nil {
 		return err
 	}
+
+	// 迁移分享模型
+	if err := db.AutoMigrate(&model.Share{}); err != nil {
+		return err
+	}
+
 	return nil
 }
