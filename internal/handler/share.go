@@ -235,3 +235,60 @@ func (h *Handler) DeleteShareHandler(c *gin.Context, params *DeleteShareParams) 
 	var result interface{} = map[string]string{"message": "删除成功"}
 	return &result, nil, nil
 }
+
+// CheckShareParams 检查分享是否存在的请求参数
+type CheckShareParams struct {
+	ProjectID uint `form:"project_id" binding:"required"`
+}
+
+func (p *CheckShareParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindQuery(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 9, "无效的项目ID", err)
+	}
+	return nil
+}
+
+// CheckShareResponse 检查分享是否存在的响应
+type CheckShareResponse struct {
+	Exists     bool   `json:"exists"`
+	ShareToken string `json:"share_token,omitempty"`
+	ShareURL   string `json:"share_url,omitempty"`
+}
+
+// CheckShareHandler 检查项目是否已存在分享
+func (h *Handler) CheckShareHandler(c *gin.Context, params *CheckShareParams) (*CheckShareResponse, *gorails.ResponseMeta, gorails.Error) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 10, "用户未登录", nil)
+	}
+
+	// 获取 shareDao 实例
+	shareDao := h.dao.ShareDao
+
+	// 检查分享是否存在
+	share, err := shareDao.GetShareByProject(params.ProjectID, userID)
+	if err != nil {
+		// 如果是找不到记录的错误，说明不存在分享
+		if gorailsErr, ok := err.(gorails.Error); ok && gorailsErr.HTTPCode() == http.StatusNotFound {
+			return &CheckShareResponse{
+				Exists: false,
+			}, nil, nil
+		}
+		// 其他错误
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 11, "检查分享失败", err)
+	}
+
+	// 存在分享，构建完整的分享URL
+	shareURL := c.Request.Header.Get("Origin")
+	if shareURL == "" {
+		shareURL = "http://localhost:3000" // 默认前端地址
+	}
+	shareURL += "/share/" + share.ShareToken
+
+	return &CheckShareResponse{
+		Exists:     true,
+		ShareToken: share.ShareToken,
+		ShareURL:   shareURL,
+	}, nil, nil
+}

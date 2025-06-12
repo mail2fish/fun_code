@@ -14,6 +14,9 @@ type ShareDao interface {
 	// GetShareByToken 通过token获取分享信息
 	GetShareByToken(token string) (*model.Share, error)
 
+	// GetShareByProject 通过项目ID和用户ID获取分享信息
+	GetShareByProject(projectID uint, userID uint) (*model.Share, error)
+
 	// RecordView 记录访问并检查访问限制
 	RecordView(shareID uint) error
 

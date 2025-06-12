@@ -110,6 +110,22 @@ func (s *ShareDaoImpl) GetShareByToken(token string) (*model.Share, error) {
 	return &share, nil
 }
 
+// GetShareByProject 通过项目ID和用户ID获取分享信息
+func (s *ShareDaoImpl) GetShareByProject(projectID uint, userID uint) (*model.Share, error) {
+	var share model.Share
+	err := s.db.Preload("ScratchProject").Preload("User").
+		Where("project_id = ? AND user_id = ?", projectID, userID).First(&share).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeShareNotFound, global.ErrorMsgShareNotFound, err)
+		}
+		return nil, err
+	}
+
+	return &share, nil
+}
+
 // CheckShareAccess 检查分享是否可访问（包括访问次数限制）
 func (s *ShareDaoImpl) CheckShareAccess(share *model.Share) error {
 	if !share.IsActive {
@@ -306,19 +322,38 @@ func (s *ShareDaoImpl) UpdateShare(shareID uint, userID uint, updates map[string
 	return nil
 }
 
-// DeleteShare 删除分享（硬删除）
+// DeleteShare 删除分享（软删除或彻底删除）
 func (s *ShareDaoImpl) DeleteShare(shareID uint, userID uint) error {
-	result := s.db.Where("id = ? AND user_id = ?", shareID, userID).Delete(&model.Share{})
+	// 先查询分享记录
+	var share model.Share
+	if err := s.db.Where("id = ? AND user_id = ?", shareID, userID).First(&share).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeShareNotFound, global.ErrorMsgShareNotFound, nil)
+		}
+		return err
+	}
+
+	// 如果已经是软删除状态，则彻底删除
+	if !share.IsActive {
+		if err := s.db.Delete(&share).Error; err != nil {
+			return gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeShareDeleteFailed, global.ErrorMsgShareDeleteFailed, err)
+		}
+		s.logger.Info("分享彻底删除成功",
+			zap.Uint("share_id", shareID),
+			zap.Uint("user_id", userID))
+		return nil
+	}
+
+	// 否则进行软删除
+	result := s.db.Model(&model.Share{}).
+		Where("id = ? AND user_id = ?", shareID, userID).
+		Update("is_active", false)
 
 	if result.Error != nil {
 		return gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeShareDeleteFailed, global.ErrorMsgShareDeleteFailed, result.Error)
 	}
 
-	if result.RowsAffected == 0 {
-		return gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeShareNotFound, global.ErrorMsgShareNotFound, nil)
-	}
-
-	s.logger.Info("分享删除成功",
+	s.logger.Info("分享软删除成功",
 		zap.Uint("share_id", shareID),
 		zap.Uint("user_id", userID))
 

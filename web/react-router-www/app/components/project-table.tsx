@@ -371,17 +371,52 @@ export function ProjectTable({
   const handleShareClick = (project: Project) => {
     console.log("点击分享，项目:", project)
     setCurrentShareProject(project)
-    const newShareForm = {
-      title: project.name || "",
-      description: "",
-      maxViews: "",
-      allowDownload: false,
-      allowRemix: true,
+    
+    // 先检查是否已存在分享
+    checkExistingShare(project)
+  }
+
+  // 检查项目是否已存在分享
+  const checkExistingShare = async (project: Project) => {
+    try {
+      setSharingId(project.id)
+      
+      const res = await fetchWithAuth(`${HOST_URL}/api/shares/check?project_id=${project.id}`)
+      const result = await res.json()
+      
+      console.log("检查分享API响应:", result)
+      
+      if (res.ok && result.data) {
+        if (result.data.exists) {
+          // 已存在分享，直接显示分享链接
+          console.log("项目已存在分享，直接显示链接")
+          setShareUrl(result.data.share_url)
+          setShareResultDialogOpen(true)
+        } else {
+          // 不存在分享，显示创建分享对话框
+          console.log("项目未分享，显示创建对话框")
+          const newShareForm = {
+            title: project.name || "",
+            description: "",
+            maxViews: "",
+            allowDownload: false,
+            allowRemix: true,
+          }
+          console.log("设置分享表单:", newShareForm)
+          setShareForm(newShareForm)
+          setShareDialogOpen(true)
+        }
+      } else {
+        console.error("检查分享失败:", result)
+        toast("检查分享状态失败")
+      }
+    } catch (error) {
+      console.error("检查分享时出错：", error)
+      toast("检查分享状态时出现网络错误")
+    } finally {
+      // 检查完成后清除sharingId，只在实际创建分享时才设置
+      setSharingId(null)
     }
-    console.log("设置分享表单:", newShareForm)
-    setShareForm(newShareForm)
-    setShareDialogOpen(true)
-    console.log("打开分享对话框")
   }
 
   // 复制分享链接
