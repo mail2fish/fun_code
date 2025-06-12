@@ -429,7 +429,8 @@ export function ProjectTable({
       const result = await res.json()
       console.log("API响应:", result)
       
-      if (res.ok && result.code === 0) {
+      // 检查是否成功：HTTP状态OK且有data字段
+      if (res.ok && result.data && result.data.share_token) {
         const shareToken = result.data.share_token
         const newShareUrl = `${window.location.origin}/share/${shareToken}`
         
@@ -444,6 +445,7 @@ export function ProjectTable({
         console.error("分享创建失败:", result)
         // 显示具体的错误信息
         const errorMessage = result.message || result.error || "未知错误"
+        console.log("显示错误toast:", errorMessage)
         toast(`创建分享失败：${errorMessage}`)
       }
     } catch (error) {

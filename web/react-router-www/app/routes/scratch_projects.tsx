@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Link } from "react-router"
 import { IconPlus } from "@tabler/icons-react"
+import { Toaster } from "sonner"
 
 import { AppSidebar } from "~/components/my-app-sidebar"
 import { ProjectTable } from "~/components/project-table"
@@ -126,6 +127,11 @@ export default function Page() {
           />
         </div>
       </SidebarInset>
+      <Toaster 
+        position="top-right"
+        theme="light"
+        richColors
+      />
     </SidebarProvider>
   )
 }
