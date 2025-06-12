@@ -175,6 +175,7 @@ const getConfig = () => {
     username: "",
     nickname: "",
     isPlayerOnly: false,
+    isFullScreen: false,
   };
 };
 
@@ -242,6 +243,7 @@ const App = () => {
         renderLogin={renderLogin}
         myStuffUrl={`${config.projectsRoute}`}
         isPlayerOnly={config.isPlayerOnly}
+        isFullScreen={config.isFullScreen}
       />
     </div>      
   );

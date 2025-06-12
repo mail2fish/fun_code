@@ -381,6 +381,7 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		UserName       string
 		NickName       string
 		IsPlayerOnly   bool
+		IsFullScreen   bool
 	}{
 		CanSaveProject: false,                                        // 分享项目不能保存
 		ProjectID:      fmt.Sprintf("%d", share.ProjectID),           // 使用项目ID
@@ -390,6 +391,7 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		UserName:       fmt.Sprintf("guest_%s", params.Token[:8]),    // 访客用户名
 		NickName:       fmt.Sprintf("访客 (查看 %s 的作品)", user.Nickname), // 访客昵称
 		IsPlayerOnly:   true,                                         // 分享项目为播放器模式
+		IsFullScreen:   true,                                         // 分享项目为全屏模式
 	}
 
 	// 返回空响应，因为HTML已经直接写入到c.Writer

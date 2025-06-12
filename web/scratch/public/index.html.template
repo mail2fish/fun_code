@@ -62,7 +62,8 @@
         host: "{{ .Host }}",
         projectsRoute: "/www/scratch/projects",
         projectTitle: "{{ .ProjectTitle }}",
-        isPlayerOnly: {{ .IsPlayerOnly }}
+        isPlayerOnly: {{ .IsPlayerOnly }},
+        isFullScreen: {{ .IsFullScreen }}
       };    
     </script>
   </head>
