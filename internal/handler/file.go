@@ -275,6 +275,8 @@ func getContentTypeHeader(contentType uint, extName string) string {
 	switch contentType {
 	case model.ContentTypeImage:
 		switch extName {
+		case ".svg":
+			return "image/svg+xml"
 		case ".jpg", ".jpeg":
 			return "image/jpeg"
 		case ".png":
@@ -687,7 +689,7 @@ func (h *Handler) getSHA1BasedUploadDir(sha1 string) string {
 // getContentTypeFromExtension 根据文件扩展名获取ContentType
 func getContentTypeFromExtension(ext string) uint {
 	switch ext {
-	case ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp":
+	case ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg":
 		return model.ContentTypeImage // 图片类型
 	case ".wav", ".mp3", ".ogg", ".m4a":
 		return model.ContentTypeAudio // 音频类型
