@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -361,4 +362,83 @@ func TestShareDao_AllowRemix(t *testing.T) {
 	updatedShare, err := shareDao.GetShareByToken(share2.ShareToken)
 	assert.NoError(t, err)
 	assert.True(t, updatedShare.AllowRemix)
+}
+
+// TestShareDao_CursorPagination 测试游标分页功能
+func TestShareDao_CursorPagination(t *testing.T) {
+	db := setupTestDB()
+	logger := zap.NewNop()
+	cfg := &config.Config{}
+	shareDao := NewShareDao(db, cfg, logger)
+
+	// 创建多个分享用于测试分页
+	var shareIDs []uint
+	for i := 0; i < 10; i++ {
+		req := &CreateShareRequest{
+			ProjectID:   1,
+			ProjectType: model.ProjectTypeScratch,
+			UserID:      1,
+			Title:       fmt.Sprintf("测试分享 %d", i+1),
+			MaxViews:    10,
+			AllowRemix:  true,
+		}
+
+		share, err := shareDao.CreateShare(req)
+		assert.NoError(t, err)
+		shareIDs = append(shareIDs, share.ID)
+	}
+
+	// 测试基本分页（降序，获取前5个）
+	shares, hasMore, err := shareDao.GetUserShares(1, 5, 0, true, false)
+	assert.NoError(t, err)
+	assert.Len(t, shares, 5)
+	assert.True(t, hasMore) // 应该还有更多数据
+
+	// 验证降序排列（最新的在前面）
+	for i := 0; i < len(shares)-1; i++ {
+		assert.True(t, shares[i].ID > shares[i+1].ID)
+	}
+
+	// 测试游标分页（从第3个记录开始向前）
+	beginID := shares[2].ID
+	nextShares, _, err := shareDao.GetUserShares(1, 3, beginID, true, false)
+	assert.NoError(t, err)
+	assert.True(t, len(nextShares) <= 3)
+
+	// 验证返回的记录ID都小于beginID（降序的情况下向前翻页）
+	for _, share := range nextShares {
+		assert.True(t, share.ID < beginID)
+	}
+
+	// 测试升序分页
+	ascShares, hasMore3, err := shareDao.GetUserShares(1, 5, 0, true, true)
+	assert.NoError(t, err)
+	assert.Len(t, ascShares, 5)
+	assert.True(t, hasMore3)
+
+	// 验证升序排列
+	for i := 0; i < len(ascShares)-1; i++ {
+		assert.True(t, ascShares[i].ID < ascShares[i+1].ID)
+	}
+
+	// 测试反向翻页
+	lastID := shares[len(shares)-1].ID
+	prevShares, _, err := shareDao.GetUserShares(1, 3, lastID, false, false)
+	assert.NoError(t, err)
+
+	// 验证返回的记录ID都大于lastID（降序的情况下向后翻页）
+	for _, share := range prevShares {
+		assert.True(t, share.ID > lastID)
+	}
+
+	// 测试页面大小为0的情况（应该使用默认值20）
+	defaultShares, _, err := shareDao.GetUserShares(1, 0, 0, true, false)
+	assert.NoError(t, err)
+	assert.True(t, len(defaultShares) <= 20) // 不超过默认页面大小
+
+	// 测试不存在用户的情况
+	emptyShares, hasMore5, err := shareDao.GetUserShares(999, 10, 0, true, false)
+	assert.NoError(t, err)
+	assert.Empty(t, emptyShares)
+	assert.False(t, hasMore5)
 }

@@ -77,6 +77,7 @@ func (s *ShareDaoImpl) CreateShare(req *CreateShareRequest) (*model.Share, error
 		MaxViews:      maxViews,
 		IsActive:      true,
 		ViewCount:     0,
+		LikeCount:     0,
 	}
 
 	if err := s.db.Create(share).Error; err != nil {
@@ -202,26 +203,86 @@ func (s *ShareDaoImpl) ReshareProject(shareID uint, userID uint) error {
 	return nil
 }
 
-// GetUserShares 获取用户的分享列表
-func (s *ShareDaoImpl) GetUserShares(userID uint, page, pageSize int) ([]model.Share, int64, error) {
+// GetUserShares 获取用户的分享列表（游标分页）
+// 参数：
+// userID 为 uint 类型，代表用户ID
+// pageSize 为 uint 类型，代表每页的分享数量
+// beginID 为 uint 类型，代表分页的起始ID
+// forward 为 bool 类型，代表是否向前分页
+// asc 为 bool 类型，代表返回结果是否按ID升序排序
+// 返回值：
+// []model.Share 类型，代表分页后的分享列表
+// bool 类型，代表是否还有更多分享
+// error 类型，代表错误信息
+func (s *ShareDaoImpl) GetUserShares(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Share, bool, error) {
 	var shares []model.Share
-	var total int64
 
-	offset := (page - 1) * pageSize
-
-	// 获取总数
-	if err := s.db.Model(&model.Share{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
-		return nil, 0, err
+	// 处理 pageSize 为 0 的情况，使用默认值 20
+	if pageSize == 0 {
+		pageSize = 20
 	}
 
-	// 获取分页数据
-	err := s.db.Preload("ScratchProject").
-		Where("user_id = ?", userID).
-		Order("created_at DESC").
-		Offset(offset).Limit(pageSize).
-		Find(&shares).Error
+	// 构建基础查询
+	query := s.db.Preload("ScratchProject").Where("user_id = ?", userID)
 
-	return shares, total, err
+	// 记录查询是否按升序排序
+	queryAsc := false
+
+	// 根据 beginID、forward 和 asc 设置查询条件和排序
+	if beginID > 0 {
+		if asc && forward {
+			// asc == true and forward == true
+			// id > beginID, order 为 id asc
+			query = query.Where("id > ?", beginID).Order("id ASC")
+			queryAsc = true
+		} else if asc && !forward {
+			// asc == true and forward == false
+			// id < beginID，order 为 id desc
+			query = query.Where("id < ?", beginID).Order("id DESC")
+			queryAsc = false
+		} else if !asc && forward {
+			// asc == false and forward == true
+			// id < beginID，order 为 id desc
+			query = query.Where("id < ?", beginID).Order("id DESC")
+			queryAsc = false
+		} else {
+			// asc == false and forward == false
+			// id > beginID, order 为 id asc
+			query = query.Where("id > ?", beginID).Order("id ASC")
+			queryAsc = true
+		}
+	} else {
+		// beginID 为 0 的情况
+		if asc {
+			// asc 为 true，按 id asc 排序
+			query = query.Order("id ASC")
+			queryAsc = true
+		} else {
+			// asc 为 false，按 id desc 排序
+			query = query.Order("id DESC")
+			queryAsc = false
+		}
+	}
+
+	// 执行查询，多查询一条用于判断是否有更多数据
+	if err := query.Limit(int(pageSize + 1)).Find(&shares).Error; err != nil {
+		return nil, false, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 处理查询结果
+	hasMore := len(shares) > int(pageSize)
+	if hasMore {
+		shares = shares[:pageSize] // 移除多余的一条记录
+	}
+
+	// 如果查询时使用了降序，但用户期望升序结果，则需要反转
+	if queryAsc != asc {
+		for i, j := 0, len(shares)-1; i < j; i, j = i+1, j-1 {
+			shares[i], shares[j] = shares[j], shares[i]
+		}
+	}
+
+	return shares, hasMore, nil
 }
 
 // UpdateShare 更新分享信息

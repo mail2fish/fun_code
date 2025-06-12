@@ -28,6 +28,7 @@ type Share struct {
 	Password       string     `json:"-" gorm:"type:varchar(255);comment:访问密码，为空表示无需密码"`
 	AllowDownload  bool       `json:"allow_download" gorm:"default:false;comment:是否允许下载"`
 	AllowRemix     bool       `json:"allow_remix" gorm:"default:false;comment:是否允许Remix"`
+	LikeCount      int64      `json:"like_count" gorm:"default:0;comment:点赞次数"`
 	CreatedAt      time.Time  `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt      time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
 

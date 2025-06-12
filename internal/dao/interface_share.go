@@ -20,8 +20,8 @@ type ShareDao interface {
 	// ReshareProject 重新分享项目（重置访问计数）
 	ReshareProject(shareID uint, userID uint) error
 
-	// GetUserShares 获取用户的分享列表
-	GetUserShares(userID uint, page, pageSize int) ([]model.Share, int64, error)
+	// GetUserShares 获取用户的分享列表（游标分页）
+	GetUserShares(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Share, bool, error)
 
 	// UpdateShare 更新分享信息
 	UpdateShare(shareID uint, userID uint, updates map[string]interface{}) error

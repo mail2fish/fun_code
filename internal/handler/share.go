@@ -1,0 +1,201 @@
+package handler
+
+import (
+	"net/http"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jun/fun_code/internal/dao"
+	"github.com/mail2fish/gorails/gorails"
+)
+
+const (
+	MODULE_SHARE gorails.ErrorModule = 2
+)
+
+// CreateShareParams 创建分享链接的请求参数
+type CreateShareParams struct {
+	ProjectID     uint   `json:"project_id" binding:"required"`
+	ProjectType   int    `json:"project_type" binding:"required"`
+	Title         string `json:"title"`
+	Description   string `json:"description"`
+	MaxViews      int64  `json:"max_views"`
+	AllowDownload bool   `json:"allow_download"`
+	AllowRemix    bool   `json:"allow_remix"`
+}
+
+func (p *CreateShareParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindJSON(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 1, "无效的请求参数", err)
+	}
+	return nil
+}
+
+// CreateShareResponse 创建分享链接的响应
+type CreateShareResponse struct {
+	ShareToken string `json:"share_token"`
+	Title      string `json:"title"`
+	MaxViews   int64  `json:"max_views"`
+}
+
+// CreateShareHandler 处理创建分享链接的请求
+func (h *Handler) CreateShareHandler(c *gin.Context, params *CreateShareParams) (*CreateShareResponse, *gorails.ResponseMeta, gorails.Error) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 2, "用户未登录", nil)
+	}
+
+	// 获取 shareDao 实例
+	shareDao := h.dao.ShareDao
+
+	// 构建创建分享请求
+	req := &dao.CreateShareRequest{
+		ProjectID:     params.ProjectID,
+		ProjectType:   params.ProjectType,
+		UserID:        userID,
+		Title:         params.Title,
+		Description:   params.Description,
+		MaxViews:      params.MaxViews,
+		AllowDownload: params.AllowDownload,
+		AllowRemix:    params.AllowRemix,
+	}
+
+	// 创建分享
+	share, err := shareDao.CreateShare(req)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 3, "创建分享失败", err)
+	}
+
+	// 返回响应
+	return &CreateShareResponse{
+		ShareToken: share.ShareToken,
+		Title:      share.Title,
+		MaxViews:   share.MaxViews,
+	}, nil, nil
+}
+
+// ListSharesParams 列出分享请求参数
+type ListSharesParams struct {
+	PageSize uint `json:"page_size" form:"page_size"` // 每页数量
+	BeginID  uint `json:"begin_id" form:"begin_id"`   // 起始ID
+	Forward  bool `json:"forward" form:"forward"`     // 是否向前翻页
+	Asc      bool `json:"asc" form:"asc"`             // 是否升序
+}
+
+func (p *ListSharesParams) Parse(c *gin.Context) gorails.Error {
+	// 设置默认值
+	p.PageSize = 20
+	p.BeginID = 0
+	p.Forward = true
+	p.Asc = false // 分享列表默认按创建时间倒序（最新的在前）
+
+	// 解析页面大小
+	if pageSizeStr := c.DefaultQuery("page_size", "20"); pageSizeStr != "" {
+		if pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32); err == nil {
+			if pageSize > 0 && pageSize <= 100 { // 限制最大页面大小为100
+				p.PageSize = uint(pageSize)
+			}
+		}
+	}
+
+	// 解析起始ID
+	if beginIDStr := c.DefaultQuery("begin_id", "0"); beginIDStr != "" {
+		if beginID, err := strconv.ParseUint(beginIDStr, 10, 32); err == nil {
+			p.BeginID = uint(beginID)
+		}
+	}
+
+	// 解析翻页方向
+	if forwardStr := c.DefaultQuery("forward", "true"); forwardStr != "" {
+		p.Forward = forwardStr != "false"
+	}
+
+	// 解析排序方向
+	if ascStr := c.DefaultQuery("asc", "false"); ascStr != "" {
+		p.Asc = ascStr == "true"
+	}
+
+	return nil
+}
+
+// ShareResponse 分享相关响应
+type ShareResponse struct {
+	ID             uint   `json:"id"`
+	ShareToken     string `json:"share_token"`
+	ProjectID      uint   `json:"project_id"`
+	ProjectType    int    `json:"project_type"`
+	Title          string `json:"title"`
+	Description    string `json:"description"`
+	ViewCount      int64  `json:"view_count"`
+	TotalViewCount int64  `json:"total_view_count"`
+	MaxViews       int64  `json:"max_views"`
+	IsActive       bool   `json:"is_active"`
+	AllowDownload  bool   `json:"allow_download"`
+	AllowRemix     bool   `json:"allow_remix"`
+	LikeCount      int64  `json:"like_count"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
+	// 项目信息
+	ProjectName string `json:"project_name,omitempty"`
+}
+
+// ListSharesResponse 列出分享响应
+type ListSharesResponse struct {
+	Shares []*ShareResponse `json:"shares"` // 分享列表
+}
+
+// ListSharesHandler 列出用户分享
+// @Summary 分页获取用户分享列表，支持正向和反向翻页
+func (h *Handler) ListSharesHandler(c *gin.Context, params *ListSharesParams) (*ListSharesResponse, *gorails.ResponseMeta, gorails.Error) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 4, "用户未登录", nil)
+	}
+
+	// 获取 shareDao 实例
+	shareDao := h.dao.ShareDao
+
+	// 从数据库获取分享列表（游标分页）
+	shares, hasMore, err := shareDao.GetUserShares(userID, params.PageSize, params.BeginID, params.Forward, params.Asc)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 5, "获取分享列表失败", err)
+	}
+
+	// 构建响应数据
+	shareResponses := make([]*ShareResponse, len(shares))
+	for i, share := range shares {
+		shareResponses[i] = &ShareResponse{
+			ID:             share.ID,
+			ShareToken:     share.ShareToken,
+			ProjectID:      share.ProjectID,
+			ProjectType:    share.ProjectType,
+			Title:          share.Title,
+			Description:    share.Description,
+			ViewCount:      share.ViewCount,
+			TotalViewCount: share.TotalViewCount,
+			MaxViews:       share.MaxViews,
+			IsActive:       share.IsActive,
+			AllowDownload:  share.AllowDownload,
+			AllowRemix:     share.AllowRemix,
+			LikeCount:      share.LikeCount,
+			CreatedAt:      share.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:      share.UpdatedAt.Format("2006-01-02 15:04:05"),
+		}
+
+		// 如果有关联的项目信息，添加项目名称
+		if share.ScratchProject != nil {
+			shareResponses[i].ProjectName = share.ScratchProject.Name
+		}
+	}
+
+	response := &ListSharesResponse{
+		Shares: shareResponses,
+	}
+
+	return response, &gorails.ResponseMeta{
+		HasNext: hasMore,
+		Total:   -1, // 游标分页不提供总数，设为-1表示不可用
+	}, nil
+}

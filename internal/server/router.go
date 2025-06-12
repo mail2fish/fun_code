@@ -76,6 +76,7 @@ func (s *Server) setupRoutes() {
 
 		// ShareRoute 注册分享相关的路由
 		auth.POST("/shares", gorails.Wrap(s.handler.CreateShareHandler, nil))
+		auth.GET("/shares", gorails.Wrap(s.handler.ListSharesHandler, nil))
 
 		auth.DELETE("/scratch/projects/:id", s.handler.DeleteScratchProject)
 
