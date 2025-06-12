@@ -174,6 +174,7 @@ const getConfig = () => {
     projectTitle: "",
     username: "",
     nickname: "",
+    isPlayerOnly: false,
   };
 };
 
@@ -240,6 +241,7 @@ const App = () => {
         onUpdateProjectThumbnail={onUpdateProjectThumbnail}
         renderLogin={renderLogin}
         myStuffUrl={`${config.projectsRoute}`}
+        isPlayerOnly={config.isPlayerOnly}
       />
     </div>      
   );

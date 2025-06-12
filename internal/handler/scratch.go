@@ -174,6 +174,7 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		CanRemix       bool
 		UserName       string
 		NickName       string
+		IsPlayerOnly   bool
 	}{
 		CanSaveProject: canSaveProject,
 		ProjectID:      rawID,                       // 新项目使用0作为ID
@@ -182,6 +183,7 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		CanRemix:       project.UserID == loginedUserID,
 		UserName:       user.Username,
 		NickName:       user.Nickname,
+		IsPlayerOnly:   false,
 	}
 
 	// 设置响应头

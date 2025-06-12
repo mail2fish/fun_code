@@ -1,12 +1,17 @@
 package handler
 
 import (
+	"fmt"
+	"html/template"
+	"io/fs"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/dao"
+	"github.com/jun/fun_code/web"
 	"github.com/mail2fish/gorails/gorails"
+	"go.uber.org/zap"
 )
 
 const (
@@ -270,7 +275,7 @@ func (h *Handler) CheckShareHandler(c *gin.Context, params *CheckShareParams) (*
 	share, err := shareDao.GetShareByProject(params.ProjectID, userID)
 	if err != nil {
 		// 如果是找不到记录的错误，说明不存在分享
-		if gorailsErr, ok := err.(gorails.Error); ok && gorailsErr.HTTPCode() == http.StatusNotFound {
+		if dao.ErrShareNotFound.IsError(err) {
 			return &CheckShareResponse{
 				Exists: false,
 			}, nil, nil
@@ -284,11 +289,117 @@ func (h *Handler) CheckShareHandler(c *gin.Context, params *CheckShareParams) (*
 	if shareURL == "" {
 		shareURL = "http://localhost:3000" // 默认前端地址
 	}
-	shareURL += "/share/" + share.ShareToken
+	shareURL += "/shares/" + share.ShareToken
 
 	return &CheckShareResponse{
 		Exists:     true,
 		ShareToken: share.ShareToken,
 		ShareURL:   shareURL,
 	}, nil, nil
+}
+
+// GetShareScratchProjectParams 通过分享链接访问项目的请求参数
+type GetShareScratchProjectParams struct {
+	Token string `uri:"token" binding:"required"`
+}
+
+func (p *GetShareScratchProjectParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 12, "无效的分享链接", err)
+	}
+	return nil
+}
+
+// GetShareScratchProjectResponse 分享项目访问的响应（直接渲染HTML）
+type GetShareScratchProjectResponse struct {
+	Tmpl *template.Template
+	Data interface{}
+}
+
+// GetShareScratchProjectHandler 通过分享链接打开Scratch项目
+func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShareScratchProjectParams) (*GetShareScratchProjectResponse, *gorails.ResponseMeta, gorails.Error) {
+	// 获取 shareDao 实例
+	shareDao := h.dao.ShareDao
+
+	// 通过token获取分享信息
+	share, err := shareDao.GetShareByToken(params.Token)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 13, "分享链接不存在或已失效", err)
+	}
+
+	// 检查分享是否可访问
+	if err := shareDao.CheckShareAccess(share); err != nil {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 14, "分享链接已失效或达到访问限制", err)
+	}
+
+	// 记录访问
+	if err := shareDao.RecordView(share.ID); err != nil {
+		// 不阻止访问，只记录日志
+		h.logger.Warn("记录分享访问失败", zap.Error(err))
+	}
+
+	// 获取项目信息
+	project, err := h.dao.ScratchDao.GetProject(share.ProjectID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 15, "项目不存在", err)
+	}
+
+	// 获取项目创建者信息
+	user, err := h.dao.UserDao.GetUserByID(share.UserID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 16, "获取用户信息失败", err)
+	}
+
+	// 从嵌入的文件系统中获取index.html
+	scratchFS, err := fs.Sub(web.ScratchStaticFiles, "scratch/dist")
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 17, "获取静态文件失败", err)
+	}
+
+	// 读取index.html文件
+	htmlContent, err := fs.ReadFile(scratchFS, "index.html")
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 18, "读取HTML文件失败", err)
+	}
+
+	// 将HTML内容转换为字符串
+	htmlStr := string(htmlContent)
+
+	// 创建模板
+	tmpl, err := template.New("scratch").Parse(htmlStr)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 19, "解析模板失败", err)
+	}
+
+	// 准备模板数据，分享项目的特殊配置
+	data := struct {
+		CanSaveProject bool
+		ProjectID      string
+		Host           string
+		ProjectTitle   string
+		CanRemix       bool
+		UserName       string
+		NickName       string
+		IsPlayerOnly   bool
+	}{
+		CanSaveProject: false,                                        // 分享项目不能保存
+		ProjectID:      fmt.Sprintf("%d", share.ProjectID),           // 使用项目ID
+		Host:           h.config.ScratchEditor.Host,                  // 从配置中获取 ScratchEditorHost
+		ProjectTitle:   fmt.Sprintf("%s (分享)", project.Name),         // 使用项目名称
+		CanRemix:       share.AllowRemix,                             // 根据分享设置决定是否允许Remix
+		UserName:       fmt.Sprintf("guest_%s", params.Token[:8]),    // 访客用户名
+		NickName:       fmt.Sprintf("访客 (查看 %s 的作品)", user.Nickname), // 访客昵称
+		IsPlayerOnly:   true,                                         // 分享项目为播放器模式
+	}
+
+	// 返回空响应，因为HTML已经直接写入到c.Writer
+	return &GetShareScratchProjectResponse{Tmpl: tmpl, Data: data}, nil, nil
+}
+
+func RenderShareScratchProject(c *gin.Context, response *GetShareScratchProjectResponse, meta *gorails.ResponseMeta) {
+	// 设置响应头并执行模板
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	if err := response.Tmpl.Execute(c.Writer, response.Data); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "渲染模板失败"})
+	}
 }

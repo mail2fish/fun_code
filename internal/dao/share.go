@@ -102,13 +102,15 @@ func (s *ShareDaoImpl) GetShareByToken(token string) (*model.Share, error) {
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeShareNotFound, global.ErrorMsgShareNotFound, err)
+			return nil, ErrShareNotFound
 		}
 		return nil, err
 	}
 
 	return &share, nil
 }
+
+var ErrShareNotFound = gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeShareNotFound, global.ErrorMsgShareNotFound, nil)
 
 // GetShareByProject 通过项目ID和用户ID获取分享信息
 func (s *ShareDaoImpl) GetShareByProject(projectID uint, userID uint) (*model.Share, error) {
@@ -118,7 +120,7 @@ func (s *ShareDaoImpl) GetShareByProject(projectID uint, userID uint) (*model.Sh
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeShareNotFound, global.ErrorMsgShareNotFound, err)
+			return nil, ErrShareNotFound
 		}
 		return nil, err
 	}
@@ -154,7 +156,7 @@ func (s *ShareDaoImpl) RecordView(shareID uint) error {
 	// 获取分享信息
 	var share model.Share
 	if err := s.db.First(&share, shareID).Error; err != nil {
-		return gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeShareNotFound, global.ErrorMsgShareNotFound, err)
+		return ErrShareNotFound
 	}
 
 	// 检查访问权限（在记录访问前检查）
@@ -365,7 +367,7 @@ func (s *ShareDaoImpl) GetShareStats(shareID uint) (map[string]interface{}, erro
 	var share model.Share
 	if err := s.db.First(&share, shareID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, gorails.NewError(http.StatusNotFound, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeShareNotFound, global.ErrorMsgShareNotFound, err)
+			return nil, ErrShareNotFound
 		}
 		return nil, err
 	}

@@ -392,6 +392,7 @@ export function ProjectTable({
           console.log("项目已存在分享，直接显示链接")
           setShareUrl(result.data.share_url)
           setShareResultDialogOpen(true)
+          setSharingId(null)
         } else {
           // 不存在分享，显示创建分享对话框
           console.log("项目未分享，显示创建对话框")
@@ -405,16 +406,16 @@ export function ProjectTable({
           console.log("设置分享表单:", newShareForm)
           setShareForm(newShareForm)
           setShareDialogOpen(true)
+          // 保持sharingId以显示加载状态，在创建成功/失败后清除
         }
       } else {
         console.error("检查分享失败:", result)
         toast("检查分享状态失败")
+        setSharingId(null)
       }
     } catch (error) {
       console.error("检查分享时出错：", error)
       toast("检查分享状态时出现网络错误")
-    } finally {
-      // 检查完成后清除sharingId，只在实际创建分享时才设置
       setSharingId(null)
     }
   }

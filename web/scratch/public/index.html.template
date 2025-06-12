@@ -61,7 +61,8 @@
         assetHost: "{{ .Host }}/assets/scratch",
         host: "{{ .Host }}",
         projectsRoute: "/www/scratch/projects",
-        projectTitle: "{{ .ProjectTitle }}"
+        projectTitle: "{{ .ProjectTitle }}",
+        isPlayerOnly: {{ .IsPlayerOnly }}
       };    
     </script>
   </head>

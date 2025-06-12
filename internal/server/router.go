@@ -50,6 +50,8 @@ func (s *Server) setupRoutes() {
 		staticHandler.ServeStatic(c)
 	})
 
+	s.router.GET("/shares/:token", gorails.Wrap(s.handler.GetShareScratchProjectHandler, handler.RenderShareScratchProject))
+
 	// 公开路由
 	s.router.POST("/api/auth/register", s.handler.Register)
 	s.router.POST("/api/auth/login", s.handler.Login)
