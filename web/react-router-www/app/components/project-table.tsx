@@ -681,13 +681,11 @@ export function ProjectTable({
               <Input
                 id="share-title"
                 value={shareForm.title}
-                onChange={(e) => {
-                  console.log("标题输入变化:", e.target.value)
-                  setShareForm(prev => ({ ...prev, title: e.target.value }))
-                }}
+                readOnly
                 placeholder="输入分享标题"
+                className="bg-gray-50"
               />
-              <div className="text-xs text-gray-500 mt-1">当前值: {shareForm.title}</div>
+              <div className="text-xs text-gray-500 mt-1">标题将使用项目原名称</div>
             </div>
             <div>
               <Label htmlFor="share-description">分享描述</Label>
