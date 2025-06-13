@@ -64,7 +64,7 @@ func (s *Server) setupRoutes() {
 	auth.Use(s.handler.AuthMiddleware())
 	{
 
-		auth.GET("/menu/list", s.handler.GetMenuList)
+		auth.GET("/menu/list", gorails.Wrap(s.handler.GetMenuListHandler, nil))
 
 		// Scratch 相关路由 - 部分已改造为 gorails.Wrap 形式
 		auth.GET("/scratch/projects/:id", gorails.Wrap(s.handler.GetScratchProjectHandler, handler.RenderScratchProject))
@@ -91,25 +91,25 @@ func (s *Server) setupRoutes() {
 
 		{
 			admin := auth.Group("/admin").Use(s.handler.RequirePermission(handler.PermissionManageAll))
-			admin.POST("/classes/create", s.handler.PostCreateClass)
+			admin.POST("/classes/create", gorails.Wrap(s.handler.CreateClassHandler, nil))
 			// 班级列表路由
-			admin.GET("/classes/list", s.handler.GetListClasses)
+			admin.GET("/classes/list", gorails.Wrap(s.handler.ListClassesHandler, nil))
 			// 获取单个班级的信息路由
-			admin.GET("/classes/:class_id", s.handler.GetClass)
+			admin.GET("/classes/:class_id", gorails.Wrap(s.handler.GetClassHandler, nil))
 			// 修改班级信息路由
-			admin.PUT("/classes/:class_id", s.handler.PutUpdateClass)
+			admin.PUT("/classes/:class_id", gorails.Wrap(s.handler.UpdateClassHandler, nil))
 			// 删除班级路由
-			admin.DELETE("/classes/:class_id", s.handler.DeleteClass)
+			admin.DELETE("/classes/:class_id", gorails.Wrap(s.handler.DeleteClassHandler, nil))
 
-			// 用户管理路由 - 删除用户已改造为 gorails.Wrap 形式
-			admin.POST("/users/create", s.handler.RequirePermission("manage_users"), s.handler.PostCreateUser)
-			admin.GET("/users/list", s.handler.RequirePermission("manage_users"), s.handler.GetListUsers)
-			admin.PUT("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.PutUpdateUser)
+			// 用户管理路由 - 已改造为 gorails.Wrap 形式
+			admin.POST("/users/create", s.handler.RequirePermission("manage_users"), gorails.Wrap(s.handler.CreateUserHandler, nil))
+			admin.GET("/users/list", s.handler.RequirePermission("manage_users"), gorails.Wrap(s.handler.ListUsersHandler, nil))
+			admin.PUT("/users/:user_id", s.handler.RequirePermission("manage_users"), gorails.Wrap(s.handler.UpdateUserHandler, nil))
 			admin.DELETE("/users/:user_id", gorails.Wrap(s.handler.DeleteUserHandler, nil))
-			admin.GET("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.GetUser)
-			admin.GET("/users/search", s.handler.RequirePermission("manage_users"), s.handler.GetSearchUsers)
+			admin.GET("/users/:user_id", s.handler.RequirePermission("manage_users"), gorails.Wrap(s.handler.GetUserHandler, nil))
+			admin.GET("/users/search", s.handler.RequirePermission("manage_users"), gorails.Wrap(s.handler.SearchUsersHandler, nil))
 			// 获取所有scratch项目
-			admin.GET("/scratch/projects", s.handler.GetAllScratchProject)
+			admin.GET("/scratch/projects", gorails.Wrap(s.handler.GetAllScratchProjectHandler, nil))
 
 			// 文件管理路由
 			admin.POST("/files/upload", gorails.Wrap(s.handler.PostMultiFileUploadHandler, nil))
