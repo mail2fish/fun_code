@@ -82,7 +82,7 @@ func (s *Server) setupRoutes() {
 		auth.GET("/shares/list", gorails.Wrap(s.handler.ListSharesHandler, nil))
 		auth.DELETE("/shares/:id", gorails.Wrap(s.handler.DeleteShareHandler, nil))
 
-		auth.DELETE("/scratch/projects/:id", s.handler.DeleteScratchProject)
+		auth.DELETE("/scratch/projects/:id", gorails.Wrap(s.handler.DeleteScratchProjectHandler, nil))
 
 		auth.GET("/files/list", gorails.Wrap(s.handler.ListFilesHandler, nil))
 		auth.GET("/files/:id/download", gorails.Wrap(s.handler.DownloadFileHandler, handler.RenderDownloadFile))

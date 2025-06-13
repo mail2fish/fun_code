@@ -1,0 +1,1 @@
+- [x] 将 DeleteScratchProject handler 改为 gorails Wrap 形式 

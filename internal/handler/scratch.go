@@ -19,6 +19,7 @@ import (
 	"github.com/jun/fun_code/internal/custom_error"
 	"github.com/jun/fun_code/internal/model"
 	"github.com/jun/fun_code/web"
+	"github.com/mail2fish/gorails/gorails"
 )
 
 const (
@@ -376,58 +377,44 @@ func (h *Handler) PutSaveScratchProject(c *gin.Context) {
 	})
 }
 
-// DeleteScratchProject 删除Scratch项目
-func (h *Handler) DeleteScratchProject(c *gin.Context) {
+// DeleteScratchProjectParams 删除Scratch项目参数
+// 只需要项目ID
+type DeleteScratchProjectParams struct {
+	ProjectID uint `json:"project_id" uri:"id" binding:"required"`
+}
 
-	// 获取项目ID
-	projectID := c.Param("id")
-	id, err := strconv.ParseUint(projectID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效的项目ID",
-		})
-		return
+func (p *DeleteScratchProjectParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40001, "无效的项目ID", err)
 	}
+	return nil
+}
 
-	// 如果项目ID存在在不允许保存的数组中，则不允许保存
+// DeleteScratchProjectHandler gorails.Wrap 形式
+func (h *Handler) DeleteScratchProjectHandler(c *gin.Context, params *DeleteScratchProjectParams) (*gorails.ResponseEmpty, *gorails.ResponseMeta, gorails.Error) {
+	id := params.ProjectID
+	// 如果项目ID存在在不允许保存的数组中，则不允许删除
 	for _, protectedID := range h.config.Protected.Projects {
-		if uint(id) == protectedID {
-			e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeNoPermission, "no_permission", err)
-			c.JSON(http.StatusBadRequest, ResponseError{
-				Code:    int(e.ErrorCode()),
-				Message: e.Message,
-				Error:   e.Error(),
-			})
-			return
+		if id == protectedID {
+			return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40002, "该项目不允许删除", nil)
 		}
 	}
 	// 获取项目创建者ID
-	userID, ok := h.dao.ScratchDao.GetProjectUserID(uint(id))
+	userID, ok := h.dao.ScratchDao.GetProjectUserID(id)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取项目失败",
-		})
-		return
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40003, "获取项目失败", nil)
 	}
 	// 判断用户是否是项目创建者或者为管理员
 	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "无权限访问",
-		})
-		return
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40004, "无权限访问", nil)
 	}
-
 	// 删除项目
-	if err := h.dao.ScratchDao.DeleteProject(userID, uint(id)); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "删除项目失败: " + err.Error(),
-		})
-		return
+	if err := h.dao.ScratchDao.DeleteProject(userID, id); err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40005, "删除项目失败: "+err.Error(), err)
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "项目已删除",
-	})
+	// 删除分享
+	h.dao.ShareDao.DeleteShare(id, userID)
+	return &gorails.ResponseEmpty{}, nil, nil
 }
 
 // PostCreateScratchProject 创建新的Scratch项目
