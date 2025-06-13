@@ -66,15 +66,15 @@ func (s *Server) setupRoutes() {
 
 		auth.GET("/menu/list", gorails.Wrap(s.handler.GetMenuListHandler, nil))
 
-		// Scratch 相关路由 - 部分已改造为 gorails.Wrap 形式
+		// Scratch 相关路由 - 已改造为 gorails.Wrap 形式
 		auth.GET("/scratch/projects/:id", gorails.Wrap(s.handler.GetScratchProjectHandler, handler.RenderScratchProject))
-		auth.POST("/scratch/projects/", s.handler.PostCreateScratchProject)
-		auth.PUT("/scratch/projects/:id", s.handler.PutSaveScratchProject)
-		auth.PUT("/scratch/projects/:id/thumbnail", s.handler.PutUpdateProjectThumbnail)
-		auth.GET("/scratch/projects/:id/thumbnail", s.handler.GetProjectThumbnail)
+		auth.POST("/scratch/projects/", gorails.Wrap(s.handler.CreateScratchProjectHandler, nil))
+		auth.PUT("/scratch/projects/:id", gorails.Wrap(s.handler.SaveScratchProjectHandler, nil))
+		auth.PUT("/scratch/projects/:id/thumbnail", gorails.Wrap(s.handler.UpdateProjectThumbnailHandler, nil))
+		auth.GET("/scratch/projects/:id/thumbnail", gorails.Wrap(s.handler.GetProjectThumbnailHandler, handler.RenderProjectThumbnail))
 		auth.GET("/scratch/projects/:id/histories", gorails.Wrap(s.handler.GetScratchProjectHistoriesHandler, nil))
-		auth.GET("/scratch/projects", s.handler.ListScratchProjects)
-		auth.GET("/scratch/projects/search", s.handler.GetSearchScratch)
+		auth.GET("/scratch/projects", gorails.Wrap(s.handler.ListScratchProjectsHandler, nil))
+		auth.GET("/scratch/projects/search", gorails.Wrap(s.handler.SearchScratchHandler, nil))
 
 		// ShareRoute 注册分享相关的路由
 		auth.POST("/shares", gorails.Wrap(s.handler.CreateShareHandler, nil))
@@ -120,8 +120,8 @@ func (s *Server) setupRoutes() {
 	projects := s.router.Group("/projects")
 	projects.Use(s.handler.AuthMiddleware())
 	{
-		projects.GET("/scratch/new", s.handler.GetNewScratchProject)
-		projects.GET("/scratch/open/:id", s.handler.GetOpenScratchProject)
+		projects.GET("/scratch/new", gorails.Wrap(s.handler.GetNewScratchProjectHandler, nil))
+		projects.GET("/scratch/open/:id", gorails.Wrap(s.handler.GetOpenScratchProjectHandler, nil))
 	}
 
 	assets := s.router.Group("/assets")

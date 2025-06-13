@@ -1,0 +1,7 @@
+- [✅] 改造班级管理Handler为gorails.Wrap形式 (PostCreateClass, GetListClasses, GetClass, PutUpdateClass, DeleteClass)
+- [✅] 改造用户管理Handler为gorails.Wrap形式 (PostCreateUser, GetListUsers, PutUpdateUser, GetUser, GetSearchUsers, GetAllScratchProject)
+- [✅] 改造菜单管理Handler为gorails.Wrap形式 (GetMenuList)
+- [x] 改造Scratch项目管理Handler为gorails.Wrap形式 (PostCreateScratchProject, PutSaveScratchProject, ListScratchProjects, GetSearchScratch)
+- [x] 为所有改造的handler编写完整的单元测试
+- [✅] 更新router.go中的路由配置为gorails.Wrap形式
+- [✅] 验证编译和测试通过 

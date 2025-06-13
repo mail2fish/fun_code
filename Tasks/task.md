@@ -4,4 +4,5 @@
 - [✅] 将 scratch.go 的 GetScratchProject/GetLibraryAsset/UploadScratchAsset/GetScratchProjectHistories handler 改为 gorails.Wrap 形式
 - [✅] 为所有改造的 handler 编写/完善单元测试并修正错误
 - [✅] 修正 routes.ts 及 /routes 目录下相关前端页面，适配 handler 参数和返回结构
-- [✅] 在 router.go 中将已改造的 handler 改为 gorails.Wrap 形式并注册正确的路由 
+- [✅] 在 router.go 中将已改造的 handler 改为 gorails.Wrap 形式并注册正确的路由
+- [x] 改造剩余重要Handler为gorails.Wrap形式（班级管理、用户管理、菜单管理、Scratch项目管理）并完成测试 

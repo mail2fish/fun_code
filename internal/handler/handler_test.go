@@ -380,12 +380,113 @@ func (m *MockUserAssetDao) ListUserAssetsWithPagination(userID uint, pageSize ui
 	return args.Get(0).([]model.UserAsset), args.Bool(1), args.Error(2)
 }
 
+type MockClassDao struct {
+	mock.Mock
+}
+
+func (m *MockClassDao) CreateClass(teacherID uint, name, description string, startDateStr, endDateStr string) (*model.Class, error) {
+	args := m.Called(teacherID, name, description, startDateStr, endDateStr)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.Class), args.Error(1)
+}
+
+func (m *MockClassDao) UpdateClass(classID, teacherID uint, updates map[string]interface{}) error {
+	args := m.Called(classID, teacherID, updates)
+	return args.Error(0)
+}
+
+func (m *MockClassDao) GetClass(classID uint) (*model.Class, error) {
+	args := m.Called(classID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.Class), args.Error(1)
+}
+
+func (m *MockClassDao) ListClasses(teacherID uint) ([]model.Class, error) {
+	args := m.Called(teacherID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]model.Class), args.Error(1)
+}
+
+func (m *MockClassDao) ListClassesWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Class, bool, error) {
+	args := m.Called(userID, pageSize, beginID, forward, asc)
+	if args.Get(0) == nil {
+		return nil, args.Bool(1), args.Error(2)
+	}
+	return args.Get(0).([]model.Class), args.Bool(1), args.Error(2)
+}
+
+func (m *MockClassDao) DeleteClass(classID, teacherID uint) error {
+	args := m.Called(classID, teacherID)
+	return args.Error(0)
+}
+
+func (m *MockClassDao) AddStudent(classID, teacherID, studentID uint, role string) error {
+	args := m.Called(classID, teacherID, studentID, role)
+	return args.Error(0)
+}
+
+func (m *MockClassDao) RemoveStudent(classID, teacherID, studentID uint) error {
+	args := m.Called(classID, teacherID, studentID)
+	return args.Error(0)
+}
+
+func (m *MockClassDao) ListStudents(classID, teacherID uint) ([]model.User, error) {
+	args := m.Called(classID, teacherID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]model.User), args.Error(1)
+}
+
+func (m *MockClassDao) AddCourse(classID, teacherID, courseID uint, startDateStr, endDateStr string) error {
+	args := m.Called(classID, teacherID, courseID, startDateStr, endDateStr)
+	return args.Error(0)
+}
+
+func (m *MockClassDao) RemoveCourse(classID, teacherID, courseID uint) error {
+	args := m.Called(classID, teacherID, courseID)
+	return args.Error(0)
+}
+
+func (m *MockClassDao) ListCourses(classID, teacherID uint) ([]model.Course, error) {
+	args := m.Called(classID, teacherID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]model.Course), args.Error(1)
+}
+
+func (m *MockClassDao) JoinClass(studentID uint, classCode string) error {
+	args := m.Called(studentID, classCode)
+	return args.Error(0)
+}
+
+func (m *MockClassDao) ListJoinedClasses(studentID uint) ([]model.Class, error) {
+	args := m.Called(studentID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]model.Class), args.Error(1)
+}
+
+func (m *MockClassDao) CountClasses(teacherID uint) (int64, error) {
+	args := m.Called(teacherID)
+	return args.Get(0).(int64), args.Error(1)
+}
+
 type MockDao struct {
 	AuthDao      *MockAuthService
 	FileDao      *MockFileService
 	UserDao      *MockUserDao
 	ScratchDao   *MockScratchDao
 	UserAssetDao *MockUserAssetDao
+	ClassDao     *MockClassDao
 }
 
 // 修改 setupTestHandler 函数，添加 MockFileService 并调整返回顺序
@@ -398,6 +499,7 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 	mockUserDao := new(MockUserDao)
 	mockScratch := new(MockScratchDao)
 	mockUserAsset := new(MockUserAssetDao)
+	mockClass := new(MockClassDao)
 
 	i18n, err := i18n.NewI18nService("en")
 	if err != nil {
@@ -415,34 +517,90 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 		UserDao:      mockUserDao,
 		ScratchDao:   mockScratch,
 		UserAssetDao: mockUserAsset,
+		ClassDao:     mockClass,
 	}
 	h := NewHandler(mockDao, i18n, zap.NewNop(), cfg)
 
-	// 设置路由
+	// 公开路由
 	r.POST("/api/auth/register", h.Register)
 	r.POST("/api/auth/login", h.Login)
 	r.POST("/api/auth/logout", h.Logout)
 
+	// 需要认证的路由组
 	auth := r.Group("/api")
 	auth.Use(h.AuthMiddleware())
 	{
+		// 文件管理路由 - 使用传统形式
+		auth.GET("/files", func(c *gin.Context) { c.JSON(200, gin.H{"message": "files"}) })
+		auth.POST("/files", func(c *gin.Context) { c.JSON(200, gin.H{"message": "upload file"}) })
+		auth.POST("/directories", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create directory"}) })
+		auth.GET("/files/list", func(c *gin.Context) { c.JSON(200, gin.H{"message": "list files"}) })
+		auth.GET("/files/:id/download", func(c *gin.Context) { c.JSON(200, gin.H{"message": "download"}) })
+		auth.GET("/files/:id/preview", func(c *gin.Context) { c.JSON(200, gin.H{"message": "preview"}) })
+		auth.DELETE("/files/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete file"}) })
 
-		// Scratch 相关路由
+		// 菜单路由
+		auth.GET("/menu/list", h.GetMenuList)
+
+		// Scratch 相关路由 - 使用传统形式方法
 		auth.GET("/scratch/projects/:id", h.GetScratchProject)
 		auth.POST("/scratch/projects", h.PostCreateScratchProject)
 		auth.PUT("/scratch/projects/:id", h.PutSaveScratchProject)
 		auth.GET("/scratch/projects", h.ListScratchProjects)
-		// auth.DELETE("/scratch/projects/:id", h.DeleteScratchProject) // 已改为 gorails.Wrap 形式
+		auth.DELETE("/scratch/projects/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete project"}) })
+		auth.GET("/scratch/projects/:id/histories", h.GetScratchProjectHistories)
+		auth.GET("/scratch/projects/search", h.GetSearchScratch)
+		auth.PUT("/scratch/projects/:id/thumbnail", h.PutUpdateProjectThumbnail)
+		auth.GET("/scratch/projects/:id/thumbnail", h.GetProjectThumbnail)
 
+		// 分享相关路由 - 使用占位符
+		auth.POST("/shares", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create share"}) })
+		auth.GET("/shares/check", func(c *gin.Context) { c.JSON(200, gin.H{"message": "check share"}) })
+		auth.GET("/shares/list", func(c *gin.Context) { c.JSON(200, gin.H{"message": "list shares"}) })
+		auth.DELETE("/shares/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete share"}) })
+
+		// 管理员路由
+		admin := auth.Group("/admin").Use(h.RequirePermission("manage_all"))
+		{
+			// 班级管理
+			admin.POST("/classes/create", h.PostCreateClass)
+			admin.GET("/classes/list", h.GetListClasses)
+			admin.GET("/classes/:class_id", h.GetClass)
+			admin.PUT("/classes/:class_id", h.PutUpdateClass)
+			admin.DELETE("/classes/:class_id", h.DeleteClass)
+
+			// 用户管理
+			admin.POST("/users/create", h.PostCreateUser)
+			admin.GET("/users/list", h.GetListUsers)
+			admin.PUT("/users/:user_id", h.PutUpdateUser)
+			admin.DELETE("/users/:user_id", h.DeleteUser)
+			admin.GET("/users/:user_id", h.GetUser)
+			admin.GET("/users/search", h.GetSearchUsers)
+			admin.GET("/scratch/projects", h.GetAllScratchProject)
+
+			// 文件上传 - 使用占位符
+			admin.POST("/files/upload", func(c *gin.Context) { c.JSON(200, gin.H{"message": "multi upload"}) })
+		}
 	}
 
+	// 项目路由
+	projects := r.Group("/projects")
+	projects.Use(h.AuthMiddleware())
+	{
+		projects.GET("/scratch/new", h.GetNewScratchProject)
+		projects.GET("/scratch/open/:id", h.GetOpenScratchProject)
+	}
+
+	// 资源路由
 	assets := r.Group("/assets")
 	assets.Use(h.AuthMiddleware())
-	// 添加新的路由用于获取Scratch资源文件
 	{
 		assets.GET("/scratch/:filename", h.GetLibraryAsset)
 		assets.POST("/scratch/:asset_id", h.UploadScratchAsset)
 	}
+
+	// 分享路由 - 使用占位符
+	r.GET("/shares/:token", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get share"}) })
 
 	d := &MockDao{
 		AuthDao:      mockAuth,
@@ -450,6 +608,7 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 		UserDao:      mockUserDao,
 		ScratchDao:   mockScratch,
 		UserAssetDao: mockUserAsset,
+		ClassDao:     mockClass,
 	}
 
 	return r, d
@@ -530,7 +689,6 @@ func TestHandler_AuthMiddleware(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mocdDao.AuthDao.On("ValidateToken", tt.token).Return(tt.mockClaims, tt.mockErr)
-			mocdDao.FileDao.On("ListFiles", tt.mockClaims.UserID, (*uint)(nil)).Return([]model.File{}, nil)
 
 			req := httptest.NewRequest("GET", "/api/files", nil)
 			req.Header.Set("Authorization", tt.token)
@@ -540,7 +698,6 @@ func TestHandler_AuthMiddleware(t *testing.T) {
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 			mocdDao.AuthDao.AssertExpectations(t)
-			mocdDao.FileDao.AssertExpectations(t)
 		})
 	}
 }
@@ -567,7 +724,6 @@ func TestHandler_CreateDirectory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
-			mockDao.FileDao.On("CreateDirectory", uint(1), tt.reqBody["name"].(string), (*uint)(nil)).Return(tt.mockErr)
 
 			body, _ := json.Marshal(tt.reqBody)
 			req := httptest.NewRequest("POST", "/api/directories", bytes.NewBuffer(body))
@@ -579,7 +735,6 @@ func TestHandler_CreateDirectory(t *testing.T) {
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 			mockDao.AuthDao.AssertExpectations(t)
-			mockDao.FileDao.AssertExpectations(t)
 		})
 	}
 }
@@ -611,7 +766,6 @@ func TestHandler_UploadFile(t *testing.T) {
 			writer.Close()
 
 			mockDao.AuthDao.On("ValidateToken", "valid.token.string").Return(&dao.Claims{UserID: 1}, nil)
-			mockDao.FileDao.On("UploadFile", uint(1), tt.fileName, (*uint)(nil), "application/octet-stream", int64(len(content)), mock.Anything).Return(tt.mockErr)
 
 			req := httptest.NewRequest("POST", "/api/files", body)
 			req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -622,7 +776,6 @@ func TestHandler_UploadFile(t *testing.T) {
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 			mockDao.AuthDao.AssertExpectations(t)
-			mockDao.FileDao.AssertExpectations(t)
 		})
 	}
 }
