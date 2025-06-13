@@ -432,7 +432,7 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 		auth.POST("/scratch/projects", h.PostCreateScratchProject)
 		auth.PUT("/scratch/projects/:id", h.PutSaveScratchProject)
 		auth.GET("/scratch/projects", h.ListScratchProjects)
-		auth.DELETE("/scratch/projects/:id", h.DeleteScratchProject)
+		// auth.DELETE("/scratch/projects/:id", h.DeleteScratchProject) // 已改为 gorails.Wrap 形式
 
 	}
 

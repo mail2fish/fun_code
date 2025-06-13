@@ -1,0 +1,1 @@
+- [✅] 在 router.go 中将已改造的 handler 改为 gorails.Wrap 形式并注册正确的路由 

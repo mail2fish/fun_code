@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/custom_error"
+	"github.com/mail2fish/gorails/gorails"
 )
 
 const (
@@ -14,6 +15,64 @@ const (
 	ErrorCodeProtectedUser = 2
 )
 
+// DeleteUserParams 删除用户请求参数
+type DeleteUserParams struct {
+	UserID uint `json:"user_id" uri:"user_id" binding:"required"`
+}
+
+func (p *DeleteUserParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 40009, "无效的用户ID", err)
+	}
+	return nil
+}
+
+// DeleteUserResponse 删除用户响应
+type DeleteUserResponse struct {
+	Message string `json:"message"`
+}
+
+// DeleteUserHandler 删除用户 gorails.Wrap 形式
+func (h *Handler) DeleteUserHandler(c *gin.Context, params *DeleteUserParams) (*DeleteUserResponse, *gorails.ResponseMeta, gorails.Error) {
+	userID := params.UserID
+
+	// 判断是否为保护用户
+	if slices.Contains(h.config.Protected.Users, userID) {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 40010, "该用户受保护，不能删除", nil)
+	}
+
+	// 执行删除操作
+	err := h.dao.UserDao.DeleteUser(userID)
+	if err != nil {
+		// 判断是否为自定义错误
+		if ce, ok := err.(*custom_error.CustomError); ok {
+			lang := h.i18n.GetDefaultLanguage()
+			if l := c.GetHeader("Accept-Language"); l != "" {
+				lang = l
+			}
+			msg := h.i18n.Translate(ce.Message, lang)
+			return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), int(ce.ErrorCode()), msg, err)
+		}
+		// 其他未知错误
+		lang := h.i18n.GetDefaultLanguage()
+		if l := c.GetHeader("Accept-Language"); l != "" {
+			lang = l
+		}
+		msg := h.i18n.Translate("user.delete_failed", lang)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 40011, msg, err)
+	}
+
+	// 返回成功响应
+	lang := h.i18n.GetDefaultLanguage()
+	if l := c.GetHeader("Accept-Language"); l != "" {
+		lang = l
+	}
+	message := h.i18n.Translate("user.delete_success", lang)
+
+	return &DeleteUserResponse{Message: message}, nil, nil
+}
+
+// 保留原有的旧handler以保持兼容性（可以逐步迁移）
 // DeleteUser 删除用户
 func (h *Handler) DeleteUser(c *gin.Context) {
 	// 获取用户ID

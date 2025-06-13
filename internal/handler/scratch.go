@@ -39,6 +39,318 @@ const (
 	ErrorCodeInvalidKeyword       = 14
 )
 
+// GetScratchProjectParams 获取Scratch项目请求参数
+type GetScratchProjectParams struct {
+	ID string `json:"id" uri:"id" binding:"required"`
+}
+
+func (p *GetScratchProjectParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40012, "无效的项目ID", err)
+	}
+	return nil
+}
+
+// GetScratchProjectHandler 获取Scratch项目 gorails.Wrap 形式
+func (h *Handler) GetScratchProjectHandler(c *gin.Context, params *GetScratchProjectParams) ([]byte, *gorails.ResponseMeta, gorails.Error) {
+	rawID := params.ID
+	splitID := strings.Split(rawID, "_")
+
+	if len(splitID) == 0 {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40013, "无效的项目ID格式", nil)
+	}
+
+	projectID := splitID[0]
+	historyID := ""
+	if len(splitID) == 2 {
+		historyID = splitID[1]
+	}
+
+	// 将 projectID 字符串转换为 uint 类型
+	id, err := strconv.ParseUint(projectID, 10, 64)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40014, "无效的项目ID", err)
+	}
+
+	// 获取项目创建者ID
+	userID, ok := h.dao.ScratchDao.GetProjectUserID(uint(id))
+	if !ok {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40015, "获取项目失败", nil)
+	}
+
+	// 判断用户是否是项目创建者或者为管理员
+	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40016, "无权限访问", nil)
+	}
+
+	projectData, err := h.dao.ScratchDao.GetProjectBinary(uint(id), historyID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40017, "获取项目数据失败", err)
+	}
+
+	// 设置响应头为二进制数据
+	c.Header("Content-Type", "application/octet-stream")
+	c.Header("Content-Length", strconv.Itoa(len(projectData)))
+
+	return projectData, nil, nil
+}
+
+// GetLibraryAssetParams 获取Scratch库资源文件请求参数
+type GetLibraryAssetParams struct {
+	Filename string `json:"filename" uri:"filename" binding:"required"`
+}
+
+func (p *GetLibraryAssetParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40018, "未指定文件名", err)
+	}
+	return nil
+}
+
+// GetLibraryAssetHandler 获取Scratch库资源文件 gorails.Wrap 形式
+func (h *Handler) GetLibraryAssetHandler(c *gin.Context, params *GetLibraryAssetParams) ([]byte, *gorails.ResponseMeta, gorails.Error) {
+	filename := params.Filename
+	if filename == "" {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40019, "未指定文件名", nil)
+	}
+
+	// 去除不安全的字符，使用正则表达式
+	safeFilenameRegex := regexp.MustCompile(`[^a-zA-Z0-9_.-]`)
+	filename = safeFilenameRegex.ReplaceAllString(filename, "")
+
+	// 从嵌入的文件系统中获取资源文件
+	assetData, err := web.GetScratchAsset(filename)
+	if err != nil {
+		// 获取 assetID 字符串长度，把它分成 4 段
+		assetIDLength := len(filename)
+		if assetIDLength < 36 {
+			return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40020, "无效的资源ID", nil)
+		}
+
+		assetID1 := filename[:assetIDLength/4]
+		assetID2 := filename[assetIDLength/4 : assetIDLength/2]
+		assetID3 := filename[assetIDLength/2 : assetIDLength*3/4]
+		assetID4 := filename[assetIDLength*3/4:]
+
+		// 使用 scratch 服务的基础路径
+		filePath := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), "assets", assetID1, assetID2, assetID3, assetID4)
+
+		// 尝试从文件系统中读取资源文件
+		assetData, err = os.ReadFile(filePath)
+		if err != nil {
+			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40021, "获取资源失败", err)
+		}
+	}
+
+	// 根据文件扩展名设置适当的Content-Type
+	contentType := "application/octet-stream" // 默认
+	switch {
+	case strings.HasSuffix(filename, ".svg"):
+		contentType = "image/svg+xml"
+	case strings.HasSuffix(filename, ".png"):
+		contentType = "image/png"
+	case strings.HasSuffix(filename, ".jpg"), strings.HasSuffix(filename, ".jpeg"):
+		contentType = "image/jpeg"
+	case strings.HasSuffix(filename, ".wav"):
+		contentType = "audio/wav"
+	case strings.HasSuffix(filename, ".mp3"):
+		contentType = "audio/mpeg"
+	case strings.HasSuffix(filename, ".json"):
+		contentType = "application/json"
+	}
+
+	// 设置响应头
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Length", strconv.Itoa(len(assetData)))
+
+	return assetData, nil, nil
+}
+
+// UploadScratchAssetParams 上传Scratch资源文件请求参数
+type UploadScratchAssetParams struct {
+	AssetID string `json:"asset_id" uri:"asset_id" binding:"required"`
+}
+
+func (p *UploadScratchAssetParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40022, "无效的资源ID", err)
+	}
+	return nil
+}
+
+// UploadScratchAssetResponse 上传Scratch资源文件响应
+type UploadScratchAssetResponse struct {
+	Status  string `json:"status"`
+	AssetID string `json:"asset_id"`
+}
+
+// UploadScratchAssetHandler 上传Scratch资源文件 gorails.Wrap 形式
+func (h *Handler) UploadScratchAssetHandler(c *gin.Context, params *UploadScratchAssetParams) (*UploadScratchAssetResponse, *gorails.ResponseMeta, gorails.Error) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 40023, "用户未登录", nil)
+	}
+
+	assetID := params.AssetID
+	if assetID == "" {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40024, "无效的资源ID", nil)
+	}
+
+	// 去除不安全的字符，使用正则表达式
+	safeFilenameRegex := regexp.MustCompile(`[^a-zA-Z0-9_.-]`)
+	assetID = safeFilenameRegex.ReplaceAllString(assetID, "")
+
+	// 获取 assetID 字符串长度，把它分成 4 段
+	assetIDLength := len(assetID)
+	if assetIDLength < 36 {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40025, "无效的资源ID", nil)
+	}
+
+	//  最多只读取2MB
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2*1024*1024)
+
+	// 读取请求体中的二进制数据
+	bodyData, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40026, "读取请求体失败", err)
+	}
+
+	if len(bodyData) == 0 {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40027, "请求体为空", nil)
+	}
+
+	// 根据文件扩展名设置适当的Content-Type
+	contentType := "application/octet-stream" // 默认
+	switch {
+	case strings.HasSuffix(assetID, ".svg"):
+		contentType = "image/svg+xml"
+	case strings.HasSuffix(assetID, ".png"):
+		contentType = "image/png"
+	case strings.HasSuffix(assetID, ".jpg"), strings.HasSuffix(assetID, ".jpeg"):
+		contentType = "image/jpeg"
+	case strings.HasSuffix(assetID, ".wav"):
+		contentType = "audio/wav"
+	case strings.HasSuffix(assetID, ".mp3"):
+		contentType = "audio/mpeg"
+	case strings.HasSuffix(assetID, ".json"):
+		contentType = "application/json"
+	}
+
+	assetID1 := assetID[:assetIDLength/4]
+	assetID2 := assetID[assetIDLength/4 : assetIDLength/2]
+	assetID3 := assetID[assetIDLength/2 : assetIDLength*3/4]
+	assetID4 := assetID[assetIDLength*3/4:]
+
+	// 使用 scratch 服务的基础路径
+	assetDir := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), "assets", assetID1, assetID2, assetID3)
+	if err := os.MkdirAll(assetDir, 0755); err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40028, "创建资源目录失败", err)
+	}
+
+	// 保存文件
+	filePath := filepath.Join(assetDir, assetID4)
+	if err := os.WriteFile(filePath, bodyData, 0644); err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40029, "保存资源失败", err)
+	}
+
+	// 保存用户资源
+	err = h.dao.UserAssetDao.CreateUserAsset(&model.UserAsset{
+		UserID:    userID,
+		AssetID:   assetID,
+		AssetType: contentType,
+		Size:      int64(len(bodyData)),
+	})
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER_ASSET), 40030, "保存用户资源记录失败", err)
+	}
+
+	return &UploadScratchAssetResponse{
+		Status:  "ok",
+		AssetID: assetID,
+	}, nil, nil
+}
+
+// GetScratchProjectHistoriesParams 获取Scratch项目历史记录请求参数
+type GetScratchProjectHistoriesParams struct {
+	ID string `json:"id" uri:"id" binding:"required"`
+}
+
+func (p *GetScratchProjectHistoriesParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40031, "无效的项目ID", err)
+	}
+	return nil
+}
+
+// GetScratchProjectHistoriesResponse 获取Scratch项目历史记录响应
+type GetScratchProjectHistoriesResponse struct {
+	ProjectID uint            `json:"project_id"`
+	Name      string          `json:"name"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	Histories []model.History `json:"histories"`
+}
+
+// GetScratchProjectHistoriesHandler 获取Scratch项目历史记录 gorails.Wrap 形式
+func (h *Handler) GetScratchProjectHistoriesHandler(c *gin.Context, params *GetScratchProjectHistoriesParams) (*GetScratchProjectHistoriesResponse, *gorails.ResponseMeta, gorails.Error) {
+	// 从路径参数获取项目ID
+	projectID := params.ID
+	id, err := strconv.ParseUint(projectID, 10, 64)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40032, "无效的项目ID", err)
+	}
+
+	// 获取项目创建者ID
+	project, err := h.dao.ScratchDao.GetProject(uint(id))
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40033, "获取项目失败", err)
+	}
+
+	userID := project.UserID
+	// 判断用户是否是项目创建者或者为管理员
+	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40034, "无权限访问", nil)
+	}
+
+	// 通过 project id 生成文件名通配符，遍历文件名，获取项目历史文件列表
+	dirPath := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), project.FilePath)
+	filename := filepath.Join(dirPath, fmt.Sprintf("%d_*.json", project.ID))
+	files, err := filepath.Glob(filename)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40035, "获取项目历史失败", err)
+	}
+
+	// 遍历文件名，获取文件创建时间
+	histories := make([]model.History, len(files))
+	for i, file := range files {
+		info, err := os.Stat(file)
+		if err != nil {
+			continue
+		}
+		filename := filepath.Base(file)
+		filename = strings.TrimSuffix(filename, ".json")
+		histories[i] = model.History{
+			Filename:  filename,
+			CreatedAt: info.ModTime(),
+		}
+	}
+
+	// 按照创建时间逆序排序
+	sort.Slice(histories, func(i, j int) bool {
+		return histories[i].CreatedAt.After(histories[j].CreatedAt)
+	})
+
+	response := &GetScratchProjectHistoriesResponse{}
+	response.ProjectID = project.ID
+	response.Name = project.Name
+	response.CreatedAt = project.CreatedAt
+	response.UpdatedAt = project.UpdatedAt
+	response.Histories = histories
+
+	return response, nil, nil
+}
+
 // NewScratchProject 创建一个新的Scratch项目处理程序
 
 func (h *Handler) GetNewScratchProject(c *gin.Context) {
@@ -985,4 +1297,43 @@ func (h *Handler) GetScratchProjectHistories(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"data": data,
 	})
+}
+
+// RenderScratchProject 渲染Scratch项目数据
+func RenderScratchProject(c *gin.Context, data []byte, meta *gorails.ResponseMeta) {
+	// 设置响应头为JSON格式
+	c.Header("Content-Type", "application/json")
+	c.Header("Content-Length", strconv.Itoa(len(data)))
+	c.Data(http.StatusOK, "application/json", data)
+}
+
+// RenderLibraryAsset 渲染Scratch库资源文件
+func RenderLibraryAsset(c *gin.Context, data []byte, meta *gorails.ResponseMeta) {
+	// 根据文件扩展名确定Content-Type
+	filename := c.Param("filename")
+	contentType := "application/octet-stream" // 默认类型
+
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".svg":
+		contentType = "image/svg+xml"
+	case ".png":
+		contentType = "image/png"
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	case ".gif":
+		contentType = "image/gif"
+	case ".wav":
+		contentType = "audio/wav"
+	case ".mp3":
+		contentType = "audio/mpeg"
+	case ".ogg":
+		contentType = "audio/ogg"
+	case ".json":
+		contentType = "application/json"
+	}
+
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Length", strconv.Itoa(len(data)))
+	c.Data(http.StatusOK, contentType, data)
 }

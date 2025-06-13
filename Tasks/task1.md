@@ -1,1 +1,2 @@
 - [x] 将 DeleteScratchProject handler 改为 gorails Wrap 形式 
+- [x] 将 auth.go 的 Register/Login/Logout handler 改为 gorails.Wrap 形式 

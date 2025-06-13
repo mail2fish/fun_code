@@ -52,12 +52,12 @@ func (s *Server) setupRoutes() {
 
 	s.router.GET("/shares/:token", gorails.Wrap(s.handler.GetShareScratchProjectHandler, handler.RenderShareScratchProject))
 
-	// 公开路由
-	s.router.POST("/api/auth/register", s.handler.Register)
-	s.router.POST("/api/auth/login", s.handler.Login)
-	s.router.POST("/api/auth/logout", s.handler.Logout)
-	s.router.GET("/api/i18n/languages", s.handler.GetSupportedLanguages) // 获取支持的语言列表
-	s.router.POST("/api/i18n/language", s.handler.SetLanguage)           // 设置语言
+	// 公开路由 - 已改造为 gorails.Wrap 形式
+	s.router.POST("/api/auth/register", gorails.Wrap(s.handler.RegisterHandler, nil))
+	s.router.POST("/api/auth/login", gorails.Wrap(s.handler.LoginHandler, nil))
+	s.router.POST("/api/auth/logout", gorails.Wrap(s.handler.LogoutHandler, nil))
+	s.router.GET("/api/i18n/languages", gorails.Wrap(s.handler.GetSupportedLanguagesHandler, nil)) // 获取支持的语言列表
+	s.router.POST("/api/i18n/language", gorails.Wrap(s.handler.SetLanguageHandler, nil))           // 设置语言
 
 	// 需要认证的路由组
 	auth := s.router.Group("/api")
@@ -66,13 +66,13 @@ func (s *Server) setupRoutes() {
 
 		auth.GET("/menu/list", s.handler.GetMenuList)
 
-		// Scratch 相关路由
-		auth.GET("/scratch/projects/:id", s.handler.GetScratchProject)
+		// Scratch 相关路由 - 部分已改造为 gorails.Wrap 形式
+		auth.GET("/scratch/projects/:id", gorails.Wrap(s.handler.GetScratchProjectHandler, handler.RenderScratchProject))
 		auth.POST("/scratch/projects/", s.handler.PostCreateScratchProject)
 		auth.PUT("/scratch/projects/:id", s.handler.PutSaveScratchProject)
 		auth.PUT("/scratch/projects/:id/thumbnail", s.handler.PutUpdateProjectThumbnail)
 		auth.GET("/scratch/projects/:id/thumbnail", s.handler.GetProjectThumbnail)
-		auth.GET("/scratch/projects/:id/histories", s.handler.GetScratchProjectHistories)
+		auth.GET("/scratch/projects/:id/histories", gorails.Wrap(s.handler.GetScratchProjectHistoriesHandler, nil))
 		auth.GET("/scratch/projects", s.handler.ListScratchProjects)
 		auth.GET("/scratch/projects/search", s.handler.GetSearchScratch)
 
@@ -101,11 +101,11 @@ func (s *Server) setupRoutes() {
 			// 删除班级路由
 			admin.DELETE("/classes/:class_id", s.handler.DeleteClass)
 
-			// 用户管理路由
+			// 用户管理路由 - 删除用户已改造为 gorails.Wrap 形式
 			admin.POST("/users/create", s.handler.RequirePermission("manage_users"), s.handler.PostCreateUser)
 			admin.GET("/users/list", s.handler.RequirePermission("manage_users"), s.handler.GetListUsers)
 			admin.PUT("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.PutUpdateUser)
-			admin.DELETE("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.DeleteUser)
+			admin.DELETE("/users/:user_id", gorails.Wrap(s.handler.DeleteUserHandler, nil))
 			admin.GET("/users/:user_id", s.handler.RequirePermission("manage_users"), s.handler.GetUser)
 			admin.GET("/users/search", s.handler.RequirePermission("manage_users"), s.handler.GetSearchUsers)
 			// 获取所有scratch项目
@@ -126,10 +126,10 @@ func (s *Server) setupRoutes() {
 
 	assets := s.router.Group("/assets")
 	assets.Use(s.handler.AuthMiddleware())
-	// 添加新的路由用于获取Scratch资源文件
+	// 添加新的路由用于获取Scratch资源文件 - 已改造为 gorails.Wrap 形式
 	{
-		assets.GET("/scratch/:filename", s.handler.GetLibraryAsset)
-		assets.POST("/scratch/:asset_id", s.handler.UploadScratchAsset)
+		assets.GET("/scratch/:filename", gorails.Wrap(s.handler.GetLibraryAssetHandler, handler.RenderLibraryAsset))
+		assets.POST("/scratch/:asset_id", gorails.Wrap(s.handler.UploadScratchAssetHandler, nil))
 	}
 }
 

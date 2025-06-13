@@ -1,0 +1,1 @@
+- [x] 将 i18n_handler.go 的 GetSupportedLanguages/SetLanguage handler 改为 gorails.Wrap 形式 
