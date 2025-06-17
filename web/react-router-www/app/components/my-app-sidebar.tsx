@@ -49,7 +49,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           throw new Error(`获取菜单失败: ${response.status}`);
         }
         const data = await response.json();
-        setMenuData(data);
+        setMenuData(data.data);
       } catch (error) {
         console.error("获取菜单失败:", error);
         toast.error("获取菜单失败");

@@ -8,21 +8,25 @@ import (
 	"github.com/mail2fish/gorails/gorails"
 )
 
-// GetMenuListParams 获取菜单列表请求参数
-type GetMenuListParams struct {
-	// 无需参数
+// MenuItem 表示单个菜单项
+type MenuItem struct {
+	Title    string `json:"title"`
+	URL      string `json:"url"`
+	IsActive bool   `json:"isActive"`
 }
 
-func (p *GetMenuListParams) Parse(c *gin.Context) gorails.Error {
-	// 无需解析参数
-	return nil
+// MenuGroup 表示菜单组
+type MenuGroup struct {
+	Title string     `json:"title"`
+	URL   string     `json:"url"`
+	Items []MenuItem `json:"items"`
 }
 
 // GetMenuListResponse 获取菜单列表响应
 type GetMenuListResponse []MenuGroup
 
 // GetMenuListHandler 获取菜单列表 gorails.Wrap 形式
-func (h *Handler) GetMenuListHandler(c *gin.Context, params *GetMenuListParams) (*GetMenuListResponse, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) GetMenuListHandler(c *gin.Context, params *gorails.EmptyParams) (*GetMenuListResponse, *gorails.ResponseMeta, gorails.Error) {
 	// 获取当前用户ID
 	userID := h.getUserID(c)
 	if userID == 0 {

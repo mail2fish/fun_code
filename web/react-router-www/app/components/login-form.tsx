@@ -47,8 +47,8 @@ export function LoginForm({
       });
 
       // 保存用户信息和令牌到本地存储
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
+      localStorage.setItem("token", response.data.data.token);
+      // localStorage.setItem("user", JSON.stringify(response.data.user));
 
       // 登录成功后跳转到 scratch/projects 页面
       navigate("/www/scratch/projects");

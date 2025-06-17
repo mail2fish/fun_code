@@ -138,14 +138,10 @@ func (p *ListUsersParams) Parse(c *gin.Context) gorails.Error {
 }
 
 // ListUsersResponse 列出用户响应
-type ListUsersResponse struct {
-	Data    []model.User `json:"data"`
-	HasMore bool         `json:"hasMore"`
-	Total   int64        `json:"total"`
-}
+type ListUsersResponse []model.User
 
 // ListUsersHandler 列出用户 gorails.Wrap 形式
-func (h *Handler) ListUsersHandler(c *gin.Context, params *ListUsersParams) (*ListUsersResponse, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) ListUsersHandler(c *gin.Context, params *ListUsersParams) (ListUsersResponse, *gorails.ResponseMeta, gorails.Error) {
 	// 获取用户总数
 	total, err := h.dao.UserDao.CountUsers()
 	if err != nil {
@@ -163,11 +159,10 @@ func (h *Handler) ListUsersHandler(c *gin.Context, params *ListUsersParams) (*Li
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60004, msg, err)
 	}
 
-	return &ListUsersResponse{
-		Data:    users,
-		HasMore: hasMore,
-		Total:   total,
-	}, nil, nil
+	return ListUsersResponse(users), &gorails.ResponseMeta{
+		Total:   int(total),
+		HasNext: hasMore,
+	}, nil
 }
 
 // UpdateUserParams 更新用户请求参数

@@ -159,7 +159,7 @@ export default function ListUserPage() {
       // 如果向后翻页
       if (forward) {        
         page++
-        if (response.hasMore) {
+        if (response.hasNext) {
           showForward = true
         }
         if (page > 1) {
@@ -172,7 +172,7 @@ export default function ListUserPage() {
           showBackward = true
         }
         // 只有在有更多数据或不是第一页时才显示向前按钮
-        showForward = response.hasMore || page > 0
+        showForward = response.hasNext || page > 0
       }
 
       setUsersData({
