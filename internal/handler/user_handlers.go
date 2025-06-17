@@ -274,13 +274,11 @@ func (p *GetUserParams) Parse(c *gin.Context) gorails.Error {
 
 // GetUserResponse 获取用户信息响应
 type GetUserResponse struct {
-	Data struct {
-		ID       uint   `json:"id"`
-		Username string `json:"username"`
-		Nickname string `json:"nickname"`
-		Email    string `json:"email"`
-		Role     string `json:"role"`
-	} `json:"data"`
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+	Nickname string `json:"nickname"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
 }
 
 // GetUserHandler 获取用户信息 gorails.Wrap 形式
@@ -302,11 +300,11 @@ func (h *Handler) GetUserHandler(c *gin.Context, params *GetUserParams) (*GetUse
 	}
 
 	response := &GetUserResponse{}
-	response.Data.ID = user.ID
-	response.Data.Username = user.Username
-	response.Data.Nickname = user.Nickname
-	response.Data.Email = user.Email
-	response.Data.Role = user.Role
+	response.ID = user.ID
+	response.Username = user.Username
+	response.Nickname = user.Nickname
+	response.Email = user.Email
+	response.Role = user.Role
 
 	return response, nil, nil
 }
