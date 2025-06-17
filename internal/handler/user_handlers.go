@@ -137,11 +137,8 @@ func (p *ListUsersParams) Parse(c *gin.Context) gorails.Error {
 	return nil
 }
 
-// ListUsersResponse 列出用户响应
-type ListUsersResponse []model.User
-
 // ListUsersHandler 列出用户 gorails.Wrap 形式
-func (h *Handler) ListUsersHandler(c *gin.Context, params *ListUsersParams) (ListUsersResponse, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) ListUsersHandler(c *gin.Context, params *ListUsersParams) ([]model.User, *gorails.ResponseMeta, gorails.Error) {
 	// 获取用户总数
 	total, err := h.dao.UserDao.CountUsers()
 	if err != nil {
@@ -159,7 +156,7 @@ func (h *Handler) ListUsersHandler(c *gin.Context, params *ListUsersParams) (Lis
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60004, msg, err)
 	}
 
-	return ListUsersResponse(users), &gorails.ResponseMeta{
+	return users, &gorails.ResponseMeta{
 		Total:   int(total),
 		HasNext: hasMore,
 	}, nil
@@ -188,14 +185,11 @@ func (p *UpdateUserParams) Parse(c *gin.Context) gorails.Error {
 
 // UpdateUserResponse 更新用户响应
 type UpdateUserResponse struct {
-	Message string `json:"message"`
-	Data    struct {
-		ID       uint   `json:"id"`
-		Username string `json:"username"`
-		Nickname string `json:"nickname"`
-		Email    string `json:"email"`
-		Role     string `json:"role"`
-	} `json:"data"`
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+	Nickname string `json:"nickname"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
 }
 
 // UpdateUserHandler 更新用户 gorails.Wrap 形式
@@ -242,20 +236,12 @@ func (h *Handler) UpdateUserHandler(c *gin.Context, params *UpdateUserParams) (*
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60008, "获取更新后的用户信息失败", err)
 	}
 
-	// 返回成功响应
-	lang := h.i18n.GetDefaultLanguage()
-	if l := c.GetHeader("Accept-Language"); l != "" {
-		lang = l
-	}
-
-	response := &UpdateUserResponse{
-		Message: h.i18n.Translate("user.update_success", lang),
-	}
-	response.Data.ID = user.ID
-	response.Data.Username = user.Username
-	response.Data.Nickname = user.Nickname
-	response.Data.Email = user.Email
-	response.Data.Role = user.Role
+	response := &UpdateUserResponse{}
+	response.ID = user.ID
+	response.Username = user.Username
+	response.Nickname = user.Nickname
+	response.Email = user.Email
+	response.Role = user.Role
 
 	return response, nil, nil
 }
@@ -334,76 +320,4 @@ func (h *Handler) SearchUsersHandler(c *gin.Context, params *SearchUsersParams) 
 	}
 
 	return users, nil, nil
-}
-
-// GetAllScratchProjectParams 获取所有Scratch项目请求参数
-type GetAllScratchProjectParams struct {
-	PageSize uint `json:"page_size" form:"pageSize"`
-	BeginID  uint `json:"begin_id" form:"beginID"`
-	Forward  bool `json:"forward" form:"forward"`
-	Asc      bool `json:"asc" form:"asc"`
-}
-
-func (p *GetAllScratchProjectParams) Parse(c *gin.Context) gorails.Error {
-	// 设置默认值
-	p.PageSize = 20
-	p.BeginID = 0
-	p.Forward = true
-	p.Asc = true
-
-	// 解析页面大小
-	if pageSizeStr := c.DefaultQuery("pageSize", "20"); pageSizeStr != "" {
-		if pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32); err == nil {
-			if pageSize > 0 && pageSize <= 100 {
-				p.PageSize = uint(pageSize)
-			}
-		}
-	}
-
-	// 解析起始ID
-	if beginIDStr := c.DefaultQuery("beginID", "0"); beginIDStr != "" {
-		if beginID, err := strconv.ParseUint(beginIDStr, 10, 32); err == nil {
-			p.BeginID = uint(beginID)
-		}
-	}
-
-	// 解析翻页方向
-	if forwardStr := c.DefaultQuery("forward", "true"); forwardStr != "" {
-		p.Forward = forwardStr != "false"
-	}
-
-	// 解析排序方向
-	if ascStr := c.DefaultQuery("asc", "true"); ascStr != "" {
-		p.Asc = ascStr != "false"
-	}
-
-	return nil
-}
-
-// GetAllScratchProjectResponse 获取所有Scratch项目响应
-type GetAllScratchProjectResponse struct {
-	Data    []model.ScratchProject `json:"data"`
-	HasMore bool                   `json:"hasMore"`
-	Total   int64                  `json:"total"`
-}
-
-// GetAllScratchProjectHandler 获取所有Scratch项目 gorails.Wrap 形式
-func (h *Handler) GetAllScratchProjectHandler(c *gin.Context, params *GetAllScratchProjectParams) (*GetAllScratchProjectResponse, *gorails.ResponseMeta, gorails.Error) {
-	// 获取项目总数
-	total, err := h.dao.ScratchDao.CountProjects(0) // 0表示获取所有用户的项目
-	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 60012, "获取项目总数失败", err)
-	}
-
-	// 获取所有项目列表
-	projects, hasMore, err := h.dao.ScratchDao.ListProjectsWithPagination(0, params.PageSize, params.BeginID, params.Forward, params.Asc)
-	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 60013, "获取项目列表失败", err)
-	}
-
-	return &GetAllScratchProjectResponse{
-		Data:    projects,
-		HasMore: hasMore,
-		Total:   total,
-	}, nil, nil
 }

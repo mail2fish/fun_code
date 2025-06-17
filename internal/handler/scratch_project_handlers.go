@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/custom_error"
+	"github.com/jun/fun_code/internal/model"
 	"github.com/mail2fish/gorails/gorails"
 )
 
@@ -438,4 +439,76 @@ func RenderProjectThumbnail(c *gin.Context, data []byte, meta *gorails.ResponseM
 	c.Header("Content-Type", "image/png")
 	c.Header("Content-Length", strconv.Itoa(len(data)))
 	c.Data(http.StatusOK, "image/png", data)
+}
+
+// GetAllScratchProjectParams 获取所有Scratch项目请求参数
+type GetAllScratchProjectParams struct {
+	PageSize uint `json:"page_size" form:"pageSize"`
+	BeginID  uint `json:"begin_id" form:"beginID"`
+	Forward  bool `json:"forward" form:"forward"`
+	Asc      bool `json:"asc" form:"asc"`
+}
+
+func (p *GetAllScratchProjectParams) Parse(c *gin.Context) gorails.Error {
+	// 设置默认值
+	p.PageSize = 20
+	p.BeginID = 0
+	p.Forward = true
+	p.Asc = true
+
+	// 解析页面大小
+	if pageSizeStr := c.DefaultQuery("pageSize", "20"); pageSizeStr != "" {
+		if pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32); err == nil {
+			if pageSize > 0 && pageSize <= 100 {
+				p.PageSize = uint(pageSize)
+			}
+		}
+	}
+
+	// 解析起始ID
+	if beginIDStr := c.DefaultQuery("beginID", "0"); beginIDStr != "" {
+		if beginID, err := strconv.ParseUint(beginIDStr, 10, 32); err == nil {
+			p.BeginID = uint(beginID)
+		}
+	}
+
+	// 解析翻页方向
+	if forwardStr := c.DefaultQuery("forward", "true"); forwardStr != "" {
+		p.Forward = forwardStr != "false"
+	}
+
+	// 解析排序方向
+	if ascStr := c.DefaultQuery("asc", "true"); ascStr != "" {
+		p.Asc = ascStr != "false"
+	}
+
+	return nil
+}
+
+// GetAllScratchProjectResponse 获取所有Scratch项目响应
+type GetAllScratchProjectResponse struct {
+	Data    []model.ScratchProject `json:"data"`
+	HasMore bool                   `json:"hasMore"`
+	Total   int64                  `json:"total"`
+}
+
+// GetAllScratchProjectHandler 获取所有Scratch项目 gorails.Wrap 形式
+func (h *Handler) GetAllScratchProjectHandler(c *gin.Context, params *GetAllScratchProjectParams) (*GetAllScratchProjectResponse, *gorails.ResponseMeta, gorails.Error) {
+	// 获取项目总数
+	total, err := h.dao.ScratchDao.CountProjects(0) // 0表示获取所有用户的项目
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 60012, "获取项目总数失败", err)
+	}
+
+	// 获取所有项目列表
+	projects, hasMore, err := h.dao.ScratchDao.ListProjectsWithPagination(0, params.PageSize, params.BeginID, params.Forward, params.Asc)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 60013, "获取项目列表失败", err)
+	}
+
+	return &GetAllScratchProjectResponse{
+		Data:    projects,
+		HasMore: hasMore,
+		Total:   total,
+	}, nil, nil
 }
