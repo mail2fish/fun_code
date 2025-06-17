@@ -3,11 +3,13 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/custom_error"
 	"github.com/jun/fun_code/internal/model"
 	"github.com/mail2fish/gorails/gorails"
+	"gorm.io/gorm"
 )
 
 // CreateUserParams 创建用户请求参数
@@ -137,8 +139,19 @@ func (p *ListUsersParams) Parse(c *gin.Context) gorails.Error {
 	return nil
 }
 
+type UserResponse struct {
+	ID        uint           `json:"id" gorm:"primarykey"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
+	Username  string         `gorm:"uniqueIndex;size:50" json:"username"`
+	Nickname  string         `gorm:"size:50" json:"nickname"`
+	Email     string         `gorm:"size:100" json:"email"`
+	Role      string         `gorm:"size:20;default:'student'" json:"role"` // 用户角色: admin, teacher, student
+}
+
 // ListUsersHandler 列出用户 gorails.Wrap 形式
-func (h *Handler) ListUsersHandler(c *gin.Context, params *ListUsersParams) ([]model.User, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) ListUsersHandler(c *gin.Context, params *ListUsersParams) ([]UserResponse, *gorails.ResponseMeta, gorails.Error) {
 	// 获取用户总数
 	total, err := h.dao.UserDao.CountUsers()
 	if err != nil {
@@ -156,7 +169,20 @@ func (h *Handler) ListUsersHandler(c *gin.Context, params *ListUsersParams) ([]m
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60004, msg, err)
 	}
 
-	return users, &gorails.ResponseMeta{
+	userResponses := make([]UserResponse, len(users))
+	for i, user := range users {
+		userResponses[i] = UserResponse{
+			ID:        user.ID,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			DeletedAt: user.DeletedAt,
+			Username:  user.Username,
+			Nickname:  user.Nickname,
+			Email:     user.Email,
+			Role:      user.Role,
+		}
+	}
+	return userResponses, &gorails.ResponseMeta{
 		Total:   int(total),
 		HasNext: hasMore,
 	}, nil
@@ -320,4 +346,81 @@ func (h *Handler) SearchUsersHandler(c *gin.Context, params *SearchUsersParams) 
 	}
 
 	return users, nil, nil
+}
+
+// SetUserRole 设置用户角色
+func (h *Handler) SetUserRole(c *gin.Context) {
+	// 只有管理员可以设置用户角色
+	if !h.hasPermission(c, PermissionManageAll) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "只有管理员可以设置用户角色",
+		})
+		return
+	}
+
+	var req struct {
+		UserID uint   `json:"user_id" binding:"required"`
+		Role   string `json:"role" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的请求数据",
+		})
+		return
+	}
+
+	// 验证角色是否有效
+	if req.Role != RoleAdmin && req.Role != RoleTeacher && req.Role != RoleStudent {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的角色",
+		})
+		return
+	}
+
+	// 更新用户角色
+	updates := map[string]interface{}{
+		"role": req.Role,
+	}
+
+	if err := h.dao.UserDao.UpdateUser(req.UserID, updates); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "设置用户角色失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "用户角色设置成功",
+	})
+}
+
+// GetCurrentUserPermissions 获取当前用户的权限
+func (h *Handler) GetCurrentUserPermissions(c *gin.Context) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
+		return
+	}
+
+	// 获取用户信息
+	user, err := h.dao.UserDao.GetUserByID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "获取用户信息失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 获取用户角色对应的权限
+	permissions, exists := rolePermissions[user.Role]
+	if !exists {
+		permissions = []string{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"role":        user.Role,
+		"permissions": permissions,
+	})
 }

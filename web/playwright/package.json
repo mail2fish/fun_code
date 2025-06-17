@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "playwright test",
-    "test:dev": "BASE_URL=http://localhost:5173 playwright test",
+    "test:dev": "BASE_URL=http://localhost:5173 playwright test --ui",
     "test:local": "BASE_URL=http://localhost:8080 playwright test",
     "test:staging": "BASE_URL=http://staging.example.com playwright test",
     "test:prod": "BASE_URL=https://prod.example.com playwright test",

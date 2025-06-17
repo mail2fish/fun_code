@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link } from "react-router"
-import { IconPlus, IconEdit, IconTrash, IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
+import { IconPlus, IconEdit, IconTrash, IconRefresh } from "@tabler/icons-react"
 
 import { AppSidebar } from "~/components/my-app-sidebar"
 import {
@@ -36,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table"
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "~/components/ui/select"
 import { toast } from "sonner"
 
 // 导入自定义的 fetch 函数
@@ -55,70 +56,199 @@ interface User {
   updated_at: string
 }
 
-// 用户列表数据类型
-interface UsersData {
-  users: User[]
-  total: number
-  showForward: boolean
-  showBackward: boolean
-  pageSize: number
-  currentPage: number
-}
-
-// 获取用户列表
-async function getUsers(beginID = "0", pageSize = 10, forward = false, asc = false) {
-  try {
-    const params = new URLSearchParams()
-    params.append('pageSize', pageSize.toString())
-    params.append('asc', asc.toString())
-    params.append('forward', forward.toString())
-    if (beginID !== "0") {
-      params.append('beginID', beginID.toString())
-    }
-    
-    const response = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?${params.toString()}`)
-    if (!response.ok) {
-      throw new Error(`API 错误: ${response.status}`)
-    }
-    return await response.json()
-  } catch (error) {
-    console.error("获取用户列表失败:", error)
-    throw error
-  }
-}
-
-// 删除用户
-async function deleteUser(id: string) {
-  try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/admin/users/${id}`, {
-      method: "DELETE",
-    })
-    if (!response.ok) {
-      throw new Error(`API 错误: ${response.status}`)
-    }
-    return await response.json()
-  } catch (error) {
-    console.error("删除用户失败:", error)
-    throw error
-  }
-}
-
-const defaultPageSize = 10 // 每页显示的用户数量
+// 缓存相关常量
+const CACHE_KEY = 'userTableCacheV1';
+const CACHE_EXPIRE = 60 * 60 * 1000; // 1小时
 
 export default function ListUserPage() {
-  const [usersData, setUsersData] = React.useState<UsersData>({
-    users: [],
-    total: 0,
-    showForward: false,
-    showBackward: false,
-    currentPage: 1,
-    pageSize: defaultPageSize
-  })
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [deletingId, setDeletingId] = React.useState<string | null>(null)
+  const [deletingId, setDeletingId] = React.useState<number | null>(null)
+  const [searchKeyword, setSearchKeyword] = React.useState("");
+  const [searching, setSearching] = React.useState(false);
+  
+  // 先尝试从localStorage读取缓存
+  const getInitialCache = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      const { data, ts } = JSON.parse(raw);
+      if (Date.now() - ts > CACHE_EXPIRE) return null;
+      return {
+        beginID: 0, // 缓存 beginID 会产生一些奇怪的问题，暂时先禁用
+        sortOrder: data.sortOrder,
+      };
+    } catch {
+      return null;
+    }
+  };
+  const initialCache = getInitialCache();
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">(initialCache?.sortOrder || "desc")
+
+  // 无限滚动相关状态
+  const [users, setUsers] = React.useState<User[]>([])
+  const [hasMoreTop, setHasMoreTop] = React.useState(true)
+  const [hasMoreBottom, setHasMoreBottom] = React.useState(true)
+  const [loadingTop, setLoadingTop] = React.useState(false)
+  const [loadingBottom, setLoadingBottom] = React.useState(false)
+  const [localInitialLoading, setLocalInitialLoading] = React.useState(true)
+  const [totalUsers, setTotalUsers] = React.useState(0)
+  const scrollRef = React.useRef<HTMLDivElement>(null)
   // 添加按钮冷却状态
   const [isButtonCooling, setIsButtonCooling] = React.useState(false)
+
+  // 写入缓存
+  const saveCache = React.useCallback((beginID: string) => {
+    if (typeof window === 'undefined') return;
+
+    let bID = parseInt(beginID)
+
+    if (sortOrder === "asc" && bID > 0) {
+      bID = bID - 1
+    } else if (sortOrder === "desc" && bID > 0) {
+      bID = bID + 1
+    }
+    beginID = bID.toString()
+
+    const data = {
+      beginID,
+      sortOrder,
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+  }, [sortOrder]);
+
+  // 用户名称搜索逻辑（带防抖）
+  React.useEffect(() => {
+    if (!searchKeyword || searchKeyword.length < 1) {
+      // 关键字为空或长度小于1时恢复原有无限滚动逻辑
+      setUsers([]);
+      setHasMoreTop(true);
+      setHasMoreBottom(true);
+      setLocalInitialLoading(true);
+      fetchData({ direction: "down", reset: true, customBeginID: (initialCache?.beginID || 0).toString() });
+      return;
+    }
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        // 这里可以添加用户搜索API调用
+        // 暂时先显示所有用户
+        setUsers([]);
+        setHasMoreTop(false);
+        setHasMoreBottom(false);
+        setLocalInitialLoading(false);
+      } catch (e) {
+        setUsers([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchKeyword]);
+
+  // 监听排序变化，重置缓存并加载初始数据
+  React.useEffect(() => {
+    setUsers([])
+    setHasMoreTop(true)
+    setHasMoreBottom(true)
+    setLocalInitialLoading(true)
+    saveCache((initialCache?.beginID || 0).toString());
+    fetchData({ direction: "down", reset: true, customBeginID: (initialCache?.beginID || 0).toString() })
+    // eslint-disable-next-line
+  }, [sortOrder])
+
+  // 滚动监听
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    if (el.scrollTop === 0 && hasMoreTop && !loadingTop) {
+      fetchData({ direction: "up" })
+    }
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 10 && hasMoreBottom && !loadingBottom) {
+      fetchData({ direction: "down" })
+    }
+  }
+
+  // 数据请求
+  async function fetchData({ direction, reset = false, customBeginID }: { direction: "up" | "down", reset?: boolean, customBeginID?: string }) {
+    const pageSize = 20
+    let beginID = "0"
+    let forward = true
+    let asc = sortOrder === "asc"
+
+    if (reset && customBeginID) {
+      beginID = customBeginID;
+    } else if (!reset && users.length > 0) {
+      if (direction === "up") {
+        beginID = users[0].id.toString()
+        forward = false
+      } else {
+        beginID = users[users.length - 1].id.toString()
+        forward = true
+      }
+    }
+
+    if (direction === "up") setLoadingTop(true)
+    if (direction === "down") setLoadingBottom(true)
+    
+    try {
+      const params = new URLSearchParams()
+      params.append("pageSize", String(pageSize))
+      params.append("forward", String(forward))
+      params.append("asc", String(asc))
+      if (beginID !== "0") params.append("beginID", beginID)
+      
+      const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?${params.toString()}`)
+      const resp = await res.json()
+
+      let newUsers: User[] = [];
+      if (Array.isArray(resp.data)) {
+        newUsers = resp.data;
+      }
+
+      // 设置总数
+      if (resp.meta?.total !== undefined) {
+        setTotalUsers(resp.meta.total);
+      }
+
+      if (reset) {
+        setUsers(newUsers)
+        setHasMoreTop(true)
+        setHasMoreBottom(true)
+        setLocalInitialLoading(false)
+        // 缓存第一页的beginID
+        if (newUsers.length > 0) {
+          saveCache(newUsers[0].id.toString())
+        } else {
+          saveCache("0")
+        }
+        return
+      }
+
+      if (direction === "up") {
+        if (newUsers.length === 0) setHasMoreTop(false)
+        setUsers(prev => {
+          const merged = [...newUsers, ...prev]
+          let mergedUsers = merged.slice(0, 50)
+          if (mergedUsers.length > 0) saveCache(mergedUsers[0].id.toString())
+          return mergedUsers
+        })
+      } else {
+        if (newUsers.length === 0) setHasMoreBottom(false)
+        setUsers(prev => {
+          const merged = [...prev, ...newUsers]
+          let mergedUsers = merged.slice(-50)
+          if (mergedUsers.length > 0) saveCache(mergedUsers[0].id.toString())
+          return mergedUsers
+        })
+      }
+    } catch (error) {
+      console.error("加载数据失败:", error)
+      toast("加载用户列表失败")
+    } finally {
+      if (direction === "up") setLoadingTop(false)
+      if (direction === "down") setLoadingBottom(false)
+      setLocalInitialLoading(false)
+    }
+  }
 
   // 格式化日期
   const formatDate = (dateString?: string) => {
@@ -141,88 +271,20 @@ export default function ListUserPage() {
     }
   }
 
-  // 加载数据
-  const fetchUsers = async (beginID = "0", forward = false, asc = false) => {
-    try {
-      let page = usersData.currentPage
-      if (beginID === "0") {
-        page = 0
-      }
-
-      let pageSize = defaultPageSize
-      let showForward = false
-      let showBackward = false
-
-      setIsLoading(true)
-      const response = await getUsers(beginID, pageSize, forward, asc)
-
-      // 如果向后翻页
-      if (forward) {        
-        page++
-        if (response.hasNext) {
-          showForward = true
-        }
-        if (page > 1) {
-          showBackward = true
-        }
-      // 如果向前翻页
-      } else {
-        page--
-        if (page > 1) {
-          showBackward = true
-        }
-        // 只有在有更多数据或不是第一页时才显示向前按钮
-        showForward = response.hasNext || page > 0
-      }
-
-      setUsersData({
-        users: response.data || [],
-        total: response.total || 0,
-        showForward: showForward,
-        showBackward: showBackward,
-        currentPage: page,
-        pageSize: defaultPageSize
-      })
-      setError(null)
-    } catch (error) {
-      console.error("加载数据失败:", error)
-      setError("加载用户列表失败")
-      setUsersData({
-        users: [],
-        total: 0,
-        showForward: false,
-        showBackward: false,
-        currentPage: 1,
-        pageSize: defaultPageSize
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // 初始加载
-  const isFirstRender = React.useRef(true)
-  
-  React.useEffect(() => {
-    if (isFirstRender.current) {
-      fetchUsers("0", true, false)
-      isFirstRender.current = false
-    }
-  }, [])
-
-  // 处理页码变化
-  const handlePageChange = (beginID: string, forward: boolean, asc: boolean) => {
-    fetchUsers(beginID, forward, asc)
-  }
-
   // 处理删除用户
-  const handleDeleteUser = async (id: string) => {
+  const handleDeleteUser = async (id: number) => {
     setDeletingId(id)
     try {
-      await deleteUser(id)
+      const response = await fetchWithAuth(`${HOST_URL}/api/admin/users/${id}`, {
+        method: "DELETE",
+      })
+      if (!response.ok) {
+        throw new Error(`API 错误: ${response.status}`)
+      }
+      
+      setUsers(prev => prev.filter(u => u.id !== id))
+      setTotalUsers(prev => prev - 1)
       toast("用户已成功删除")
-      // 删除成功后重新加载当前页
-      fetchUsers("0", false, false)
     } catch (error) {
       console.error("删除用户失败:", error)
       toast("删除用户时出现错误")
@@ -244,10 +306,18 @@ export default function ListUserPage() {
     }, 2000) // 2秒冷却时间
   }
 
-  // 计算总页数
-  const totalPages = usersData.total > 0 ? Math.ceil(usersData.total / usersData.pageSize) : 0
-  const users = usersData.users
-  let asc = false
+  if (localInitialLoading) {
+    return (
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <div className="flex items-center justify-center h-screen">
+            <div className="text-center">加载中...</div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    )
+  }
 
   return (
     <SidebarProvider>
@@ -291,17 +361,72 @@ export default function ListUserPage() {
             </Button>
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          {error && (
-            <div className="bg-destructive/10 text-destructive p-3 rounded-md">
-              {error}
+        
+        <div className="flex flex-col gap-2 h-[90vh] p-4 pt-0">
+          <div className="flex items-center gap-2 px-2 sticky top-0 z-10 bg-white/80 backdrop-blur">
+            {/* 用户名称搜索栏 */}
+            <input
+              className="w-48 h-8 px-3 border border-input rounded-md bg-background text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition"
+              placeholder="搜索用户名称"
+              value={searchKeyword}
+              onChange={e => setSearchKeyword(e.target.value)}
+              style={{ boxSizing: 'border-box' }}
+            />
+
+            <Select value={sortOrder} onValueChange={v => {
+                  setSortOrder(v as "asc" | "desc")
+                  saveCache("0")
+                }}> 
+                  <SelectTrigger className="w-28">
+                    <SelectValue placeholder="排序" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="desc">最新优先</SelectItem>
+                    <SelectItem value="asc">最旧优先</SelectItem>
+                  </SelectContent>
+                </Select>
+
+            {/* 用户统计信息 */}
+            <div className="text-sm text-muted-foreground">
+              共 {totalUsers} 个用户
             </div>
-          )}
-          
-          <div className="flex flex-col gap-4">
+            
+            {/* 刷新按钮 */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3 text-sm font-normal rounded-md border shadow-sm"
+              onClick={() => {
+                setUsers([])
+                setHasMoreTop(true)
+                setHasMoreBottom(true)
+                setLocalInitialLoading(true)
+                fetchData({ direction: "down", reset: true, customBeginID: "0" })
+              }}
+            >
+              <IconRefresh className="h-4 w-4 mr-1" />
+              刷新
+            </Button>
+          </div>
+
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-auto"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+            onScroll={searchKeyword ? undefined : handleScroll}
+          >
+            {searchKeyword.length >= 1 && searching && (
+              <div className="text-center text-xs text-muted-foreground py-2">搜索中...</div>
+            )}
+            {searchKeyword.length >= 1 && !searching && users.length === 0 && (
+              <div className="text-center text-xs text-muted-foreground py-2">无匹配用户</div>
+            )}
+            {loadingTop && <div className="text-center text-xs text-muted-foreground py-2">加载中...</div>}
+            {!hasMoreTop && <div className="text-center text-xs text-muted-foreground py-2">已到顶部</div>}
+            
             <div className="rounded-xl overflow-hidden border">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 bg-white z-10">
                   <TableRow>
                     <TableHead>用户名</TableHead>
                     <TableHead>昵称</TableHead>
@@ -313,15 +438,9 @@ export default function ListUserPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
-                        加载中...
-                      </TableCell>
-                    </TableRow>
-                  ) : Array.isArray(users) && users.length > 0 ? (
+                  {users.length > 0 ? (
                     users.map((user) => (
-                      <TableRow key={user.id || Math.random()}>
+                      <TableRow key={user.id}>
                         <TableCell className="font-medium">
                           <Link to={`/www/admin/users/${user.id}/edit`}>
                             {user.username}
@@ -371,10 +490,10 @@ export default function ListUserPage() {
                                   </DialogClose>
                                   <Button 
                                     variant="destructive" 
-                                    onClick={() => handleDeleteUser(user.id.toString())}
-                                    disabled={deletingId === user.id.toString()}
+                                    onClick={() => handleDeleteUser(user.id)}
+                                    disabled={deletingId === user.id}
                                   >
-                                    {deletingId === user.id.toString() ? "删除中..." : "删除"}
+                                    {deletingId === user.id ? "删除中..." : "删除"}
                                   </Button>
                                 </DialogFooter>
                               </DialogContent>
@@ -394,34 +513,8 @@ export default function ListUserPage() {
               </Table>
             </div>
             
-            {usersData.total > 0 && (
-              <div className="flex items-center justify-between px-2">
-                <div className="text-sm text-muted-foreground">
-                  共 {usersData.total} 个用户，共 {totalPages} 页，当前第 {usersData.currentPage} 页
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    disabled={!usersData.showBackward}
-                    onClick={() => handlePageChange(users[0].id.toString(), false, asc)}
-                  >
-                    <IconChevronLeft className="h-4 w-4" />
-                    上一页
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    disabled={!usersData.showForward}
-                    onClick={() => handlePageChange(users[users.length - 1].id.toString(), true, asc)}
-                  >
-                    下一页
-                    <IconChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
+            {loadingBottom && <div className="text-center text-xs text-muted-foreground py-2">加载中...</div>}
+            {!hasMoreBottom && <div className="text-center text-xs text-muted-foreground py-2">已到结尾</div>}
           </div>
         </div>
       </SidebarInset>
