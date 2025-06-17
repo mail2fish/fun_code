@@ -320,13 +320,8 @@ func (p *SearchUsersParams) Parse(c *gin.Context) gorails.Error {
 	return nil
 }
 
-// SearchUsersResponse 搜索用户响应
-type SearchUsersResponse struct {
-	Data []model.User `json:"data"`
-}
-
 // SearchUsersHandler 搜索用户 gorails.Wrap 形式
-func (h *Handler) SearchUsersHandler(c *gin.Context, params *SearchUsersParams) (*SearchUsersResponse, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) SearchUsersHandler(c *gin.Context, params *SearchUsersParams) ([]model.User, *gorails.ResponseMeta, gorails.Error) {
 	// 搜索用户
 	users, err := h.dao.UserDao.SearchUsers(params.Keyword)
 	if err != nil {
@@ -338,9 +333,7 @@ func (h *Handler) SearchUsersHandler(c *gin.Context, params *SearchUsersParams) 
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60011, msg, err)
 	}
 
-	return &SearchUsersResponse{
-		Data: users,
-	}, nil, nil
+	return users, nil, nil
 }
 
 // GetAllScratchProjectParams 获取所有Scratch项目请求参数
