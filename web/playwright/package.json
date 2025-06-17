@@ -1,0 +1,23 @@
+{
+  "name": "playwright",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:dev": "BASE_URL=http://localhost:5173 playwright test",
+    "test:local": "BASE_URL=http://localhost:8080 playwright test",
+    "test:staging": "BASE_URL=http://staging.example.com playwright test",
+    "test:prod": "BASE_URL=https://prod.example.com playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@playwright/test": "^1.53.0",
+    "@types/node": "^24.0.3",
+    "dotenv": "^16.5.0"
+  }
+}
