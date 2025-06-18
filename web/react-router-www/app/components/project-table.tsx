@@ -403,8 +403,8 @@ export function ProjectTable({
           }
           console.log("设置分享表单:", newShareForm)
           setShareForm(newShareForm)
+          setSharingId(null) // 清除加载状态，允许用户点击创建按钮
           setShareDialogOpen(true)
-          // 保持sharingId以显示加载状态，在创建成功/失败后清除
         }
       } else {
         console.error("检查分享失败:", result)
