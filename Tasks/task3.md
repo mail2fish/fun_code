@@ -1,1 +1,0 @@
-- [x] 将 delete_user.go 的 DeleteUser handler 改为 gorails.Wrap 形式 

@@ -1,1 +1,0 @@
-- [x] 将 scratch.go 的 GetScratchProject/GetLibraryAsset/UploadScratchAsset/GetScratchProjectHistories handler 改为 gorails.Wrap 形式 

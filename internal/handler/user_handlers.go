@@ -171,13 +171,17 @@ func (h *Handler) ListUsersHandler(c *gin.Context, params *ListUsersParams) ([]U
 
 	userResponses := make([]UserResponse, len(users))
 	for i, user := range users {
+		nickname := user.Nickname
+		if nickname == "" {
+			nickname = user.Username
+		}
 		userResponses[i] = UserResponse{
 			ID:        user.ID,
 			CreatedAt: user.CreatedAt,
 			UpdatedAt: user.UpdatedAt,
 			DeletedAt: user.DeletedAt,
 			Username:  user.Username,
-			Nickname:  user.Nickname,
+			Nickname:  nickname,
 			Email:     user.Email,
 			Role:      user.Role,
 		}

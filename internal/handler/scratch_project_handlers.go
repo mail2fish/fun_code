@@ -316,38 +316,45 @@ func (h *Handler) GetProjectThumbnailHandler(c *gin.Context, params *GetProjectT
 
 // ListScratchProjectsParams 列出Scratch项目参数
 type ListScratchProjectsParams struct {
-	Page     int    `json:"page" form:"page"`
-	PageSize int    `json:"page_size" form:"page_size"`
-	BeginID  uint   `json:"begin_id" form:"begin_id"`
-	Order    string `json:"order" form:"order"`
+	PageSize uint `json:"page_size" form:"pageSize"`
+	BeginID  uint `json:"begin_id" form:"beginID"`
+	Forward  bool `json:"forward" form:"forward"`
+	Asc      bool `json:"asc" form:"asc"`
 }
 
 func (p *ListScratchProjectsParams) Parse(c *gin.Context) gorails.Error {
-	if err := c.ShouldBindQuery(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80030, "无效的请求参数", err)
-	}
 	// 设置默认值
-	if p.Page <= 0 {
-		p.Page = 1
+	p.PageSize = 20
+	p.BeginID = 0
+	p.Forward = true
+	p.Asc = true
+
+	// 解析页面大小
+	if pageSizeStr := c.DefaultQuery("pageSize", "20"); pageSizeStr != "" {
+		if pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32); err == nil {
+			if pageSize > 0 && pageSize <= 100 {
+				p.PageSize = uint(pageSize)
+			}
+		}
 	}
-	if p.PageSize <= 0 {
-		p.PageSize = 20
+
+	// 解析起始ID
+	if beginIDStr := c.DefaultQuery("beginID", "0"); beginIDStr != "" {
+		if beginID, err := strconv.ParseUint(beginIDStr, 10, 32); err == nil {
+			p.BeginID = uint(beginID)
+		}
 	}
-	if p.PageSize > 100 {
-		p.PageSize = 100
+
+	// 解析翻页方向
+	if forwardStr := c.DefaultQuery("forward", "true"); forwardStr != "" {
+		p.Forward = forwardStr != "false"
 	}
-	if p.Order == "" {
-		p.Order = "desc"
+
+	// 解析排序方向
+	if ascStr := c.DefaultQuery("asc", "true"); ascStr != "" {
+		p.Asc = ascStr != "false"
 	}
 	return nil
-}
-
-// ListScratchProjectsResponse 列出Scratch项目响应
-type ListScratchProjectsResponse struct {
-	Projects []ProjectInfo `json:"projects"`
-	Total    int64         `json:"total"`
-	Page     int           `json:"page"`
-	PageSize int           `json:"page_size"`
 }
 
 type ProjectInfo struct {
@@ -358,7 +365,7 @@ type ProjectInfo struct {
 	UserID    uint      `json:"user_id"`
 }
 
-func (h *Handler) ListScratchProjectsHandler(c *gin.Context, params *ListScratchProjectsParams) (*ListScratchProjectsResponse, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) ListScratchProjectsHandler(c *gin.Context, params *ListScratchProjectsParams) ([]model.ScratchProject, *gorails.ResponseMeta, gorails.Error) {
 	// 获取当前用户ID
 	userID := h.getUserID(c)
 	if userID == 0 {
@@ -366,11 +373,10 @@ func (h *Handler) ListScratchProjectsHandler(c *gin.Context, params *ListScratch
 	}
 
 	// 使用实际存在的方法获取项目列表
-	forward := true
-	asc := params.Order == "asc"
-	projects, _, err := h.dao.ScratchDao.ListProjectsWithPagination(userID, uint(params.PageSize), params.BeginID, forward, asc)
+	// 获取所有项目列表
+	projects, hasMore, err := h.dao.ScratchDao.ListProjectsWithPagination(userID, params.PageSize, params.BeginID, params.Forward, params.Asc)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80032, "获取项目列表失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 60013, "获取项目列表失败", err)
 	}
 
 	// 获取总数
@@ -379,24 +385,10 @@ func (h *Handler) ListScratchProjectsHandler(c *gin.Context, params *ListScratch
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80033, "获取项目总数失败", err)
 	}
 
-	// 转换为响应格式
-	var projectInfos []ProjectInfo
-	for _, project := range projects {
-		projectInfos = append(projectInfos, ProjectInfo{
-			ID:        project.ID,
-			Name:      project.Name,
-			CreatedAt: project.CreatedAt,
-			UpdatedAt: project.UpdatedAt,
-			UserID:    project.UserID,
-		})
-	}
-
-	return &ListScratchProjectsResponse{
-		Projects: projectInfos,
-		Total:    total,
-		Page:     params.Page,
-		PageSize: params.PageSize,
-	}, nil, nil
+	return projects, &gorails.ResponseMeta{
+		Total:   int(total),
+		HasNext: hasMore,
+	}, nil
 }
 
 // SearchScratchParams 搜索Scratch项目参数
@@ -550,7 +542,8 @@ func (h *Handler) OnlyUsersIDAndNickname(users []model.User) []UserResponse {
 		}
 		userMap[i] = UserResponse{
 			ID:       user.ID,
-			Nickname: user.Nickname,
+			Nickname: nickname,
+			Username: user.Username,
 		}
 	}
 	return userMap
