@@ -540,7 +540,7 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 		auth.DELETE("/files/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete file"}) })
 
 		// 菜单路由
-		auth.GET("/menu/list", h.GetMenuList)
+		auth.GET("/menu/list", gorails.Wrap(h.GetMenuListHandler, nil))
 
 		// Scratch 相关路由 - 使用传统形式方法
 		auth.GET("/scratch/projects/:id", h.GetScratchProject)
@@ -571,10 +571,10 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 
 			// 用户管理
 			admin.POST("/users/create", h.PostCreateUser)
-			admin.GET("/users/list", h.GetListUsers)
+			admin.GET("/users/list", gorails.Wrap(h.ListUsersHandler, nil))
 			admin.PUT("/users/:user_id", h.PutUpdateUser)
 			admin.DELETE("/users/:user_id", h.DeleteUser)
-			admin.GET("/users/:user_id", h.GetUser)
+			admin.GET("/users/:user_id", gorails.Wrap(h.GetUserHandler, nil))
 			admin.GET("/users/search", h.GetSearchUsers)
 			admin.GET("/scratch/projects", h.GetAllScratchProject)
 

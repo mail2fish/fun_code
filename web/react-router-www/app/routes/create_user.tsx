@@ -17,6 +17,15 @@ import {
 } from "~/components/ui/breadcrumb"
 import { Button } from "~/components/ui/button"
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog"
+import {
   Form,
   FormControl,
   FormDescription,
@@ -109,6 +118,8 @@ async function createUser(userData: z.infer<typeof formSchema>) {
 export default function CreateUserPage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = React.useState(false);
+  const [createdUsername, setCreatedUsername] = React.useState("");
 
   // 初始化表单
   const form = useForm<z.infer<typeof formSchema>>({
@@ -129,19 +140,18 @@ export default function CreateUserPage() {
       const result = await createUser(values);
       console.log("表单提交成功:", result);
       
+      // 保存创建的用户名并显示成功对话框
+      setCreatedUsername(values.username);
+      setShowSuccessDialog(true);
+      
       toast.success("用户创建成功", {
-        description: "即将跳转到用户列表页面",
-        duration: 2000,
+        description: `用户 "${values.username}" 已成功创建`,
+        duration: 3000,
         style: {
           background: '#4CAF50',
           color: 'white',
         }
       });
-      
-      // 创建成功后跳转到用户列表页
-      setTimeout(() => {
-        navigate("/www/admin/users/list");
-      }, 2000);
     } catch (error) {
       console.error("提交表单失败:", error);
       toast.error("创建失败", {
@@ -156,6 +166,28 @@ export default function CreateUserPage() {
       setIsSubmitting(false);
     }
   }
+
+  // 处理继续创建用户
+  const handleContinueCreate = () => {
+    setShowSuccessDialog(false);
+    form.reset({
+      username: "",
+      nickname: "",
+      email: "",
+      password: "",
+      role: "student",
+    });
+    toast.success("表单已重置", {
+      description: "您可以继续创建新用户",
+      duration: 2000,
+    });
+  };
+
+  // 处理转到用户列表
+  const handleGoToList = () => {
+    setShowSuccessDialog(false);
+    navigate("/www/admin/users/list");
+  };
 
   return (
     <SidebarProvider>
@@ -293,7 +325,7 @@ export default function CreateUserPage() {
                     <Button 
                       variant="outline" 
                       type="button"
-                      onClick={() => navigate("/www/users/list")}
+                      onClick={() => navigate("/www/admin/users/list")}
                       disabled={isSubmitting}
                     >
                       取消
@@ -307,6 +339,33 @@ export default function CreateUserPage() {
             </div>
           </div>
         </div>
+
+        {/* 成功创建后的选择对话框 */}
+        <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>用户创建成功！</DialogTitle>
+              <DialogDescription>
+                用户 <strong>"{createdUsername}"</strong> 已成功创建。您希望接下来做什么？
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={handleContinueCreate}
+                className="flex-1"
+              >
+                继续创建用户
+              </Button>
+              <Button 
+                onClick={handleGoToList}
+                className="flex-1"
+              >
+                转到用户列表
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   )
