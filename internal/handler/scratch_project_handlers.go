@@ -447,6 +447,7 @@ type GetAllScratchProjectParams struct {
 	BeginID  uint `json:"begin_id" form:"beginID"`
 	Forward  bool `json:"forward" form:"forward"`
 	Asc      bool `json:"asc" form:"asc"`
+	UserID   uint `json:"user_id" form:"userID"`
 }
 
 func (p *GetAllScratchProjectParams) Parse(c *gin.Context) gorails.Error {
@@ -455,6 +456,7 @@ func (p *GetAllScratchProjectParams) Parse(c *gin.Context) gorails.Error {
 	p.BeginID = 0
 	p.Forward = true
 	p.Asc = true
+	p.UserID = 0
 
 	// 解析页面大小
 	if pageSizeStr := c.DefaultQuery("pageSize", "20"); pageSizeStr != "" {
@@ -482,25 +484,72 @@ func (p *GetAllScratchProjectParams) Parse(c *gin.Context) gorails.Error {
 		p.Asc = ascStr != "false"
 	}
 
+	// 解析用户ID
+	if userIDStr := c.DefaultQuery("userId", "0"); userIDStr != "" {
+		if userID, err := strconv.ParseUint(userIDStr, 10, 32); err == nil {
+			p.UserID = uint(userID)
+		}
+	}
+
 	return nil
 }
 
+type GetAllScratchProjectResponse struct {
+	Projects []model.ScratchProject `json:"projects"`
+	Users    []UserResponse         `json:"users"`
+}
+
 // GetAllScratchProjectHandler 获取所有Scratch项目 gorails.Wrap 形式
-func (h *Handler) GetAllScratchProjectHandler(c *gin.Context, params *GetAllScratchProjectParams) ([]model.ScratchProject, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) GetAllScratchProjectHandler(c *gin.Context, params *GetAllScratchProjectParams) (*GetAllScratchProjectResponse, *gorails.ResponseMeta, gorails.Error) {
 	// 获取项目总数
-	total, err := h.dao.ScratchDao.CountProjects(0) // 0表示获取所有用户的项目
+	total, err := h.dao.ScratchDao.CountProjects(params.UserID)
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 60012, "获取项目总数失败", err)
 	}
 
 	// 获取所有项目列表
-	projects, hasMore, err := h.dao.ScratchDao.ListProjectsWithPagination(0, params.PageSize, params.BeginID, params.Forward, params.Asc)
+	projects, hasMore, err := h.dao.ScratchDao.ListProjectsWithPagination(params.UserID, params.PageSize, params.BeginID, params.Forward, params.Asc)
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 60013, "获取项目列表失败", err)
 	}
 
-	return projects, &gorails.ResponseMeta{
-		Total:   int(total),
-		HasNext: hasMore,
-	}, nil
+	// 筛选出projects里面所有的 UserID
+	userIDs := make(map[uint]bool)
+	for _, project := range projects {
+		userIDs[project.UserID] = true
+	}
+	userIDsList := make([]uint, 0, len(userIDs))
+	for userID := range userIDs {
+		userIDsList = append(userIDsList, userID)
+	}
+
+	// 获取所有userIDs
+	users, err := h.dao.UserDao.GetUsersByIDs(userIDsList)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60014, "获取用户列表失败", err)
+	}
+
+	return &GetAllScratchProjectResponse{
+			Projects: projects,
+			Users:    h.OnlyUsersIDAndNickname(users),
+		}, &gorails.ResponseMeta{
+			Total:   int(total),
+			HasNext: hasMore,
+		}, nil
+}
+
+// OnlyUsersIDAndNickname 格式化用户列表，只返回用户ID和用户名
+func (h *Handler) OnlyUsersIDAndNickname(users []model.User) []UserResponse {
+	userMap := make([]UserResponse, len(users))
+	for i, user := range users {
+		nickname := user.Nickname
+		if nickname == "" {
+			nickname = user.Username
+		}
+		userMap[i] = UserResponse{
+			ID:       user.ID,
+			Nickname: user.Nickname,
+		}
+	}
+	return userMap
 }
