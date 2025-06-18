@@ -88,7 +88,7 @@ export default function Page() {
             </div>
           )}
           <ShareTable 
-            sharesApiUrl={`${HOST_URL}/api/shares/list`}
+            sharesApiUrl={`${HOST_URL}/api/shares/user`}
             onDeleteShare={handleDeleteShare}
             showDeleteButton={true}
           />

@@ -278,7 +278,7 @@ export function ShareTable({
   }
 
   const handleOpenShare = (shareToken: string) => {
-    const shareUrl = `${window.location.origin}/share/${shareToken}`
+    const shareUrl = `${window.location.origin}/shares/${shareToken}`
     window.open(shareUrl, '_blank')
   }
 
@@ -400,7 +400,7 @@ export function ShareTable({
                     <div className="text-sm text-muted-foreground">创建时间：{formatDate(share.created_at)}</div>
                   </CardContent>
                                   <CardFooter className="flex flex-col gap-1 px-1 py-1">
-                    {/* 第一行：复制链接和打开分享 */}
+                    {/* 三个按钮在同一行 */}
                     <div className="flex items-center justify-center gap-0 w-full">
                       <Button
                         variant="ghost"
@@ -422,10 +422,7 @@ export function ShareTable({
                         <IconExternalLink className="h-4 w-4 mr-1" />
                         打开分享
                       </Button>
-                    </div>
-                    {/* 第二行：删除分享 */}
-                    {showDeleteButton && (
-                      <div className="flex items-center justify-center gap-0 w-full">
+                      {showDeleteButton && (
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button
@@ -433,7 +430,7 @@ export function ShareTable({
                               size="sm"
                               title="删除分享"
                               asChild
-                              className="py-0 min-h-0 h-auto px-2 flex-1 text-red-600 hover:text-red-700"
+                              className="py-0 min-h-0 h-auto px-2 flex-1"
                             >
                               <a href='#'>
                                 <IconTrash className="h-4 w-4 mr-1" />
@@ -462,8 +459,8 @@ export function ShareTable({
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </CardFooter>
                 </Card>
               )

@@ -80,6 +80,7 @@ func (s *Server) setupRoutes() {
 		auth.POST("/shares", gorails.Wrap(s.handler.CreateShareHandler, nil))
 		auth.GET("/shares/check", gorails.Wrap(s.handler.CheckShareHandler, nil))
 		auth.GET("/shares/all", gorails.Wrap(s.handler.ListAllSharesHandler, nil))
+		auth.GET("/shares/user", gorails.Wrap(s.handler.ListUserSharesHandler, nil))
 		auth.DELETE("/shares/:id", gorails.Wrap(s.handler.DeleteShareHandler, nil))
 
 		auth.DELETE("/scratch/projects/:id", gorails.Wrap(s.handler.DeleteScratchProjectHandler, nil))

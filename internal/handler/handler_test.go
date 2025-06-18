@@ -587,8 +587,8 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 	projects := r.Group("/projects")
 	projects.Use(h.AuthMiddleware())
 	{
-		projects.GET("/scratch/new", h.GetNewScratchProject)
-		projects.GET("/scratch/open/:id", h.GetOpenScratchProject)
+		projects.GET("/scratch/new", gorails.Wrap(h.GetNewScratchProjectHandler, RenderGetNewScratchProjectResponse))
+		projects.GET("/scratch/open/:id", gorails.Wrap(h.GetOpenScratchProjectHandler, RenderTemplateResponse))
 	}
 
 	// 资源路由

@@ -156,6 +156,75 @@ type ListSharesResponse struct {
 // ListAllSharesHandler 列出所有分享
 // @Summary 分页获取所有分享列表，支持正向和反向翻页
 func (h *Handler) ListAllSharesHandler(c *gin.Context, params *ListSharesParams) (*ListSharesResponse, *gorails.ResponseMeta, gorails.Error) {
+	// 获取 shareDao 实例
+	shareDao := h.dao.ShareDao
+
+	// 从数据库获取分享列表（游标分页）
+	shares, hasMore, err := shareDao.GetAllShares(params.PageSize, params.BeginID, params.Forward, params.Asc)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 5, "获取分享列表失败", err)
+	}
+
+	// 筛选出projects里面所有的 UserID
+	userIDs := make(map[uint]bool)
+
+	// 构建响应数据
+	shareResponses := make([]*ShareResponse, len(shares))
+
+	for i, share := range shares {
+		shareResponses[i] = &ShareResponse{
+			ID:             share.ID,
+			ShareToken:     share.ShareToken,
+			ProjectID:      share.ProjectID,
+			ProjectType:    share.ProjectType,
+			UserID:         share.UserID,
+			Title:          share.Title,
+			Description:    share.Description,
+			ViewCount:      share.ViewCount,
+			TotalViewCount: share.TotalViewCount,
+			MaxViews:       share.MaxViews,
+			IsActive:       share.IsActive,
+			AllowDownload:  share.AllowDownload,
+			AllowRemix:     share.AllowRemix,
+			LikeCount:      share.LikeCount,
+			CreatedAt:      share.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:      share.UpdatedAt.Format("2006-01-02 15:04:05"),
+		}
+
+		// 如果有关联的项目信息，添加项目名称
+		if share.ScratchProject != nil {
+			shareResponses[i].ProjectName = share.ScratchProject.Name
+		}
+		userIDs[share.UserID] = true
+	}
+
+	userIDsList := make([]uint, 0, len(userIDs))
+	for userID := range userIDs {
+		userIDsList = append(userIDsList, userID)
+	}
+
+	// 获取所有userIDs
+	users, err := h.dao.UserDao.GetUsersByIDs(userIDsList)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60014, "获取用户列表失败", err)
+	}
+
+	userResponses := h.OnlyUsersIDAndNickname(users)
+
+	response := &ListSharesResponse{
+		Shares: shareResponses,
+		Users:  userResponses,
+	}
+
+	return response, &gorails.ResponseMeta{
+		HasNext: hasMore,
+		Total:   -1, // 游标分页不提供总数，设为-1表示不可用
+	}, nil
+}
+
+// ListAllSharesHandler 列出所有分享
+// @Summary 分页获取所有分享列表，支持正向和反向翻页
+func (h *Handler) ListUserSharesHandler(c *gin.Context, params *ListSharesParams) (*ListSharesResponse, *gorails.ResponseMeta, gorails.Error) {
 	// 获取当前用户ID
 	userID := h.getUserID(c)
 	if userID == 0 {
