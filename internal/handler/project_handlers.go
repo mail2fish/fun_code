@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -13,23 +14,12 @@ import (
 	"github.com/mail2fish/gorails/gorails"
 )
 
-// GetNewScratchProjectParams 获取新Scratch项目参数
-type GetNewScratchProjectParams struct {
-	// 暂无需要的参数
-}
-
-func (p *GetNewScratchProjectParams) Parse(c *gin.Context) gorails.Error {
-	// 暂无需要解析的参数
-	return nil
-}
-
 // GetNewScratchProjectResponse 获取新Scratch项目响应
 type GetNewScratchProjectResponse struct {
-	ProjectID uint   `json:"project_id"`
-	Status    string `json:"status"`
+	ProjectID uint `json:"project_id"`
 }
 
-func (h *Handler) GetNewScratchProjectHandler(c *gin.Context, params *GetNewScratchProjectParams) (*GetNewScratchProjectResponse, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) GetNewScratchProjectHandler(c *gin.Context, params *gorails.EmptyParams) (*GetNewScratchProjectResponse, *gorails.ResponseMeta, gorails.Error) {
 	// 获取当前用户ID
 	userID := h.getUserID(c)
 	if userID == 0 {
@@ -44,8 +34,11 @@ func (h *Handler) GetNewScratchProjectHandler(c *gin.Context, params *GetNewScra
 
 	return &GetNewScratchProjectResponse{
 		ProjectID: projectID,
-		Status:    "ok",
 	}, nil, nil
+}
+
+func RenderGetNewScratchProjectResponse(c *gin.Context, response *GetNewScratchProjectResponse, meta *gorails.ResponseMeta) {
+	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("/projects/scratch/open/%d", response.ProjectID))
 }
 
 // GetOpenScratchProjectParams 打开Scratch项目参数

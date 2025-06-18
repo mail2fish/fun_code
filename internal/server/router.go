@@ -120,7 +120,7 @@ func (s *Server) setupRoutes() {
 	projects := s.router.Group("/projects")
 	projects.Use(s.handler.AuthMiddleware())
 	{
-		projects.GET("/scratch/new", gorails.Wrap(s.handler.GetNewScratchProjectHandler, nil))
+		projects.GET("/scratch/new", gorails.Wrap(s.handler.GetNewScratchProjectHandler, handler.RenderGetNewScratchProjectResponse))
 		projects.GET("/scratch/open/:id", gorails.Wrap(s.handler.GetOpenScratchProjectHandler, handler.RenderTemplateResponse))
 	}
 

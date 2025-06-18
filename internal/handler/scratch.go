@@ -351,23 +351,6 @@ func (h *Handler) GetScratchProjectHistoriesHandler(c *gin.Context, params *GetS
 	return response, nil, nil
 }
 
-// NewScratchProject 创建一个新的Scratch项目处理程序
-
-func (h *Handler) GetNewScratchProject(c *gin.Context) {
-
-	// 创建项目记录
-	projectID, err := h.dao.ScratchDao.CreateProject(h.getUserID(c))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "无法创建项目记录",
-		})
-		return
-	}
-
-	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("/projects/scratch/open/%d", projectID))
-
-}
-
 // GetOpenScratchProject 打开Scratch项目
 // 修改 GetOpenScratchProject 函数中的 AssetHost
 func (h *Handler) GetOpenScratchProject(c *gin.Context) {
@@ -584,109 +567,6 @@ func (h *Handler) GetScratchProject(c *gin.Context) {
 
 	// 直接写入字节数据
 	c.Writer.Write(projectData)
-}
-
-// PutSaveScratchProject 保存Scratch项目
-func (h *Handler) PutSaveScratchProject(c *gin.Context) {
-
-	rawID := c.Param("id")
-	splitID := strings.Split(rawID, "_")
-
-	if len(splitID) == 0 {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidProjectID, "invalid_project_id", nil)
-		c.JSON(http.StatusBadRequest, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	projectID := splitID[0]
-
-	// 从路径参数获取项目ID
-	id, err := strconv.ParseUint(projectID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效的项目ID",
-		})
-		return
-	}
-
-	// 获取项目创建者ID
-	project, err := h.dao.ScratchDao.GetProject(uint(id))
-
-	if err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-	userID := project.UserID
-	// 判断用户是否是项目创建者或者为管理员
-	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeNoPermission, "no_permission", err)
-		c.JSON(http.StatusUnauthorized, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 如果项目ID存在在不允许保存的数组中，则不允许保存
-	for _, id := range h.config.Protected.Projects {
-		if project.ID == id {
-			e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeNoPermission, "no_permission", err)
-			c.JSON(http.StatusUnauthorized, ResponseError{
-				Code:    int(e.ErrorCode()),
-				Message: e.Message,
-				Error:   e.Error(),
-			})
-			return
-		}
-	}
-
-	// 修改后的请求体结构
-	req := make(map[string]interface{})
-	if err = c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效的请求参数",
-		})
-		return
-	}
-
-	r, err := json.Marshal(req)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效的请求参数: " + err.Error(),
-		})
-		return
-	}
-	title := c.DefaultQuery("title", "Scratch Project")
-
-	// 保存项目
-	// 修改服务调用参数
-	// 由于 SaveProject 返回 uint 类型，需要将 projectID 声明为 uint
-	_, err = h.dao.ScratchDao.SaveProject(userID, uint(id), title, r)
-	if err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeSaveProjectFailed, "save_project_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"status":       "ok",
-		"content-name": id,
-	})
 }
 
 // DeleteScratchProjectParams 删除Scratch项目参数

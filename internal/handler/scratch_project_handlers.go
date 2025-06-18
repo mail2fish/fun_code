@@ -97,7 +97,7 @@ func (h *Handler) CreateScratchProjectHandler(c *gin.Context, params *CreateScra
 type SaveScratchProjectParams struct {
 	ID    uint
 	Data  map[string]interface{} `json:"data" binding:"required"`
-	Title string                 `json:"title" form:"title"`
+	Title string
 }
 
 func (p *SaveScratchProjectParams) Parse(c *gin.Context) gorails.Error {
@@ -352,7 +352,7 @@ type ListScratchProjectsResponse struct {
 
 type ProjectInfo struct {
 	ID        uint      `json:"id"`
-	Title     string    `json:"title"`
+	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	UserID    uint      `json:"user_id"`
@@ -384,7 +384,7 @@ func (h *Handler) ListScratchProjectsHandler(c *gin.Context, params *ListScratch
 	for _, project := range projects {
 		projectInfos = append(projectInfos, ProjectInfo{
 			ID:        project.ID,
-			Title:     project.Name, // 使用Name字段而不是Title
+			Name:      project.Name,
 			CreatedAt: project.CreatedAt,
 			UpdatedAt: project.UpdatedAt,
 			UserID:    project.UserID,
@@ -401,83 +401,40 @@ func (h *Handler) ListScratchProjectsHandler(c *gin.Context, params *ListScratch
 
 // SearchScratchParams 搜索Scratch项目参数
 type SearchScratchParams struct {
-	Q        string `json:"q" form:"q" binding:"required"`
-	Page     int    `json:"page" form:"page"`
-	PageSize int    `json:"page_size" form:"page_size"`
+	Keyword string `json:"keyword" form:"keyword" binding:"required"`
+	UserID  uint   `json:"user_id" form:"user_id"`
 }
 
 func (p *SearchScratchParams) Parse(c *gin.Context) gorails.Error {
-	if err := c.ShouldBindQuery(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80033, "无效的请求参数", err)
+	keyword := c.Query("keyword")
+	userID := c.Query("user_id")
+	userIDInt, err := strconv.Atoi(userID)
+	if err != nil {
+		userIDInt = 0
 	}
-	// 设置默认值
-	if p.Page <= 0 {
-		p.Page = 1
+	p.Keyword = keyword
+
+	if len(keyword) == 0 {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80034, "无效的请求参数", nil)
 	}
-	if p.PageSize <= 0 {
-		p.PageSize = 20
-	}
-	if p.PageSize > 100 {
-		p.PageSize = 100
-	}
+
+	p.UserID = uint(userIDInt)
 	return nil
 }
 
-// SearchScratchResponse 搜索Scratch项目响应
-type SearchScratchResponse struct {
-	Projects []ProjectInfo `json:"projects"`
-	Total    int64         `json:"total"`
-	Page     int           `json:"page"`
-	PageSize int           `json:"page_size"`
-	Query    string        `json:"query"`
-}
+func (h *Handler) SearchScratchHandler(c *gin.Context, params *SearchScratchParams) ([]model.ScratchProject, *gorails.ResponseMeta, gorails.Error) {
 
-func (h *Handler) SearchScratchHandler(c *gin.Context, params *SearchScratchParams) (*SearchScratchResponse, *gorails.ResponseMeta, gorails.Error) {
-	// 获取当前用户ID
-	userID := h.getUserID(c)
-	if userID == 0 {
-		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80034, "未登录", nil)
+	if !h.hasPermission(c, PermissionManageAll) {
+		params.UserID = h.getUserID(c)
 	}
 
-	// 计算偏移量
-	offset := (params.Page - 1) * params.PageSize
-
 	// 使用实际存在的搜索方法
-	projects, err := h.dao.ScratchDao.SearchProjects(userID, params.Q)
+	projects, err := h.dao.ScratchDao.SearchProjects(params.UserID, params.Keyword)
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80035, "搜索项目失败", err)
 	}
 
-	// 手动分页处理
-	start := offset
-	end := offset + params.PageSize
-	if start > len(projects) {
-		start = len(projects)
-	}
-	if end > len(projects) {
-		end = len(projects)
-	}
-	pagedProjects := projects[start:end]
-
-	// 转换为响应格式
-	var projectInfos []ProjectInfo
-	for _, project := range pagedProjects {
-		projectInfos = append(projectInfos, ProjectInfo{
-			ID:        project.ID,
-			Title:     project.Name, // 使用Name字段而不是Title
-			CreatedAt: project.CreatedAt,
-			UpdatedAt: project.UpdatedAt,
-			UserID:    project.UserID,
-		})
-	}
-
-	return &SearchScratchResponse{
-		Projects: projectInfos,
-		Total:    int64(len(projects)),
-		Page:     params.Page,
-		PageSize: params.PageSize,
-		Query:    params.Q,
-	}, nil, nil
+	return projects, nil, nil
 }
 
 // RenderProjectThumbnail 渲染项目缩略图
