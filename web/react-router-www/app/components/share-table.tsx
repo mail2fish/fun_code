@@ -374,7 +374,7 @@ export function ShareTable({
             shares.map((share) => {
               const author = userOptions.find(user => user.id === share.user_id?.toString())?.nickname || "未知作者";
               return (
-                <Card key={share.id} className="flex flex-col h-full">
+                <Card key={share.id} className={`flex flex-col h-full ${!share.is_active ? 'bg-gray-100 opacity-75' : ''}`}>
                   <div className="w-full h-40 flex items-center justify-center rounded-t-xl bg-gray-50">
                     <a href={`${window.location.origin}/share/${share.share_token}`} target="_blank" rel="noopener noreferrer">
                       <img
@@ -412,73 +412,111 @@ export function ShareTable({
                     <div className="text-sm text-muted-foreground">创建时间：{formatDate(share.created_at)}</div>
                   </CardContent>
                                   <CardFooter className="flex flex-col gap-1 px-1 py-1">
-                    {/* 三个按钮在同一行 */}
-                    <div className="flex items-center justify-center gap-0 w-full">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        title="复制链接"
-                        onClick={() => handleCopyShareLink(share.share_token)}
-                        className="py-0 min-h-0 h-auto px-2 flex-1"
-                      >
-                        <IconCopy className="h-4 w-4 mr-1" />
-                        复制链接
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        title="打开分享"
-                        onClick={() => handleOpenShare(share.share_token)}
-                        className="py-0 min-h-0 h-auto px-2 flex-1"
-                      >
-                        <IconExternalLink className="h-4 w-4 mr-1" />
-                        打开分享
-                      </Button>
-                      {showDeleteButton && (
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title={share.is_active ? "关闭分享" : "删除分享"}
-                              asChild
-                              className="py-0 min-h-0 h-auto px-2 flex-1"
-                            >
-                              <a href='#'>
-                                <IconTrash className="h-4 w-4 mr-1" />
-                                {share.is_active ? "关闭分享" : "删除分享"}
-                              </a>
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>{share.is_active ? "确认关闭分享" : "确认删除分享"}</DialogTitle>
-                              <DialogDescription>
-                                {share.is_active 
-                                  ? `您确定要关闭分享 "${share.title}" 吗？关闭后该分享将无法访问。`
-                                  : `您确定要删除分享 "${share.title}" 吗？此操作无法撤销。`
-                                }
-                              </DialogDescription>
-                            </DialogHeader>
-                            <DialogFooter>
-                              <DialogClose asChild>
-                                <Button variant="outline">取消</Button>
-                              </DialogClose>
-                              <Button 
-                                variant="destructive" 
-                                onClick={() => handleDelete(share.id)}
-                                disabled={deletingId === share.id}
+                    {share.is_active ? (
+                      /* 分享激活时：显示所有按钮 */
+                      <div className="flex items-center justify-center gap-0 w-full">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="复制链接"
+                          onClick={() => handleCopyShareLink(share.share_token)}
+                          className="py-0 min-h-0 h-auto px-2 flex-1"
+                        >
+                          <IconCopy className="h-4 w-4 mr-1" />
+                          复制链接
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="打开分享"
+                          onClick={() => handleOpenShare(share.share_token)}
+                          className="py-0 min-h-0 h-auto px-2 flex-1"
+                        >
+                          <IconExternalLink className="h-4 w-4 mr-1" />
+                          打开分享
+                        </Button>
+                        {showDeleteButton && (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="关闭分享"
+                                asChild
+                                className="py-0 min-h-0 h-auto px-2 flex-1"
                               >
-                                {deletingId === share.id 
-                                  ? (share.is_active ? "关闭中..." : "删除中...") 
-                                  : (share.is_active ? "关闭分享" : "删除分享")
-                                }
+                                <a href='#'>
+                                  <IconTrash className="h-4 w-4 mr-1" />
+                                  关闭分享
+                                </a>
                               </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      )}
-                    </div>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>确认关闭分享</DialogTitle>
+                                <DialogDescription>
+                                  您确定要关闭分享 "{share.title}" 吗？关闭后该分享将无法访问。
+                                </DialogDescription>
+                              </DialogHeader>
+                              <DialogFooter>
+                                <DialogClose asChild>
+                                  <Button variant="outline">取消</Button>
+                                </DialogClose>
+                                <Button 
+                                  variant="destructive" 
+                                  onClick={() => handleDelete(share.id)}
+                                  disabled={deletingId === share.id}
+                                >
+                                  {deletingId === share.id ? "关闭中..." : "关闭分享"}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                      </div>
+                    ) : (
+                      /* 分享已关闭时：只显示删除按钮 */
+                      showDeleteButton && (
+                        <div className="flex items-center justify-center gap-0 w-full">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="删除分享"
+                                asChild
+                                className="py-0 min-h-0 h-auto px-2 flex-1"
+                              >
+                                <a href='#'>
+                                  <IconTrash className="h-4 w-4 mr-1" />
+                                  删除分享
+                                </a>
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>确认删除分享</DialogTitle>
+                                <DialogDescription>
+                                  您确定要删除分享 "{share.title}" 吗？此操作无法撤销。
+                                </DialogDescription>
+                              </DialogHeader>
+                              <DialogFooter>
+                                <DialogClose asChild>
+                                  <Button variant="outline">取消</Button>
+                                </DialogClose>
+                                <Button 
+                                  variant="destructive" 
+                                  onClick={() => handleDelete(share.id)}
+                                  disabled={deletingId === share.id}
+                                >
+                                  {deletingId === share.id ? "删除中..." : "删除分享"}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      )
+                    )}
                   </CardFooter>
                 </Card>
               )
