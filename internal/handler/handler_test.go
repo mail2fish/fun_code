@@ -576,7 +576,7 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 			admin.DELETE("/users/:user_id", h.DeleteUser)
 			admin.GET("/users/:user_id", gorails.Wrap(h.GetUserHandler, nil))
 			admin.GET("/users/search", h.GetSearchUsers)
-			admin.GET("/scratch/projects", h.GetAllScratchProject)
+			admin.GET("/scratch/projects", gorails.Wrap(h.GetAllScratchProjectHandler, nil))
 
 			// 文件上传 - 使用占位符
 			admin.POST("/files/upload", func(c *gin.Context) { c.JSON(200, gin.H{"message": "multi upload"}) })
