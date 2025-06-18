@@ -2,7 +2,10 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -229,13 +232,16 @@ func (h *Handler) UpdateProjectThumbnailHandler(c *gin.Context, params *UpdatePr
 
 // GetProjectThumbnailParams 获取项目缩略图参数
 type GetProjectThumbnailParams struct {
-	ID string `json:"id" uri:"id" binding:"required"`
+	ID uint `json:"id" uri:"id" binding:"required"`
 }
 
 func (p *GetProjectThumbnailParams) Parse(c *gin.Context) gorails.Error {
-	if err := c.ShouldBindUri(p); err != nil {
+	projectID := c.Param("id")
+	id, err := strconv.ParseUint(projectID, 10, 64)
+	if err != nil {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80024, "无效的项目ID", err)
 	}
+	p.ID = uint(id)
 	return nil
 }
 
@@ -246,14 +252,8 @@ func (h *Handler) GetProjectThumbnailHandler(c *gin.Context, params *GetProjectT
 		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80025, "未登录", nil)
 	}
 
-	// 转换项目ID
-	projectID, err := strconv.ParseUint(params.ID, 10, 32)
-	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80026, "无效的项目ID", err)
-	}
-
 	// 获取项目信息检查权限
-	project, err := h.dao.ScratchDao.GetProject(uint(projectID))
+	project, err := h.dao.ScratchDao.GetProject(params.ID)
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80027, "获取项目失败", err)
 	}
@@ -263,8 +263,27 @@ func (h *Handler) GetProjectThumbnailHandler(c *gin.Context, params *GetProjectT
 		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80028, "无权限访问", nil)
 	}
 
-	// 暂时返回功能未实现错误，需要在DAO中实现GetProjectThumbnail方法
-	return nil, nil, gorails.NewError(http.StatusNotImplemented, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80029, "缩略图功能暂未实现", nil)
+	// 使用 scratch 服务的基础路径
+	dirPath := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), project.FilePath)
+	// 构建缩略图文件路径
+	filename := filepath.Join(dirPath, fmt.Sprintf("%d.png", project.ID))
+
+	// 检查文件是否存在
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80030, "缩略图文件不存在", err)
+	}
+
+	// 读取文件内容
+	bodyData, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80031, "读取缩略图文件失败", err)
+	}
+
+	// 设置响应头
+	c.Header("Content-Type", "image/png")
+	c.Header("Content-Length", strconv.Itoa(len(bodyData)))
+
+	return bodyData, nil, nil
 }
 
 // ListScratchProjectsParams 列出Scratch项目参数
@@ -436,9 +455,7 @@ func (h *Handler) SearchScratchHandler(c *gin.Context, params *SearchScratchPara
 // RenderProjectThumbnail 渲染项目缩略图
 func RenderProjectThumbnail(c *gin.Context, data []byte, meta *gorails.ResponseMeta) {
 	// 简化实现，不使用Headers字段
-	c.Header("Content-Type", "image/png")
-	c.Header("Content-Length", strconv.Itoa(len(data)))
-	c.Data(http.StatusOK, "image/png", data)
+	c.Writer.Write(data)
 }
 
 // GetAllScratchProjectParams 获取所有Scratch项目请求参数
