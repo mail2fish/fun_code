@@ -79,6 +79,7 @@ export function ProjectTable({
   const [shareResultDialogOpen, setShareResultDialogOpen] = React.useState(false)
   const [shareUrl, setShareUrl] = React.useState("")
   const [currentShareProject, setCurrentShareProject] = React.useState<Project | null>(null)
+  const [isReactivating, setIsReactivating] = React.useState(false)
   const [shareForm, setShareForm] = React.useState({
     title: "",
     description: "",
@@ -386,11 +387,30 @@ export function ProjectTable({
       
       if (res.ok && result.data) {
         if (result.data.exists) {
-          // 已存在分享，直接显示分享链接
-          console.log("项目已存在分享，直接显示链接")
-          setShareUrl(result.data.share_url)
-          setShareResultDialogOpen(true)
-          setSharingId(null)
+          // 检查分享是否活跃
+          if (result.data.is_active) {
+            // 分享存在且活跃，直接显示分享链接
+            console.log("项目已存在活跃分享，直接显示链接")
+            setShareUrl(result.data.share_url)
+            setShareResultDialogOpen(true)
+            setSharingId(null)
+            setIsReactivating(false)
+          } else {
+            // 分享存在但未激活，显示重新激活对话框
+            console.log("项目分享存在但未激活，显示重新激活对话框")
+            const newShareForm = {
+              title: project.name || "",
+              description: "",
+              maxViews: "",
+              allowDownload: false,
+              allowRemix: true,
+            }
+            console.log("设置分享表单:", newShareForm)
+            setShareForm(newShareForm)
+            setSharingId(null) // 清除加载状态，允许用户点击重新激活按钮
+            setIsReactivating(true) // 标记为重新激活模式
+            setShareDialogOpen(true)
+          }
         } else {
           // 不存在分享，显示创建分享对话框
           console.log("项目未分享，显示创建对话框")
@@ -404,6 +424,7 @@ export function ProjectTable({
           console.log("设置分享表单:", newShareForm)
           setShareForm(newShareForm)
           setSharingId(null) // 清除加载状态，允许用户点击创建按钮
+          setIsReactivating(false) // 标记为创建模式
           setShareDialogOpen(true)
         }
       } else {
@@ -706,9 +727,9 @@ export function ProjectTable({
       }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>分享项目</DialogTitle>
+            <DialogTitle>{isReactivating ? "重新激活分享" : "分享项目"}</DialogTitle>
             <DialogDescription>
-              设置分享参数并生成分享链接
+              {isReactivating ? "该项目的分享已停用，您可以重新激活分享" : "设置分享参数并生成分享链接"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -742,7 +763,9 @@ export function ProjectTable({
               onClick={handleCreateShare}
               disabled={!currentShareProject || sharingId === currentShareProject?.id}
             >
-              {sharingId === currentShareProject?.id ? "创建中..." : "创建分享链接"}
+              {sharingId === currentShareProject?.id 
+                ? (isReactivating ? "激活中..." : "创建中...") 
+                : (isReactivating ? "重新激活分享" : "创建分享链接")}
             </Button>
           </DialogFooter>
         </DialogContent>

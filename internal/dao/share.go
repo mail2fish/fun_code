@@ -198,12 +198,14 @@ func (s *ShareDaoImpl) RecordView(shareID uint) error {
 }
 
 // ReshareProject 重新分享项目（重置访问计数）
-func (s *ShareDaoImpl) ReshareProject(shareID uint, userID uint) error {
+func (s *ShareDaoImpl) ReshareProject(shareID uint, userID uint, title, desc string) error {
 	result := s.db.Model(&model.Share{}).
 		Where("id = ? AND user_id = ?", shareID, userID).
 		Updates(map[string]interface{}{
-			"view_count": 0,
-			"is_active":  true,
+			"view_count":  0,
+			"is_active":   true,
+			"title":       title,
+			"description": desc,
 		})
 
 	if result.Error != nil {
@@ -364,7 +366,7 @@ func (s *ShareDaoImpl) GetAllShares(pageSize uint, beginID uint, forward, asc bo
 	}
 
 	// 执行查询，多查询一条用于判断是否有更多数据
-	if err := query.Limit(int(pageSize + 1)).Find(&shares).Error; err != nil {
+	if err := query.Where("is_active = ? and is_deleted = ?", true, false).Limit(int(pageSize + 1)).Find(&shares).Error; err != nil {
 		return nil, false, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 

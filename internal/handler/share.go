@@ -67,8 +67,22 @@ func (h *Handler) CreateShareHandler(c *gin.Context, params *CreateShareParams) 
 		AllowRemix:    params.AllowRemix,    // 使用前端传入的值
 	}
 
+	// 如果已存在分享，则更新分享
+	share, err := shareDao.GetShareByProject(params.ProjectID, userID)
+	if share != nil && err == nil {
+		err = shareDao.ReshareProject(share.ID, userID, params.Title, params.Description)
+		if err != nil {
+			return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 3, "重新分享失败", err)
+		}
+		return &CreateShareResponse{
+			ShareToken: share.ShareToken,
+			Title:      share.Title,
+			MaxViews:   share.MaxViews,
+		}, nil, nil
+	}
+
 	// 创建分享
-	share, err := shareDao.CreateShare(req)
+	share, err = shareDao.CreateShare(req)
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 3, "创建分享失败", err)
 	}
@@ -348,6 +362,7 @@ type CheckShareResponse struct {
 	Exists     bool   `json:"exists"`
 	ShareToken string `json:"share_token,omitempty"`
 	ShareURL   string `json:"share_url,omitempty"`
+	IsActive   bool   `json:"is_active"`
 }
 
 // CheckShareHandler 检查项目是否已存在分享
@@ -385,6 +400,7 @@ func (h *Handler) CheckShareHandler(c *gin.Context, params *CheckShareParams) (*
 		Exists:     true,
 		ShareToken: share.ShareToken,
 		ShareURL:   shareURL,
+		IsActive:   share.IsActive,
 	}, nil, nil
 }
 
