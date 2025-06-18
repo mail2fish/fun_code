@@ -310,14 +310,14 @@ func (p *GetShareScratchProjectParams) Parse(c *gin.Context) gorails.Error {
 	return nil
 }
 
-// GetShareScratchProjectResponse 分享项目访问的响应（直接渲染HTML）
-type GetShareScratchProjectResponse struct {
+// TemplateRenderResponse 分享项目访问的响应（直接渲染HTML）
+type TemplateRenderResponse struct {
 	Tmpl *template.Template
 	Data interface{}
 }
 
 // GetShareScratchProjectHandler 通过分享链接打开Scratch项目
-func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShareScratchProjectParams) (*GetShareScratchProjectResponse, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShareScratchProjectParams) (*TemplateRenderResponse, *gorails.ResponseMeta, gorails.Error) {
 	// 获取 shareDao 实例
 	shareDao := h.dao.ShareDao
 
@@ -395,10 +395,10 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 	}
 
 	// 返回空响应，因为HTML已经直接写入到c.Writer
-	return &GetShareScratchProjectResponse{Tmpl: tmpl, Data: data}, nil, nil
+	return &TemplateRenderResponse{Tmpl: tmpl, Data: data}, nil, nil
 }
 
-func RenderShareScratchProject(c *gin.Context, response *GetShareScratchProjectResponse, meta *gorails.ResponseMeta) {
+func RenderTemplateResponse(c *gin.Context, response *TemplateRenderResponse, meta *gorails.ResponseMeta) {
 	// 设置响应头并执行模板
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	if err := response.Tmpl.Execute(c.Writer, response.Data); err != nil {

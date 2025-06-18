@@ -50,7 +50,7 @@ func (s *Server) setupRoutes() {
 		staticHandler.ServeStatic(c)
 	})
 
-	s.router.GET("/shares/:token", gorails.Wrap(s.handler.GetShareScratchProjectHandler, handler.RenderShareScratchProject))
+	s.router.GET("/shares/:token", gorails.Wrap(s.handler.GetShareScratchProjectHandler, handler.RenderTemplateResponse))
 
 	// 公开路由 - 已改造为 gorails.Wrap 形式
 	s.router.POST("/api/auth/register", gorails.Wrap(s.handler.RegisterHandler, nil))
@@ -121,7 +121,7 @@ func (s *Server) setupRoutes() {
 	projects.Use(s.handler.AuthMiddleware())
 	{
 		projects.GET("/scratch/new", gorails.Wrap(s.handler.GetNewScratchProjectHandler, nil))
-		projects.GET("/scratch/open/:id", gorails.Wrap(s.handler.GetOpenScratchProjectHandler, nil))
+		projects.GET("/scratch/open/:id", gorails.Wrap(s.handler.GetOpenScratchProjectHandler, handler.RenderTemplateResponse))
 	}
 
 	assets := s.router.Group("/assets")

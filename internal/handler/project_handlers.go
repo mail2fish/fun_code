@@ -1,11 +1,15 @@
 package handler
 
 import (
+	"html/template"
+	"io/fs"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/custom_error"
+	"github.com/jun/fun_code/web"
 	"github.com/mail2fish/gorails/gorails"
 )
 
@@ -46,50 +50,102 @@ func (h *Handler) GetNewScratchProjectHandler(c *gin.Context, params *GetNewScra
 
 // GetOpenScratchProjectParams 打开Scratch项目参数
 type GetOpenScratchProjectParams struct {
-	ID string `json:"id" uri:"id" binding:"required"`
+	ID    uint
+	RawID string
 }
 
 func (p *GetOpenScratchProjectParams) Parse(c *gin.Context) gorails.Error {
-	if err := c.ShouldBindUri(p); err != nil {
+	rawID := c.Param("id")
+	splitID := strings.Split(rawID, "_")
+
+	if len(splitID) == 0 {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 90003, "无效的项目ID", nil)
+	}
+
+	projectID := splitID[0]
+
+	// 从 service 获取项目数据
+	// 将 projectID 字符串转换为 uint 类型
+	id, err := strconv.ParseUint(projectID, 10, 64)
+	if err != nil {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 90003, "无效的项目ID", err)
 	}
+	p.ID = uint(id)
+	p.RawID = rawID
 	return nil
 }
 
-// GetOpenScratchProjectResponse 打开Scratch项目响应
-type GetOpenScratchProjectResponse struct {
-	ProjectID uint   `json:"project_id"`
-	Status    string `json:"status"`
-	Message   string `json:"message"`
-}
+func (h *Handler) GetOpenScratchProjectHandler(c *gin.Context, params *GetOpenScratchProjectParams) (*TemplateRenderResponse, *gorails.ResponseMeta, gorails.Error) {
 
-func (h *Handler) GetOpenScratchProjectHandler(c *gin.Context, params *GetOpenScratchProjectParams) (*GetOpenScratchProjectResponse, *gorails.ResponseMeta, gorails.Error) {
-	// 获取当前用户ID
-	userID := h.getUserID(c)
-	if userID == 0 {
-		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 90004, "未登录", nil)
-	}
-
-	// 转换项目ID
-	projectID, err := strconv.ParseUint(params.ID, 10, 32)
+	// 获取项目创建者ID
+	project, err := h.dao.ScratchDao.GetProject(params.ID)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 90005, "无效的项目ID", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 90004, "获取项目失败", err)
+	}
+	userID := project.UserID
+	loginedUserID := h.getUserID(c)
+	// 判断用户是否是项目创建者或者为管理员
+	if userID != loginedUserID && !h.hasPermission(c, PermissionManageAll) {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 90005, "无权限访问", nil)
 	}
 
-	// 检查项目是否存在
-	project, err := h.dao.ScratchDao.GetProject(uint(projectID))
+	user, err := h.dao.UserDao.GetUserByID(loginedUserID)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 90006, "项目不存在", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 90006, "获取用户失败", err)
 	}
 
-	// 检查权限 - 只有项目所有者或管理员可以打开
-	if project.UserID != userID && !h.hasPermission(c, PermissionManageAll) {
-		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 90007, "无权限访问", nil)
+	// 从嵌入的文件系统中获取index.html
+	scratchFS, err := fs.Sub(web.ScratchStaticFiles, "scratch/dist")
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 90007, "获取项目失败", err)
 	}
 
-	return &GetOpenScratchProjectResponse{
-		ProjectID: uint(projectID),
-		Status:    "ok",
-		Message:   "项目打开成功",
-	}, nil, nil
+	// 读取index.html文件
+	htmlContent, err := fs.ReadFile(scratchFS, "index.html")
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 90008, "获取项目失败", err)
+	}
+
+	// 将HTML内容转换为字符串
+	htmlStr := string(htmlContent)
+
+	// 创建模板
+	tmpl, err := template.New("scratch").Parse(htmlStr)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 90009, "获取项目失败", err)
+	}
+
+	// 如果项目ID存在保护的数组中，则不允许保存
+	canSaveProject := true
+	for _, id := range h.config.Protected.Projects {
+		if project.ID == id {
+			canSaveProject = false
+			break
+		}
+	}
+
+	// 准备模板数据，新项目不需要项目ID
+	data := struct {
+		CanSaveProject bool
+		ProjectID      string
+		Host           string
+		ProjectTitle   string
+		CanRemix       bool
+		UserName       string
+		NickName       string
+		IsPlayerOnly   bool
+		IsFullScreen   bool
+	}{
+		CanSaveProject: canSaveProject,
+		ProjectID:      params.RawID,                // 新项目使用0作为ID
+		Host:           h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
+		ProjectTitle:   project.Name,
+		CanRemix:       project.UserID == loginedUserID,
+		UserName:       user.Username,
+		NickName:       user.Nickname,
+		IsPlayerOnly:   false,
+		IsFullScreen:   false,
+	}
+
+	return &TemplateRenderResponse{Tmpl: tmpl, Data: data}, nil, nil
 }
