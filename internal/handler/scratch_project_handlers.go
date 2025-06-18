@@ -485,15 +485,8 @@ func (p *GetAllScratchProjectParams) Parse(c *gin.Context) gorails.Error {
 	return nil
 }
 
-// GetAllScratchProjectResponse 获取所有Scratch项目响应
-type GetAllScratchProjectResponse struct {
-	Data    []model.ScratchProject `json:"data"`
-	HasMore bool                   `json:"hasMore"`
-	Total   int64                  `json:"total"`
-}
-
 // GetAllScratchProjectHandler 获取所有Scratch项目 gorails.Wrap 形式
-func (h *Handler) GetAllScratchProjectHandler(c *gin.Context, params *GetAllScratchProjectParams) (*GetAllScratchProjectResponse, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) GetAllScratchProjectHandler(c *gin.Context, params *GetAllScratchProjectParams) ([]model.ScratchProject, *gorails.ResponseMeta, gorails.Error) {
 	// 获取项目总数
 	total, err := h.dao.ScratchDao.CountProjects(0) // 0表示获取所有用户的项目
 	if err != nil {
@@ -506,9 +499,8 @@ func (h *Handler) GetAllScratchProjectHandler(c *gin.Context, params *GetAllScra
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 60013, "获取项目列表失败", err)
 	}
 
-	return &GetAllScratchProjectResponse{
-		Data:    projects,
-		HasMore: hasMore,
-		Total:   total,
-	}, nil, nil
+	return projects, &gorails.ResponseMeta{
+		Total:   int(total),
+		HasNext: hasMore,
+	}, nil
 }

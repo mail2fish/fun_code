@@ -60,7 +60,6 @@ interface ProjectTableProps {
   projectsData?: ProjectsData
   isLoading?: boolean
   onDeleteProject: (id: string) => Promise<void>
-  onPageChange?: (nextCursor: string,forward:boolean,asc:boolean) => void
   showUserFilter?: boolean
   projectsApiUrl: string
 }
@@ -71,7 +70,6 @@ const CACHE_EXPIRE = 60 * 60 * 1000; // 1小时
 
 export function ProjectTable({ 
   onDeleteProject,
-  onPageChange,
   showUserFilter = false,
   projectsApiUrl,
 }: ProjectTableProps) {
