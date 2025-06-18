@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/custom_error"
 	"github.com/mail2fish/gorails/gorails"
-	"go.uber.org/zap"
 )
 
 // RegisterParams 注册请求参数
@@ -123,7 +122,6 @@ func (h *Handler) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := getToken(c)
 		if token == "" {
-			h.logger.Error("未提供认证token")
 			// 重定向到首页
 			c.Redirect(http.StatusFound, "/")
 			c.Abort()
@@ -132,7 +130,6 @@ func (h *Handler) AuthMiddleware() gin.HandlerFunc {
 
 		claims, err := h.dao.AuthDao.ValidateToken(token)
 		if err != nil {
-			h.logger.Error("认证token无效", zap.Error(err))
 			// 重定向到首页
 			c.Redirect(http.StatusFound, "/")
 			c.Abort()

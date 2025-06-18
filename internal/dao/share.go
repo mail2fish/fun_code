@@ -366,7 +366,7 @@ func (s *ShareDaoImpl) GetAllShares(pageSize uint, beginID uint, forward, asc bo
 	}
 
 	// 执行查询，多查询一条用于判断是否有更多数据
-	if err := query.Where("is_active = ? and is_deleted = ?", true, false).Limit(int(pageSize + 1)).Find(&shares).Error; err != nil {
+	if err := query.Where("is_active = ?", true).Limit(int(pageSize + 1)).Find(&shares).Error; err != nil {
 		return nil, false, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SHARE, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
