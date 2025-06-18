@@ -283,14 +283,26 @@ export function ShareTable({
   }
 
   const handleDelete = async (id: number) => {
+    const share = shares.find(s => s.id === id)
+    if (!share) return
+
     if (onDeleteShare) {
       setDeletingId(id)
       try {
         await onDeleteShare(id.toString())
-        setShares(prev => prev.filter(share => share.id !== id))
-        toast("分享删除成功")
+        
+        if (share.is_active) {
+          // 关闭分享：不从列表删除，只显示成功消息
+          toast("分享已关闭")
+          // 可以选择刷新列表以获取最新状态
+          window.location.reload()
+        } else {
+          // 删除分享：从列表中移除
+          setShares(prev => prev.filter(share => share.id !== id))
+          toast("分享删除成功")
+        }
       } catch (error) {
-        toast("删除分享失败")
+        toast(share.is_active ? "关闭分享失败" : "删除分享失败")
       } finally {
         setDeletingId(null)
       }
