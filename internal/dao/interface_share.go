@@ -26,6 +26,9 @@ type ShareDao interface {
 	// GetUserShares 获取用户的分享列表（游标分页）
 	GetUserShares(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Share, bool, error)
 
+	// GetAllShares 获取所有分享列表（游标分页）
+	GetAllShares(pageSize uint, beginID uint, forward, asc bool) ([]model.Share, bool, error)
+
 	// UpdateShare 更新分享信息
 	UpdateShare(shareID uint, userID uint, updates map[string]interface{}) error
 

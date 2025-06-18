@@ -93,8 +93,13 @@ func (h *Handler) GetMenuListHandler(c *gin.Context, params *gorails.EmptyParams
 				IsActive: false,
 			},
 			{
-				Title:    "分享程序列表",
-				URL:      "/www/shares/list",
+				Title:    "我的分享",
+				URL:      "/www/shares/user",
+				IsActive: false,
+			},
+			{
+				Title:    "全部分享",
+				URL:      "/www/shares/all",
 				IsActive: false,
 			},
 			{

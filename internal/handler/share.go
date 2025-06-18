@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jun/fun_code/internal/custom_error"
 	"github.com/jun/fun_code/internal/dao"
 	"github.com/jun/fun_code/web"
 	"github.com/mail2fish/gorails/gorails"
@@ -149,11 +150,12 @@ type ShareResponse struct {
 // ListSharesResponse 列出分享响应
 type ListSharesResponse struct {
 	Shares []*ShareResponse `json:"shares"` // 分享列表
+	Users  []UserResponse   `json:"users"`  // 用户列表
 }
 
-// ListSharesHandler 列出用户分享
-// @Summary 分页获取用户分享列表，支持正向和反向翻页
-func (h *Handler) ListSharesHandler(c *gin.Context, params *ListSharesParams) (*ListSharesResponse, *gorails.ResponseMeta, gorails.Error) {
+// ListAllSharesHandler 列出所有分享
+// @Summary 分页获取所有分享列表，支持正向和反向翻页
+func (h *Handler) ListAllSharesHandler(c *gin.Context, params *ListSharesParams) (*ListSharesResponse, *gorails.ResponseMeta, gorails.Error) {
 	// 获取当前用户ID
 	userID := h.getUserID(c)
 	if userID == 0 {
@@ -169,8 +171,12 @@ func (h *Handler) ListSharesHandler(c *gin.Context, params *ListSharesParams) (*
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 5, "获取分享列表失败", err)
 	}
 
+	// 筛选出projects里面所有的 UserID
+	userIDs := make(map[uint]bool)
+
 	// 构建响应数据
 	shareResponses := make([]*ShareResponse, len(shares))
+
 	for i, share := range shares {
 		shareResponses[i] = &ShareResponse{
 			ID:             share.ID,
@@ -195,10 +201,25 @@ func (h *Handler) ListSharesHandler(c *gin.Context, params *ListSharesParams) (*
 		if share.ScratchProject != nil {
 			shareResponses[i].ProjectName = share.ScratchProject.Name
 		}
+		userIDs[share.UserID] = true
 	}
+
+	userIDsList := make([]uint, 0, len(userIDs))
+	for userID := range userIDs {
+		userIDsList = append(userIDsList, userID)
+	}
+
+	// 获取所有userIDs
+	users, err := h.dao.UserDao.GetUsersByIDs(userIDsList)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60014, "获取用户列表失败", err)
+	}
+
+	userResponses := h.OnlyUsersIDAndNickname(users)
 
 	response := &ListSharesResponse{
 		Shares: shareResponses,
+		Users:  userResponses,
 	}
 
 	return response, &gorails.ResponseMeta{

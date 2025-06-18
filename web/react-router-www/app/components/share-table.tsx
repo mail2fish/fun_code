@@ -57,7 +57,7 @@ const CACHE_EXPIRE = 60 * 60 * 1000; // 1小时
 export function ShareTable({ 
   onDeleteShare,
   sharesApiUrl,
-  showDeleteButton = true,
+  showDeleteButton = false,
 }: ShareTableProps) {
   const [deletingId, setDeletingId] = React.useState<number | null>(null)
   const [searchKeyword, setSearchKeyword] = React.useState("");
@@ -144,6 +144,7 @@ export function ShareTable({
   // 监听排序变化，重置缓存并加载初始数据
   React.useEffect(() => {
     setShares([])
+    setUserOptions([]) // 清空用户选项
     setHasMoreTop(true)
     setHasMoreBottom(true)
     setLocalInitialLoading(true)
@@ -200,10 +201,33 @@ export function ShareTable({
         newShares = resp.data.shares;
       }
 
+      // 更新用户信息
+      if (Array.isArray(resp.data?.users)) {
+        const newUsers: User[] = resp.data.users.map((user: any) => ({
+          id: user.id.toString(),
+          nickname: user.nickname || user.username || `用户${user.id}`
+        }));
+        
+        // 合并新用户信息，避免重复
+        setUserOptions(prev => {
+          const existingIds = new Set(prev.map(u => u.id));
+          const uniqueNewUsers = newUsers.filter(u => !existingIds.has(u.id));
+          return [...prev, ...uniqueNewUsers];
+        });
+      }
+
       if (reset) {
         setShares(newShares)
         setHasMoreTop(newShares.length === pageSize)
         setHasMoreBottom(newShares.length === pageSize)
+        // 重置时清空用户选项，避免过期数据
+        if (Array.isArray(resp.data?.users)) {
+          const resetUsers: User[] = resp.data.users.map((user: any) => ({
+            id: user.id.toString(),
+            nickname: user.nickname || user.username || `用户${user.id}`
+          }));
+          setUserOptions(resetUsers);
+        }
       } else if (direction === "up") {
         setShares(prev => [...newShares, ...prev])
         setHasMoreTop(newShares.length === pageSize)
@@ -225,19 +249,6 @@ export function ShareTable({
     }
   }
 
-  // 获取用户列表
-  React.useEffect(() => {
-    async function fetchUsers() {
-      try {
-        const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?pageSize=100`);
-        const data = await res.json();
-        if (Array.isArray(data.data)) {
-          setUserOptions(data.data)
-        }
-      } catch (e) {}
-    }
-    fetchUsers()
-  }, [])
 
   // 初始加载
   React.useEffect(() => {
