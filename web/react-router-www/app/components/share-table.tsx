@@ -60,6 +60,7 @@ export function ShareTable({
   showDeleteButton = false,
 }: ShareTableProps) {
   const [deletingId, setDeletingId] = React.useState<number | null>(null)
+  const [reactivatingId, setReactivatingId] = React.useState<number | null>(null)
   const [searchKeyword, setSearchKeyword] = React.useState("");
   const [searching, setSearching] = React.useState(false);
   const [userOptions, setUserOptions] = React.useState<User[]>([]);
@@ -309,6 +310,51 @@ export function ShareTable({
     }
   }
 
+  // 重新激活分享
+  const handleReactivateShare = async (share: ShareItem) => {
+    setReactivatingId(share.id)
+    try {
+      const shareData = {
+        project_id: share.project_id,
+        project_type: share.project_type,
+        title: share.title,
+        description: share.description,
+        max_views: share.max_views,
+        allow_download: share.allow_download,
+        allow_remix: share.allow_remix,
+      }
+
+      console.log("重新激活分享，发送到API的数据:", shareData)
+
+      const res = await fetchWithAuth(`${HOST_URL}/api/shares`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(shareData),
+      })
+
+      const result = await res.json()
+      console.log("重新激活分享API响应:", result)
+      
+      // 检查是否成功：HTTP状态OK且有data字段
+      if (res.ok && result.data && result.data.share_token) {
+        toast("分享已重新激活")
+        // 刷新页面以获取最新状态
+        window.location.reload()
+      } else {
+        console.error("重新激活分享失败:", result)
+        const errorMessage = result.message || result.error || "未知错误"
+        toast(`重新激活分享失败：${errorMessage}`)
+      }
+    } catch (error) {
+      console.error("重新激活分享时出错：", error)
+      toast("重新激活分享时出现网络错误")
+    } finally {
+      setReactivatingId(null)
+    }
+  }
+
   if (localInitialLoading) {
     return <div className="text-center py-4">加载中...</div>
   }
@@ -443,7 +489,7 @@ export function ShareTable({
                                 size="sm"
                                 title="关闭分享"
                                 asChild
-                                className="py-0 min-h-0 h-auto px-2 flex-1"
+                                className="py-0 min-h-0 h-auto px-2 flex-1 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
                               >
                                 <a href='#'>
                                   <IconTrash className="h-4 w-4 mr-1" />
@@ -466,6 +512,7 @@ export function ShareTable({
                                   variant="destructive" 
                                   onClick={() => handleDelete(share.id)}
                                   disabled={deletingId === share.id}
+                                  className="bg-gray-600 hover:bg-gray-700"
                                 >
                                   {deletingId === share.id ? "关闭中..." : "关闭分享"}
                                 </Button>
@@ -475,9 +522,46 @@ export function ShareTable({
                         )}
                       </div>
                     ) : (
-                      /* 分享已关闭时：只显示删除按钮 */
-                      showDeleteButton && (
-                        <div className="flex items-center justify-center gap-0 w-full">
+                      /* 分享已关闭时：显示重新分享和删除按钮 */
+                      <div className="flex items-center justify-center gap-0 w-full">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="重新分享"
+                              asChild
+                              disabled={reactivatingId === share.id}
+                              className="py-0 min-h-0 h-auto px-2 flex-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            >
+                              <a href='#'>
+                                <IconShare className="h-4 w-4 mr-1" />
+                                {reactivatingId === share.id ? "激活中..." : "重新分享"}
+                              </a>
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>确认重新分享</DialogTitle>
+                              <DialogDescription>
+                                您确定要重新激活分享 "{share.title}" 吗？激活后该分享将重新可用。
+                              </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                              <DialogClose asChild>
+                                <Button variant="outline">取消</Button>
+                              </DialogClose>
+                                                             <Button 
+                                 onClick={() => handleReactivateShare(share)}
+                                 disabled={reactivatingId === share.id}
+                                 className="bg-blue-600 hover:bg-blue-700"
+                               >
+                                {reactivatingId === share.id ? "激活中..." : "重新分享"}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                        {showDeleteButton && (
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button
@@ -485,7 +569,7 @@ export function ShareTable({
                                 size="sm"
                                 title="删除分享"
                                 asChild
-                                className="py-0 min-h-0 h-auto px-2 flex-1"
+                                className="py-0 min-h-0 h-auto px-2 flex-1 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
                               >
                                 <a href='#'>
                                   <IconTrash className="h-4 w-4 mr-1" />
@@ -508,14 +592,15 @@ export function ShareTable({
                                   variant="destructive" 
                                   onClick={() => handleDelete(share.id)}
                                   disabled={deletingId === share.id}
+                                  className="bg-purple-600 hover:bg-purple-700"
                                 >
                                   {deletingId === share.id ? "删除中..." : "删除分享"}
                                 </Button>
                               </DialogFooter>
                             </DialogContent>
                           </Dialog>
-                        </div>
-                      )
+                        )}
+                      </div>
                     )}
                   </CardFooter>
                 </Card>
