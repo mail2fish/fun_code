@@ -551,7 +551,7 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 		auth.GET("/scratch/projects/:id/histories", h.GetScratchProjectHistories)
 		auth.GET("/scratch/projects/search", h.GetSearchScratch)
 		auth.PUT("/scratch/projects/:id/thumbnail", h.PutUpdateProjectThumbnail)
-		auth.GET("/scratch/projects/:id/thumbnail", h.GetProjectThumbnail)
+		auth.GET("/scratch/projects/:id/thumbnail", gorails.Wrap(h.GetProjectThumbnailHandler, RenderProjectThumbnail))
 
 		// 分享相关路由 - 使用占位符
 		auth.POST("/shares", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create share"}) })
