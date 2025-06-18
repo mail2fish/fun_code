@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -171,13 +172,28 @@ func (h *Handler) SaveScratchProjectHandler(c *gin.Context, params *SaveScratchP
 
 // UpdateProjectThumbnailParams 更新项目缩略图参数
 type UpdateProjectThumbnailParams struct {
-	ID string `json:"id" uri:"id" binding:"required"`
+	ID   uint
+	Body io.ReadCloser
 }
 
 func (p *UpdateProjectThumbnailParams) Parse(c *gin.Context) gorails.Error {
-	if err := c.ShouldBindUri(p); err != nil {
+	// 从路径参数获取项目ID
+	rawID := c.Param("id")
+	splitID := strings.Split(rawID, "_")
+
+	if len(splitID) == 0 {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80016, "无效的项目ID", nil)
+	}
+
+	projectID := splitID[0]
+	id, err := strconv.ParseUint(projectID, 10, 64)
+	if err != nil {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80016, "无效的项目ID", err)
 	}
+	p.ID = uint(id)
+
+	// 读取 body，最多只读取 2M
+	p.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2*1024*1024)
 	return nil
 }
 
@@ -193,38 +209,42 @@ func (h *Handler) UpdateProjectThumbnailHandler(c *gin.Context, params *UpdatePr
 		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80017, "未登录", nil)
 	}
 
-	// 转换项目ID
-	projectID, err := strconv.ParseUint(params.ID, 10, 32)
+	// 获取项目创建者ID
+	project, err := h.dao.ScratchDao.GetProject(params.ID)
+
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80018, "无效的项目ID", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80018, "获取项目失败", err)
+	}
+	// 判断用户是否是项目创建者或者为管理员
+	if project.UserID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80019, "无权限访问", nil)
 	}
 
-	// 获取项目信息检查权限
-	project, err := h.dao.ScratchDao.GetProject(uint(projectID))
+	// 如果项目ID存在在不允许保存的数组中，则不允许保存
+	for _, id := range h.config.Protected.Projects {
+		if project.ID == id {
+			return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80020, "该项目受保护，不能保存", nil)
+		}
+	}
+
+	// 读取请求体中的二进制数据
+	bodyData, err := io.ReadAll(params.Body)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80019, "获取项目失败", err)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80021, "读取缩略图失败", err)
 	}
 
-	// 检查权限
-	if project.UserID != userID && !h.hasPermission(c, PermissionManageAll) {
-		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80020, "无权限访问", nil)
+	if len(bodyData) == 0 {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80022, "读取缩略图失败", nil)
 	}
 
-	// 获取上传的图片数据
-	file, header, err := c.Request.FormFile("image")
-	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80021, "没有上传图片", err)
+	dirPath := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), project.FilePath)
+	// 构建新的文件路径
+	filename := filepath.Join(dirPath, fmt.Sprintf("%d.png", project.ID))
+
+	// 保存文件
+	if err := os.WriteFile(filename, bodyData, 0644); err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80026, "保存缩略图失败", err)
 	}
-	defer file.Close()
-
-	// 验证文件类型
-	if header.Header.Get("Content-Type") != "image/png" {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80022, "图片格式不正确，只支持PNG格式", nil)
-	}
-
-	// 暂时返回功能未实现错误，需要在DAO中实现UpdateProjectThumbnail方法
-	return nil, nil, gorails.NewError(http.StatusNotImplemented, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80023, "缩略图功能暂未实现", nil)
-
 	return &UpdateProjectThumbnailResponse{
 		Status: "ok",
 	}, nil, nil
