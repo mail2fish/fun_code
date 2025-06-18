@@ -466,7 +466,7 @@ export function ProjectTable({
       // 检查是否成功：HTTP状态OK且有data字段
       if (res.ok && result.data && result.data.share_token) {
         const shareToken = result.data.share_token
-        const newShareUrl = `${window.location.origin}/share/${shareToken}`
+        const newShareUrl = `${window.location.origin}/shares/${shareToken}`
         
         console.log("分享创建成功，URL:", newShareUrl)
         
