@@ -130,14 +130,25 @@ export default function ListUserPage() {
     setSearching(true);
     const timer = setTimeout(async () => {
       try {
-        // 这里可以添加用户搜索API调用
-        // 暂时先显示所有用户
-        setUsers([]);
+        const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/search?keyword=${encodeURIComponent(searchKeyword)}`);
+        const data = await res.json();
+        
+        if (Array.isArray(data.data)) {
+          setUsers(data.data);
+          setTotalUsers(data.data.length);
+        } else {
+          setUsers([]);
+          setTotalUsers(0);
+        }
+        
         setHasMoreTop(false);
         setHasMoreBottom(false);
         setLocalInitialLoading(false);
-      } catch (e) {
+      } catch (error) {
+        console.error("搜索用户失败:", error);
         setUsers([]);
+        setTotalUsers(0);
+        toast("搜索用户失败");
       } finally {
         setSearching(false);
       }

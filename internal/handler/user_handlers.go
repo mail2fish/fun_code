@@ -333,11 +333,14 @@ type SearchUsersParams struct {
 func (p *SearchUsersParams) Parse(c *gin.Context) gorails.Error {
 	// 解析关键词
 	p.Keyword = c.DefaultQuery("keyword", "")
+	if p.Keyword == "" {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60012, "无效的搜索关键词", nil)
+	}
 	return nil
 }
 
 // SearchUsersHandler 搜索用户 gorails.Wrap 形式
-func (h *Handler) SearchUsersHandler(c *gin.Context, params *SearchUsersParams) ([]model.User, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) SearchUsersHandler(c *gin.Context, params *SearchUsersParams) ([]UserResponse, *gorails.ResponseMeta, gorails.Error) {
 	// 搜索用户
 	users, err := h.dao.UserDao.SearchUsers(params.Keyword)
 	if err != nil {
@@ -349,7 +352,24 @@ func (h *Handler) SearchUsersHandler(c *gin.Context, params *SearchUsersParams) 
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60011, msg, err)
 	}
 
-	return users, nil, nil
+	userResponses := make([]UserResponse, len(users))
+	for i, user := range users {
+		nickname := user.Nickname
+		if nickname == "" {
+			nickname = user.Username
+		}
+		userResponses[i] = UserResponse{
+			ID:        user.ID,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
+			DeletedAt: user.DeletedAt,
+			Username:  user.Username,
+			Nickname:  nickname,
+			Email:     user.Email,
+			Role:      user.Role,
+		}
+	}
+	return userResponses, nil, nil
 }
 
 // SetUserRole 设置用户角色
