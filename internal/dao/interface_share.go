@@ -40,6 +40,8 @@ type ShareDao interface {
 
 	// CheckShareAccess 检查分享是否可访问（包括访问次数限制）
 	CheckShareAccess(share *model.Share) error
+
+	IsShareProject(projectID uint) bool
 }
 
 // CreateShareRequest 创建分享链接的请求参数

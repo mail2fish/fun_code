@@ -491,3 +491,11 @@ func (s *ShareDaoImpl) generateShareToken() (string, error) {
 	}
 	return "", errors.New("生成唯一token失败")
 }
+
+func (s *ShareDaoImpl) IsShareProject(projectID uint) bool {
+	var share model.Share
+	if err := s.db.Where("project_id = ?", projectID).First(&share).Error; err != nil {
+		return false
+	}
+	return share.IsActive
+}

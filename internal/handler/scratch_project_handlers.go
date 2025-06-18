@@ -287,7 +287,7 @@ func (h *Handler) GetProjectThumbnailHandler(c *gin.Context, params *GetProjectT
 	}
 
 	// 检查权限
-	if project.UserID != userID && !h.hasPermission(c, PermissionManageAll) {
+	if project.UserID != userID && !h.hasPermission(c, PermissionManageAll) && !h.dao.ShareDao.IsShareProject(params.ID) {
 		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80028, "无权限访问", nil)
 	}
 
