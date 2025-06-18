@@ -95,79 +95,87 @@ func (h *Handler) CreateScratchProjectHandler(c *gin.Context, params *CreateScra
 
 // SaveScratchProjectParams 保存Scratch项目参数
 type SaveScratchProjectParams struct {
-	ID   string                 `json:"id" uri:"id" binding:"required"`
-	Data map[string]interface{} `json:"data" binding:"required"`
+	ID    uint
+	Data  map[string]interface{} `json:"data" binding:"required"`
+	Title string                 `json:"title" form:"title"`
 }
 
 func (p *SaveScratchProjectParams) Parse(c *gin.Context) gorails.Error {
-	if err := c.ShouldBindJSON(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80006, "无效的请求参数", err)
+	rawID := c.Param("id")
+	splitID := strings.Split(rawID, "_")
+
+	if len(splitID) == 0 {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80008, "无效的项目ID", nil)
 	}
-	if err := c.ShouldBindUri(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80007, "无效的项目ID", err)
+
+	projectID := splitID[0]
+
+	// 从路径参数获取项目ID
+	id, err := strconv.ParseUint(projectID, 10, 64)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80009, "无效的项目ID", err)
 	}
+	p.ID = uint(id)
+
+	// 修改后的请求体结构
+	req := make(map[string]interface{})
+	if err = c.ShouldBindJSON(&req); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80010, "无效的请求参数", err)
+	}
+	p.Data = req
+	p.Title = c.DefaultQuery("title", "Scratch Project")
 	return nil
 }
 
 // SaveScratchProjectResponse 保存Scratch项目响应
 type SaveScratchProjectResponse struct {
-	Status string `json:"status"`
+	Status      string `json:"status"`
+	ContentName uint   `json:"content-name"`
 }
 
 func (h *Handler) SaveScratchProjectHandler(c *gin.Context, params *SaveScratchProjectParams) (*SaveScratchProjectResponse, *gorails.ResponseMeta, gorails.Error) {
-	// 获取当前用户ID
-	userID := h.getUserID(c)
-	if userID == 0 {
-		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80008, "未登录", nil)
-	}
 
-	// 处理项目ID（支持带下划线的格式）
-	rawID := params.ID
-	splitID := strings.Split(rawID, "_")
-	if len(splitID) == 0 {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80009, "无效的项目ID", nil)
-	}
-	projectIDStr := splitID[0]
+	// 获取项目创建者ID
+	project, err := h.dao.ScratchDao.GetProject(params.ID)
 
-	// 转换项目ID
-	projectID, err := strconv.ParseUint(projectIDStr, 10, 32)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80010, "无效的项目ID", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80010, "获取项目失败", err)
+	}
+	userID := project.UserID
+	// 判断用户是否是项目创建者或者为管理员
+	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80011, "无权限访问", nil)
 	}
 
-	// 获取项目信息检查权限
-	project, err := h.dao.ScratchDao.GetProject(uint(projectID))
-	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80011, "获取项目失败", err)
-	}
-
-	// 检查权限 - 验证用户是否有权限保存该项目
-	if project.UserID != userID && !h.hasPermission(c, PermissionManageAll) {
-		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80012, "无权限访问", nil)
-	}
-
-	// 检查受保护项目
-	for _, protectedID := range h.config.Protected.Projects {
-		if project.ID == protectedID {
-			return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80013, "该项目受保护，不能保存", nil)
+	// 如果项目ID存在在不允许保存的数组中，则不允许保存
+	for _, id := range h.config.Protected.Projects {
+		if project.ID == id {
+			return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80012, "无权限访问", nil)
 		}
 	}
 
-	// 序列化数据
-	jsonData, err := json.Marshal(params.Data)
+	r, err := json.Marshal(params.Data)
+
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80014, "序列化数据失败", err)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80013, "序列化数据失败", err)
 	}
 
 	// 保存项目
-	_, err = h.dao.ScratchDao.SaveProject(userID, uint(projectID), "", jsonData)
+	// 修改服务调用参数
+	// 由于 SaveProject 返回 uint 类型，需要将 projectID 声明为 uint
+	_, err = h.dao.ScratchDao.SaveProject(userID, params.ID, params.Title, r)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80015, "保存项目失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 80014, "保存项目失败", err)
 	}
 
 	return &SaveScratchProjectResponse{
-		Status: "ok",
+		Status:      "ok",
+		ContentName: params.ID,
 	}, nil, nil
+}
+
+func RenderSaveScratchProjectResponse(c *gin.Context, response *SaveScratchProjectResponse, meta *gorails.ResponseMeta) {
+	c.JSON(http.StatusOK, response)
 }
 
 // UpdateProjectThumbnailParams 更新项目缩略图参数
