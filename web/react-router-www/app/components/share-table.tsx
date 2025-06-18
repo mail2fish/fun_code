@@ -428,21 +428,24 @@ export function ShareTable({
                             <Button
                               variant="ghost"
                               size="sm"
-                              title="删除分享"
+                              title={share.is_active ? "关闭分享" : "删除分享"}
                               asChild
                               className="py-0 min-h-0 h-auto px-2 flex-1"
                             >
                               <a href='#'>
                                 <IconTrash className="h-4 w-4 mr-1" />
-                                删除分享
+                                {share.is_active ? "关闭分享" : "删除分享"}
                               </a>
                             </Button>
                           </DialogTrigger>
                           <DialogContent>
                             <DialogHeader>
-                              <DialogTitle>确认删除</DialogTitle>
+                              <DialogTitle>{share.is_active ? "确认关闭分享" : "确认删除分享"}</DialogTitle>
                               <DialogDescription>
-                                您确定要删除分享 "{share.title}" 吗？此操作无法撤销。
+                                {share.is_active 
+                                  ? `您确定要关闭分享 "${share.title}" 吗？关闭后该分享将无法访问。`
+                                  : `您确定要删除分享 "${share.title}" 吗？此操作无法撤销。`
+                                }
                               </DialogDescription>
                             </DialogHeader>
                             <DialogFooter>
@@ -454,7 +457,10 @@ export function ShareTable({
                                 onClick={() => handleDelete(share.id)}
                                 disabled={deletingId === share.id}
                               >
-                                {deletingId === share.id ? "删除中..." : "删除"}
+                                {deletingId === share.id 
+                                  ? (share.is_active ? "关闭中..." : "删除中...") 
+                                  : (share.is_active ? "关闭分享" : "删除分享")
+                                }
                               </Button>
                             </DialogFooter>
                           </DialogContent>
