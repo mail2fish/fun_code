@@ -295,7 +295,7 @@ func TestShareDao_ReshareProject(t *testing.T) {
 	assert.Equal(t, int64(3), updatedShare.TotalViewCount)
 
 	// 重新分享
-	err = shareDao.ReshareProject(share.ID, 1)
+	err = shareDao.ReshareProject(share.ID, 1, "重新分享测试", "这是一个重新分享测试")
 	assert.NoError(t, err)
 
 	// 验证分享已重新激活，当前访问次数重置，总访问次数保持

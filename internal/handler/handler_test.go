@@ -158,6 +158,11 @@ type MockFileService struct {
 	mock.Mock
 }
 
+func (m *MockFileService) SearchFiles(keyword string) ([]*model.File, gorails.Error) {
+	args := m.Called(keyword)
+	return args.Get(0).([]*model.File), args.Error(1).(gorails.Error)
+}
+
 func (m *MockFileService) GetFileBySHA1(sha1 string) (*model.File, gorails.Error) {
 	args := m.Called(sha1)
 	if args.Get(0) == nil {
@@ -545,12 +550,12 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 		// Scratch 相关路由 - 使用传统形式方法
 		auth.GET("/scratch/projects/:id", h.GetScratchProject)
 		auth.POST("/scratch/projects", h.PostCreateScratchProject)
-		auth.PUT("/scratch/projects/:id", h.PutSaveScratchProject)
+		auth.PUT("/scratch/projects/:id", gorails.Wrap(h.SaveScratchProjectHandler, nil))
 		auth.GET("/scratch/projects", h.ListScratchProjects)
 		auth.DELETE("/scratch/projects/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete project"}) })
-		auth.GET("/scratch/projects/:id/histories", h.GetScratchProjectHistories)
-		auth.GET("/scratch/projects/search", h.GetSearchScratch)
-		auth.PUT("/scratch/projects/:id/thumbnail", h.PutUpdateProjectThumbnail)
+		auth.GET("/scratch/projects/:id/histories", gorails.Wrap(h.GetScratchProjectHistoriesHandler, nil))
+		auth.GET("/scratch/projects/search", gorails.Wrap(h.SearchScratchHandler, nil))
+		auth.PUT("/scratch/projects/:id/thumbnail", gorails.Wrap(h.UpdateProjectThumbnailHandler, nil))
 		auth.GET("/scratch/projects/:id/thumbnail", gorails.Wrap(h.GetProjectThumbnailHandler, RenderProjectThumbnail))
 
 		// 分享相关路由 - 使用占位符
