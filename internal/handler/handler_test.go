@@ -39,12 +39,12 @@ func (m *MockAuthService) Register(username, password, email string) error {
 }
 
 // 修改 MockAuthService 的 Login 方法
-func (m *MockAuthService) Login(username, password string) (string, *http.Cookie, error) {
+func (m *MockAuthService) Login(username, password string) (*dao.LoginResponse, error) {
 	args := m.Called(username, password)
-	if args.Get(1) == nil {
-		return args.String(0), nil, args.Error(2)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return args.String(0), args.Get(1).(*http.Cookie), args.Error(2)
+	return args.Get(0).(*dao.LoginResponse), args.Error(1)
 }
 
 // Logout 方法的模拟实现

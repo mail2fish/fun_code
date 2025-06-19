@@ -17,7 +17,7 @@ type Dao struct {
 
 type AuthDao interface {
 	Register(username, password, email string) error
-	Login(username, password string) (string, *http.Cookie, error)
+	Login(username, password string) (*LoginResponse, error)
 	Logout(token string) (*http.Cookie, error)
 	ValidateToken(tokenString string) (*Claims, error)
 	GenerateCookie(token string) *http.Cookie

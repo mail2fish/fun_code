@@ -49,25 +49,31 @@ func (s *AuthDaoImpl) GenerateCookie(token string) *http.Cookie {
 	}
 }
 
+type LoginResponse struct {
+	Token  string       `json:"token"`
+	Cookie *http.Cookie `json:"cookie"`
+	Role   string       `json:"role"`
+}
+
 // Login 方法，返回用户的登录 token 和 cookie，并创建一个 session id，用于后续的请求验证
 // Login 方法，添加缓存逻辑
-func (s *AuthDaoImpl) Login(username, password string) (string, *http.Cookie, error) {
+func (s *AuthDaoImpl) Login(username, password string) (*LoginResponse, error) {
 	var user model.User
 	if err := s.db.Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", nil, errors.New("用户不存在")
+			return nil, errors.New("用户不存在")
 		}
-		return "", nil, err
+		return nil, err
 	}
 
 	// 验证密码
 	if s.isDemo {
 		if password != "demo123456" {
-			return "", nil, errors.New("密码错误")
+			return nil, errors.New("密码错误")
 		}
 	} else {
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-			return "", nil, errors.New("密码错误")
+			return nil, errors.New("密码错误")
 		}
 	}
 
@@ -115,11 +121,11 @@ func (s *AuthDaoImpl) Login(username, password string) (string, *http.Cookie, er
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(s.jwtKey)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
 	cookie := s.GenerateCookie(tokenString)
-	return tokenString, cookie, nil
+	return &LoginResponse{Token: tokenString, Cookie: cookie, Role: user.Role}, nil
 }
 
 // Logout 方法，添加缓存清理逻辑

@@ -52,27 +52,28 @@ func (p *LoginParams) Parse(c *gin.Context) gorails.Error {
 // LoginResponse 登录响应
 type LoginResponse struct {
 	Token string `json:"token"`
+	Role  string `json:"role"`
 }
 
 // LoginHandler 用户登录 gorails.Wrap 形式
 func (h *Handler) LoginHandler(c *gin.Context, params *LoginParams) (*LoginResponse, *gorails.ResponseMeta, gorails.Error) {
-	token, cookie, err := h.dao.AuthDao.Login(params.Username, params.Password)
+	loginResponse, err := h.dao.AuthDao.Login(params.Username, params.Password)
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.AUTH), 40004, err.Error(), err)
 	}
 
 	// 设置 cookie
 	c.SetCookie(
-		cookie.Name,
-		cookie.Value,
-		cookie.MaxAge,
-		cookie.Path,
-		cookie.Domain,
-		cookie.Secure,
-		cookie.HttpOnly,
+		loginResponse.Cookie.Name,
+		loginResponse.Cookie.Value,
+		loginResponse.Cookie.MaxAge,
+		loginResponse.Cookie.Path,
+		loginResponse.Cookie.Domain,
+		loginResponse.Cookie.Secure,
+		loginResponse.Cookie.HttpOnly,
 	)
 
-	return &LoginResponse{Token: token}, nil, nil
+	return &LoginResponse{Token: loginResponse.Token, Role: loginResponse.Role}, nil, nil
 }
 
 // LogoutParams 登出请求参数
@@ -178,37 +179,6 @@ func (h *Handler) Register(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "注册成功"})
-}
-
-func (h *Handler) Login(c *gin.Context) {
-	var req struct {
-		Username string `json:"username" binding:"required"`
-		Password string `json:"password" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "参数无效"})
-		return
-	}
-
-	token, cookie, err := h.dao.AuthDao.Login(req.Username, req.Password)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 设置 cookie
-	c.SetCookie(
-		cookie.Name,
-		cookie.Value,
-		cookie.MaxAge,
-		cookie.Path,
-		cookie.Domain,
-		cookie.Secure,
-		cookie.HttpOnly,
-	)
-
-	c.JSON(http.StatusOK, gin.H{"token": token})
 }
 
 // Logout 处理用户登出请求
