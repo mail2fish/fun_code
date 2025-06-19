@@ -1,75 +1,81 @@
 import * as React from "react"
-import { Link } from "react-router"
-import { IconShare } from "@tabler/icons-react"
+import { Globe, Plus, Star, Sparkles } from "lucide-react"
+import { Toaster } from "sonner"
 
-import { AppSidebar } from "~/components/my-app-sidebar"
+import { UserLayout } from "~/components/user-layout"
 import { ShareTable } from "~/components/share-table"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "~/components/ui/breadcrumb"
 import { Button } from "~/components/ui/button"
-import { Separator } from "~/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "~/components/ui/sidebar"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
+import { HOST_URL } from "~/config"
+import { useUserInfo, useUser } from "~/hooks/use-user"
 
-// API 服务
-import { HOST_URL } from "~/config";
+export default function AllSharePage() {
+  const [isButtonCooling, setIsButtonCooling] = React.useState(false);
+  
+  // 使用统一的用户信息管理
+  const { userInfo } = useUserInfo();
+  const { logout } = useUser();
 
-export default function Page() {
+  // 处理新建分享按钮点击
+  const handleNewShareClick = (e: React.MouseEvent) => {
+    if (isButtonCooling) {
+      e.preventDefault();
+      return;
+    }
+    setIsButtonCooling(true);
+    setTimeout(() => {
+      setIsButtonCooling(false);
+    }, 2000);
+  };
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    我的分享
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>分享列表</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-          <div className="ml-auto mr-4">
+    <UserLayout
+      userInfo={userInfo || undefined}
+      onLogout={logout}
+    >
+      {/* 全部分享列表 */}
+      <Card className="fun-card border-gray-200">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <Globe className="w-6 h-6 text-purple-600" />
+              <div>
+                <CardTitle className="text-xl text-gray-800">全部分享</CardTitle>
+                <CardDescription>发现小伙伴们的精彩作品，获得创作灵感</CardDescription>
+              </div>
+            </div>
+            
+            {/* 去创建分享按钮 */}
             <Button 
-              size="sm" 
+              size="lg"
+              disabled={isButtonCooling}
               asChild
+              className="fun-button-secondary"
             >
-              <Link 
-                to="/www/scratch/projects" 
+              <a 
+                href="/www/scratch/projects" 
+                onClick={handleNewShareClick}
+                className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
               >
-                <IconShare className="mr-2 h-4 w-4" />
-                去创建分享
-              </Link>
+                <Sparkles className="mr-2 h-5 w-5" />
+                {isButtonCooling ? "跳转中..." : "我也要分享"}
+              </a>
             </Button>
           </div>
-        </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        </CardHeader>
+        <CardContent>
           <ShareTable 
             sharesApiUrl={`${HOST_URL}/api/shares/all`}
           />
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+        </CardContent>
+      </Card>
+
+      {/* Toast 通知 */}
+      <Toaster 
+        position="top-right"
+        theme="light"
+        richColors
+      />
+    </UserLayout>
   )
 } 

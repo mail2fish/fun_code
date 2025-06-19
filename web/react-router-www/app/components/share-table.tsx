@@ -360,35 +360,45 @@ export function ShareTable({
   }
 
   return (
-    <div className="flex flex-col gap-2 h-[90vh]">
-      <div className="flex items-center gap-2 px-2 sticky top-0 z-10 bg-white/80 backdrop-blur">
+    <div className="flex flex-col gap-4 h-[90vh]">
+      {/* 童趣化的搜索排序控件区域 */}
+      <div className="flex flex-wrap items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200">
         {/* 分享标题搜索栏 */}
-        <input
-          className="w-48 h-8 px-3 border border-input rounded-md bg-background text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition"
-          placeholder="搜索分享标题"
-          value={searchKeyword}
-          onChange={e => setSearchKeyword(e.target.value)}
-          style={{ boxSizing: 'border-box' }}
-        />
-
-        <Select value={sortOrder} onValueChange={v => {
-              setSortOrder(v as "asc" | "desc")
-              saveCache("0")
-            }}> 
-              <SelectTrigger className="w-28">
-                <SelectValue placeholder="排序" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="desc">最新优先</SelectItem>
-                <SelectItem value="asc">最旧优先</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">🔍 搜索分享：</span>
+          <input
+            className="w-48 h-10 px-4 border-2 border-purple-200 rounded-2xl bg-white text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-all duration-300"
+            placeholder="输入分享标题..."
+            value={searchKeyword}
+            onChange={e => setSearchKeyword(e.target.value)}
+            style={{ boxSizing: 'border-box' }}
+          />
+        </div>
+        
+        <div className="flex items-center text-gray-400 text-sm">或</div>
+        
+        {/* 排序选择器 */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">📅 排序：</span>
+          <Select value={sortOrder} onValueChange={v => {
+                setSortOrder(v as "asc" | "desc")
+                saveCache("0")
+              }}> 
+                <SelectTrigger className="w-32 rounded-xl border-2 border-purple-200 focus:border-purple-400">
+                  <SelectValue placeholder="排序" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">🆕 最新优先</SelectItem>
+                  <SelectItem value="asc">⏰ 最旧优先</SelectItem>
+                </SelectContent>
+              </Select>
+        </div>
         
         {/* 刷新按钮 */}
         <Button
           variant="outline"
           size="sm"
-          className="h-8 px-3 text-sm font-normal rounded-md border shadow-sm"
+          className="h-10 px-4 text-sm font-medium rounded-2xl border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300"
           onClick={() => {
             setShares([])
             setHasMoreTop(true)
@@ -397,8 +407,8 @@ export function ShareTable({
             fetchData({ direction: "down", reset: true, customBeginID: "0" })
           }}
         >
-          <IconRefresh className="h-4 w-4 mr-1" />
-          刷新
+          <IconRefresh className="h-4 w-4 mr-2" />
+          🔄 刷新
         </Button>
       </div>
       <div
