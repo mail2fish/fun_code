@@ -623,8 +623,8 @@ export function ProjectTable({
             projects.map((project, idx) => {
               const creator = userOptions.find(user => user.id === project.user_id)?.nickname || "未知";
               return (
-                <Card key={project.id || Math.random()} className="flex flex-col h-full rounded-2xl shadow-md border-2 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] bg-white border-purple-200">
-                  <div className="w-full h-48 flex items-center justify-center rounded-t-2xl bg-gradient-to-br from-purple-50 to-pink-50 relative overflow-hidden">
+                <Card key={project.id || Math.random()} className="flex flex-col h-full rounded-2xl shadow-md border-2 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:border-purple-400 hover:shadow-purple-200/50 hover:bg-gradient-to-br hover:from-purple-50 hover:to-pink-50 bg-white border-purple-200">
+                  <div className="w-full h-48 flex items-center justify-center rounded-t-2xl bg-gradient-to-br from-purple-50 to-pink-50 relative overflow-hidden transition-all duration-300 hover:from-purple-100 hover:to-pink-100">
                     <a href={`${HOST_URL}/projects/scratch/open/${project.id}`}>
                       <img
                         src={`${HOST_URL}/api/scratch/projects/${project.id}/thumbnail`}
@@ -637,10 +637,10 @@ export function ProjectTable({
                     <div className="text-xs text-purple-500 font-medium bg-purple-50 px-2 py-1 rounded-lg inline-block w-fit">
                       🎯 项目序号：{project.id}
                     </div>
-                    <div className="font-bold text-xl text-gray-800 line-clamp-2 leading-tight">
+                    <div className="font-bold text-xl text-gray-800 line-clamp-2 leading-tight group">
                       <a 
                         href={`${HOST_URL}/projects/scratch/open/${project.id}`}
-                        className="hover:text-purple-600 transition-colors duration-200"
+                        className="hover:text-purple-600 transition-all duration-200 group-hover:drop-shadow-sm"
                       >
                         {project.name || "未命名项目"}
                       </a>
@@ -667,10 +667,10 @@ export function ProjectTable({
                           size="sm"
                           title="编辑"
                           asChild
-                          className="flex-1 h-9 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 font-medium text-sm"
+                          className="flex-1 h-9 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 hover:scale-105 hover:shadow-md transition-all duration-200 font-medium text-sm group"
                         >
                           <a href={`${HOST_URL}/projects/scratch/open/${project.id}`}>
-                            <IconEdit className="h-4 w-4 mr-1" />
+                            <IconEdit className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
                             编辑
                           </a>
                         </Button>
@@ -680,9 +680,9 @@ export function ProjectTable({
                           title="分享"
                           onClick={() => handleShareClick(project)}
                           disabled={sharingId === project.id}
-                          className="flex-1 h-9 bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 transition-all duration-200 font-medium text-sm"
+                          className="flex-1 h-9 bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 hover:scale-105 hover:shadow-md transition-all duration-200 font-medium text-sm group"
                         >
-                          <IconShare className="h-4 w-4 mr-1" />
+                          <IconShare className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
                           {sharingId === project.id ? "分享中..." : "分享"}
                         </Button>
                       </div>

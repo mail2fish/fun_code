@@ -430,8 +430,8 @@ export function ShareTable({
             shares.map((share) => {
               const author = userOptions.find(user => user.id === share.user_id?.toString())?.nickname || "未知作者";
               return (
-                <Card key={share.id} className={`flex flex-col h-full rounded-2xl shadow-md border-2 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] ${!share.is_active ? 'bg-gray-50 border-gray-200 opacity-80' : 'bg-white border-purple-200'}`}>
-                  <div className="w-full h-48 flex items-center justify-center rounded-t-2xl bg-gradient-to-br from-purple-50 to-pink-50 relative overflow-hidden">
+                <Card key={share.id} className={`flex flex-col h-full rounded-2xl shadow-md border-2 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:border-purple-400 hover:shadow-purple-200/50 hover:bg-gradient-to-br hover:from-purple-50 hover:to-pink-50 ${!share.is_active ? 'bg-gray-50 border-gray-200 opacity-80 hover:opacity-90 hover:border-gray-400 hover:shadow-gray-200/50 hover:from-gray-50 hover:to-gray-100' : 'bg-white border-purple-200'}`}>
+                  <div className="w-full h-48 flex items-center justify-center rounded-t-2xl bg-gradient-to-br from-purple-50 to-pink-50 relative overflow-hidden transition-all duration-300 hover:from-purple-100 hover:to-pink-100">
                     {/* 状态标识 */}
                     <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${share.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                       {share.is_active ? '✅ 活跃' : '❌ 已停用'}
@@ -448,12 +448,12 @@ export function ShareTable({
                     <div className="text-xs text-purple-500 font-medium bg-purple-50 px-2 py-1 rounded-lg inline-block w-fit">
                       🎯 分享序号：{share.id}
                     </div>
-                    <div className="font-bold text-xl text-gray-800 line-clamp-2 leading-tight">
+                    <div className="font-bold text-xl text-gray-800 line-clamp-2 leading-tight group">
                       <a 
                         href={`${window.location.origin}/share/${share.share_token}`} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="hover:text-purple-600 transition-colors duration-200"
+                        className="hover:text-purple-600 transition-all duration-200 group-hover:drop-shadow-sm"
                       >
                         {share.title || "未命名分享"}
                       </a>
@@ -504,9 +504,9 @@ export function ShareTable({
                               size="sm"
                               title="复制链接"
                               onClick={() => handleCopyShareLink(share.share_token)}
-                              className="flex-1 h-9 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 font-medium text-sm"
+                              className="flex-1 h-9 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 hover:scale-105 hover:shadow-md transition-all duration-200 font-medium text-sm"
                             >
-                              <IconCopy className="h-4 w-4 mr-1" />
+                              <IconCopy className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
                               复制链接
                             </Button>
                             <Button
@@ -514,9 +514,9 @@ export function ShareTable({
                               size="sm"
                               title="打开分享"
                               onClick={() => handleOpenShare(share.share_token)}
-                              className="flex-1 h-9 bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 transition-all duration-200 font-medium text-sm"
+                              className="flex-1 h-9 bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 hover:scale-105 hover:shadow-md transition-all duration-200 font-medium text-sm"
                             >
-                              <IconExternalLink className="h-4 w-4 mr-1" />
+                              <IconExternalLink className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
                               打开分享
                             </Button>
                           </div>

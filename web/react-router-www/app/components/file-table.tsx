@@ -402,15 +402,15 @@ export function FileTable({
         {loadingTop && <div className="text-center text-xs text-muted-foreground py-2">加载中...</div>}
         {!hasMoreTop && <div className="text-center text-xs text-muted-foreground py-2">已到顶部</div>}
         
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {files.length > 0 ? (
             files.map((file) => (
-              <Card key={file.id} className="flex flex-col h-full">
-                <div className="w-full h-40 flex items-center justify-center rounded-t-xl bg-gray-50">
+              <Card key={file.id} className="flex flex-col h-full rounded-2xl shadow-md border-2 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:border-blue-400 hover:shadow-blue-200/50 hover:bg-gradient-to-br hover:from-blue-50 hover:to-green-50 bg-white border-blue-200">
+                <div className="w-full h-48 flex items-center justify-center rounded-t-2xl bg-gradient-to-br from-blue-50 to-green-50 relative overflow-hidden transition-all duration-300 hover:from-blue-100 hover:to-green-100">
                   {file.content_type === CONTENT_TYPE_IMAGE || file.content_type === CONTENT_TYPE_SPRITE3 ? (
                     <img
                       src={`${HOST_URL}/api/files/${file.id}/preview`}
-                      className="max-h-32 max-w-full object-contain"
+                      className="max-h-40 max-w-full object-contain transition-transform duration-300 hover:scale-110"
                       alt="文件预览"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
@@ -429,82 +429,104 @@ export function FileTable({
                     </div>
                   )}
                 </div>
-                <CardContent className="flex flex-col gap-2 flex-1">
-                  <div className="text-xs text-muted-foreground">文件ID：{file.id}</div>
+                <CardContent className="flex flex-col gap-2.5 flex-1 p-5">
+                  <div className="text-xs text-blue-500 font-medium bg-blue-50 px-2 py-1 rounded-lg inline-block w-fit">
+                    🎯 文件ID：{file.id}
+                  </div>
                   {file.description && (
-                    <div className="font-medium text-base line-clamp-2" title={file.description}>
-                      {file.description}
+                    <div className="font-bold text-xl text-gray-800 line-clamp-2 leading-tight group">
+                      <span 
+                        className="hover:text-blue-600 transition-all duration-200 group-hover:drop-shadow-sm cursor-default"
+                        title={file.description}
+                      >
+                        {file.description}
+                      </span>
                     </div>
                   )}
-                  <div className="text-sm text-muted-foreground">
-                    类型：{getContentTypeName(file.content_type)}
+                  <div className="text-sm text-gray-600 flex items-center gap-1">
+                    <span className="text-purple-500">📁</span>
+                    <span className="font-medium">类型：</span>
+                    <span>{getContentTypeName(file.content_type)}</span>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    大小：{formatFileSize(file.size)}
+                  <div className="text-sm text-gray-600 flex items-center gap-1">
+                    <span className="text-orange-500">📏</span>
+                    <span className="font-medium">大小：</span>
+                    <span>{formatFileSize(file.size)}</span>
                   </div>
                   {file.tag_id > 0 && (
-                    <div className="text-sm text-muted-foreground">
-                      标签：{file.tag_id}
+                    <div className="text-sm text-gray-600 flex items-center gap-1">
+                      <span className="text-green-500">🏷️</span>
+                      <span className="font-medium">标签：</span>
+                      <span>{file.tag_id}</span>
                     </div>
                   )}
                 </CardContent>
-                <CardFooter className="flex items-center gap-0 px-1 py-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    title="下载"
-                    className="py-0 min-h-0 h-auto px-1"
-                    onClick={() => handleDownload(file.id, file.original_name)}
-                  >
-                    <IconDownload className="h-4 w-4 mr-1" />
-                    下载
-                  </Button>
-                  {showDeleteButton && (
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="删除"
-                          className="py-0 min-h-0 h-auto px-1"
-                        >
-                          <IconTrash className="h-4 w-4 mr-1" />
-                          删除
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="rounded-3xl border-4 border-red-200 bg-gradient-to-br from-red-50 to-pink-50">
-                        <DialogHeader className="text-center">
-                          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                            <IconTrash className="w-8 h-8 text-red-500" />
-                          </div>
-                          <DialogTitle className="text-2xl font-bold text-gray-800">⚠️ 确认删除文件</DialogTitle>
-                          <DialogDescription className="text-lg text-gray-600 mt-2">
-                            您确定要删除文件 "<span className="font-medium text-purple-600">{file.original_name}</span>" 吗？
-                            <br />
-                            <span className="text-red-500 font-medium">此操作无法撤销哦！</span>
-                          </DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter className="flex gap-3 pt-6">
-                          <DialogClose asChild>
-                            <Button 
-                              variant="outline"
-                              className="flex-1 h-12 rounded-2xl border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-medium"
-                            >
-                              💭 再想想
-                            </Button>
-                          </DialogClose>
-                          <Button 
-                            variant="destructive" 
-                            onClick={() => handleDelete(file.id)}
-                            disabled={deletingId === file.id}
-                            className="flex-1 h-12 rounded-2xl bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-medium border-0"
+                <CardFooter className="p-5 pt-0 pb-5">
+                  <div className="flex gap-2 w-full">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      title="下载"
+                      className="flex-1 h-9 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 hover:scale-105 hover:shadow-md transition-all duration-200 font-medium text-sm group"
+                      onClick={() => handleDownload(file.id, file.original_name)}
+                    >
+                      <IconDownload className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
+                      下载
+                    </Button>
+                    {showDeleteButton && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            title="删除"
+                            className="flex-1 h-9 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 hover:scale-105 hover:shadow-md transition-all duration-200 font-medium text-sm group"
                           >
-                            {deletingId === file.id ? "🗑️ 删除中..." : "🗑️ 确认删除"}
+                            <IconTrash className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
+                            删除
                           </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  )}
+                        </DialogTrigger>
+                        <DialogContent className="rounded-3xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-pink-50 shadow-2xl">
+                          <DialogHeader className="text-center pb-4">
+                            <DialogTitle className="text-2xl font-bold text-red-700 flex items-center justify-center gap-2">
+                              <span className="text-3xl">⚠️</span>
+                              确认删除文件
+                            </DialogTitle>
+                            <DialogDescription className="text-gray-700 text-lg mt-4 bg-white/70 p-4 rounded-2xl border border-red-100">
+                              <div className="flex items-start gap-3">
+                                <span className="text-2xl">🤔</span>
+                                <div>
+                                  您确定要删除文件 <span className="font-semibold text-red-800">"{file.original_name}"</span> 吗？
+                                  <br />
+                                  <span className="text-red-600 font-medium">此操作无法撤销。</span>
+                                </div>
+                              </div>
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter className="flex gap-3 pt-4">
+                            <DialogClose asChild>
+                              <Button 
+                                variant="outline"
+                                className="flex-1 h-12 rounded-2xl border-2 border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-200"
+                              >
+                                <span className="mr-2">❌</span>
+                                取消
+                              </Button>
+                            </DialogClose>
+                            <Button 
+                              variant="destructive" 
+                              onClick={() => handleDelete(file.id)}
+                              disabled={deletingId === file.id}
+                              className="flex-1 h-12 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 rounded-2xl border-2 border-red-400 text-white font-bold text-lg shadow-md hover:shadow-lg transition-all duration-200"
+                            >
+                              <span className="mr-2">💥</span>
+                              {deletingId === file.id ? "删除中..." : "删除文件"}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
                 </CardFooter>
               </Card>
             ))
