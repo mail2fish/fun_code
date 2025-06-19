@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router";
 import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { 
   LayoutDashboard, 
   Users, 
@@ -11,7 +17,11 @@ import {
   Menu,
   X,
   FileText,
-  Upload
+  Upload,
+  Share2,
+  ChevronDown,
+  UserPlus,
+  UserCheck
 } from "lucide-react";
 
 interface AdminNavbarProps {
@@ -24,18 +34,24 @@ interface AdminNavbarProps {
 
 export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const location = useLocation();
 
   const navItems = [
-    { href: "/www/dashboard", label: "仪表板", icon: LayoutDashboard },
-    { href: "/www/admin/users/list", label: "用户管理", icon: Users },
-    { href: "/www/admin/scratch/projects", label: "项目管理", icon: FolderOpen },
-    { href: "/www/admin/files/list", label: "文件管理", icon: FileText },
+    { href: "/www/dashboard", label: "首页", icon: LayoutDashboard },
+    { href: "/www/admin/scratch/projects", label: "程序管理", icon: FolderOpen },
+    { href: "/www/admin/files/list", label: "资源文件", icon: FileText },
     { href: "/www/admin/files/upload", label: "文件上传", icon: Upload },
-    { href: "/www/shares/all", label: "分享管理", icon: Shield },
+    { href: "/www/shares/all", label: "分享管理", icon: Share2 },
+  ];
+
+  const userMenuItems = [
+    { href: "/www/admin/users/list", label: "用户列表", icon: UserCheck },
+    { href: "/www/admin/users/create", label: "创建用户", icon: UserPlus },
   ];
 
   const isActive = (path: string) => location.pathname === path;
+  const isUserMenuActive = userMenuItems.some(item => isActive(item.href));
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-white shadow-sm admin-scrollbar">
@@ -71,6 +87,49 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
                 </Link>
               );
             })}
+            
+            {/* User Management Dropdown */}
+            <DropdownMenu open={isUserMenuOpen} onOpenChange={setIsUserMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={`group flex items-center space-x-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                    isUserMenuActive
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                  }`}
+                  onMouseEnter={() => setIsUserMenuOpen(true)}
+                  onMouseLeave={() => setIsUserMenuOpen(false)}
+                >
+                  <Users className="h-4 w-4" />
+                  <span>用户管理</span>
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent 
+                align="start" 
+                className="w-48"
+                onMouseEnter={() => setIsUserMenuOpen(true)}
+                onMouseLeave={() => setIsUserMenuOpen(false)}
+              >
+                {userMenuItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <DropdownMenuItem key={item.href} asChild>
+                      <Link
+                        to={item.href}
+                        className={`flex items-center space-x-2 w-full ${
+                          isActive(item.href) ? "bg-blue-50 text-blue-600" : ""
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* User Info & Logout */}
@@ -134,6 +193,32 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
                   </Link>
                 );
               })}
+              
+              {/* User Management Section - Mobile */}
+              <div className="space-y-1">
+                <div className="flex items-center space-x-3 px-3 py-2 text-base font-medium text-gray-900 bg-gray-100 rounded-lg">
+                  <Users className="h-5 w-5" />
+                  <span>用户管理</span>
+                </div>
+                {userMenuItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      className={`flex items-center space-x-3 rounded-lg px-6 py-2 text-sm font-medium transition-colors duration-200 ${
+                        isActive(item.href)
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                      }`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
               
               {/* Mobile User Info & Logout */}
               <div className="border-t pt-4 mt-4">

@@ -62,7 +62,7 @@ export function LoginForm({
       // 根据角色跳转到不同页面
       const userRole = response.data.data.role;
       if (userRole === "admin") {
-        navigate("/www/dashboard"); // 管理员跳转到用户管理
+        navigate("/www/admin_dashboard"); // 管理员跳转到用户管理
       } else {
         navigate("/www/dashboard"); // 学生/教师跳转到项目页面
       }
