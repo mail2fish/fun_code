@@ -1,12 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { Button } from "./ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
+
 import { 
   LayoutDashboard, 
   Users, 
@@ -36,6 +31,7 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const location = useLocation();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const navItems = [
     { href: "/www/dashboard", label: "首页", icon: LayoutDashboard },
@@ -52,6 +48,32 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
 
   const isActive = (path: string) => location.pathname === path;
   const isUserMenuActive = userMenuItems.some(item => isActive(item.href));
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setIsUserMenuOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      setIsUserMenuOpen(false);
+    }, 150); // 150ms 延迟
+  };
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-white shadow-sm admin-scrollbar">
@@ -89,47 +111,45 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
             })}
             
             {/* User Management Dropdown */}
-            <DropdownMenu open={isUserMenuOpen} onOpenChange={setIsUserMenuOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className={`group flex items-center space-x-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
-                    isUserMenuActive
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
-                  }`}
-                  onMouseEnter={() => setIsUserMenuOpen(true)}
-                  onMouseLeave={() => setIsUserMenuOpen(false)}
-                >
-                  <Users className="h-4 w-4" />
-                  <span>用户管理</span>
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent 
-                align="start" 
-                className="w-48"
-                onMouseEnter={() => setIsUserMenuOpen(true)}
-                onMouseLeave={() => setIsUserMenuOpen(false)}
+            <div
+              className="relative"
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
+              <Button
+                variant="ghost"
+                className={`group flex items-center space-x-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                  isUserMenuActive || isUserMenuOpen
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                }`}
               >
-                {userMenuItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <DropdownMenuItem key={item.href} asChild>
+                <Users className="h-4 w-4" />
+                <span>用户管理</span>
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+              
+              {/* 自定义下拉菜单 */}
+              {isUserMenuOpen && (
+                <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                  {userMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
                       <Link
+                        key={item.href}
                         to={item.href}
-                        className={`flex items-center space-x-2 w-full ${
-                          isActive(item.href) ? "bg-blue-50 text-blue-600" : ""
+                        className={`flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-gray-50 transition-colors duration-200 ${
+                          isActive(item.href) ? "bg-blue-50 text-blue-600" : "text-gray-700"
                         }`}
                       >
                         <Icon className="h-4 w-4" />
                         <span>{item.label}</span>
                       </Link>
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* User Info & Logout */}
