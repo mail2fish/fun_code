@@ -2,15 +2,7 @@ import * as React from "react"
 import { Link } from "react-router"
 import { IconPlus, IconEdit, IconTrash, IconRefresh } from "@tabler/icons-react"
 
-import { AppSidebar } from "~/components/my-app-sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "~/components/ui/breadcrumb"
+import { AdminLayout } from "~/components/admin-layout"
 import { Button } from "~/components/ui/button"
 import {
   Dialog,
@@ -22,12 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog"
-import { Separator } from "~/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "~/components/ui/sidebar"
 import {
   Table,
   TableBody,
@@ -38,6 +24,7 @@ import {
 } from "~/components/ui/table"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "~/components/ui/select"
 import { toast } from "sonner"
+import { useUser } from "~/hooks/use-user"
 
 // 导入自定义的 fetch 函数
 import { fetchWithAuth } from "~/utils/api"
@@ -64,6 +51,7 @@ export default function ListUserPage() {
   const [deletingId, setDeletingId] = React.useState<number | null>(null)
   const [searchKeyword, setSearchKeyword] = React.useState("");
   const [searching, setSearching] = React.useState(false);
+  const { userInfo, logout } = useUser();
   
   // 先尝试从localStorage读取缓存
   const getInitialCache = () => {
@@ -317,218 +305,240 @@ export default function ListUserPage() {
     }, 2000) // 2秒冷却时间
   }
 
+  const adminInfo = userInfo ? {
+    name: userInfo.nickname || userInfo.username,
+    role: userInfo.role === 'admin' ? '管理员' : 
+          userInfo.role === 'teacher' ? '教师' : '学生'
+  } : undefined;
+
   if (localInitialLoading) {
     return (
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <div className="flex items-center justify-center h-screen">
-            <div className="text-center">加载中...</div>
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
+      <AdminLayout
+        adminInfo={adminInfo}
+        onLogout={logout}
+        title="用户列表"
+        subtitle="管理系统中的所有用户账号"
+        showBreadcrumb={true}
+        breadcrumbItems={[
+          { label: "用户管理" },
+          { label: "用户列表" }
+        ]}
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">加载中...</div>
+        </div>
+      </AdminLayout>
     )
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    用户管理
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>用户列表</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-          <div className="ml-auto mr-4">
-            <Button 
-              size="sm" 
-              asChild
-              disabled={isButtonCooling}
-            >
-              <Link 
-                to="/www/admin/users/create" 
-                onClick={handleNewUserClick}
-                className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
-              >
-                <IconPlus className="mr-2 h-4 w-4" />
-                {isButtonCooling ? "请稍候..." : "创建用户"}
-              </Link>
-            </Button>
-          </div>
-        </header>
-        
-        <div className="flex flex-col gap-2 h-[90vh] p-4 pt-0">
-          <div className="flex items-center gap-2 px-2 sticky top-0 z-10 bg-white/80 backdrop-blur">
-            {/* 用户名称搜索栏 */}
-            <input
-              className="w-48 h-8 px-3 border border-input rounded-md bg-background text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition"
-              placeholder="搜索用户名称"
-              value={searchKeyword}
-              onChange={e => setSearchKeyword(e.target.value)}
-              style={{ boxSizing: 'border-box' }}
-            />
-            <div>或</div>
-            <Select value={sortOrder} onValueChange={v => {
-                  setSortOrder(v as "asc" | "desc")
-                  saveCache("0")
-                }}> 
-                  <SelectTrigger className="w-28">
-                    <SelectValue placeholder="排序" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="desc">最新优先</SelectItem>
-                    <SelectItem value="asc">最旧优先</SelectItem>
-                  </SelectContent>
-                </Select>
+    <AdminLayout
+      adminInfo={adminInfo}
+      onLogout={logout}
+      title="用户列表"
+      subtitle="管理系统中的所有用户账号"
+      showBreadcrumb={true}
+      breadcrumbItems={[
+        { label: "用户管理" },
+        { label: "用户列表" }
+      ]}
+    >
+      {/* 操作栏 */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {/* 用户名称搜索栏 */}
+          <input
+            className="w-48 h-10 px-3 border border-gray-300 rounded-lg bg-white text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+            placeholder="搜索用户名称"
+            value={searchKeyword}
+            onChange={e => setSearchKeyword(e.target.value)}
+          />
+          <span className="text-gray-500">或</span>
+          <Select value={sortOrder} onValueChange={v => {
+                setSortOrder(v as "asc" | "desc")
+                saveCache("0")
+              }}> 
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="排序" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">最新优先</SelectItem>
+                  <SelectItem value="asc">最旧优先</SelectItem>
+                </SelectContent>
+              </Select>
 
-            {/* 用户统计信息 */}
-            <div className="text-sm text-muted-foreground">
-              共 {totalUsers} 个用户
-            </div>
-            
-            {/* 刷新按钮 */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-3 text-sm font-normal rounded-md border shadow-sm"
-              onClick={() => {
-                setUsers([])
-                setHasMoreTop(true)
-                setHasMoreBottom(true)
-                setLocalInitialLoading(true)
-                fetchData({ direction: "down", reset: true, customBeginID: "0" })
-              }}
-            >
-              <IconRefresh className="h-4 w-4 mr-1" />
-              刷新
-            </Button>
+          {/* 用户统计信息 */}
+          <div className="text-sm text-gray-600">
+            共 {totalUsers} 个用户
           </div>
-
-          <div
-            ref={scrollRef}
-            className="flex-1 overflow-auto"
-            style={{ WebkitOverflowScrolling: 'touch' }}
-            onScroll={searchKeyword ? undefined : handleScroll}
+          
+          {/* 刷新按钮 */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setUsers([])
+              setHasMoreTop(true)
+              setHasMoreBottom(true)
+              setLocalInitialLoading(true)
+              fetchData({ direction: "down", reset: true, customBeginID: "0" })
+            }}
           >
-            {searchKeyword.length >= 1 && searching && (
-              <div className="text-center text-xs text-muted-foreground py-2">搜索中...</div>
-            )}
-            {searchKeyword.length >= 1 && !searching && users.length === 0 && (
-              <div className="text-center text-xs text-muted-foreground py-2">无匹配用户</div>
-            )}
-            {loadingTop && <div className="text-center text-xs text-muted-foreground py-2">加载中...</div>}
-            {!hasMoreTop && <div className="text-center text-xs text-muted-foreground py-2">已到顶部</div>}
-            
-            <div className="rounded-xl overflow-hidden border">
-              <Table>
-                <TableHeader className="sticky top-0 bg-white z-10">
-                  <TableRow>
-                    <TableHead>用户名</TableHead>
-                    <TableHead>昵称</TableHead>
-                    <TableHead>邮箱</TableHead>
-                    <TableHead>角色</TableHead>
-                    <TableHead>创建时间</TableHead>
-                    <TableHead>更新时间</TableHead>
-                    <TableHead className="w-[100px]">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.length > 0 ? (
-                    users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">
-                          <Link to={`/www/admin/users/${user.id}/edit`}>
-                            {user.username}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <Link to={`/www/admin/users/${user.id}/edit`}>
-                            {user.nickname}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <Link to={`/www/admin/users/${user.id}/edit`}>
-                            {user.email}
-                          </Link>
-                        </TableCell>
-                        <TableCell>{user.role}</TableCell>
-                        <TableCell>{formatDate(user.created_at)}</TableCell>
-                        <TableCell>{formatDate(user.updated_at)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              title="编辑"
-                              asChild
-                            >
-                              <Link to={`/www/admin/users/${user.id}/edit`}>
-                                <IconEdit className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon" title="删除">
-                                  <IconTrash className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>确认删除</DialogTitle>
-                                  <DialogDescription>
-                                    您确定要删除用户 "{user.username}" 吗？此操作将永久删除该用户及其所有数据，且无法恢复。
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <DialogFooter>
-                                  <DialogClose asChild>
-                                    <Button variant="outline">取消</Button>
-                                  </DialogClose>
-                                  <Button 
-                                    variant="destructive" 
-                                    onClick={() => handleDeleteUser(user.id)}
-                                    disabled={deletingId === user.id}
-                                  >
-                                    {deletingId === user.id ? "删除中..." : "删除"}
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
-                        没有找到用户，点击右上角"创建用户"按钮创建新用户
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            
-            {loadingBottom && <div className="text-center text-xs text-muted-foreground py-2">加载中...</div>}
-            {!hasMoreBottom && <div className="text-center text-xs text-muted-foreground py-2">已到结尾</div>}
-          </div>
+            <IconRefresh className="h-4 w-4 mr-2" />
+            刷新
+          </Button>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+        
+        <Button 
+          asChild
+          disabled={isButtonCooling}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          <Link 
+            to="/www/admin/users/create" 
+            onClick={handleNewUserClick}
+            className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
+          >
+            <IconPlus className="mr-2 h-4 w-4" />
+            {isButtonCooling ? "请稍候..." : "创建用户"}
+          </Link>
+        </Button>
+      </div>
+
+      {/* 用户表格 */}
+      <div
+        ref={scrollRef}
+        className="bg-white rounded-lg border shadow-sm overflow-hidden"
+        style={{ height: '60vh', overflow: 'auto', WebkitOverflowScrolling: 'touch' }}
+        onScroll={searchKeyword ? undefined : handleScroll}
+      >
+        {searchKeyword.length >= 1 && searching && (
+          <div className="text-center text-sm text-gray-500 py-4">搜索中...</div>
+        )}
+        {searchKeyword.length >= 1 && !searching && users.length === 0 && (
+          <div className="text-center text-sm text-gray-500 py-4">无匹配用户</div>
+        )}
+        {loadingTop && <div className="text-center text-sm text-gray-500 py-2">加载中...</div>}
+        {!hasMoreTop && <div className="text-center text-sm text-gray-500 py-2">已到顶部</div>}
+        
+        <Table>
+          <TableHeader className="sticky top-0 bg-gray-50 z-10">
+            <TableRow>
+              <TableHead className="font-semibold">用户名</TableHead>
+              <TableHead className="font-semibold">昵称</TableHead>
+              <TableHead className="font-semibold">邮箱</TableHead>
+              <TableHead className="font-semibold">角色</TableHead>
+              <TableHead className="font-semibold">创建时间</TableHead>
+              <TableHead className="font-semibold">更新时间</TableHead>
+              <TableHead className="font-semibold w-[100px]">操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.length > 0 ? (
+              users.map((user) => (
+                <TableRow key={user.id} className="hover:bg-gray-50">
+                  <TableCell className="font-medium">
+                    <Link 
+                      to={`/www/admin/users/${user.id}/edit`}
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      {user.username}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <Link 
+                      to={`/www/admin/users/${user.id}/edit`}
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      {user.nickname || '-'}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <Link 
+                      to={`/www/admin/users/${user.id}/edit`}
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      {user.email || '-'}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      user.role === 'admin' ? 'bg-red-100 text-red-800' :
+                      user.role === 'teacher' ? 'bg-blue-100 text-blue-800' :
+                      'bg-green-100 text-green-800'
+                    }`}>
+                      {user.role === 'admin' ? '管理员' : 
+                       user.role === 'teacher' ? '教师' : '学生'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-gray-600">{formatDate(user.created_at)}</TableCell>
+                  <TableCell className="text-gray-600">{formatDate(user.updated_at)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        title="编辑"
+                        asChild
+                        className="h-8 w-8"
+                      >
+                        <Link to={`/www/admin/users/${user.id}/edit`}>
+                          <IconEdit className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            title="删除"
+                            className="h-8 w-8 text-red-600 hover:text-red-800 hover:bg-red-50"
+                          >
+                            <IconTrash className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>确认删除</DialogTitle>
+                            <DialogDescription>
+                              您确定要删除用户 "{user.username}" 吗？此操作将永久删除该用户及其所有数据，且无法恢复。
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <DialogClose asChild>
+                              <Button variant="outline">取消</Button>
+                            </DialogClose>
+                            <Button 
+                              variant="destructive" 
+                              onClick={() => handleDeleteUser(user.id)}
+                              disabled={deletingId === user.id}
+                            >
+                              {deletingId === user.id ? "删除中..." : "删除"}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={7} className="h-32 text-center">
+                  <div className="flex flex-col items-center justify-center text-gray-500">
+                    <IconPlus className="h-12 w-12 mb-4 opacity-50" />
+                    <p className="text-lg font-medium mb-2">暂无用户数据</p>
+                    <p className="text-sm">点击右上角"创建用户"按钮开始添加用户</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+        
+        {loadingBottom && <div className="text-center text-sm text-gray-500 py-2">加载中...</div>}
+        {!hasMoreBottom && <div className="text-center text-sm text-gray-500 py-2">已到结尾</div>}
+      </div>
+    </AdminLayout>
   )
 }

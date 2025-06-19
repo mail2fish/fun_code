@@ -6,15 +6,7 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { Toaster } from "sonner"
 
-import { AppSidebar } from "~/components/my-app-sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "~/components/ui/breadcrumb"
+import { AdminLayout } from "~/components/admin-layout"
 import { Button } from "~/components/ui/button"
 import {
   Dialog,
@@ -35,12 +27,6 @@ import {
   FormMessage,
 } from "~/components/ui/form"
 import { Input } from "~/components/ui/input"
-import { Separator } from "~/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "~/components/ui/sidebar"
 import {
   Select,
   SelectContent,
@@ -48,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select"
+import { useUser } from "~/hooks/use-user"
 
 // 导入自定义的 fetch 函数
 import { fetchWithAuth } from "~/utils/api"
@@ -120,6 +107,7 @@ export default function CreateUserPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = React.useState(false);
   const [createdUsername, setCreatedUsername] = React.useState("");
+  const { userInfo, logout } = useUser();
 
   // 初始化表单
   const form = useForm<z.infer<typeof formSchema>>({
@@ -189,184 +177,212 @@ export default function CreateUserPage() {
     navigate("/www/admin/users/list");
   };
 
-  return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <Toaster 
-          position="top-right"
-          theme="light"
-          richColors
-        />
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/www/users/list">
-                    用户管理
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>创建新用户</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-        </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <div className="mx-auto w-full max-w-2xl">
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-medium">创建新用户</h3>
-                <p className="text-sm text-muted-foreground">
-                  填写以下信息创建一个新的用户账号。
-                </p>
-              </div>
-              <Separator />
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>用户名</FormLabel>
-                        <FormControl>
-                          <Input placeholder="请输入用户名" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          用户名将用于登录系统
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="nickname"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>昵称</FormLabel>
-                        <FormControl>
-                          <Input placeholder="请输入昵称" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          昵称将显示在系统中
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>邮箱</FormLabel>
-                        <FormControl>
-                          <Input placeholder="请输入邮箱" type="email" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          请输入有效的邮箱地址
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>密码</FormLabel>
-                        <FormControl>
-                          <Input placeholder="请输入密码" type="password" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          密码至少需要 6 个字符
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="role"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>角色</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="选择用户角色" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="admin">管理员</SelectItem>
-                            <SelectItem value="teacher">教师</SelectItem>
-                            <SelectItem value="student">学生</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          选择用户的角色
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="flex justify-end space-x-4">
-                    <Button 
-                      variant="outline" 
-                      type="button"
-                      onClick={() => navigate("/www/admin/users/list")}
-                      disabled={isSubmitting}
-                    >
-                      取消
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? "创建中..." : "创建用户"}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </div>
-          </div>
-        </div>
+  const adminInfo = userInfo ? {
+    name: userInfo.nickname || userInfo.username,
+    role: userInfo.role === 'admin' ? '管理员' : 
+          userInfo.role === 'teacher' ? '教师' : '学生'
+  } : undefined;
 
-        {/* 成功创建后的选择对话框 */}
-        <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>用户创建成功！</DialogTitle>
-              <DialogDescription>
-                用户 <strong>"{createdUsername}"</strong> 已成功创建。您希望接下来做什么？
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={handleContinueCreate}
-                className="flex-1"
-              >
-                继续创建用户
-              </Button>
-              <Button 
-                onClick={handleGoToList}
-                className="flex-1"
-              >
-                转到用户列表
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </SidebarInset>
-    </SidebarProvider>
+  return (
+    <AdminLayout
+      adminInfo={adminInfo}
+      onLogout={logout}
+      title="创建新用户"
+      subtitle="填写以下信息创建一个新的用户账号"
+      showBreadcrumb={true}
+      breadcrumbItems={[
+        { label: "用户管理", href: "/www/admin/users/list" },
+        { label: "创建新用户" }
+      ]}
+    >
+      <Toaster 
+        position="top-right"
+        theme="light"
+        richColors
+      />
+      
+      {/* 表单容器 */}
+      <div className="mx-auto w-full max-w-2xl">
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-gray-700 font-medium">用户名 *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="请输入用户名" 
+                        {...field} 
+                        className="h-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </FormControl>
+                    <FormDescription className="text-gray-500">
+                      用户名将用于登录系统，至少3个字符
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="nickname"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-gray-700 font-medium">昵称</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="请输入昵称" 
+                        {...field} 
+                        className="h-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </FormControl>
+                    <FormDescription className="text-gray-500">
+                      昵称将显示在系统中，可选填
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-gray-700 font-medium">邮箱</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="请输入邮箱" 
+                        type="email" 
+                        {...field} 
+                        className="h-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </FormControl>
+                    <FormDescription className="text-gray-500">
+                      请输入有效的邮箱地址，可选填
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-gray-700 font-medium">密码 *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="请输入密码" 
+                        type="password" 
+                        {...field} 
+                        className="h-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                      />
+                    </FormControl>
+                    <FormDescription className="text-gray-500">
+                      密码至少需要 6 个字符
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-gray-700 font-medium">角色 *</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="h-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                          <SelectValue placeholder="选择用户角色" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="admin">
+                          <div className="flex items-center">
+                            <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                            管理员
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="teacher">
+                          <div className="flex items-center">
+                            <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                            教师
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="student">
+                          <div className="flex items-center">
+                            <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                            学生
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription className="text-gray-500">
+                      选择用户在系统中的角色
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {/* 操作按钮 */}
+              <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
+                <Button 
+                  variant="outline" 
+                  type="button"
+                  onClick={() => navigate("/www/admin/users/list")}
+                  disabled={isSubmitting}
+                  className="px-6"
+                >
+                  取消
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="px-6 bg-blue-600 hover:bg-blue-700"
+                >
+                  {isSubmitting ? "创建中..." : "创建用户"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </div>
+      </div>
+
+      {/* 成功创建后的选择对话框 */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-green-600">🎉 用户创建成功！</DialogTitle>
+            <DialogDescription>
+              用户 <strong className="text-gray-900">"{createdUsername}"</strong> 已成功创建。您希望接下来做什么？
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={handleContinueCreate}
+              className="flex-1"
+            >
+              继续创建用户
+            </Button>
+            <Button 
+              onClick={handleGoToList}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+            >
+              转到用户列表
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AdminLayout>
   )
 }
