@@ -53,17 +53,27 @@ body {
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* 童趣风格的颜色变量 */
+  --color-fun-orange: var(--fun-orange);
+  --color-fun-pink: var(--fun-pink);
+  --color-fun-purple: var(--fun-purple);
+  --color-fun-blue: var(--fun-blue);
+  --color-fun-green: var(--fun-green);
+  --color-fun-yellow: var(--fun-yellow);
+  --color-admin-primary: var(--admin-primary);
+  --color-admin-secondary: var(--admin-secondary);
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 1rem; /* 增大圆角以增加童趣感 */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --primary: oklch(0.6 0.2 280); /* 更童趣的紫色作为主色 */
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -88,6 +98,18 @@ body {
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  
+  /* 童趣风格的颜色定义 */
+  --fun-orange: oklch(0.75 0.15 50); /* 温暖的橙色 */
+  --fun-pink: oklch(0.8 0.12 350); /* 可爱的粉色 */
+  --fun-purple: oklch(0.6 0.2 280); /* 梦幻的紫色 */
+  --fun-blue: oklch(0.65 0.18 240); /* 清新的蓝色 */
+  --fun-green: oklch(0.7 0.15 140); /* 活力的绿色 */
+  --fun-yellow: oklch(0.85 0.12 80); /* 明亮的黄色 */
+  
+  /* 管理界面专用颜色 */
+  --admin-primary: oklch(0.4 0.12 220); /* 稳重的深蓝色 */
+  --admin-secondary: oklch(0.5 0.08 200); /* 专业的蓝灰色 */
 }
 
 .dark {
@@ -97,7 +119,7 @@ body {
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
+  --primary: oklch(0.7 0.15 280); /* 暗色模式下的紫色调整 */
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -122,6 +144,17 @@ body {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  
+  /* 暗色模式下的童趣颜色调整 */
+  --fun-orange: oklch(0.65 0.12 50);
+  --fun-pink: oklch(0.7 0.1 350);
+  --fun-purple: oklch(0.7 0.15 280);
+  --fun-blue: oklch(0.6 0.15 240);
+  --fun-green: oklch(0.6 0.12 140);
+  --fun-yellow: oklch(0.75 0.1 80);
+  
+  --admin-primary: oklch(0.6 0.15 220);
+  --admin-secondary: oklch(0.55 0.1 200);
 }
 
 @layer base {
@@ -133,40 +166,158 @@ body {
   }
 }
 
-/* 自定义滚动条样式 */
+/* 童趣风格的工具类 */
+@layer utilities {
+  .fun-gradient-bg {
+    background: linear-gradient(135deg, var(--fun-purple), var(--fun-pink), var(--fun-blue));
+  }
+  
+  .fun-card {
+    @apply bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20;
+  }
+  
+  .fun-button {
+    @apply rounded-full px-6 py-3 font-medium transition-all duration-300 hover:scale-105 active:scale-95;
+  }
+  
+  .fun-button-primary {
+    @apply fun-button bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600;
+  }
+  
+  .fun-button-secondary {
+    @apply fun-button bg-gradient-to-r from-blue-500 to-green-500 text-white hover:from-blue-600 hover:to-green-600;
+  }
+  
+  .admin-card {
+    @apply bg-white rounded-lg shadow-md border border-gray-200;
+  }
+  
+  .admin-button {
+    @apply rounded-md px-4 py-2 font-medium transition-colors duration-200;
+  }
+  
+  .admin-button-primary {
+    @apply admin-button bg-blue-600 text-white hover:bg-blue-700;
+  }
+  
+  .bounce-in {
+    animation: bounceIn 0.6s ease-out;
+  }
+  
+  .float {
+    animation: float 3s ease-in-out infinite;
+  }
+}
+
+/* 童趣动画定义 */
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes rainbow {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+.rainbow-animation {
+  animation: rainbow 3s linear infinite;
+}
+
+/* 自定义滚动条样式 - 童趣化 */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #e5e7eb; /* tailwind gray-200 */
-  border-radius: 8px;
+  background: linear-gradient(45deg, var(--fun-purple), var(--fun-pink));
+  border-radius: 12px;
   transition: background 0.2s;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #cbd5e1; /* tailwind gray-300 */
+  background: linear-gradient(45deg, var(--fun-blue), var(--fun-green));
 }
 ::-webkit-scrollbar-track {
+  background: var(--fun-yellow);
+  border-radius: 12px;
+  opacity: 0.1;
+}
+
+/* 管理界面滚动条 */
+.admin-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.admin-scrollbar::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.admin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+.admin-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 
 /* 暗色模式适配 */
 @media (prefers-color-scheme: dark) {
   ::-webkit-scrollbar-thumb {
-    background: #334155; /* tailwind slate-700 */
+    background: linear-gradient(45deg, var(--fun-purple), var(--fun-blue));
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #64748b; /* tailwind slate-500 */
+    background: linear-gradient(45deg, var(--fun-pink), var(--fun-green));
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--background);
+    opacity: 0.2;
+  }
+  
+  .admin-scrollbar::-webkit-scrollbar-thumb {
+    background: #334155;
+  }
+  .admin-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
   }
 }
 
-/* Firefox */
+/* Firefox - 童趣化 */
 * {
   scrollbar-width: thin;
+  scrollbar-color: var(--fun-purple) var(--fun-yellow);
+}
+
+.admin-scrollbar {
   scrollbar-color: #e5e7eb transparent;
 }
+
 @media (prefers-color-scheme: dark) {
   * {
+    scrollbar-color: var(--fun-purple) var(--background);
+  }
+  .admin-scrollbar {
     scrollbar-color: #334155 transparent;
   }
 }

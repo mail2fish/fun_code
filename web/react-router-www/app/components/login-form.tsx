@@ -65,54 +65,73 @@ export function LoginForm({
       {...props}
       onSubmit={onSubmit}
     >
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-bold">登录您的账户</h1>
-        <p className="text-muted-foreground text-sm text-balance">
-          输入您的用户名和密码登录账户
+      <div className="flex flex-col items-center gap-3 text-center">
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+          欢迎回来！
+        </h1>
+        <p className="text-gray-600 text-sm">
+          准备好开始你的编程冒险了吗？🚀
         </p>
       </div>
-      <div className="grid gap-6">
+      <div className="grid gap-5">
         <div className="grid gap-3">
-          <Label htmlFor="username">用户名</Label>
+          <Label htmlFor="username" className="text-gray-700 font-medium flex items-center gap-2">
+            👤 用户名
+          </Label>
           <Input 
             id="username" 
             name="username"
-            placeholder="请输入用户名" 
+            placeholder="输入你的用户名" 
             required 
             value={username}
             onChange={onChange}
+            className="rounded-2xl border-2 border-purple-200 focus:border-purple-400 focus:ring-purple-300 px-4 py-3 transition-all duration-300"
           />
         </div>
         <div className="grid gap-3">
-          <div className="flex items-center">
-            <Label htmlFor="password">密码</Label>
-            {/* <a
-              href="#"
-              className="ml-auto text-sm underline-offset-4 hover:underline"
-            >
-              忘记密码?
-            </a> */}
-          </div>
+          <Label htmlFor="password" className="text-gray-700 font-medium flex items-center gap-2">
+            🔒 密码
+          </Label>
           <Input 
             id="password" 
             name="password"
             type="password" 
+            placeholder="输入你的密码"
             required 
             value={password}
             onChange={onChange}
+            className="rounded-2xl border-2 border-purple-200 focus:border-purple-400 focus:ring-purple-300 px-4 py-3 transition-all duration-300"
           />
         </div>
-        {error && <div className="text-red-500 text-sm text-center">{error}</div>}
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? "登录中..." : "登录"}
+        {error && (
+          <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-2xl border border-red-200">
+            ❌ {error}
+          </div>
+        )}
+        <Button 
+          type="submit" 
+          className="w-full fun-button-primary text-lg py-3 mt-2" 
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <span className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              登录中...
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              🎯 开始探索
+            </span>
+          )}
         </Button>
       </div>
-      {/* <div className="text-center text-sm">
-        还没有账户?{" "}
-        <a href="/register" className="underline underline-offset-4">
-          注册
-        </a>
-      </div> */}
+      <div className="text-center text-sm text-gray-500 mt-4">
+        <div className="flex items-center justify-center gap-2">
+          <span>还没有账户？</span>
+          <span className="text-purple-600 font-medium">联系老师创建账户</span>
+          <span>📧</span>
+        </div>
+      </div>
     </form>
   )
 }
