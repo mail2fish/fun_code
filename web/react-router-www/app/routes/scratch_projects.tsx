@@ -1,31 +1,23 @@
 import * as React from "react"
-import { Link } from "react-router"
-import { IconPlus } from "@tabler/icons-react"
+import { Plus, Sparkles, Rocket } from "lucide-react"
 import { Toaster } from "sonner"
 
-import { AppSidebar } from "~/components/my-app-sidebar"
+import { UserLayout } from "~/components/user-layout"
 import { ProjectTable } from "~/components/project-table"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "~/components/ui/breadcrumb"
 import { Button } from "~/components/ui/button"
-import { Separator } from "~/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "~/components/ui/sidebar"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
 
 // 导入自定义的 fetch 函数
 import { fetchWithAuth } from "~/utils/api";
 
 // API 服务
 import { HOST_URL } from "~/config";
+
+// 模拟用户数据
+const mockUserInfo = {
+  name: "小明",
+  role: "学生"
+};
 
 // 删除项目
 async function deleteScratchProject(id: string) {
@@ -44,7 +36,7 @@ async function deleteScratchProject(id: string) {
   }
 }
 
-export default function Page() {
+export default function ScratchProjectsPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [isButtonCooling, setIsButtonCooling] = React.useState(false);
 
@@ -72,66 +64,70 @@ export default function Page() {
     }, 2000);
   };
 
+  // 处理用户登出
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    window.location.href = "/";
+  };
+
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    Scratch 程序
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Scratch 程序列表</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-          <div className="ml-auto mr-4">
+    <UserLayout
+      userInfo={mockUserInfo}
+      onLogout={handleLogout}
+    >
+      {/* 错误提示 */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-2xl mb-6 flex items-center gap-3">
+          <span className="text-xl">❌</span>
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* 项目列表 */}
+      <Card className="fun-card border-gray-200">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <Rocket className="w-6 h-6 text-purple-600" />
+              <div>
+                <CardTitle className="text-xl text-gray-800">项目列表</CardTitle>
+                <CardDescription>查看和管理你的所有Scratch项目</CardDescription>
+              </div>
+            </div>
+            
+            {/* 新建项目按钮 */}
             <Button 
-              size="sm" 
-              asChild
+              size="lg"
               disabled={isButtonCooling}
+              asChild
+              className="fun-button-primary"
             >
               <a 
                 href={`${HOST_URL}/projects/scratch/new`} 
                 onClick={handleNewProjectClick}
                 className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
               >
-                <IconPlus className="mr-2 h-4 w-4" />
-                {isButtonCooling ? "请稍候..." : "新建Scratch程序"}
+                <Plus className="mr-2 h-5 w-5" />
+                {isButtonCooling ? "创建中..." : "新建项目"}
               </a>
             </Button>
           </div>
-        </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          {error && (
-            <div className="bg-destructive/10 text-destructive p-3 rounded-md">
-              {error}
-            </div>
-          )}
+        </CardHeader>
+        <CardContent>
           <ProjectTable 
             onDeleteProject={handleDeleteProject}
             projectsApiUrl={`${HOST_URL}/api/scratch/projects`}
             showUserFilter={false}
           />
-        </div>
-      </SidebarInset>
+        </CardContent>
+      </Card>
+
+      {/* Toast 通知 */}
       <Toaster 
         position="top-right"
         theme="light"
         richColors
       />
-    </SidebarProvider>
+    </UserLayout>
   )
 }

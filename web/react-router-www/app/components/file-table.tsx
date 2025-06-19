@@ -330,40 +330,50 @@ export function FileTable({
   }
 
   return (
-    <div className="flex flex-col gap-2 h-[90vh]">
-      <div className="flex items-center gap-2 px-2 sticky top-0 z-10 bg-white/80 backdrop-blur">
+    <div className="flex flex-col gap-4 h-[90vh]">
+      {/* 童趣化的搜索排序控件区域 */}
+      <div className="flex flex-wrap items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-2xl border-2 border-blue-200">
         {/* 文件名称搜索栏 */}
-        <input
-          className="w-48 h-8 px-3 border border-input rounded-md bg-background text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition"
-          placeholder="搜索文件名称"
-          value={searchKeyword}
-          onChange={e => setSearchKeyword(e.target.value)}
-          style={{ boxSizing: 'border-box' }}
-        />
-        或 
-        <Select value={sortOrder} onValueChange={v => {
-              setSortOrder(v as "asc" | "desc")
-              saveCache("0")
-            }}> 
-              <SelectTrigger className="w-28">
-                <SelectValue placeholder="排序" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="desc">最新优先</SelectItem>
-                <SelectItem value="asc">最旧优先</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">📁 搜索文件：</span>
+          <input
+            className="w-48 h-10 px-4 border-2 border-blue-200 rounded-2xl bg-white text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all duration-300"
+            placeholder="输入文件名称..."
+            value={searchKeyword}
+            onChange={e => setSearchKeyword(e.target.value)}
+            style={{ boxSizing: 'border-box' }}
+          />
+        </div>
+        
+        <div className="flex items-center text-gray-400 text-sm">或</div>
+        
+        {/* 排序选择器 */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">📅 排序：</span>
+          <Select value={sortOrder} onValueChange={v => {
+                setSortOrder(v as "asc" | "desc")
+                saveCache("0")
+              }}> 
+                <SelectTrigger className="w-32 rounded-xl border-2 border-blue-200 focus:border-blue-400">
+                  <SelectValue placeholder="排序" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">🆕 最新优先</SelectItem>
+                  <SelectItem value="asc">⏰ 最旧优先</SelectItem>
+                </SelectContent>
+              </Select>
+        </div>
 
         {/* 文件统计信息 */}
-        <div className="text-sm text-muted-foreground">
-          共 {totalFiles} 个文件
+        <div className="text-sm font-medium text-blue-600 bg-blue-100 px-3 py-2 rounded-xl">
+          📊 共 {totalFiles} 个文件
         </div>
         
         {/* 刷新按钮 */}
         <Button
           variant="outline"
           size="sm"
-          className="h-8 px-3 text-sm font-normal rounded-md border shadow-sm"
+          className="h-10 px-4 text-sm font-medium rounded-2xl border-2 border-green-200 hover:border-green-400 hover:bg-green-50 transition-all duration-300"
           onClick={() => {
             setFiles([])
             setHasMoreTop(true)
@@ -372,8 +382,8 @@ export function FileTable({
             fetchData({ direction: "down", reset: true, customBeginID: "0" })
           }}
         >
-          <IconRefresh className="h-4 w-4 mr-1" />
-          刷新
+          <IconRefresh className="h-4 w-4 mr-2" />
+          🔄 刷新
         </Button>
       </div>
 
@@ -462,23 +472,34 @@ export function FileTable({
                           删除
                         </Button>
                       </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>确认删除</DialogTitle>
-                          <DialogDescription>
-                            您确定要删除文件 "{file.original_name}" 吗？此操作无法撤销。
+                      <DialogContent className="rounded-3xl border-4 border-red-200 bg-gradient-to-br from-red-50 to-pink-50">
+                        <DialogHeader className="text-center">
+                          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                            <IconTrash className="w-8 h-8 text-red-500" />
+                          </div>
+                          <DialogTitle className="text-2xl font-bold text-gray-800">⚠️ 确认删除文件</DialogTitle>
+                          <DialogDescription className="text-lg text-gray-600 mt-2">
+                            您确定要删除文件 "<span className="font-medium text-purple-600">{file.original_name}</span>" 吗？
+                            <br />
+                            <span className="text-red-500 font-medium">此操作无法撤销哦！</span>
                           </DialogDescription>
                         </DialogHeader>
-                        <DialogFooter>
+                        <DialogFooter className="flex gap-3 pt-6">
                           <DialogClose asChild>
-                            <Button variant="outline">取消</Button>
+                            <Button 
+                              variant="outline"
+                              className="flex-1 h-12 rounded-2xl border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-medium"
+                            >
+                              💭 再想想
+                            </Button>
                           </DialogClose>
                           <Button 
                             variant="destructive" 
                             onClick={() => handleDelete(file.id)}
                             disabled={deletingId === file.id}
+                            className="flex-1 h-12 rounded-2xl bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-medium border-0"
                           >
-                            {deletingId === file.id ? "删除中..." : "删除"}
+                            {deletingId === file.id ? "🗑️ 删除中..." : "🗑️ 确认删除"}
                           </Button>
                         </DialogFooter>
                       </DialogContent>

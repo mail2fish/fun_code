@@ -516,69 +516,82 @@ export function ProjectTable({
   }
 
   return (
-    <div className="flex flex-col gap-2 h-[90vh]">
-      <div className="flex items-center gap-2 px-2 sticky top-0 z-10 bg-white/80 backdrop-blur">
+    <div className="flex flex-col gap-4 h-[90vh]">
+      {/* 童趣化的搜索排序控件区域 */}
+      <div className="flex flex-wrap items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200">
         {/* 用户筛选和排序 */}
         {showUserFilter && userOptions.length > 0 && (
           <>
-            <Select value={selectedUser} onValueChange={(value) => {
-              setSelectedUser(value)
-              saveCache("0")
-              setSearchKeyword(""); // 选择后清空搜索
-            }}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="全部用户" />
-              </SelectTrigger>
-              <SelectContent>
-                <div className="px-2 py-1">
-                  <input
-                    className="w-full outline-none bg-transparent text-sm px-2 py-1 border rounded-md h-8"
-                    placeholder="搜索用户"
-                    value={searchKeyword}
-                    onChange={e => setSearchKeyword(e.target.value)}
-                    autoFocus
-                  />
-                </div>
-                <SelectItem value="__all__">全部用户</SelectItem>
-                {(searchKeyword ? searchResults : userOptions).map(u => (
-                  <SelectItem key={u.id} value={u.id}>{u.nickname}</SelectItem>
-                ))}
-                {searching && <div className="px-2 py-1 text-xs text-muted-foreground">搜索中...</div>}
-                {searchKeyword && !searching && searchResults.length === 0 && (
-                  <div className="px-2 py-1 text-xs text-muted-foreground">无匹配用户</div>
-                )}
-              </SelectContent>
-            </Select>
-           
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">👤 筛选用户：</span>
+              <Select value={selectedUser} onValueChange={(value) => {
+                setSelectedUser(value)
+                saveCache("0")
+                setSearchKeyword(""); // 选择后清空搜索
+              }}>
+                <SelectTrigger className="w-40 rounded-xl border-2 border-purple-200 focus:border-purple-400">
+                  <SelectValue placeholder="全部用户" />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="px-2 py-1">
+                    <input
+                      className="w-full outline-none bg-transparent text-sm px-2 py-1 border rounded-md h-8"
+                      placeholder="搜索用户"
+                      value={searchKeyword}
+                      onChange={e => setSearchKeyword(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                  <SelectItem value="__all__">全部用户</SelectItem>
+                  {(searchKeyword ? searchResults : userOptions).map(u => (
+                    <SelectItem key={u.id} value={u.id}>{u.nickname}</SelectItem>
+                  ))}
+                  {searching && <div className="px-2 py-1 text-xs text-muted-foreground">搜索中...</div>}
+                  {searchKeyword && !searching && searchResults.length === 0 && (
+                    <div className="px-2 py-1 text-xs text-muted-foreground">无匹配用户</div>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
           </>
         )}
+        
         {/* 项目名称搜索栏 */}
-        <input
-          className="w-48 h-8 px-3 border border-input rounded-md bg-background text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition"
-          placeholder="搜索项目名称"
-          value={projectKeyword}
-          onChange={e => setProjectKeyword(e.target.value)}
-          style={{ boxSizing: 'border-box' }}
-        />
-        或
-        <Select value={sortOrder} onValueChange={v => {
-              setSortOrder(v as "asc" | "desc")
-              saveCache("0")
-            }}> 
-              <SelectTrigger className="w-28">
-                <SelectValue placeholder="排序" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="desc">最新优先</SelectItem>
-                <SelectItem value="asc">最旧优先</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">🔍 搜索项目：</span>
+          <input
+            className="w-48 h-10 px-4 border-2 border-purple-200 rounded-2xl bg-white text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-all duration-300"
+            placeholder="输入项目名称..."
+            value={projectKeyword}
+            onChange={e => setProjectKeyword(e.target.value)}
+            style={{ boxSizing: 'border-box' }}
+          />
+        </div>
+        
+        <div className="flex items-center text-gray-400 text-sm">或</div>
+        
+        {/* 排序选择器 */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">📅 排序：</span>
+          <Select value={sortOrder} onValueChange={v => {
+                setSortOrder(v as "asc" | "desc")
+                saveCache("0")
+              }}> 
+                <SelectTrigger className="w-32 rounded-xl border-2 border-purple-200 focus:border-purple-400">
+                  <SelectValue placeholder="排序" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">🆕 最新优先</SelectItem>
+                  <SelectItem value="asc">⏰ 最旧优先</SelectItem>
+                </SelectContent>
+              </Select>
+        </div>
         
         {/* 刷新按钮 */}
         <Button
           variant="outline"
           size="sm"
-          className="h-8 px-3 text-sm font-normal rounded-md border shadow-sm"
+          className="h-10 px-4 text-sm font-medium rounded-2xl border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300"
           onClick={() => {
             setProjects([])
             setHasMoreTop(true)
@@ -587,8 +600,8 @@ export function ProjectTable({
             fetchData({ direction: "down", reset: true, customBeginID: "0" })
           }}
         >
-          <IconRefresh className="h-4 w-4 mr-1" />
-          刷新
+          <IconRefresh className="h-4 w-4 mr-2" />
+          🔄 刷新
         </Button>
       </div>
       <div
@@ -674,23 +687,34 @@ export function ProjectTable({
                             </a>
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>确认删除</DialogTitle>
-                            <DialogDescription>
-                              您确定要删除项目 "{project.name}" 吗？此操作无法撤销。
+                        <DialogContent className="rounded-3xl border-4 border-red-200 bg-gradient-to-br from-red-50 to-pink-50">
+                          <DialogHeader className="text-center">
+                            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                              <IconTrash className="w-8 h-8 text-red-500" />
+                            </div>
+                            <DialogTitle className="text-2xl font-bold text-gray-800">⚠️ 确认删除</DialogTitle>
+                            <DialogDescription className="text-lg text-gray-600 mt-2">
+                              您确定要删除项目 "<span className="font-medium text-purple-600">{project.name}</span>" 吗？
+                              <br />
+                              <span className="text-red-500 font-medium">此操作无法撤销哦！</span>
                             </DialogDescription>
                           </DialogHeader>
-                          <DialogFooter>
+                          <DialogFooter className="flex gap-3 pt-6">
                             <DialogClose asChild>
-                              <Button variant="outline">取消</Button>
+                              <Button 
+                                variant="outline" 
+                                className="flex-1 h-12 rounded-2xl border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-medium"
+                              >
+                                💭 再想想
+                              </Button>
                             </DialogClose>
                             <Button 
                               variant="destructive" 
                               onClick={() => handleDelete(project.id)}
                               disabled={deletingId === project.id}
+                              className="flex-1 h-12 rounded-2xl bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-medium border-0"
                             >
-                              {deletingId === project.id ? "删除中..." : "删除"}
+                              {deletingId === project.id ? "🗑️ 删除中..." : "🗑️ 确认删除"}
                             </Button>
                           </DialogFooter>
                         </DialogContent>
@@ -725,47 +749,65 @@ export function ProjectTable({
         console.log("分享对话框状态变更:", open)
         setShareDialogOpen(open)
       }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{isReactivating ? "重新激活分享" : "分享项目"}</DialogTitle>
-            <DialogDescription>
-              {isReactivating ? "该项目的分享已停用，您可以重新激活分享" : "设置分享参数并生成分享链接"}
+        <DialogContent className="sm:max-w-lg rounded-3xl border-4 border-blue-200 bg-gradient-to-br from-blue-50 to-purple-50">
+          <DialogHeader className="text-center">
+            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <IconShare className="w-8 h-8 text-blue-500" />
+            </div>
+            <DialogTitle className="text-2xl font-bold text-gray-800">
+              {isReactivating ? "🔄 重新激活分享" : "✨ 分享项目"}
+            </DialogTitle>
+            <DialogDescription className="text-lg text-gray-600 mt-2">
+              {isReactivating ? "该项目的分享已停用，您可以重新激活分享" : "设置分享参数并生成分享链接，让朋友们看到你的作品！"}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="share-title">分享标题</Label>
+          <div className="space-y-6 py-4">
+            <div className="space-y-3">
+              <Label htmlFor="share-title" className="text-base font-medium text-gray-700 flex items-center gap-2">
+                📝 分享标题
+              </Label>
               <Input
                 id="share-title"
                 value={shareForm.title}
                 readOnly
                 placeholder="输入分享标题"
-                className="bg-gray-50"
+                className="h-12 rounded-2xl border-2 border-purple-200 bg-purple-50 text-gray-600"
               />
-              <div className="text-xs text-gray-500 mt-1">标题将使用项目原名称</div>
+              <div className="text-sm text-gray-500 bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+                💡 标题将使用项目原名称
+              </div>
             </div>
-            <div>
-              <Label htmlFor="share-description">分享描述</Label>
+            <div className="space-y-3">
+              <Label htmlFor="share-description" className="text-base font-medium text-gray-700 flex items-center gap-2">
+                💬 分享描述
+              </Label>
               <Textarea
                 id="share-description"
                 value={shareForm.description}
                 onChange={(e) => setShareForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="输入分享描述（可选）"
-                rows={3}
+                placeholder="告诉大家这个项目有什么特别之处吧！（可选）"
+                rows={4}
+                className="rounded-2xl border-2 border-purple-200 focus:border-purple-400 resize-none"
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex gap-3 pt-6">
             <DialogClose asChild>
-              <Button variant="outline">取消</Button>
+              <Button 
+                variant="outline"
+                className="flex-1 h-12 rounded-2xl border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-medium"
+              >
+                ❌ 取消
+              </Button>
             </DialogClose>
             <Button 
               onClick={handleCreateShare}
               disabled={!currentShareProject || sharingId === currentShareProject?.id}
+              className="flex-1 h-12 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium border-0"
             >
               {sharingId === currentShareProject?.id 
-                ? (isReactivating ? "激活中..." : "创建中...") 
-                : (isReactivating ? "重新激活分享" : "创建分享链接")}
+                ? (isReactivating ? "🔄 激活中..." : "✨ 创建中...") 
+                : (isReactivating ? "🔄 重新激活分享" : "🚀 创建分享链接")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -776,42 +818,56 @@ export function ProjectTable({
         console.log("分享结果对话框状态变更:", open)
         setShareResultDialogOpen(open)
       }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>分享链接已创建</DialogTitle>
-            <DialogDescription>
-              您的项目分享链接已成功创建，可以复制链接分享给其他人
+        <DialogContent className="sm:max-w-lg rounded-3xl border-4 border-green-200 bg-gradient-to-br from-green-50 to-blue-50">
+          <DialogHeader className="text-center">
+            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <span className="text-3xl">🎉</span>
+            </div>
+            <DialogTitle className="text-2xl font-bold text-gray-800">🎊 分享链接已创建</DialogTitle>
+            <DialogDescription className="text-lg text-gray-600 mt-2">
+              太棒了！你的项目分享链接已成功创建
+              <br />
+              快复制链接分享给朋友们吧！
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="share-url">分享链接</Label>
-              <div className="flex gap-2">
+          <div className="space-y-6 py-4">
+            <div className="space-y-3">
+              <Label htmlFor="share-url" className="text-base font-medium text-gray-700 flex items-center gap-2">
+                🔗 分享链接
+              </Label>
+              <div className="flex gap-3">
                 <Input
                   id="share-url"
                   value={shareUrl}
                   readOnly
-                  className="flex-1"
+                  className="flex-1 h-12 rounded-2xl border-2 border-green-200 bg-green-50 text-gray-700 font-mono text-sm"
                 />
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleCopyShareUrl}
+                  className="h-12 px-4 rounded-2xl border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 font-medium"
                 >
-                  复制
+                  📋 复制
                 </Button>
+              </div>
+              <div className="text-sm text-gray-500 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                🌟 分享给朋友，让他们看到你的精彩作品！
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex gap-3 pt-6">
             <Button 
               variant="outline"
               onClick={() => window.open(shareUrl, '_blank')}
+              className="flex-1 h-12 rounded-2xl border-2 border-purple-300 hover:border-purple-400 text-purple-700 font-medium"
             >
-              打开分享
+              👀 预览分享
             </Button>
             <DialogClose asChild>
-              <Button>完成</Button>
+              <Button className="flex-1 h-12 rounded-2xl bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-medium border-0">
+                ✅ 完成
+              </Button>
             </DialogClose>
           </DialogFooter>
         </DialogContent>
