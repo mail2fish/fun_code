@@ -3,23 +3,10 @@ import { Link } from "react-router"
 import { IconPlus } from "@tabler/icons-react"
 import { Toaster } from "sonner"
 
-import { AppSidebar } from "~/components/my-app-sidebar"
+import { AdminLayout } from "~/components/admin-layout"
 import { ProjectTable } from "~/components/project-table"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "~/components/ui/breadcrumb"
 import { Button } from "~/components/ui/button"
-import { Separator } from "~/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "~/components/ui/sidebar"
+import { useUser } from "~/hooks/use-user"
 
 // 导入自定义的 fetch 函数
 import { fetchWithAuth } from "~/utils/api";
@@ -46,6 +33,7 @@ async function deleteScratchProject(id: string) {
 export default function Page() {
   const [error, setError] = React.useState<string | null>(null);
   const [isButtonCooling, setIsButtonCooling] = React.useState(false);
+  const { userInfo, logout } = useUser();
 
   // 处理删除项目
   const handleDeleteProject = async (id: string) => {
@@ -69,67 +57,70 @@ export default function Page() {
     }, 2000);
   };
 
+  const adminInfo = userInfo ? {
+    name: userInfo.nickname || userInfo.username,
+    role: userInfo.role === 'admin' ? '管理员' : 
+          userInfo.role === 'teacher' ? '教师' : '学生'
+  } : undefined;
+
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    Scratch 程序
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Scratch 程序列表</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-          <div className="ml-auto mr-4">
-            <Button 
-              size="sm" 
-              asChild
-              disabled={isButtonCooling}
-            >
-              <Link 
-                to={`${HOST_URL}/projects/scratch/new`} 
-                target="_blank"
-                onClick={handleNewProjectClick}
-                className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
-              >
-                <IconPlus className="mr-2 h-4 w-4" />
-                {isButtonCooling ? "请稍候..." : "新建项目"}
-              </Link>
-            </Button>
-          </div>
-        </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          {error && (
-            <div className="bg-destructive/10 text-destructive p-3 rounded-md">
-              {error}
-            </div>
-          )}
-          <ProjectTable 
-            onDeleteProject={handleDeleteProject}
-            projectsApiUrl={`${HOST_URL}/api/admin/scratch/projects`}
-            showUserFilter={true}
-          />
-        </div>
-      </SidebarInset>
+    <AdminLayout
+      adminInfo={adminInfo}
+      onLogout={logout}
+      title="Scratch 程序管理"
+      subtitle="管理系统中的所有 Scratch 编程项目"
+      showBreadcrumb={true}
+      breadcrumbItems={[
+        { label: "程序管理" },
+        { label: "Scratch 程序列表" }
+      ]}
+    >
       <Toaster 
         position="top-right"
         theme="light"
         richColors
       />
-    </SidebarProvider>
+      
+      {/* 操作栏 */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                {error}
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <Button 
+          asChild
+          disabled={isButtonCooling}
+          className="bg-green-600 hover:bg-green-700"
+        >
+          <Link 
+            to={`${HOST_URL}/projects/scratch/new`} 
+            target="_blank"
+            onClick={handleNewProjectClick}
+            className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
+          >
+            <IconPlus className="mr-2 h-4 w-4" />
+            {isButtonCooling ? "请稍候..." : "新建项目"}
+          </Link>
+        </Button>
+      </div>
+
+      {/* 项目表格 */}
+      <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+        <ProjectTable 
+          onDeleteProject={handleDeleteProject}
+          projectsApiUrl={`${HOST_URL}/api/admin/scratch/projects`}
+          showUserFilter={true}
+        />
+      </div>
+    </AdminLayout>
   )
 }
