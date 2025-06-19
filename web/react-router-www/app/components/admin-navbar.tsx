@@ -17,7 +17,8 @@ import {
   ChevronDown,
   UserPlus,
   UserCheck,
-  Plus
+  Plus,
+  HardDrive
 } from "lucide-react";
 
 interface AdminNavbarProps {
@@ -32,14 +33,14 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isProgramMenuOpen, setIsProgramMenuOpen] = useState(false);
+  const [isResourceMenuOpen, setIsResourceMenuOpen] = useState(false);
   const location = useLocation();
   const userTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const programTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const resourceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const navItems = [
     { href: "/www/dashboard", label: "首页", icon: LayoutDashboard },
-    { href: "/www/admin/files/list", label: "资源文件", icon: FileText },
-    { href: "/www/admin/files/upload", label: "文件上传", icon: Upload },
     { href: "/www/shares/all", label: "分享管理", icon: Share2 },
   ];
 
@@ -53,9 +54,15 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
     { href: `${typeof window !== 'undefined' ? window.location.origin : ''}/projects/scratch/new`, label: "创建程序", icon: Plus, external: true },
   ];
 
+  const resourceMenuItems = [
+    { href: "/www/admin/files/list", label: "资源列表", icon: FileText },
+    { href: "/www/admin/files/upload", label: "上传资源", icon: Upload },
+  ];
+
   const isActive = (path: string) => location.pathname === path;
   const isUserMenuActive = userMenuItems.some(item => isActive(item.href));
   const isProgramMenuActive = programMenuItems.some(item => isActive(item.href));
+  const isResourceMenuActive = resourceMenuItems.some(item => isActive(item.href));
 
   const handleUserMouseEnter = () => {
     if (userTimeoutRef.current) {
@@ -91,6 +98,23 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
     }, 150); // 150ms 延迟
   };
 
+  const handleResourceMouseEnter = () => {
+    if (resourceTimeoutRef.current) {
+      clearTimeout(resourceTimeoutRef.current);
+      resourceTimeoutRef.current = null;
+    }
+    setIsResourceMenuOpen(true);
+  };
+
+  const handleResourceMouseLeave = () => {
+    if (resourceTimeoutRef.current) {
+      clearTimeout(resourceTimeoutRef.current);
+    }
+    resourceTimeoutRef.current = setTimeout(() => {
+      setIsResourceMenuOpen(false);
+    }, 150); // 150ms 延迟
+  };
+
   // 清理定时器
   useEffect(() => {
     return () => {
@@ -99,6 +123,9 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
       }
       if (programTimeoutRef.current) {
         clearTimeout(programTimeoutRef.current);
+      }
+      if (resourceTimeoutRef.current) {
+        clearTimeout(resourceTimeoutRef.current);
       }
     };
   }, []);
@@ -176,6 +203,47 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
                         </a>
                       );
                     }
+                    return (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        className={`flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-gray-50 transition-colors duration-200 ${
+                          isActive(item.href) ? "bg-blue-50 text-blue-600" : "text-gray-700"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Resource Management Dropdown */}
+            <div
+              className="relative"
+              onMouseEnter={handleResourceMouseEnter}
+              onMouseLeave={handleResourceMouseLeave}
+            >
+              <Button
+                variant="ghost"
+                className={`group flex items-center space-x-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                  isResourceMenuActive || isResourceMenuOpen
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                }`}
+              >
+                <HardDrive className="h-4 w-4" />
+                <span>程序资源</span>
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+              
+              {/* 自定义下拉菜单 */}
+              {isResourceMenuOpen && (
+                <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                  {resourceMenuItems.map((item) => {
+                    const Icon = item.icon;
                     return (
                       <Link
                         key={item.href}
@@ -320,6 +388,32 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
                       </a>
                     );
                   }
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      className={`flex items-center space-x-3 rounded-lg px-6 py-2 text-sm font-medium transition-colors duration-200 ${
+                        isActive(item.href)
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                      }`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {/* Resource Management Section - Mobile */}
+              <div className="space-y-1">
+                <div className="flex items-center space-x-3 px-3 py-2 text-base font-medium text-gray-900 bg-gray-100 rounded-lg">
+                  <HardDrive className="h-5 w-5" />
+                  <span>程序资源</span>
+                </div>
+                {resourceMenuItems.map((item) => {
+                  const Icon = item.icon;
                   return (
                     <Link
                       key={item.href}
