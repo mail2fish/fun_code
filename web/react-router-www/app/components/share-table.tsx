@@ -425,81 +425,110 @@ export function ShareTable({
         )}
         {loadingTop && <div className="text-center text-xs text-muted-foreground py-2">加载中...</div>}
         {!hasMoreTop && <div className="text-center text-xs text-muted-foreground py-2">已到顶部</div>}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {shares.length > 0 ? (
             shares.map((share) => {
               const author = userOptions.find(user => user.id === share.user_id?.toString())?.nickname || "未知作者";
               return (
-                <Card key={share.id} className={`flex flex-col h-full ${!share.is_active ? 'bg-gray-100 opacity-75' : ''}`}>
-                  <div className="w-full h-40 flex items-center justify-center rounded-t-xl bg-gray-50">
+                <Card key={share.id} className={`flex flex-col h-full rounded-2xl shadow-md border-2 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] ${!share.is_active ? 'bg-gray-50 border-gray-200 opacity-80' : 'bg-white border-purple-200'}`}>
+                  <div className="w-full h-48 flex items-center justify-center rounded-t-2xl bg-gradient-to-br from-purple-50 to-pink-50 relative overflow-hidden">
+                    {/* 状态标识 */}
+                    <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${share.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                      {share.is_active ? '✅ 活跃' : '❌ 已停用'}
+                    </div>
                     <a href={`${window.location.origin}/share/${share.share_token}`} target="_blank" rel="noopener noreferrer">
                       <img
                         src={`${HOST_URL}/api/scratch/projects/${share.project_id}/thumbnail`}
-                        className="max-h-32 object-contain"
+                        className="max-h-40 object-contain transition-transform duration-300 hover:scale-110"
                         alt="项目缩略图"
                       />
                     </a>
                   </div>
-                  <CardContent className="flex flex-col gap-2 flex-1">
-                    <div className="text-xs text-muted-foreground">分享序号：{share.id}</div>
-                    <div className="font-medium text-base line-clamp-1">
+                  <CardContent className="flex flex-col gap-2.5 flex-1 p-5">
+                    <div className="text-xs text-purple-500 font-medium bg-purple-50 px-2 py-1 rounded-lg inline-block w-fit">
+                      🎯 分享序号：{share.id}
+                    </div>
+                    <div className="font-bold text-xl text-gray-800 line-clamp-2 leading-tight">
                       <a 
                         href={`${window.location.origin}/share/${share.share_token}`} 
                         target="_blank" 
                         rel="noopener noreferrer"
+                        className="hover:text-purple-600 transition-colors duration-200"
                       >
                         {share.title || "未命名分享"}
                       </a>
                     </div>
                     {share.project_name && (
-                      <div className="text-sm text-muted-foreground">项目：{share.project_name}</div>
+                      <div className="text-sm text-gray-600 flex items-center gap-1">
+                        <span className="text-blue-500">🎮</span>
+                        <span className="font-medium">项目：</span>
+                        <span>{share.project_name}</span>
+                      </div>
                     )}
-                    <div className="text-sm text-muted-foreground">作者：{author}</div>
+                    <div className="text-sm text-gray-600 flex items-center gap-1">
+                      <span className="text-green-500">👤</span>
+                      <span className="font-medium">作者：</span>
+                      <span>{author}</span>
+                    </div>
                     {share.description && (
-                      <div className="text-sm text-muted-foreground line-clamp-2">{share.description}</div>
+                      <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-xl border border-blue-100">
+                        <div className="flex items-start gap-2">
+                          <span className="text-blue-500 text-base">💬</span>
+                          <div className="line-clamp-3">{share.description}</div>
+                        </div>
+                      </div>
                     )}
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>👀 {share.view_count}</span>
-                      <span>❤️ {share.like_count}</span>
-                      <div className={`text-xs font-medium ${share.is_active ? "text-green-600" : "text-red-600"}`}>
-                        {share.is_active ? "活跃" : "已停用"}
+                    <div className="flex items-center justify-between text-sm bg-gradient-to-r from-yellow-50 to-orange-50 p-3 rounded-xl border border-orange-100">
+                      <div className="flex items-center gap-1">
+                        <span className="text-blue-500">👀</span>
+                        <span className="font-medium text-gray-700">{share.view_count}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-red-500">❤️</span>
+                        <span className="font-medium text-gray-700">{share.like_count}</span>
                       </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">创建时间：{formatDate(share.created_at)}</div>
+                    <div className="text-sm text-gray-500 flex items-center gap-1">
+                      <span className="text-purple-500">⏰</span>
+                      <span className="font-medium">创建：</span>
+                      <span>{formatDate(share.created_at)}</span>
+                    </div>
                   </CardContent>
-                                  <CardFooter className="flex flex-col gap-1 px-1 py-1">
+                                  <CardFooter className="p-5 pt-0 pb-5">
                     {share.is_active ? (
                       /* 分享激活时：显示所有按钮 */
-                      <div className="flex items-center justify-center gap-0 w-full">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="复制链接"
-                          onClick={() => handleCopyShareLink(share.share_token)}
-                          className="py-0 min-h-0 h-auto px-2 flex-1"
-                        >
-                          <IconCopy className="h-4 w-4 mr-1" />
-                          复制链接
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="打开分享"
-                          onClick={() => handleOpenShare(share.share_token)}
-                          className="py-0 min-h-0 h-auto px-2 flex-1"
-                        >
-                          <IconExternalLink className="h-4 w-4 mr-1" />
-                          打开分享
-                        </Button>
+                                              <div className="flex flex-col gap-2 w-full">
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              title="复制链接"
+                              onClick={() => handleCopyShareLink(share.share_token)}
+                              className="flex-1 h-9 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 font-medium text-sm"
+                            >
+                              <IconCopy className="h-4 w-4 mr-1" />
+                              复制链接
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              title="打开分享"
+                              onClick={() => handleOpenShare(share.share_token)}
+                              className="flex-1 h-9 bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 transition-all duration-200 font-medium text-sm"
+                            >
+                              <IconExternalLink className="h-4 w-4 mr-1" />
+                              打开分享
+                            </Button>
+                          </div>
                         {showDeleteButton && (
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 title="关闭分享"
                                 asChild
-                                className="py-0 min-h-0 h-auto px-2 flex-1 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                                className="w-full h-9 bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 hover:border-orange-300 transition-all duration-200 font-medium text-sm"
                               >
                                 <a href='#'>
                                   <IconTrash className="h-4 w-4 mr-1" />
@@ -507,22 +536,22 @@ export function ShareTable({
                                 </a>
                               </Button>
                             </DialogTrigger>
-                            <DialogContent>
+                            <DialogContent className="rounded-2xl">
                               <DialogHeader>
-                                <DialogTitle>确认关闭分享</DialogTitle>
-                                <DialogDescription>
+                                <DialogTitle className="text-orange-700">⚠️ 确认关闭分享</DialogTitle>
+                                <DialogDescription className="text-gray-600">
                                   您确定要关闭分享 "{share.title}" 吗？关闭后该分享将无法访问。
                                 </DialogDescription>
                               </DialogHeader>
                               <DialogFooter>
                                 <DialogClose asChild>
-                                  <Button variant="outline">取消</Button>
+                                  <Button variant="outline" className="rounded-xl">取消</Button>
                                 </DialogClose>
                                 <Button 
                                   variant="destructive" 
                                   onClick={() => handleDelete(share.id)}
                                   disabled={deletingId === share.id}
-                                  className="bg-gray-600 hover:bg-gray-700"
+                                  className="bg-orange-600 hover:bg-orange-700 rounded-xl"
                                 >
                                   {deletingId === share.id ? "关闭中..." : "关闭分享"}
                                 </Button>
@@ -533,39 +562,39 @@ export function ShareTable({
                       </div>
                     ) : (
                       /* 分享已关闭时：显示重新分享和删除按钮 */
-                      <div className="flex items-center justify-center gap-0 w-full">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title="重新分享"
-                              asChild
-                              disabled={reactivatingId === share.id}
-                              className="py-0 min-h-0 h-auto px-2 flex-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            >
-                              <a href='#'>
-                                <IconShare className="h-4 w-4 mr-1" />
-                                {reactivatingId === share.id ? "激活中..." : "重新分享"}
-                              </a>
-                            </Button>
+                                              <div className="flex gap-2 w-full">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                title="重新分享"
+                                asChild
+                                disabled={reactivatingId === share.id}
+                                className="flex-1 h-9 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 font-medium text-sm"
+                              >
+                                <a href='#'>
+                                  <IconShare className="h-4 w-4 mr-1" />
+                                  {reactivatingId === share.id ? "激活中..." : "重新分享"}
+                                </a>
+                              </Button>
                           </DialogTrigger>
-                          <DialogContent>
+                          <DialogContent className="rounded-2xl">
                             <DialogHeader>
-                              <DialogTitle>确认重新分享</DialogTitle>
-                              <DialogDescription>
+                              <DialogTitle className="text-blue-700">🔄 确认重新分享</DialogTitle>
+                              <DialogDescription className="text-gray-600">
                                 您确定要重新激活分享 "{share.title}" 吗？激活后该分享将重新可用。
                               </DialogDescription>
                             </DialogHeader>
                             <DialogFooter>
                               <DialogClose asChild>
-                                <Button variant="outline">取消</Button>
+                                <Button variant="outline" className="rounded-xl">取消</Button>
                               </DialogClose>
-                                                             <Button 
-                                 onClick={() => handleReactivateShare(share)}
-                                 disabled={reactivatingId === share.id}
-                                 className="bg-blue-600 hover:bg-blue-700"
-                               >
+                              <Button 
+                                onClick={() => handleReactivateShare(share)}
+                                disabled={reactivatingId === share.id}
+                                className="bg-blue-600 hover:bg-blue-700 rounded-xl"
+                              >
                                 {reactivatingId === share.id ? "激活中..." : "重新分享"}
                               </Button>
                             </DialogFooter>
@@ -575,11 +604,11 @@ export function ShareTable({
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 title="删除分享"
                                 asChild
-                                className="py-0 min-h-0 h-auto px-2 flex-1 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                className="flex-1 h-9 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200 font-medium text-sm"
                               >
                                 <a href='#'>
                                   <IconTrash className="h-4 w-4 mr-1" />
@@ -587,22 +616,22 @@ export function ShareTable({
                                 </a>
                               </Button>
                             </DialogTrigger>
-                            <DialogContent>
+                            <DialogContent className="rounded-2xl">
                               <DialogHeader>
-                                <DialogTitle>确认删除分享</DialogTitle>
-                                <DialogDescription>
+                                <DialogTitle className="text-red-700">🗑️ 确认删除分享</DialogTitle>
+                                <DialogDescription className="text-gray-600">
                                   您确定要删除分享 "{share.title}" 吗？此操作无法撤销。
                                 </DialogDescription>
                               </DialogHeader>
                               <DialogFooter>
                                 <DialogClose asChild>
-                                  <Button variant="outline">取消</Button>
+                                  <Button variant="outline" className="rounded-xl">取消</Button>
                                 </DialogClose>
                                 <Button 
                                   variant="destructive" 
                                   onClick={() => handleDelete(share.id)}
                                   disabled={deletingId === share.id}
-                                  className="bg-purple-600 hover:bg-purple-700"
+                                  className="bg-red-600 hover:bg-red-700 rounded-xl"
                                 >
                                   {deletingId === share.id ? "删除中..." : "删除分享"}
                                 </Button>
