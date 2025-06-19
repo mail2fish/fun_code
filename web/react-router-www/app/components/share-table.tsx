@@ -536,23 +536,40 @@ export function ShareTable({
                                 </a>
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="rounded-2xl">
-                              <DialogHeader>
-                                <DialogTitle className="text-orange-700">⚠️ 确认关闭分享</DialogTitle>
-                                <DialogDescription className="text-gray-600">
-                                  您确定要关闭分享 "{share.title}" 吗？关闭后该分享将无法访问。
+                            <DialogContent className="rounded-3xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-yellow-50 shadow-2xl">
+                              <DialogHeader className="text-center pb-4">
+                                <DialogTitle className="text-2xl font-bold text-orange-700 flex items-center justify-center gap-2">
+                                  <span className="text-3xl">⚠️</span>
+                                  确认关闭分享
+                                </DialogTitle>
+                                <DialogDescription className="text-gray-700 text-lg mt-4 bg-white/70 p-4 rounded-2xl border border-orange-100">
+                                  <div className="flex items-start gap-3">
+                                    <span className="text-2xl">🤔</span>
+                                    <div>
+                                      您确定要关闭分享 <span className="font-semibold text-orange-800">"{share.title}"</span> 吗？
+                                      <br />
+                                      <span className="text-orange-600">关闭后该分享将无法访问。</span>
+                                    </div>
+                                  </div>
                                 </DialogDescription>
                               </DialogHeader>
-                              <DialogFooter>
+                              <DialogFooter className="flex gap-3 pt-4">
                                 <DialogClose asChild>
-                                  <Button variant="outline" className="rounded-xl">取消</Button>
+                                  <Button 
+                                    variant="outline" 
+                                    className="flex-1 h-12 rounded-2xl border-2 border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                  >
+                                    <span className="mr-2">❌</span>
+                                    取消
+                                  </Button>
                                 </DialogClose>
                                 <Button 
                                   variant="destructive" 
                                   onClick={() => handleDelete(share.id)}
                                   disabled={deletingId === share.id}
-                                  className="bg-orange-600 hover:bg-orange-700 rounded-xl"
+                                  className="flex-1 h-12 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-2xl border-2 border-orange-400 text-white font-bold text-lg shadow-md hover:shadow-lg transition-all duration-200"
                                 >
+                                  <span className="mr-2">🚫</span>
                                   {deletingId === share.id ? "关闭中..." : "关闭分享"}
                                 </Button>
                               </DialogFooter>
@@ -579,22 +596,39 @@ export function ShareTable({
                                 </a>
                               </Button>
                           </DialogTrigger>
-                          <DialogContent className="rounded-2xl">
-                            <DialogHeader>
-                              <DialogTitle className="text-blue-700">🔄 确认重新分享</DialogTitle>
-                              <DialogDescription className="text-gray-600">
-                                您确定要重新激活分享 "{share.title}" 吗？激活后该分享将重新可用。
+                          <DialogContent className="rounded-3xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-2xl">
+                            <DialogHeader className="text-center pb-4">
+                              <DialogTitle className="text-2xl font-bold text-blue-700 flex items-center justify-center gap-2">
+                                <span className="text-3xl">🔄</span>
+                                确认重新分享
+                              </DialogTitle>
+                              <DialogDescription className="text-gray-700 text-lg mt-4 bg-white/70 p-4 rounded-2xl border border-blue-100">
+                                <div className="flex items-start gap-3">
+                                  <span className="text-2xl">✨</span>
+                                  <div>
+                                    您确定要重新激活分享 <span className="font-semibold text-blue-800">"{share.title}"</span> 吗？
+                                    <br />
+                                    <span className="text-blue-600">激活后该分享将重新可用。</span>
+                                  </div>
+                                </div>
                               </DialogDescription>
                             </DialogHeader>
-                            <DialogFooter>
+                            <DialogFooter className="flex gap-3 pt-4">
                               <DialogClose asChild>
-                                <Button variant="outline" className="rounded-xl">取消</Button>
+                                <Button 
+                                  variant="outline" 
+                                  className="flex-1 h-12 rounded-2xl border-2 border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                >
+                                  <span className="mr-2">❌</span>
+                                  取消
+                                </Button>
                               </DialogClose>
                               <Button 
                                 onClick={() => handleReactivateShare(share)}
                                 disabled={reactivatingId === share.id}
-                                className="bg-blue-600 hover:bg-blue-700 rounded-xl"
+                                className="flex-1 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 rounded-2xl border-2 border-blue-400 text-white font-bold text-lg shadow-md hover:shadow-lg transition-all duration-200"
                               >
+                                <span className="mr-2">🚀</span>
                                 {reactivatingId === share.id ? "激活中..." : "重新分享"}
                               </Button>
                             </DialogFooter>
@@ -616,23 +650,40 @@ export function ShareTable({
                                 </a>
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="rounded-2xl">
-                              <DialogHeader>
-                                <DialogTitle className="text-red-700">🗑️ 确认删除分享</DialogTitle>
-                                <DialogDescription className="text-gray-600">
-                                  您确定要删除分享 "{share.title}" 吗？此操作无法撤销。
+                            <DialogContent className="rounded-3xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-pink-50 shadow-2xl">
+                              <DialogHeader className="text-center pb-4">
+                                <DialogTitle className="text-2xl font-bold text-red-700 flex items-center justify-center gap-2">
+                                  <span className="text-3xl">🗑️</span>
+                                  确认删除分享
+                                </DialogTitle>
+                                <DialogDescription className="text-gray-700 text-lg mt-4 bg-white/70 p-4 rounded-2xl border border-red-100">
+                                  <div className="flex items-start gap-3">
+                                    <span className="text-2xl">⚠️</span>
+                                    <div>
+                                      您确定要删除分享 <span className="font-semibold text-red-800">"{share.title}"</span> 吗？
+                                      <br />
+                                      <span className="text-red-600 font-medium">此操作无法撤销。</span>
+                                    </div>
+                                  </div>
                                 </DialogDescription>
                               </DialogHeader>
-                              <DialogFooter>
+                              <DialogFooter className="flex gap-3 pt-4">
                                 <DialogClose asChild>
-                                  <Button variant="outline" className="rounded-xl">取消</Button>
+                                  <Button 
+                                    variant="outline" 
+                                    className="flex-1 h-12 rounded-2xl border-2 border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-medium text-lg shadow-md hover:shadow-lg transition-all duration-200"
+                                  >
+                                    <span className="mr-2">❌</span>
+                                    取消
+                                  </Button>
                                 </DialogClose>
                                 <Button 
                                   variant="destructive" 
                                   onClick={() => handleDelete(share.id)}
                                   disabled={deletingId === share.id}
-                                  className="bg-red-600 hover:bg-red-700 rounded-xl"
+                                  className="flex-1 h-12 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 rounded-2xl border-2 border-red-400 text-white font-bold text-lg shadow-md hover:shadow-lg transition-all duration-200"
                                 >
+                                  <span className="mr-2">💥</span>
                                   {deletingId === share.id ? "删除中..." : "删除分享"}
                                 </Button>
                               </DialogFooter>
