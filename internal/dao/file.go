@@ -17,6 +17,7 @@ type FileDao interface {
 	CountFiles() (int64, gorails.Error)
 	DeleteFile(fileID uint) gorails.Error
 	UpdateFile(fileID uint, updates map[string]interface{}) gorails.Error
+	SearchFiles(keyword string) ([]*model.File, gorails.Error)
 }
 
 type FileDaoImpl struct {
@@ -165,4 +166,13 @@ func (d *FileDaoImpl) CountFiles() (int64, gorails.Error) {
 		return 0, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_FILE, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 	return total, nil
+}
+
+// SearchFiles 搜索文件
+func (d *FileDaoImpl) SearchFiles(keyword string) ([]*model.File, gorails.Error) {
+	var files []*model.File
+	if err := d.db.Where("original_name LIKE ? or description LIKE ?", "%"+keyword+"%", "%"+keyword+"%").Find(&files).Error; err != nil {
+		return nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_FILE, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+	return files, nil
 }

@@ -89,6 +89,7 @@ func (s *Server) setupRoutes() {
 		auth.GET("/files/:id/download", gorails.Wrap(s.handler.DownloadFileHandler, handler.RenderDownloadFile))
 		auth.GET("/files/:id/preview", gorails.Wrap(s.handler.PreviewFileHandler, handler.RenderDownloadFile))
 		auth.DELETE("/files/:id", gorails.Wrap(s.handler.DeleteFileHandler, nil))
+		auth.GET("/files/search", gorails.Wrap(s.handler.SearchFilesHandler, nil))
 
 		{
 			admin := auth.Group("/admin").Use(s.handler.RequirePermission(handler.PermissionManageAll))

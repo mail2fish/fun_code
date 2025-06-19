@@ -560,7 +560,7 @@ export function ProjectTable({
           onChange={e => setProjectKeyword(e.target.value)}
           style={{ boxSizing: 'border-box' }}
         />
-
+        或
         <Select value={sortOrder} onValueChange={v => {
               setSortOrder(v as "asc" | "desc")
               saveCache("0")

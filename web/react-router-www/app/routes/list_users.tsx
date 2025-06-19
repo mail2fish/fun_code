@@ -383,7 +383,7 @@ export default function ListUserPage() {
               onChange={e => setSearchKeyword(e.target.value)}
               style={{ boxSizing: 'border-box' }}
             />
-
+            <div>或</div>
             <Select value={sortOrder} onValueChange={v => {
                   setSortOrder(v as "asc" | "desc")
                   saveCache("0")

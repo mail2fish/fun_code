@@ -1082,3 +1082,37 @@ func (h *Handler) buildSVGThumbnailPath(sha1 string) string {
 	fileName := sha1 + "_thumb.svg"
 	return filepath.Join(h.config.Storage.BasePath, "files", part1, part2, part3, part4, fileName)
 }
+
+type SearchFilesParams struct {
+	Keyword string
+}
+
+func (p *SearchFilesParams) Parse(c *gin.Context) gorails.Error {
+	keyword := c.Query("keyword")
+	p.Keyword = keyword
+	return nil
+}
+
+type SearchFilesResponse struct {
+	Files []*FileResponse `json:"files"`
+}
+
+func (h *Handler) SearchFilesHandler(c *gin.Context, params *SearchFilesParams) (*SearchFilesResponse, *gorails.ResponseMeta, gorails.Error) {
+	files, err := h.dao.FileDao.SearchFiles(params.Keyword)
+	if err != nil {
+		return nil, nil, err
+	}
+	filesResponse := make([]*FileResponse, len(files))
+	for i, file := range files {
+		filesResponse[i] = &FileResponse{
+			ID:           file.ID,
+			Name:         file.GetName(),
+			Description:  file.Description,
+			Size:         file.Size,
+			TagID:        file.TagID,
+			ContentType:  file.ContentType,
+			OriginalName: file.OriginalName,
+		}
+	}
+	return &SearchFilesResponse{Files: filesResponse}, nil, nil
+}

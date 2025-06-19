@@ -118,14 +118,25 @@ export function FileTable({
     setSearching(true);
     const timer = setTimeout(async () => {
       try {
-        // 这里可以添加文件搜索API调用
-        // 暂时先显示所有文件
-        setFiles([]);
+        const res = await fetchWithAuth(`${HOST_URL}/api/files/search?keyword=${encodeURIComponent(searchKeyword)}`);
+        const data = await res.json();
+        
+        if (Array.isArray(data.data?.files)) {
+          setFiles(data.data.files);
+          setTotalFiles(data.data.files.length);
+        } else {
+          setFiles([]);
+          setTotalFiles(0);
+        }
+        
         setHasMoreTop(false);
         setHasMoreBottom(false);
         setLocalInitialLoading(false);
-      } catch (e) {
+      } catch (error) {
+        console.error("搜索文件失败:", error);
         setFiles([]);
+        setTotalFiles(0);
+        toast("搜索文件失败");
       } finally {
         setSearching(false);
       }
@@ -329,7 +340,7 @@ export function FileTable({
           onChange={e => setSearchKeyword(e.target.value)}
           style={{ boxSizing: 'border-box' }}
         />
-
+        或 
         <Select value={sortOrder} onValueChange={v => {
               setSortOrder(v as "asc" | "desc")
               saveCache("0")
