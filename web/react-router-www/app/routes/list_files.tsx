@@ -58,22 +58,24 @@ export default function ListFilesPage() {
               </div>
             </div>
             
-            {/* 上传文件按钮 */}
-            <Button 
-              size="lg"
-              disabled={isButtonCooling}
-              asChild
-              className="fun-button-primary"
-            >
-              <a 
-                href="/www/upload" 
-                onClick={handleUploadClick}
-                className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
-              >
-                <Upload className="mr-2 h-5 w-5" />
-                {isButtonCooling ? "上传中..." : "上传文件"}
-              </a>
-            </Button>
+                         {/* 上传文件按钮 - 仅管理员可见 */}
+             {userInfo?.role === "管理员" && (
+               <Button 
+                 size="lg"
+                 disabled={isButtonCooling}
+                 asChild
+                 className="fun-button-primary"
+               >
+                 <a 
+                   href="/www/upload" 
+                   onClick={handleUploadClick}
+                   className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
+                 >
+                   <Upload className="mr-2 h-5 w-5" />
+                   {isButtonCooling ? "上传中..." : "上传文件"}
+                 </a>
+               </Button>
+             )}
           </div>
         </CardHeader>
         <CardContent>

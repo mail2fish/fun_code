@@ -16,6 +16,8 @@ import {
   Rocket
 } from "lucide-react";
 import { useUserInfo, useUser } from "~/hooks/use-user";
+import { fetchWithAuth } from "~/utils/api";
+import { HOST_URL } from "~/config";
 
 // 模拟统计数据
 const mockStats = {
@@ -25,25 +27,79 @@ const mockStats = {
   files: 12
 };
 
-// 模拟最近项目数据
-const mockRecentProjects = [
-  { id: 1, name: "我的第一个游戏", lastModified: "2小时前", thumbnail: "🎮" },
-  { id: 2, name: "彩虹画笔", lastModified: "1天前", thumbnail: "🌈" },
-  { id: 3, name: "小猫历险记", lastModified: "3天前", thumbnail: "🐱" },
-  { id: 4, name: "数字猜谜", lastModified: "1周前", thumbnail: "🔢" }
-];
-
-// 模拟成就数据
-const mockAchievements = [
-  { icon: "🏆", name: "编程新手", description: "完成第一个项目" },
-  { icon: "⭐", name: "创意达人", description: "创建5个项目" },
-  { icon: "🚀", name: "分享达人", description: "分享3个作品" }
-];
+// 项目接口定义
+interface Project {
+  id: string;
+  name: string;
+  user_id: string;
+  created_at?: string;
+  createdAt?: string;
+}
 
 export default function Dashboard() {
   // 使用统一的用户信息管理
   const { userInfo } = useUserInfo();
   const { logout } = useUser();
+  
+  // 最近项目状态
+  const [recentProjects, setRecentProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+
+  // 获取最近项目
+  useEffect(() => {
+    const fetchRecentProjects = async () => {
+      try {
+        setLoadingProjects(true);
+        const params = new URLSearchParams();
+        params.append("pageSize", "8");
+        params.append("forward", "true");
+        params.append("asc", "false"); // 最新的在前
+        
+        const res = await fetchWithAuth(`${HOST_URL}/api/scratch/projects?${params.toString()}`);
+        const resp = await res.json();
+        
+        // 兼容不同接口返回结构
+        let projects: Project[] = [];
+        if (Array.isArray(resp.data)) {
+          projects = resp.data;
+        } else if (Array.isArray(resp.data?.projects)) {
+          projects = resp.data.projects;
+        }
+        
+        setRecentProjects(projects.slice(0, 4)); // 只取前4个项目
+      } catch (error) {
+        console.error("获取最近项目失败:", error);
+        setRecentProjects([]);
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
+    fetchRecentProjects();
+  }, []);
+
+  // 格式化日期函数
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "未知时间";
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "未知时间";
+      
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffHours / 24);
+      
+      if (diffHours < 1) return "刚刚";
+      if (diffHours < 24) return `${diffHours}小时前`;
+      if (diffDays < 7) return `${diffDays}天前`;
+      if (diffDays < 30) return `${Math.floor(diffDays / 7)}周前`;
+      return date.toLocaleDateString("zh-CN");
+    } catch (error) {
+      return "未知时间";
+    }
+  };
 
   return (
     <UserLayout
@@ -60,22 +116,9 @@ export default function Dashboard() {
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:rotate-12 transition-transform duration-300">
                 <Blocks className="w-8 h-8 text-white" />
               </div>
-              <h3 className="font-bold text-lg text-gray-800 mb-2">我的项目</h3>
-              <p className="text-gray-600 text-sm mb-3">创建和管理你的Scratch项目</p>
-              <div className="text-2xl font-bold text-purple-600">{mockStats.projects}</div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to="/www/classes/list">
-          <Card className="fun-card hover:scale-105 transition-all duration-300 cursor-pointer group border-blue-200">
-            <CardContent className="p-6 text-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-green-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:rotate-12 transition-transform duration-300">
-                <Users className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="font-bold text-lg text-gray-800 mb-2">我的班级</h3>
-              <p className="text-gray-600 text-sm mb-3">查看班级信息和课程</p>
-              <div className="text-2xl font-bold text-blue-600">{mockStats.classes}</div>
+              <h3 className="font-bold text-lg text-gray-800 mb-2">我的程序</h3>
+              <p className="text-gray-600 text-sm mb-3">创建和管理你的Scratch程序</p>
+              {/* <div className="text-2xl font-bold text-purple-600">{mockStats.projects}</div> */}
             </CardContent>
           </Card>
         </Link>
@@ -88,10 +131,24 @@ export default function Dashboard() {
               </div>
               <h3 className="font-bold text-lg text-gray-800 mb-2">我的分享</h3>
               <p className="text-gray-600 text-sm mb-3">管理你分享的作品</p>
-              <div className="text-2xl font-bold text-green-600">{mockStats.shares}</div>
+              {/* <div className="text-2xl font-bold text-green-600">{mockStats.shares}</div> */}
             </CardContent>
           </Card>
         </Link>
+
+        <Link to="/www/shares/all">
+          <Card className="fun-card hover:scale-105 transition-all duration-300 cursor-pointer group border-blue-200">
+            <CardContent className="p-6 text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-green-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:rotate-12 transition-transform duration-300">
+                <Share2 className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="font-bold text-lg text-gray-800 mb-2">全部分享</h3>
+              <p className="text-gray-600 text-sm mb-3">浏览所有用户的分享作品</p>
+              {/* <div className="text-2xl font-bold text-blue-600">{mockStats.shares}</div> */}
+            </CardContent>
+          </Card>
+        </Link>
+
 
         <Link to="/www/files/list">
           <Card className="fun-card hover:scale-105 transition-all duration-300 cursor-pointer group border-orange-200">
@@ -99,19 +156,18 @@ export default function Dashboard() {
               <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:rotate-12 transition-transform duration-300">
                 <FileText className="w-8 h-8 text-white" />
               </div>
-              <h3 className="font-bold text-lg text-gray-800 mb-2">我的文件</h3>
-              <p className="text-gray-600 text-sm mb-3">管理上传的文件资源</p>
-              <div className="text-2xl font-bold text-orange-600">{mockStats.files}</div>
+              <h3 className="font-bold text-lg text-gray-800 mb-2">资源文件</h3>
+              <p className="text-gray-600 text-sm mb-3">查看资源文件</p>
+              {/* <div className="text-2xl font-bold text-orange-600">{mockStats.files}</div> */}
             </CardContent>
           </Card>
         </Link>
       </div>
 
       {/* 主要内容区域 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="mt-8">
         {/* 最近项目 */}
-        <div className="lg:col-span-2">
-          <Card className="fun-card border-purple-200">
+        <Card className="fun-card border-purple-200 max-w-5xl mx-auto">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -127,83 +183,102 @@ export default function Dashboard() {
               <CardDescription>继续你未完成的创作吧！</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {mockRecentProjects.map((project) => (
-                  <Card key={project.id} className="border border-gray-200 hover:shadow-md transition-shadow duration-300 cursor-pointer">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="text-3xl">{project.thumbnail}</div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-800">{project.name}</h4>
-                          <p className="text-sm text-gray-500">{project.lastModified}</p>
+              {loadingProjects ? (
+                <div className="text-center py-8 text-gray-500">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-4"></div>
+                  加载最近项目中...
+                </div>
+              ) : recentProjects.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {recentProjects.map((project: Project) => (
+                    <div key={project.id} className="group">
+                      <a href={`${HOST_URL}/projects/scratch/open/${project.id}`} className="block">
+                        <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-2xl hover:border-purple-200 transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02]">
+                          {/* 项目缩略图 */}
+                          <div className="relative aspect-video bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent"></div>
+                            <img
+                              src={`${HOST_URL}/api/scratch/projects/${project.id}/thumbnail`}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                              alt="项目缩略图"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  parent.innerHTML = `
+                                    <div class="w-full h-full flex items-center justify-center">
+                                      <div class="text-center">
+                                        <div class="text-6xl mb-2 opacity-60">🎮</div>
+                                        <div class="text-sm text-gray-400 font-medium">Scratch项目</div>
+                                      </div>
+                                    </div>
+                                  `;
+                                }
+                              }}
+                            />
+                            {/* 渐变遮罩 */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-white/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          </div>
+                          
+                          {/* 项目信息 */}
+                          <div className="p-6">
+                            <div className="mb-3">
+                              <h3 className="font-bold text-xl text-gray-900 group-hover:text-purple-600 transition-colors duration-300 line-clamp-2 leading-tight mb-2">
+                                {project.name || "未命名项目"}
+                              </h3>
+                              <div className="flex items-center gap-3 text-sm text-gray-500">
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                                  <span>{formatDate(project.created_at || project.createdAt)}</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* 底部标签 */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                  🎯 ID: {project.id}
+                                </span>
+                              </div>
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-16">
+                  <div className="mb-8">
+                    <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <span className="text-5xl">🎨</span>
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-800 mb-3">开始你的创作之旅</h3>
+                    <p className="text-gray-600 max-w-md mx-auto leading-relaxed">
+                      还没有项目呢！创建你的第一个Scratch项目，让想象力自由飞翔吧！
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="mt-6">
-                <Link to="/www/scratch/projects">
-                  <Button className="w-full fun-button-primary">
+                <Button className="w-full fun-button-primary" asChild>
+                  <a href={`${HOST_URL}/projects/scratch/new`}>
                     <PlusCircle className="w-4 h-4 mr-2" />
                     创建新项目
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* 侧边栏 */}
-        <div className="space-y-6">
-          {/* 成就卡片 */}
-          <Card className="fun-card border-yellow-200">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <Trophy className="w-6 h-6 text-yellow-600" />
-                <CardTitle className="text-lg text-gray-800">我的成就</CardTitle>
-              </div>
-              <CardDescription>你已经很棒了！</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {mockAchievements.map((achievement, index) => (
-                  <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-yellow-50">
-                    <div className="text-2xl">{achievement.icon}</div>
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-800 text-sm">{achievement.name}</h4>
-                      <p className="text-xs text-gray-600">{achievement.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 快速链接 */}
-          <Card className="fun-card border-blue-200">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <Zap className="w-6 h-6 text-blue-600" />
-                <CardTitle className="text-lg text-gray-800">快速开始</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Link to="/www/scratch/projects">
-                <Button variant="outline" className="w-full rounded-xl justify-start">
-                  <Rocket className="w-4 h-4 mr-2" />
-                  开始新项目
+                  </a>
                 </Button>
-              </Link>
-              <Link to="/www/shares/all">
-                <Button variant="outline" className="w-full rounded-xl justify-start">
-                  <Star className="w-4 h-4 mr-2" />
-                  浏览其他作品
-                </Button>
-              </Link>
+              </div>
             </CardContent>
           </Card>
-        </div>
       </div>
     </UserLayout>
   );
