@@ -113,6 +113,29 @@ export function UserProvider({ children }: UserProviderProps) {
     refreshUserInfo();
   }, []);
 
+  // 监听localStorage变化，当token变化时重新获取用户信息
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'token') {
+        refreshUserInfo();
+      }
+    };
+
+    // 监听storage事件（跨标签页）
+    window.addEventListener('storage', handleStorageChange);
+    
+    // 监听自定义事件（同标签页）
+    const handleCustomStorageChange = () => {
+      refreshUserInfo();
+    };
+    window.addEventListener('tokenChanged', handleCustomStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('tokenChanged', handleCustomStorageChange);
+    };
+  }, []);
+
   const contextValue: UserContextType = {
     userInfo,
     isLoading,
@@ -127,6 +150,13 @@ export function UserProvider({ children }: UserProviderProps) {
     </UserContext.Provider>
   );
 }
+
+// 全局工具函数：设置token并刷新用户信息
+export const setTokenAndRefresh = (token: string) => {
+  localStorage.setItem("token", token);
+  // 触发用户信息刷新
+  window.dispatchEvent(new Event('tokenChanged'));
+};
 
 // 使用用户信息的Hook
 export function useUser() {

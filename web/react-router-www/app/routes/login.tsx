@@ -47,7 +47,7 @@ export default function LoginPage() {
             <p className="text-white/90 text-lg font-medium drop-shadow">
               让编程变得有趣 🎉
             </p>
-          </div>
+        </div>
 
           {/* 登录表单卡片 */}
           <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-white/20">

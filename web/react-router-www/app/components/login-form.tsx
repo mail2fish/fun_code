@@ -6,6 +6,7 @@ import { cn } from "~/lib/utils"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
+import { useUser, setTokenAndRefresh } from "~/hooks/use-user";
 
 import { HOST_URL } from "~/config";
 
@@ -20,6 +21,7 @@ export function LoginForm({
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { refreshUserInfo } = useUser();
 
   const { username, password } = formData;
 
@@ -46,12 +48,24 @@ export function LoginForm({
         password,
       });
 
-      // 保存用户信息和令牌到本地存储
-      localStorage.setItem("token", response.data.data.token);
-      // localStorage.setItem("user", JSON.stringify(response.data.user));
+      // 保存token并触发用户信息刷新
+      setTokenAndRefresh(response.data.data.token);
+      
+      // 保存角色信息，用于布局选择
+      if (response.data.data.role) {
+        localStorage.setItem("userRole", response.data.data.role);
+      }
 
-      // 登录成功后跳转到 scratch/projects 页面
-      navigate("/www/scratch/projects");
+      // 等待用户信息加载完成
+      await refreshUserInfo();
+
+      // 根据角色跳转到不同页面
+      const userRole = response.data.data.role;
+      if (userRole === "admin") {
+        navigate("/www/dashboard"); // 管理员跳转到用户管理
+      } else {
+        navigate("/www/dashboard"); // 学生/教师跳转到项目页面
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || "登录失败，请检查用户名和密码");
     } finally {

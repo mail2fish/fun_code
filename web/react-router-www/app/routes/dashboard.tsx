@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
-import { UserLayout } from "~/components/user-layout";
+import { LayoutProvider } from "~/components/layout-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { 
@@ -102,9 +102,7 @@ export default function Dashboard() {
   };
 
   return (
-    <UserLayout
-      userInfo={userInfo || undefined}
-      onLogout={logout}
+    <LayoutProvider
       title={userInfo ? `欢迎回来，${userInfo.name}！` : "欢迎回来！"}
       subtitle="今天想创造什么有趣的项目呢？"
     >
@@ -280,6 +278,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
       </div>
-    </UserLayout>
+    </LayoutProvider>
   );
 }

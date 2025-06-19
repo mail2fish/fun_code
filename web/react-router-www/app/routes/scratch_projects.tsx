@@ -2,7 +2,7 @@ import * as React from "react"
 import { Plus, Sparkles, Rocket } from "lucide-react"
 import { Toaster } from "sonner"
 
-import { UserLayout } from "~/components/user-layout"
+import { LayoutProvider } from "~/components/layout-provider"
 import { ProjectTable } from "~/components/project-table"
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
@@ -66,9 +66,9 @@ export default function ScratchProjectsPage() {
   };
 
   return (
-    <UserLayout
-      userInfo={userInfo || undefined}
-      onLogout={logout}
+    <LayoutProvider
+      title="我的编程项目"
+      subtitle="查看和管理你的所有Scratch创意作品"
     >
       {/* 错误提示 */}
       {error && (
@@ -123,6 +123,6 @@ export default function ScratchProjectsPage() {
         theme="light"
         richColors
       />
-    </UserLayout>
+    </LayoutProvider>
   )
 }
