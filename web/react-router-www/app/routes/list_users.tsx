@@ -316,13 +316,6 @@ export default function ListUserPage() {
       <AdminLayout
         adminInfo={adminInfo}
         onLogout={logout}
-        title="用户列表"
-        subtitle="管理系统中的所有用户账号"
-        showBreadcrumb={true}
-        breadcrumbItems={[
-          { label: "用户管理" },
-          { label: "用户列表" }
-        ]}
       >
         <div className="flex items-center justify-center h-64">
           <div className="text-center">加载中...</div>
@@ -335,14 +328,13 @@ export default function ListUserPage() {
     <AdminLayout
       adminInfo={adminInfo}
       onLogout={logout}
-      title="用户列表"
-      subtitle="管理系统中的所有用户账号"
-      showBreadcrumb={true}
-      breadcrumbItems={[
-        { label: "用户管理" },
-        { label: "用户列表" }
-      ]}
     >
+      {/* 页面标题 */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-gray-900 mb-2">用户列表</h1>
+        <p className="text-gray-600">管理系统中的所有用户账号</p>
+      </div>
+
       {/* 操作栏 */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">

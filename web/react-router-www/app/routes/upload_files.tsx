@@ -2,26 +2,13 @@ import React, { useState, useCallback } from 'react';
 import { IconUpload, IconFile, IconX, IconTrash } from "@tabler/icons-react";
 import CryptoJS from 'crypto-js';
 
-import { AppSidebar } from "~/components/my-app-sidebar";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "~/components/ui/breadcrumb";
+import { AdminLayout } from "~/components/admin-layout";
+import { useUser } from "~/hooks/use-user";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
-import { Separator } from "~/components/ui/separator";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "~/components/ui/sidebar";
 
 interface FileWithMetadata {
   file: File;
@@ -88,6 +75,13 @@ export default function UploadFiles() {
   const [isCalculatingHashes, setIsCalculatingHashes] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadResult, setUploadResult] = useState<{ success: boolean; data?: UploadResult; error?: string } | null>(null);
+
+  // 获取用户信息
+  const { userInfo, logout } = useUser();
+  const adminInfo = userInfo ? {
+    name: userInfo.nickname || userInfo.username || '管理员',
+    role: userInfo.role || 'admin'
+  } : undefined;
 
   const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -211,258 +205,255 @@ export default function UploadFiles() {
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    文件管理
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>多文件上传</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-          <div className="ml-auto mr-4 flex items-center gap-2">
-            <IconUpload className="h-5 w-5 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">文件上传管理</span>
-          </div>
-        </header>
-        
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <IconUpload className="h-5 w-5" />
-                多文件上传
-              </CardTitle>
-              <CardDescription>
-                上传多个文件并设置相关信息，支持图片预览和自动SHA1计算
-              </CardDescription>
-            </CardHeader>
+    <AdminLayout
+      adminInfo={adminInfo}
+      onLogout={logout}
+    >
+      {/* 页面标题 */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-gray-900 mb-2">文件上传</h1>
+        <p className="text-gray-600">批量上传多个文件到系统资源库，支持图片预览和自动SHA1计算</p>
+      </div>
 
-            <CardContent className="space-y-6">
-              {/* 文件选择区域 */}
-              <div className="space-y-2">
-                <Label htmlFor="fileInput">选择文件</Label>
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:border-muted-foreground/50 transition-colors">
-                  <input
-                    type="file"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    id="fileInput"
-                    disabled={isCalculatingHashes || isSubmitting}
-                  />
-                  <div className="flex flex-col items-center gap-4">
-                    <IconUpload className="h-12 w-12 text-muted-foreground" />
-                    <div className="space-y-2 text-center">
-                      <Button
-                        type="button"
-                        onClick={() => document.getElementById('fileInput')?.click()}
-                        disabled={isCalculatingHashes || isSubmitting || selectedFiles.length >= 30}
-                        size="lg"
-                      >
-                        {isCalculatingHashes ? '计算文件哈希中...' : selectedFiles.length >= 30 ? '已达文件上限' : '选择文件'}
-                      </Button>
-                      <p className="text-sm text-muted-foreground">
-                        支持多文件上传，最多30个文件，单个文件最大2MB
-                      </p>
-                    </div>
-                  </div>
+      <div className="space-y-8">
+        {/* 文件选择区域 */}
+        <Card className="border-slate-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3 text-slate-800">
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                <IconUpload className="h-4 w-4 text-blue-600" />
+              </div>
+              选择文件
+            </CardTitle>
+            <CardDescription className="text-slate-600">
+              选择要上传的文件，系统将自动计算文件哈希值并生成预览
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="border-2 border-dashed border-slate-300 rounded-xl p-12 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-all duration-200">
+              <input
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+                id="fileInput"
+                disabled={isCalculatingHashes || isSubmitting}
+              />
+              <div className="flex flex-col items-center gap-6">
+                <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center">
+                  <IconUpload className="h-8 w-8 text-blue-600" />
+                </div>
+                <div className="space-y-3 text-center">
+                  <Button
+                    type="button"
+                    onClick={() => document.getElementById('fileInput')?.click()}
+                    disabled={isCalculatingHashes || isSubmitting || selectedFiles.length >= 30}
+                    size="lg"
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {isCalculatingHashes ? '计算文件哈希中...' : selectedFiles.length >= 30 ? '已达文件上限' : '选择文件'}
+                  </Button>
+                  <p className="text-sm text-slate-500">
+                    支持多文件上传，最多30个文件，单个文件最大2MB
+                  </p>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
 
-              {/* 已选文件列表 */}
-              {selectedFiles.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-base font-semibold">
-                      已选文件 ({selectedFiles.length}/30)
-                    </Label>
-                    {selectedFiles.length >= 8 && (
-                      <span className="text-sm text-orange-600 font-medium">
-                        {selectedFiles.length >= 30 ? '已达上限' : `还可添加${30 - selectedFiles.length}个文件`}
-                      </span>
-                    )}
-                  </div>
-                  <div className="space-y-4">
-                    {selectedFiles.map((fileData, index) => (
-                      <Card key={index} className="border-muted">
-                        <CardContent className="p-4">
-                          <div className="flex items-start space-x-4">
-                            {/* 文件预览 */}
-                            <div className="flex-shrink-0">
-                              {fileData.preview ? (
-                                <img
-                                  src={fileData.preview}
-                                  alt="预览"
-                                  className="w-16 h-16 object-cover rounded border"
-                                />
-                              ) : (
-                                <div className="w-16 h-16 bg-muted rounded border flex items-center justify-center">
-                                  <IconFile className="h-8 w-8 text-muted-foreground" />
-                                </div>
-                              )}
-                            </div>
-
-                            {/* 文件信息表单 */}
-                            <div className="flex-1 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                              <div className="space-y-2">
-                                <Label htmlFor={`name-${index}`}>文件名称 *</Label>
-                                <Input
-                                  id={`name-${index}`}
-                                  type="text"
-                                  value={fileData.name}
-                                  onChange={(e) => updateFileMetadata(index, 'name', e.target.value)}
-                                  required
-                                />
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label htmlFor={`tagId-${index}`}>标签ID</Label>
-                                <Input
-                                  id={`tagId-${index}`}
-                                  type="number"
-                                  value={fileData.tagId}
-                                  onChange={(e) => updateFileMetadata(index, 'tagId', parseInt(e.target.value) || 0)}
-                                  min="0"
-                                />
-                              </div>
-
-                              <div className="sm:col-span-2 space-y-2">
-                                <Label htmlFor={`description-${index}`}>描述</Label>
-                                <Textarea
-                                  id={`description-${index}`}
-                                  value={fileData.description}
-                                  onChange={(e) => updateFileMetadata(index, 'description', e.target.value)}
-                                  rows={2}
-                                  placeholder="文件描述（可选）"
-                                />
-                              </div>
-
-                              <div className="sm:col-span-2 space-y-2">
-                                <Label htmlFor={`sha1-${index}`}>SHA1 哈希</Label>
-                                <Input
-                                  id={`sha1-${index}`}
-                                  type="text"
-                                  value={fileData.sha1}
-                                  readOnly
-                                  className="font-mono text-xs bg-muted"
-                                />
-                              </div>
-
-                              <div className="sm:col-span-2 text-sm text-muted-foreground">
-                                文件大小: {(fileData.file.size / 1024).toFixed(1)} KB
-                              </div>
-                            </div>
-
-                            {/* 删除按钮 */}
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeFile(index)}
-                              className="text-destructive hover:text-destructive/80"
-                            >
-                              <IconX className="h-4 w-4" />
-                            </Button>
+        {/* 已选文件列表 */}
+        {selectedFiles.length > 0 && (
+          <Card className="border-slate-200">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-slate-800">
+                  已选文件 ({selectedFiles.length}/30)
+                </CardTitle>
+                {selectedFiles.length >= 8 && (
+                  <span className="text-sm text-orange-600 font-medium bg-orange-50 px-3 py-1 rounded-full">
+                    {selectedFiles.length >= 30 ? '已达上限' : `还可添加${30 - selectedFiles.length}个文件`}
+                  </span>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {selectedFiles.map((fileData, index) => (
+                  <div key={index} className="bg-slate-50 border border-slate-200 rounded-xl p-6">
+                    <div className="flex items-start space-x-6">
+                      {/* 文件预览 */}
+                      <div className="flex-shrink-0">
+                        {fileData.preview ? (
+                          <img
+                            src={fileData.preview}
+                            alt="预览"
+                            className="w-20 h-20 object-cover rounded-lg border-2 border-white shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-20 h-20 bg-white rounded-lg border-2 border-slate-200 flex items-center justify-center shadow-sm">
+                            <IconFile className="h-8 w-8 text-slate-400" />
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                        )}
+                      </div>
+
+                      {/* 文件信息表单 */}
+                      <div className="flex-1 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor={`name-${index}`} className="text-slate-700 font-medium">文件名称 *</Label>
+                          <Input
+                            id={`name-${index}`}
+                            type="text"
+                            value={fileData.name}
+                            onChange={(e) => updateFileMetadata(index, 'name', e.target.value)}
+                            required
+                            className="border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`tagId-${index}`} className="text-slate-700 font-medium">标签ID</Label>
+                          <Input
+                            id={`tagId-${index}`}
+                            type="number"
+                            value={fileData.tagId}
+                            onChange={(e) => updateFileMetadata(index, 'tagId', parseInt(e.target.value) || 0)}
+                            min="0"
+                            className="border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2 space-y-2">
+                          <Label htmlFor={`description-${index}`} className="text-slate-700 font-medium">描述</Label>
+                          <Textarea
+                            id={`description-${index}`}
+                            value={fileData.description}
+                            onChange={(e) => updateFileMetadata(index, 'description', e.target.value)}
+                            rows={2}
+                            placeholder="文件描述（可选）"
+                            className="border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2 space-y-2">
+                          <Label htmlFor={`sha1-${index}`} className="text-slate-700 font-medium">SHA1 哈希</Label>
+                          <Input
+                            id={`sha1-${index}`}
+                            type="text"
+                            value={fileData.sha1}
+                            readOnly
+                            className="font-mono text-xs bg-slate-100 border-slate-300"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2 text-sm text-slate-500">
+                          文件大小: {(fileData.file.size / 1024).toFixed(1)} KB
+                        </div>
+                      </div>
+
+                      {/* 删除按钮 */}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeFile(index)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <IconX className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 上传表单 */}
+        {selectedFiles.length > 0 && (
+          <Card className="border-slate-200">
+            <CardContent className="p-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSelectedFiles([])}
+                    disabled={isSubmitting}
+                    className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-50"
+                  >
+                    <IconTrash className="h-4 w-4" />
+                    清空所有文件
+                  </Button>
+
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || selectedFiles.length === 0}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                    size="lg"
+                  >
+                    <IconUpload className="h-4 w-4" />
+                    {isSubmitting ? '上传中...' : `上传 ${selectedFiles.length} 个文件`}
+                  </Button>
                 </div>
-              )}
+              </form>
+            </CardContent>
+          </Card>
+        )}
 
-              {/* 上传表单 */}
-              {selectedFiles.length > 0 && (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <Separator />
-                  <div className="flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setSelectedFiles([])}
-                      disabled={isSubmitting}
-                      className="flex items-center gap-2"
-                    >
-                      <IconTrash className="h-4 w-4" />
-                      清空所有文件
-                    </Button>
-
-                    <Button
-                      type="submit"
-                      disabled={isSubmitting || selectedFiles.length === 0}
-                      className="flex items-center gap-2"
-                      size="lg"
-                    >
-                      <IconUpload className="h-4 w-4" />
-                      {isSubmitting ? '上传中...' : `上传 ${selectedFiles.length} 个文件`}
-                    </Button>
+        {/* 上传结果显示 */}
+        {uploadResult && (
+          <Card className={`border-2 ${uploadResult.success ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'}`}>
+            <CardContent className="p-6">
+              {uploadResult.success ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                    <h4 className="font-semibold text-emerald-800 text-lg">上传完成</h4>
                   </div>
-                </form>
-              )}
-
-              {/* 上传结果显示 */}
-              {uploadResult && (
-                <Card className={uploadResult.success ? 'border-green-200 bg-green-50/50' : 'border-red-200 bg-red-50/50'}>
-                  <CardContent className="p-4">
-                    {uploadResult.success ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                          <h4 className="font-semibold text-green-800">上传完成</h4>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="bg-white rounded-lg p-4 border border-emerald-200">
+                      <div className="text-2xl font-bold text-slate-800">{uploadResult.data?.total_count}</div>
+                      <div className="text-sm text-slate-600">总文件数</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-emerald-200">
+                      <div className="text-2xl font-bold text-emerald-600">{uploadResult.data?.success_count}</div>
+                      <div className="text-sm text-slate-600">成功</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-emerald-200">
+                      <div className="text-2xl font-bold text-orange-600">{uploadResult.data?.failed_count}</div>
+                      <div className="text-sm text-slate-600">失败</div>
+                    </div>
+                  </div>
+                  
+                  {uploadResult.data?.failed_files && uploadResult.data.failed_files.length > 0 && (
+                    <Card className="border-amber-200 bg-amber-50">
+                      <CardContent className="p-4">
+                        <p className="font-medium text-amber-800 mb-3">失败的文件:</p>
+                        <div className="space-y-2">
+                          {uploadResult.data.failed_files.map((file, index) => (
+                            <div key={index} className="text-sm text-amber-700 bg-amber-100 p-3 rounded-lg">
+                              <span className="font-medium">{file.file_name}</span>: {file.error}
+                            </div>
+                          ))}
                         </div>
-                        <div className="text-sm text-green-700 space-y-1">
-                          <p>总文件数: <span className="font-medium">{uploadResult.data?.total_count}</span></p>
-                          <p>成功: <span className="font-medium text-green-600">{uploadResult.data?.success_count}</span></p>
-                          <p>失败: <span className="font-medium text-orange-600">{uploadResult.data?.failed_count}</span></p>
-                          
-                          {uploadResult.data?.failed_files && uploadResult.data.failed_files.length > 0 && (
-                            <Card className="mt-3 border-yellow-200 bg-yellow-50">
-                              <CardContent className="p-3">
-                                <p className="font-medium text-yellow-800 mb-2">失败的文件:</p>
-                                <div className="space-y-1">
-                                  {uploadResult.data.failed_files.map((file, index) => (
-                                    <div key={index} className="text-xs text-yellow-700 bg-yellow-100 p-2 rounded">
-                                      <span className="font-medium">{file.file_name}</span>: {file.error}
-                                    </div>
-                                  ))}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-red-600 rounded-full"></div>
-                          <h4 className="font-semibold text-red-800">上传失败</h4>
-                        </div>
-                        <p className="text-sm text-red-700">{uploadResult.error}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <h4 className="font-semibold text-red-800 text-lg">上传失败</h4>
+                  </div>
+                  <p className="text-red-700 bg-white p-4 rounded-lg border border-red-200">{uploadResult.error}</p>
+                </div>
               )}
             </CardContent>
           </Card>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+        )}
+      </div>
+    </AdminLayout>
   );
 }

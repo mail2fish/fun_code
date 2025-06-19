@@ -67,13 +67,6 @@ export default function Page() {
     <AdminLayout
       adminInfo={adminInfo}
       onLogout={logout}
-      title="Scratch 程序管理"
-      subtitle="管理系统中的所有 Scratch 编程项目"
-      showBreadcrumb={true}
-      breadcrumbItems={[
-        { label: "程序管理" },
-        { label: "Scratch 程序列表" }
-      ]}
     >
       <Toaster 
         position="top-right"
@@ -81,17 +74,21 @@ export default function Page() {
         richColors
       />
       
+      {/* 页面标题 */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-gray-900 mb-2">Scratch 程序管理</h1>
+        <p className="text-gray-600">管理系统中的所有 Scratch 编程项目</p>
+      </div>
+      
       {/* 操作栏 */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-              <div className="flex items-center">
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-                {error}
-              </div>
+            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              {error}
             </div>
           )}
         </div>
@@ -99,7 +96,7 @@ export default function Page() {
         <Button 
           asChild
           disabled={isButtonCooling}
-          className="bg-green-600 hover:bg-green-700"
+          className="bg-blue-600 hover:bg-blue-700 shadow-sm"
         >
           <Link 
             to={`${HOST_URL}/projects/scratch/new`} 
@@ -114,7 +111,7 @@ export default function Page() {
       </div>
 
       {/* 项目表格 */}
-      <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+      <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
         <ProjectTable 
           onDeleteProject={handleDeleteProject}
           projectsApiUrl={`${HOST_URL}/api/admin/scratch/projects`}

@@ -53,14 +53,13 @@ export default function Page() {
     <AdminLayout
       adminInfo={adminInfo}
       onLogout={logout}
-      title="资源文件管理"
-      subtitle="管理系统中的所有文件资源，支持上传和删除操作"
-      showBreadcrumb={true}
-      breadcrumbItems={[
-        { label: "程序资源" },
-        { label: "资源列表" }
-      ]}
     >
+      {/* 页面标题 */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-gray-900 mb-2">资源文件管理</h1>
+        <p className="text-gray-600">管理系统中的所有文件资源，支持上传和删除操作</p>
+      </div>
+
       {/* 操作栏 */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">

@@ -187,19 +187,18 @@ export default function CreateUserPage() {
     <AdminLayout
       adminInfo={adminInfo}
       onLogout={logout}
-      title="创建新用户"
-      subtitle="填写以下信息创建一个新的用户账号"
-      showBreadcrumb={true}
-      breadcrumbItems={[
-        { label: "用户管理", href: "/www/admin/users/list" },
-        { label: "创建新用户" }
-      ]}
     >
       <Toaster 
         position="top-right"
         theme="light"
         richColors
       />
+      
+      {/* 页面标题 */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-gray-900 mb-2">创建新用户</h1>
+        <p className="text-gray-600">填写以下信息创建一个新的用户账号</p>
+      </div>
       
       {/* 表单容器 */}
       <div className="mx-auto w-full max-w-2xl">
