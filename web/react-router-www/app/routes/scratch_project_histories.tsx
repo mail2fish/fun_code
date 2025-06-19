@@ -1,40 +1,31 @@
 import * as React from "react"
-import { Link } from "react-router"
-import { AppSidebar } from "~/components/my-app-sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "~/components/ui/breadcrumb"
-import { Separator } from "~/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "~/components/ui/sidebar"
-import { fetchWithAuth } from "~/utils/api"
-import { HOST_URL } from "~/config"
-import { useParams } from "react-router"    
-// 假设有 ProjectHistoryTable 组件用于展示历史记录
-// 你需要根据实际情况实现或调整该组件
+import { Link, useParams } from "react-router"
+import { ArrowLeft, History, Sparkles, Calendar, Clock, Rocket } from "lucide-react"
+import { Toaster } from "sonner"
+
+import { UserLayout } from "~/components/user-layout"
 import { ProjectHistoryTable, type ProjectHistoriesData } from "~/components/project-history-table"
 import { Button } from "~/components/ui/button"
-import { IconChevronLeft } from "@tabler/icons-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
+import { fetchWithAuth } from "~/utils/api"
+import { HOST_URL } from "~/config"
 
-// 获取项目历史记录列表
+// 模拟用户数据
+const mockUserInfo = {
+  name: "小明",
+  role: "学生"
+};
+
+// 获取程序历史记录列表
 async function getScratchProjectHistories(projectId: string) {
   try {
- 
     const response = await fetchWithAuth(`${HOST_URL}/api/scratch/projects/${projectId}/histories`);
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`);
     }
     return await response.json();
   } catch (error) {
-    console.error("获取项目历史记录失败:", error);
+    console.error("获取程序历史记录失败:", error);
     throw error;
   }
 }
@@ -74,7 +65,7 @@ export default function ScratchProjectHistories() {
     if (projectId) {
       getScratchProjectHistories(projectId)
         .then(response => {
-            setHistoriesData({
+          setHistoriesData({
             project_id: response.data.project_id,
             name: response.data.name,
             histories: response.data.histories || [],
@@ -83,93 +74,126 @@ export default function ScratchProjectHistories() {
           });
           setError(null);
         })
-        .catch(() => setError("加载项目历史记录失败"))
+        .catch(() => setError("加载程序历史记录失败"))
         .finally(() => setIsLoading(false));
     }
   }, [projectId]);
 
+  // 处理用户登出
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    window.location.href = "/";
+  };
+
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    Scratch 程序
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Scratch 项目历史记录</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-        </header>
-      <Separator className="my-4" />
+    <UserLayout
+      userInfo={mockUserInfo}
+      onLogout={handleLogout}
+    >
+      {/* 错误提示 */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-2xl mb-6 flex items-center gap-3">
+          <span className="text-xl">❌</span>
+          <span>{error}</span>
+        </div>
+      )}
 
-      <div className="flex flex-col gap-4 px-4 py-2 bg-muted/30 rounded-lg mb-4">
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-muted-foreground w-24">项目缩略图</span>
-          <div className="h-20 w-20 overflow-hidden rounded-md border">
-            {projectId && (
-              <img 
-                src={`${HOST_URL}/api/scratch/projects/${projectId}/thumbnail`} 
-                alt="项目缩略图" 
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = "/images/scratch-default-thumbnail.png";
-                }}
-              />
-            )}
+      {/* 历史记录列表 */}
+      <Card className="fun-card border-gray-200">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <History className="w-6 h-6 text-purple-600" />
+              <div>
+                <CardTitle className="text-xl text-gray-800">
+                  {historiesData.name ? `${historiesData.name} - 历史记录` : "程序历史记录"}
+                </CardTitle>
+                <CardDescription>查看程序的修改历史和版本变化</CardDescription>
+              </div>
+            </div>
+            
+            {/* 返回按钮 */}
+            <Button 
+              size="lg"
+              onClick={() => window.history.back()}
+              className="fun-button-secondary gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              返回程序列表
+            </Button>
           </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-muted-foreground w-24">项目ID</span>
-          <span >{historiesData.project_id}</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-muted-foreground w-24">项目名称</span>
-          <span>{historiesData.name}</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-muted-foreground w-24">创建时间</span>
-          <span>{formatDate(historiesData.created_at)}</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-muted-foreground w-24">更新时间</span>
-          <span>{formatDate(historiesData.updated_at)}</span>
-        </div>
-      </div>
-      <div className="flex justify-center">
-            <button 
-              onClick={() => window.history.back()} 
-              className="text-blue-500 hover:text-blue-600"
-            >  
-                返回列表
-            </button>
-        </div>
-       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-         {error && (
-           <div className="bg-destructive/10 text-destructive p-3 rounded-md">
-             {error}
-           </div>
-         )}
-         <ProjectHistoryTable
-           historiesData={historiesData}
-           isLoading={isLoading}
-         />
-       </div>
 
-      </SidebarInset>
-    </SidebarProvider>
+          {/* 程序基本信息 */}
+          <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+            <div className="flex items-start gap-4">
+              {/* 程序缩略图 */}
+              <div className="flex-shrink-0">
+                <div className="h-20 w-20 overflow-hidden rounded-lg border-2 border-purple-200 bg-white shadow-sm">
+                  {projectId ? (
+                    <img 
+                      src={`${HOST_URL}/api/scratch/projects/${projectId}/thumbnail`} 
+                      alt="程序缩略图" 
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = "/images/scratch-default-thumbnail.png";
+                      }}
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-purple-400">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 程序信息 */}
+              <div className="flex-1 min-w-0">
+                <div className="space-y-2">
+                  {historiesData.project_id && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Rocket className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                      <span className="font-medium text-gray-600">程序ID:</span>
+                      <span className="text-gray-800 font-mono">{historiesData.project_id}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                    {historiesData.created_at && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        <span className="font-medium text-gray-600">创建:</span>
+                        <span className="text-gray-700">{formatDate(historiesData.created_at)}</span>
+                      </div>
+                    )}
+                    
+                    {historiesData.updated_at && (
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                        <span className="font-medium text-gray-600">更新:</span>
+                        <span className="text-gray-700">{formatDate(historiesData.updated_at)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        
+        <CardContent>
+          <ProjectHistoryTable
+            historiesData={historiesData}
+            isLoading={isLoading}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Toast 通知 */}
+      <Toaster 
+        position="top-right"
+        theme="light"
+        richColors
+      />
+    </UserLayout>
   );
 } 
