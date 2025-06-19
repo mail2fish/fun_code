@@ -393,13 +393,13 @@ func (h *Handler) ListScratchProjectsHandler(c *gin.Context, params *ListScratch
 
 // SearchScratchParams 搜索Scratch项目参数
 type SearchScratchParams struct {
-	Keyword string `json:"keyword" form:"keyword" binding:"required"`
-	UserID  uint   `json:"user_id" form:"user_id"`
+	Keyword string
+	UserID  uint
 }
 
 func (p *SearchScratchParams) Parse(c *gin.Context) gorails.Error {
 	keyword := c.Query("keyword")
-	userID := c.Query("user_id")
+	userID := c.Query("userId")
 	userIDInt, err := strconv.Atoi(userID)
 	if err != nil {
 		userIDInt = 0
