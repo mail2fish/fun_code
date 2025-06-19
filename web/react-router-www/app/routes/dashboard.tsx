@@ -15,12 +15,7 @@ import {
   Trophy,
   Rocket
 } from "lucide-react";
-
-// 模拟用户数据
-const mockUserInfo = {
-  name: "小明",
-  role: "学生"
-};
+import { useUserInfo, useUser } from "~/hooks/use-user";
 
 // 模拟统计数据
 const mockStats = {
@@ -46,16 +41,15 @@ const mockAchievements = [
 ];
 
 export default function Dashboard() {
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    window.location.href = "/";
-  };
+  // 使用统一的用户信息管理
+  const { userInfo } = useUserInfo();
+  const { logout } = useUser();
 
   return (
     <UserLayout
-      userInfo={mockUserInfo}
-      onLogout={handleLogout}
-      title="欢迎回来，小明！"
+      userInfo={userInfo || undefined}
+      onLogout={logout}
+      title={userInfo ? `欢迎回来，${userInfo.name}！` : "欢迎回来！"}
       subtitle="今天想创造什么有趣的项目呢？"
     >
       {/* 快速操作区域 */}

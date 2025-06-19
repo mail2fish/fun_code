@@ -9,12 +9,7 @@ import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
 import { fetchWithAuth } from "~/utils/api"
 import { HOST_URL } from "~/config"
-
-// 模拟用户数据
-const mockUserInfo = {
-  name: "小明",
-  role: "学生"
-};
+import { useUserInfo, useUser } from "~/hooks/use-user"
 
 // 获取程序历史记录列表
 async function getScratchProjectHistories(projectId: string) {
@@ -60,6 +55,10 @@ export default function ScratchProjectHistories() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const { projectId } = useParams();
+  
+  // 使用统一的用户信息管理
+  const { userInfo } = useUserInfo();
+  const { logout } = useUser();
 
   React.useEffect(() => {
     if (projectId) {
@@ -79,16 +78,10 @@ export default function ScratchProjectHistories() {
     }
   }, [projectId]);
 
-  // 处理用户登出
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    window.location.href = "/";
-  };
-
   return (
     <UserLayout
-      userInfo={mockUserInfo}
-      onLogout={handleLogout}
+      userInfo={userInfo || undefined}
+      onLogout={logout}
     >
       {/* 错误提示 */}
       {error && (

@@ -13,11 +13,8 @@ import { fetchWithAuth } from "~/utils/api";
 // API 服务
 import { HOST_URL } from "~/config";
 
-// 模拟用户数据
-const mockUserInfo = {
-  name: "小明",
-  role: "学生"
-};
+// 导入用户信息管理
+import { useUserInfo, useUser } from "~/hooks/use-user";
 
 // 删除程序
 async function deleteScratchProject(id: string) {
@@ -39,6 +36,10 @@ async function deleteScratchProject(id: string) {
 export default function ScratchProjectsPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [isButtonCooling, setIsButtonCooling] = React.useState(false);
+  
+  // 使用统一的用户信息管理
+  const { userInfo } = useUserInfo();
+  const { logout } = useUser();
 
   // 处理删除程序
   const handleDeleteProject = async (id: string) => {
@@ -64,16 +65,10 @@ export default function ScratchProjectsPage() {
     }, 2000);
   };
 
-  // 处理用户登出
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    window.location.href = "/";
-  };
-
   return (
     <UserLayout
-      userInfo={mockUserInfo}
-      onLogout={handleLogout}
+      userInfo={userInfo || undefined}
+      onLogout={logout}
     >
       {/* 错误提示 */}
       {error && (

@@ -91,6 +91,8 @@ func (s *Server) setupRoutes() {
 		auth.DELETE("/files/:id", gorails.Wrap(s.handler.DeleteFileHandler, nil))
 		auth.GET("/files/search", gorails.Wrap(s.handler.SearchFilesHandler, nil))
 
+		auth.GET("/user/info", gorails.Wrap(s.handler.GetCurrentUserHandler, nil))
+
 		{
 			admin := auth.Group("/admin").Use(s.handler.RequirePermission(handler.PermissionManageAll))
 			admin.POST("/classes/create", gorails.Wrap(s.handler.CreateClassHandler, nil))

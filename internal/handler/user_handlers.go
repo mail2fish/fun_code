@@ -448,3 +448,27 @@ func (h *Handler) GetCurrentUserPermissions(c *gin.Context) {
 		"permissions": permissions,
 	})
 }
+
+// GetCurrentUserHandler 获取当前用户信息
+func (h *Handler) GetCurrentUserHandler(c *gin.Context, params *gorails.EmptyParams) (*UserResponse, *gorails.ResponseMeta, gorails.Error) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60013, "未登录", nil)
+	}
+
+	// 获取用户信息
+	user, err := h.dao.UserDao.GetUserByID(userID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60014, "获取用户信息失败", err)
+	}
+
+	response := &UserResponse{}
+	response.ID = user.ID
+	response.Username = user.Username
+	response.Nickname = user.Nickname
+	response.Email = user.Email
+	response.Role = user.Role
+
+	return response, nil, nil
+}
