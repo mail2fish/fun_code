@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { UserLayout } from "./user-layout";
 import { AdminLayout } from "./admin-layout";
-import { useUserInfo, useUser } from "~/hooks/use-user";
+import { useUser } from "~/hooks/use-user";
 
 interface LayoutProviderProps {
   children: ReactNode;
@@ -23,8 +23,7 @@ export function LayoutProvider({
   showBackgroundPattern = true,
   forceLayout
 }: LayoutProviderProps) {
-  const { userInfo } = useUserInfo();
-  const { logout } = useUser();
+  const { userInfo, logout } = useUser();
 
   // 确定使用哪种布局
   const getLayoutType = () => {
@@ -49,11 +48,23 @@ export function LayoutProvider({
 
   const layoutType = getLayoutType();
 
+  // 转换用户信息格式以适配布局组件
+  const getFormattedUserInfo = () => {
+    if (!userInfo) return undefined;
+    return {
+      name: userInfo.nickname || userInfo.username,
+      role: userInfo.role === 'admin' ? '管理员' : 
+            userInfo.role === 'teacher' ? '教师' : '学生'
+    };
+  };
+
+  const formattedUserInfo = getFormattedUserInfo();
+
   // 渲染对应的布局
   if (layoutType === "admin") {
     return (
       <AdminLayout
-        adminInfo={userInfo || undefined}
+        adminInfo={formattedUserInfo}
         onLogout={logout}
         title={title}
         subtitle={subtitle}
@@ -68,7 +79,7 @@ export function LayoutProvider({
   // 默认使用用户布局
   return (
     <UserLayout
-      userInfo={userInfo || undefined}
+      userInfo={formattedUserInfo}
       onLogout={logout}
       title={title}
       subtitle={subtitle}
