@@ -2,7 +2,7 @@ import * as React from "react"
 import { Share2, Plus, Heart } from "lucide-react"
 import { Toaster } from "sonner"
 
-import { UserLayout } from "~/components/user-layout"
+import { LayoutProvider } from "~/components/layout-provider"
 import { ShareTable } from "~/components/share-table"
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
@@ -47,9 +47,9 @@ export default function UserSharePage() {
   };
 
   return (
-    <UserLayout
-      userInfo={userInfo || undefined}
-      onLogout={logout}
+    <LayoutProvider
+      title="我的分享作品"
+      subtitle="查看和管理你分享的创意作品，与小伙伴们一起欣赏"
     >
       {/* 错误提示 */}
       {error && (
@@ -104,6 +104,6 @@ export default function UserSharePage() {
         theme="light"
         richColors
       />
-    </UserLayout>
+    </LayoutProvider>
   )
 } 

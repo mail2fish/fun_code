@@ -2,7 +2,7 @@ import * as React from "react"
 import { Globe, Plus, Star, Sparkles } from "lucide-react"
 import { Toaster } from "sonner"
 
-import { UserLayout } from "~/components/user-layout"
+import { LayoutProvider } from "~/components/layout-provider"
 import { ShareTable } from "~/components/share-table"
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
@@ -29,9 +29,9 @@ export default function AllSharePage() {
   };
 
   return (
-    <UserLayout
-      userInfo={userInfo || undefined}
-      onLogout={logout}
+    <LayoutProvider
+      title="发现精彩分享"
+      subtitle="发现小伙伴们的精彩作品，获得创作灵感"
     >
       {/* 全部分享列表 */}
       <Card className="fun-card border-gray-200">
@@ -76,6 +76,6 @@ export default function AllSharePage() {
         theme="light"
         richColors
       />
-    </UserLayout>
+    </LayoutProvider>
   )
 } 
