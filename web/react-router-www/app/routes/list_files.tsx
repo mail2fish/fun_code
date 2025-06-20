@@ -2,7 +2,7 @@ import * as React from "react"
 import { FileText, Upload } from "lucide-react"
 import { Toaster } from "sonner"
 
-import { UserLayout } from "~/components/user-layout"
+import { LayoutProvider } from "~/components/layout-provider"
 import { FileTable } from "~/components/file-table"
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
@@ -34,9 +34,9 @@ export default function ListFilesPage() {
   }
 
   return (
-    <UserLayout
-      userInfo={userInfo || undefined}
-      onLogout={logout}
+    <LayoutProvider
+      title="文件资源"
+      subtitle="查看和管理你的所有文件资源"
     >
       {/* 错误提示 */}
       {error && (
@@ -93,6 +93,6 @@ export default function ListFilesPage() {
         theme="light"
         richColors
       />
-    </UserLayout>
+    </LayoutProvider>
   )
 } 
