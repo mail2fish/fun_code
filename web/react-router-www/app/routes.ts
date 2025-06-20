@@ -16,7 +16,6 @@ export default [
     route("/www/admin/users/list", "routes/admin/list_users.tsx"),
     route("/www/admin/users/:userId/edit", "routes/admin/edit_user.tsx"),
     route("/www/admin/users/create", "routes/admin/create_user.tsx"),
-    route("/www/admin/scratch/projects", "routes/admin/scratch_projects.tsx"),
     route("/www/admin/files/upload", "routes/admin/upload_files.tsx"),
     route("/www/admin/files/list", "routes/admin/files.tsx"),    
     route("/www/admin/classes/create", "routes/admin/create_class.tsx"),
