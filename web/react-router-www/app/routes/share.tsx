@@ -104,6 +104,7 @@ export default function SharePage() {
       title={shareData.title || 'Scratch作品'}
       subtitle={shareData.description || '这是一个精彩的 Scratch 创意作品！'}
       showBackgroundPattern={false}
+      showNavigation={!!userInfo}
     >
       {/* 主要内容区域 */}
       <div className="container mx-auto px-4 py-8">
