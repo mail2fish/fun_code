@@ -497,7 +497,7 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		UserName:       fmt.Sprintf("guest_%s", params.Token[:8]),    // 访客用户名
 		NickName:       fmt.Sprintf("访客 (查看 %s 的作品)", user.Nickname), // 访客昵称
 		IsPlayerOnly:   true,                                         // 分享项目为播放器模式
-		IsFullScreen:   true,                                         // 分享项目为全屏模式
+		IsFullScreen:   false,                                        // 分享项目为全屏模式
 	}
 
 	// 返回空响应，因为HTML已经直接写入到c.Writer
@@ -510,4 +510,48 @@ func RenderTemplateResponse(c *gin.Context, response *TemplateRenderResponse, me
 	if err := response.Tmpl.Execute(c.Writer, response.Data); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "渲染模板失败"})
 	}
+}
+
+type GetShareScratchProjectInfoResponse struct {
+	ShareToken  string `json:"share_token"`
+	ProjectID   uint   `json:"project_id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	NickName    string `json:"nick_name"`
+	ViewCount   int64  `json:"view_count"`
+	LikeCount   int64  `json:"like_count"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
+
+func (h *Handler) GetShareScratchProjectInfoHandler(c *gin.Context, params *GetShareScratchProjectParams) (*GetShareScratchProjectInfoResponse, *gorails.ResponseMeta, gorails.Error) {
+	shareDao := h.dao.ShareDao
+
+	share, err := shareDao.GetShareByToken(params.Token)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 13, "分享链接不存在或已失效", err)
+	}
+
+	user, err := h.dao.UserDao.GetUserByID(share.UserID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 13, "获取用户信息失败", err)
+	}
+
+	nickname := user.Nickname
+	if nickname == "" {
+		nickname = user.Username
+	}
+
+	response := &GetShareScratchProjectInfoResponse{
+		ShareToken:  share.ShareToken,
+		ProjectID:   share.ProjectID,
+		Title:       share.Title,
+		Description: share.Description,
+		NickName:    nickname,
+		ViewCount:   share.ViewCount,
+		LikeCount:   share.LikeCount,
+		CreatedAt:   share.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   share.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}
+	return response, nil, nil
 }

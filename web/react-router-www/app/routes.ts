@@ -10,6 +10,7 @@ export default [
     route("/www/files/list", "routes/list_files.tsx"),
     route("/www/shares/user", "routes/user_share.tsx"),
     route("/www/shares/all", "routes/all_share.tsx"),
+    route("/www/share/:shareId", "routes/share.tsx"),
 
     // admin
     route("/www/admin/dashboard", "routes/admin/dashboard.tsx"),

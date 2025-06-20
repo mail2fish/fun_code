@@ -279,7 +279,7 @@ export function ShareTable({
   }
 
   const handleOpenShare = (shareToken: string) => {
-    const shareUrl = `${window.location.origin}/shares/${shareToken}`
+    const shareUrl = `/www/share/${shareToken}`
     window.open(shareUrl, '_blank')
   }
 
