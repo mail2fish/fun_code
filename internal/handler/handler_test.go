@@ -528,7 +528,7 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 
 	// 公开路由
 	r.POST("/api/auth/register", h.Register)
-	r.POST("/api/auth/login", h.Login)
+	r.POST("/api/auth/login", gorails.Wrap(h.LoginHandler, nil))
 	r.POST("/api/auth/logout", h.Logout)
 
 	// 需要认证的路由组

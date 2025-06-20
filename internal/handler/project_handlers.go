@@ -128,6 +128,7 @@ func (h *Handler) GetOpenScratchProjectHandler(c *gin.Context, params *GetOpenSc
 		NickName       string
 		IsPlayerOnly   bool
 		IsFullScreen   bool
+		ProjectAPI     string
 	}{
 		CanSaveProject: canSaveProject,
 		ProjectID:      params.RawID,                // 新项目使用0作为ID
@@ -138,6 +139,7 @@ func (h *Handler) GetOpenScratchProjectHandler(c *gin.Context, params *GetOpenSc
 		NickName:       user.Nickname,
 		IsPlayerOnly:   false,
 		IsFullScreen:   false,
+		ProjectAPI:     "/api/scratch/projects",
 	}
 
 	return &TemplateRenderResponse{Tmpl: tmpl, Data: data}, nil, nil

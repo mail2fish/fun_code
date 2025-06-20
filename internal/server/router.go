@@ -52,6 +52,7 @@ func (s *Server) setupRoutes() {
 
 	s.router.GET("/shares/:token", gorails.Wrap(s.handler.GetShareScratchProjectHandler, handler.RenderTemplateResponse))
 	s.router.GET("/api/shares/info/:token", gorails.Wrap(s.handler.GetShareScratchProjectInfoHandler, nil))
+	s.router.GET("/api/shares/scratch/:token", gorails.Wrap(s.handler.GetShareScratchDataHandler, handler.RenderScratchProject))
 
 	// 公开路由 - 已改造为 gorails.Wrap 形式
 	s.router.POST("/api/auth/register", gorails.Wrap(s.handler.RegisterHandler, nil))

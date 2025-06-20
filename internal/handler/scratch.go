@@ -472,6 +472,7 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		NickName       string
 		IsPlayerOnly   bool
 		IsFullScreen   bool
+		ProjectAPI     string
 	}{
 		CanSaveProject: canSaveProject,
 		ProjectID:      rawID,                       // 新项目使用0作为ID
@@ -482,6 +483,7 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		NickName:       user.Nickname,
 		IsPlayerOnly:   false,
 		IsFullScreen:   false,
+		ProjectAPI:     "/api/scratch/projects",
 	}
 
 	// 设置响应头

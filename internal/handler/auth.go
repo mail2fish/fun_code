@@ -118,6 +118,26 @@ func (h *Handler) LogoutHandler(c *gin.Context, params *LogoutParams) (*LogoutRe
 	return &LogoutResponse{Message: "登出成功"}, nil, nil
 }
 
+// TryAuthMiddleware 认证中间件, 用于验证用户身份
+func (h *Handler) TryAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := getToken(c)
+		if token == "" {
+			c.Next()
+			return
+		}
+
+		claims, err := h.dao.AuthDao.ValidateToken(token)
+		if err != nil {
+			c.Next()
+			return
+		}
+
+		c.Set("userID", claims.UserID)
+		c.Next()
+	}
+}
+
 // AuthMiddleware 认证中间件, 用于验证用户身份
 func (h *Handler) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {

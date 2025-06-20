@@ -488,9 +488,10 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		NickName       string
 		IsPlayerOnly   bool
 		IsFullScreen   bool
+		ProjectAPI     string
 	}{
 		CanSaveProject: false,                                        // 分享项目不能保存
-		ProjectID:      fmt.Sprintf("%d", share.ProjectID),           // 使用项目ID
+		ProjectID:      share.ShareToken,                             // 使用项目ID
 		Host:           h.config.ScratchEditor.Host,                  // 从配置中获取 ScratchEditorHost
 		ProjectTitle:   fmt.Sprintf("%s (分享)", project.Name),         // 使用项目名称
 		CanRemix:       share.AllowRemix,                             // 根据分享设置决定是否允许Remix
@@ -498,6 +499,7 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		NickName:       fmt.Sprintf("访客 (查看 %s 的作品)", user.Nickname), // 访客昵称
 		IsPlayerOnly:   true,                                         // 分享项目为播放器模式
 		IsFullScreen:   false,                                        // 分享项目为全屏模式
+		ProjectAPI:     "/api/shares/scratch",                        // 分享项目API
 	}
 
 	// 返回空响应，因为HTML已经直接写入到c.Writer
@@ -554,4 +556,26 @@ func (h *Handler) GetShareScratchProjectInfoHandler(c *gin.Context, params *GetS
 		UpdatedAt:   share.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 	return response, nil, nil
+}
+
+func (h *Handler) GetShareScratchDataHandler(c *gin.Context, params *GetShareScratchProjectParams) ([]byte, *gorails.ResponseMeta, gorails.Error) {
+	shareDao := h.dao.ShareDao
+
+	share, err := shareDao.GetShareByToken(params.Token)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 13, "分享链接不存在或已失效", err)
+	}
+
+	if err := shareDao.CheckShareAccess(share); err != nil {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 14, "分享链接已失效或达到访问限制", err)
+	}
+
+	projectData, err := h.dao.ScratchDao.GetProjectBinary(share.ProjectID, "")
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 13, "项目不存在", err)
+	}
+	// 设置响应头为二进制数据
+	c.Header("Content-Type", "application/octet-stream")
+	c.Header("Content-Length", strconv.Itoa(len(projectData)))
+	return projectData, nil, nil
 }

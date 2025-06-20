@@ -55,7 +55,7 @@
         canEditTitle: true,
         enableCommunity: false,
         showComingSoon: false,
-        projectHost: "{{ .Host }}/api/scratch/projects",
+        projectHost: "{{ .Host }}{{ .ProjectAPI }}",
         projectId: "{{ .ProjectID }}",
         basePath: "/scratch/",
         assetHost: "{{ .Host }}/assets/scratch",

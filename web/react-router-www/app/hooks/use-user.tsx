@@ -17,7 +17,7 @@ interface UserContextType {
   isLoading: boolean;
   error: string | null;
   refreshUserInfo: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 // 创建用户上下文
@@ -101,8 +101,25 @@ export function UserProvider({ children }: UserProviderProps) {
   };
 
   // 登出函数
-  const logout = () => {
+  const logout = async () => {
+    try {
+      // 调用服务端logout API
+      await fetchWithAuth(`${HOST_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      console.warn('服务端登出失败，继续前端清理:', error);
+    }
+    
+    // 无论服务端是否成功，都清理前端状态
     localStorage.removeItem('token');
+    
+    // 清除前端cookie（作为备用）
+    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    
     setUserInfo(null);
     setError(null);
     window.location.href = "/";
