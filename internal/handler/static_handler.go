@@ -61,10 +61,18 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 	} else if strings.HasPrefix(filePath, "/scratch") {
 		currentFS = h.scratchFS
 		filePath = strings.TrimPrefix(filePath, "/scratch")
-	} else if filePath == "/" || strings.HasPrefix(filePath, "/www") {
+	} else if filePath == "/" {
 		currentFS = h.wwwFS
 		// 根路径或 /www 路径都指向 index.html
 		filePath = "/index.html"
+	} else if strings.HasPrefix(filePath, "/www") {
+		if strings.HasPrefix(filePath, "/www/share") {
+			currentFS = h.wwwFS
+			// 根路径或 /www 路径都指向 index.html
+			filePath = "/index.html"
+		} else {
+			c.Redirect(http.StatusFound, "/")
+		}
 	} else {
 		// 默认 www 文件系统，路径保持不变 (e.g., /assets/...)
 		currentFS = h.wwwFS
