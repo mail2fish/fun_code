@@ -51,7 +51,7 @@ export default function ListFilesPage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex items-center gap-3 flex-1">
-              <FileText className="w-6 h-6 text-blue-600" />
+              <FileText className="w-6 h-6 text-fuchsia-600" />
               <div>
                 <CardTitle className="text-xl text-gray-800">文件列表</CardTitle>
                 <CardDescription>查看和管理你的所有文件资源</CardDescription>
