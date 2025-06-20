@@ -492,15 +492,13 @@ export function FileTable({
                               <span className="text-3xl">⚠️</span>
                               确认删除文件
                             </DialogTitle>
-                            <DialogDescription className="text-gray-700 text-lg mt-4 bg-white/70 p-4 rounded-2xl border border-red-100">
-                              <div className="flex items-start gap-3">
-                                <span className="text-2xl">🤔</span>
-                                <div>
-                                  您确定要删除文件 <span className="font-semibold text-red-800">"{file.original_name}"</span> 吗？
-                                  <br />
-                                  <span className="text-red-600 font-medium">此操作无法撤销。</span>
-                                </div>
-                              </div>
+                            <DialogDescription className="text-gray-700 text-lg mt-4 bg-white/70 p-4 rounded-2xl border border-red-100 flex items-start gap-3">
+                              <span className="text-2xl">🤔</span>
+                              <span>
+                                您确定要删除文件 <span className="font-semibold text-red-800">"{file.original_name}"</span> 吗？
+                                <br />
+                                <span className="text-red-600 font-medium">此操作无法撤销。</span>
+                              </span>
                             </DialogDescription>
                           </DialogHeader>
                           <DialogFooter className="flex gap-3 pt-4">

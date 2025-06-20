@@ -13,6 +13,25 @@ import { HOST_URL } from "~/config"
 // 导入用户信息管理
 import { useUserInfo, useUser } from "~/hooks/use-user"
 
+// 导入自定义的 fetch 函数
+import { fetchWithAuth } from "~/utils/api"
+
+// 删除文件
+async function deleteFile(id: string) {
+  try {
+    const response = await fetchWithAuth(`${HOST_URL}/api/files/${id}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      throw new Error(`API 错误: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("删除文件失败:", error);
+    throw error;
+  }
+}
+
 export default function ListFilesPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [isButtonCooling, setIsButtonCooling] = React.useState(false)
@@ -20,6 +39,17 @@ export default function ListFilesPage() {
   // 使用统一的用户信息管理
   const { userInfo } = useUserInfo()
   const { logout } = useUser()
+
+  // 处理删除文件
+  const handleDeleteFile = async (id: string) => {
+    try {
+      await deleteFile(id);
+      // 删除成功后，FileTable会自动刷新
+    } catch (error) {
+      setError("删除文件失败");
+      throw error;
+    }
+  };
 
   // 处理上传文件按钮点击
   const handleUploadClick = (e: React.MouseEvent) => {
@@ -32,6 +62,9 @@ export default function ListFilesPage() {
       setIsButtonCooling(false)
     }, 2000)
   }
+
+  // 判断是否为管理员
+  const isAdmin = userInfo?.role === "管理员"
 
   return (
     <LayoutProvider
@@ -58,31 +91,32 @@ export default function ListFilesPage() {
               </div>
             </div>
             
-                         {/* 上传文件按钮 - 仅管理员可见 */}
-             {userInfo?.role === "管理员" && (
-               <Button 
-                 size="lg"
-                 disabled={isButtonCooling}
-                 asChild
-                 className="fun-button-primary"
-               >
-                 <a 
-                   href="/www/upload" 
-                   onClick={handleUploadClick}
-                   className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
-                 >
-                   <Upload className="mr-2 h-5 w-5" />
-                   {isButtonCooling ? "上传中..." : "上传文件"}
-                 </a>
-               </Button>
-             )}
+            {/* 上传文件按钮 - 仅管理员可见 */}
+            {isAdmin && (
+              <Button 
+                size="lg"
+                disabled={isButtonCooling}
+                asChild
+                className="fun-button-primary"
+              >
+                <a 
+                  href="/www/admin/files/upload" 
+                  onClick={handleUploadClick}
+                  className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
+                >
+                  <Upload className="mr-2 h-5 w-5" />
+                  {isButtonCooling ? "上传中..." : "上传文件"}
+                </a>
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
           <FileTable 
+            onDeleteFile={isAdmin ? handleDeleteFile : undefined}
             filesApiUrl={`${HOST_URL}/api/files/list`}
             downloadApiUrl="/api/files/{fileId}/download"
-            showDeleteButton={false}
+            showDeleteButton={isAdmin}
           />
         </CardContent>
       </Card>

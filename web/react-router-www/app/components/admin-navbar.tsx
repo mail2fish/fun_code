@@ -58,7 +58,7 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
   ];
 
   const resourceMenuItems = [
-    { href: "/www/admin/files/list", label: "资源列表", icon: FileText },
+    { href: "/www/files/list", label: "资源列表", icon: FileText },
     { href: "/www/admin/files/upload", label: "上传资源", icon: Upload },
   ];
 
