@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router"
 import { ArrowLeft, History, Sparkles, Calendar, Clock, Rocket } from "lucide-react"
 import { Toaster } from "sonner"
 
-import { UserLayout } from "~/components/user-layout"
+import { LayoutProvider } from "~/components/layout-provider"
 import { ProjectHistoryTable, type ProjectHistoriesData } from "~/components/project-history-table"
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
@@ -79,9 +79,9 @@ export default function ScratchProjectHistories() {
   }, [projectId]);
 
   return (
-    <UserLayout
-      userInfo={userInfo || undefined}
-      onLogout={logout}
+    <LayoutProvider
+      title={historiesData.name ? `${historiesData.name} - 历史记录` : "程序历史记录"}
+      subtitle="查看程序的修改历史和版本变化"
     >
       {/* 错误提示 */}
       {error && (
@@ -126,10 +126,7 @@ export default function ScratchProjectHistories() {
                     <img 
                       src={`${HOST_URL}/api/scratch/projects/${projectId}/thumbnail`} 
                       alt="程序缩略图" 
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = "/images/scratch-default-thumbnail.png";
-                      }}
+                      className="h-full w-full object-cover"                      
                     />
                   ) : (
                     <div className="h-full w-full flex items-center justify-center text-purple-400">
@@ -187,6 +184,6 @@ export default function ScratchProjectHistories() {
         theme="light"
         richColors
       />
-    </UserLayout>
+    </LayoutProvider>
   );
 } 

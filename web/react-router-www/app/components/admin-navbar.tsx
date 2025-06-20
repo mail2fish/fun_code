@@ -53,7 +53,7 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
   ];
 
   const programMenuItems = [
-    { href: "/www/admin/scratch/projects", label: "程序列表", icon: FileText },
+    { href: "/www/scratch/projects", label: "程序列表", icon: FileText },
     { href: `${typeof window !== 'undefined' ? window.location.origin : ''}/projects/scratch/new`, label: "创建程序", icon: Plus, external: true },
   ];
 
