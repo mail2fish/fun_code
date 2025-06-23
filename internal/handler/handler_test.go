@@ -600,7 +600,7 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 	assets := r.Group("/assets")
 	assets.Use(h.AuthMiddleware())
 	{
-		assets.GET("/scratch/:filename", h.GetLibraryAsset)
+		assets.GET("/scratch/:filename", gorails.Wrap(h.GetLibraryAssetHandler, RenderLibraryAsset))
 		assets.POST("/scratch/:asset_id", h.UploadScratchAsset)
 	}
 

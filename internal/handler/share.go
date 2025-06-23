@@ -488,7 +488,8 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		NickName       string
 		IsPlayerOnly   bool
 		IsFullScreen   bool
-		ProjectAPI     string
+		ProjectHost    string
+		AssetHost      string
 	}{
 		CanSaveProject: false,                                        // 分享项目不能保存
 		ProjectID:      share.ShareToken,                             // 使用项目ID
@@ -499,7 +500,8 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		NickName:       fmt.Sprintf("访客 (查看 %s 的作品)", user.Nickname), // 访客昵称
 		IsPlayerOnly:   true,                                         // 分享项目为播放器模式
 		IsFullScreen:   false,                                        // 分享项目为全屏模式
-		ProjectAPI:     "/api/shares/scratch",                        // 分享项目API
+		ProjectHost:    h.config.ScratchEditor.Host + "/api/shares/scratch",
+		AssetHost:      h.config.ScratchEditor.Host + "/shares/assets/scratch/" + share.ShareToken,
 	}
 
 	// 返回空响应，因为HTML已经直接写入到c.Writer
@@ -578,4 +580,33 @@ func (h *Handler) GetShareScratchDataHandler(c *gin.Context, params *GetShareScr
 	c.Header("Content-Type", "application/octet-stream")
 	c.Header("Content-Length", strconv.Itoa(len(projectData)))
 	return projectData, nil, nil
+}
+
+type GetShareLibraryAssetParams struct {
+	Token    string `json:"token" uri:"token" binding:"required"`
+	Filename string `json:"filename" uri:"filename" binding:"required"`
+}
+
+func (p *GetShareLibraryAssetParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40019, "未指定文件名", err)
+	}
+	return nil
+}
+
+func (h *Handler) GetShareLibraryAssetHandler(c *gin.Context, params *GetShareLibraryAssetParams) ([]byte, *gorails.ResponseMeta, gorails.Error) {
+	shareDao := h.dao.ShareDao
+
+	share, err := shareDao.GetShareByToken(params.Token)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 13, "分享链接不存在或已失效", err)
+	}
+
+	if err := shareDao.CheckShareAccess(share); err != nil {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 14, "分享链接已失效或达到访问限制", err)
+	}
+
+	return h.GetLibraryAssetHandler(c, &GetLibraryAssetParams{
+		Filename: params.Filename,
+	})
 }

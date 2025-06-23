@@ -472,7 +472,8 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		NickName       string
 		IsPlayerOnly   bool
 		IsFullScreen   bool
-		ProjectAPI     string
+		ProjectHost    string
+		AssetHost      string
 	}{
 		CanSaveProject: canSaveProject,
 		ProjectID:      rawID,                       // 新项目使用0作为ID
@@ -483,7 +484,8 @@ func (h *Handler) GetOpenScratchProject(c *gin.Context) {
 		NickName:       user.Nickname,
 		IsPlayerOnly:   false,
 		IsFullScreen:   false,
-		ProjectAPI:     "/api/scratch/projects",
+		ProjectHost:    h.config.ScratchEditor.Host + "/api/scratch/projects",
+		AssetHost:      h.config.ScratchEditor.Host + "/assets/scratch",
 	}
 
 	// 设置响应头
@@ -697,82 +699,6 @@ func (h *Handler) PostCreateScratchProject(c *gin.Context) {
 }
 
 var safeFilenameRegex = regexp.MustCompile(`[^a-zA-Z0-9_.-]`)
-
-// GetLibraryAsset 获取Scratch库资源文件
-func (h *Handler) GetLibraryAsset(c *gin.Context) {
-	// 获取文件名参数
-	filename := c.Param("filename")
-	if filename == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "未指定文件名",
-		})
-		return
-	}
-
-	// 去除不安全的字符，使用正则表达式
-	filename = safeFilenameRegex.ReplaceAllString(filename, "")
-
-	// 从嵌入的文件系统中获取资源文件
-	assetData, err := web.GetScratchAsset(filename)
-	if err != nil {
-
-		// 获取 assetID 字符串长度，把它分成 4 段
-		assetIDLength := len(filename)
-		if assetIDLength < 36 {
-			e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidAssetID, "invalid_asset_id", nil)
-			c.JSON(http.StatusBadRequest, ResponseError{
-				Code:    int(e.ErrorCode()),
-				Message: e.Message,
-				Error:   e.Error(),
-			})
-			return
-		}
-
-		assetID1 := filename[:assetIDLength/4]
-		assetID2 := filename[assetIDLength/4 : assetIDLength/2]
-		assetID3 := filename[assetIDLength/2 : assetIDLength*3/4]
-		assetID4 := filename[assetIDLength*3/4:]
-
-		// 使用 scratch 服务的基础路径
-		filePath := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), "assets", assetID1, assetID2, assetID3, assetID4)
-
-		// 尝试从文件系统中读取资源文件
-		assetData, err = os.ReadFile(filePath)
-		if err != nil {
-			e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetAssetFailed, "get_asset_failed", err)
-			c.JSON(http.StatusNotFound, ResponseError{
-				Code:    int(e.ErrorCode()),
-				Message: e.Message,
-				Error:   e.Error(),
-			})
-			return
-		}
-	}
-
-	// 根据文件扩展名设置适当的Content-Type
-	contentType := "application/octet-stream" // 默认
-	switch {
-	case strings.HasSuffix(filename, ".svg"):
-		contentType = "image/svg+xml"
-	case strings.HasSuffix(filename, ".png"):
-		contentType = "image/png"
-	case strings.HasSuffix(filename, ".jpg"), strings.HasSuffix(filename, ".jpeg"):
-		contentType = "image/jpeg"
-	case strings.HasSuffix(filename, ".wav"):
-		contentType = "audio/wav"
-	case strings.HasSuffix(filename, ".mp3"):
-		contentType = "audio/mpeg"
-	case strings.HasSuffix(filename, ".json"):
-		contentType = "application/json"
-	}
-
-	// 设置响应头
-	c.Header("Content-Type", contentType)
-	c.Header("Content-Length", strconv.Itoa(len(assetData)))
-
-	// 直接写入字节数据
-	c.Writer.Write(assetData)
-}
 
 // UploadScratchAsset 处理上传的Scratch资源文件
 func (h *Handler) UploadScratchAsset(c *gin.Context) {

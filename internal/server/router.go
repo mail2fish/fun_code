@@ -51,6 +51,8 @@ func (s *Server) setupRoutes() {
 	})
 
 	s.router.GET("/shares/:token", gorails.Wrap(s.handler.GetShareScratchProjectHandler, handler.RenderTemplateResponse))
+	s.router.GET("/shares/assets/scratch/:token/:filename", gorails.Wrap(s.handler.GetShareLibraryAssetHandler, handler.RenderLibraryAsset))
+
 	s.router.GET("/api/shares/info/:token", gorails.Wrap(s.handler.GetShareScratchProjectInfoHandler, nil))
 	s.router.GET("/api/shares/scratch/:token", gorails.Wrap(s.handler.GetShareScratchDataHandler, handler.RenderScratchProject))
 

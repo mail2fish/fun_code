@@ -128,7 +128,8 @@ func (h *Handler) GetOpenScratchProjectHandler(c *gin.Context, params *GetOpenSc
 		NickName       string
 		IsPlayerOnly   bool
 		IsFullScreen   bool
-		ProjectAPI     string
+		ProjectHost    string
+		AssetHost      string
 	}{
 		CanSaveProject: canSaveProject,
 		ProjectID:      params.RawID,                // 新项目使用0作为ID
@@ -139,7 +140,8 @@ func (h *Handler) GetOpenScratchProjectHandler(c *gin.Context, params *GetOpenSc
 		NickName:       user.Nickname,
 		IsPlayerOnly:   false,
 		IsFullScreen:   false,
-		ProjectAPI:     "/api/scratch/projects",
+		ProjectHost:    h.config.ScratchEditor.Host + "/api/scratch/projects",
+		AssetHost:      h.config.ScratchEditor.Host + "/assets/scratch",
 	}
 
 	return &TemplateRenderResponse{Tmpl: tmpl, Data: data}, nil, nil
