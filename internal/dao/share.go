@@ -59,7 +59,7 @@ func (s *ShareDaoImpl) CreateShare(req *CreateShareRequest) (*model.Share, error
 	// 设置默认访问次数限制
 	maxViews := req.MaxViews
 	if maxViews == 0 {
-		maxViews = 10 // 默认10次访问限制
+		maxViews = 20 // 默认10次访问限制
 	}
 
 	// 创建分享记录
