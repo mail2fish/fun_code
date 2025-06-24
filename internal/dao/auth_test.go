@@ -74,7 +74,7 @@ func TestAuthService_Login(t *testing.T) {
 	jwtKey := []byte("test_key")
 	c := cache.NewGoCache()
 	sessionCache := cache.NewUserSessionCache(c)
-	authService := NewAuthDao(db, jwtKey, sessionCache,false)
+	authService := NewAuthDao(db, jwtKey, sessionCache, false)
 
 	// 创建测试用户
 	password := "password123"
@@ -118,27 +118,26 @@ func TestAuthService_Login(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			token, cookie, err := authService.Login(tt.username, tt.password)
+			loginResponse, err := authService.Login(tt.username, tt.password)
 			if tt.wantErr {
 				assert.Error(t, err)
-				assert.Empty(t, token)
-				assert.Nil(t, cookie)
+				assert.Empty(t, loginResponse)
 			} else {
 				assert.NoError(t, err)
-				assert.NotEmpty(t, token)
-				assert.NotNil(t, cookie)
+				assert.NotEmpty(t, loginResponse.Token)
+				assert.NotNil(t, loginResponse.Cookie)
 
 				// 验证 cookie 设置
-				assert.Equal(t, "auth_token", cookie.Name)
-				assert.Equal(t, token, cookie.Value)
-				assert.True(t, cookie.HttpOnly)
-				assert.True(t, cookie.Secure)
-				assert.Equal(t, http.SameSiteStrictMode, cookie.SameSite)
-				assert.Equal(t, 86400, cookie.MaxAge)
+				assert.Equal(t, "auth_token", loginResponse.Cookie.Name)
+				assert.Equal(t, loginResponse.Token, loginResponse.Cookie.Value)
+				assert.True(t, loginResponse.Cookie.HttpOnly)
+				assert.True(t, loginResponse.Cookie.Secure)
+				assert.Equal(t, http.SameSiteStrictMode, loginResponse.Cookie.SameSite)
+				assert.Equal(t, 86400, loginResponse.Cookie.MaxAge)
 
 				// 验证 token
 				claims := &Claims{}
-				parsedToken, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+				parsedToken, err := jwt.ParseWithClaims(loginResponse.Token, claims, func(token *jwt.Token) (interface{}, error) {
 					return jwtKey, nil
 				})
 
@@ -156,7 +155,7 @@ func TestAuthService_GenerateCookie(t *testing.T) {
 	jwtKey := []byte("test_key")
 	c := cache.NewGoCache()
 	sessionCache := cache.NewUserSessionCache(c)
-	authService := NewAuthDao(db, jwtKey, sessionCache,false)
+	authService := NewAuthDao(db, jwtKey, sessionCache, false)
 
 	token := "test.token.string"
 	cookie := authService.GenerateCookie(token)
@@ -175,7 +174,7 @@ func TestAuthService_ValidateToken(t *testing.T) {
 	jwtKey := []byte("test_key")
 	c := cache.NewGoCache()
 	sessionCache := cache.NewUserSessionCache(c)
-	authService := NewAuthDao(db, jwtKey, sessionCache,false)
+	authService := NewAuthDao(db, jwtKey, sessionCache, false)
 
 	// 创建测试用户
 	user := model.User{
