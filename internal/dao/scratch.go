@@ -5,14 +5,16 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"time"
 
 	"github.com/jun/fun_code/internal/config"
-	"github.com/jun/fun_code/internal/custom_error"
+	"github.com/jun/fun_code/internal/global"
 	"github.com/jun/fun_code/internal/model"
+	"github.com/mail2fish/gorails/gorails"
 	"go.uber.org/zap"
 
 	"gorm.io/gorm"
@@ -115,7 +117,7 @@ func (s *ScratchDaoImpl) CreateProject(userID uint) (uint, error) {
 
 	// 先创建数据库记录以获取ID
 	if err := s.db.Create(&project).Error; err != nil {
-		return 0, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeInsertFailed, "create project failed", err)
+		return 0, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SCRATCH, global.ErrorCodeInsertFailed, global.ErrorMsgInsertFailed, err)
 	}
 
 	return project.ID, nil
@@ -159,7 +161,7 @@ func (s *ScratchDaoImpl) SaveProject(userID uint, projectID uint, name string, c
 
 			// 先创建数据库记录以获取ID
 			if err := s.db.Create(&project).Error; err != nil {
-				return 0, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeInsertFailed, "create project failed", err)
+				return 0, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SCRATCH, global.ErrorCodeInsertFailed, global.ErrorMsgInsertFailed, err)
 			}
 
 			// 使用生成的ID构建文件名
@@ -169,7 +171,7 @@ func (s *ScratchDaoImpl) SaveProject(userID uint, projectID uint, name string, c
 			if err := os.WriteFile(filename, content, 0644); err != nil {
 				// 如果写入文件失败，删除数据库记录
 				s.db.Delete(&project)
-				return 0, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeWriteFileFailed, "write file failed", err)
+				return 0, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SCRATCH, global.ErrorCodeWriteFileFailed, global.ErrorMsgWriteFileFailed, err)
 			}
 		} else {
 			return 0, result.Error

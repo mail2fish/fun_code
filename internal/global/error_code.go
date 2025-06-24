@@ -40,6 +40,7 @@ const (
 	ErrorCodeFileDeleteFailed = 303 // 删除文件失败
 	ErrorCodeFileAccessDenied = 304 // 无权访问文件
 	ErrorCodeRecordNotFound   = 305 // 记录不存在
+	ErrorCodeWriteFileFailed  = 306 // 写入文件失败
 
 	// 系统错误码 (1000+)
 	ErrorCodeSystemError = 1000 // 系统错误
@@ -47,9 +48,9 @@ const (
 	ErrorCodeRedisError  = 1002 // Redis错误
 	ErrorCodeConfigError = 1003 // 配置错误
 
-	ErrorCodeInvalidParams = 306 // 无效的参数
-	ErrorCodeNoPermission  = 307 // 无权限
-	ErrorCodeCreateFailed  = 308 // 创建失败
+	ErrorCodeInvalidParams = 400 // 无效的参数
+	ErrorCodeNoPermission  = 401 // 无权限
+	ErrorCodeCreateFailed  = 402 // 创建失败
 
 )
 
@@ -94,6 +95,7 @@ const (
 	ErrorMsgFileDeleteFailed = "删除文件失败"
 	ErrorMsgFileAccessDenied = "无权访问文件"
 	ErrorMsgRecordNotFound   = "记录不存在"
+	ErrorMsgWriteFileFailed  = "写入文件失败"
 
 	// 系统错误消息
 	ErrorMsgSystemError = "系统错误"
