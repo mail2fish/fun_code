@@ -72,7 +72,7 @@ func (s *Server) setupRoutes() {
 
 		// Scratch 相关路由 - 已改造为 gorails.Wrap 形式
 		auth.GET("/scratch/projects/:id", gorails.Wrap(s.handler.GetScratchProjectHandler, handler.RenderScratchProject))
-		auth.POST("/scratch/projects/", gorails.Wrap(s.handler.CreateScratchProjectHandler, nil))
+		auth.POST("/scratch/projects", gorails.Wrap(s.handler.CreateScratchProjectHandler, nil))
 		auth.PUT("/scratch/projects/:id", gorails.Wrap(s.handler.SaveScratchProjectHandler, handler.RenderSaveScratchProjectResponse))
 		auth.PUT("/scratch/projects/:id/thumbnail", gorails.Wrap(s.handler.UpdateProjectThumbnailHandler, nil))
 		auth.GET("/scratch/projects/:id/thumbnail", gorails.Wrap(s.handler.GetProjectThumbnailHandler, handler.RenderProjectThumbnail))
