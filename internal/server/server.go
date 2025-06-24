@@ -13,12 +13,12 @@ import (
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/jun/fun_code/internal/cache"
 	"github.com/jun/fun_code/internal/config"
-	"github.com/jun/fun_code/internal/custom_error"
 	"github.com/jun/fun_code/internal/dao"
 	"github.com/jun/fun_code/internal/database"
 	"github.com/jun/fun_code/internal/handler"
 	"github.com/jun/fun_code/internal/i18n"
 	"github.com/jun/fun_code/internal/model"
+	"github.com/mail2fish/gorails/gorails"
 	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
@@ -93,7 +93,9 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 	// 如果admin 用户不存在，则创建新用户
 	admin, err := fDao.UserDao.GetUserByUsername("admin")
 
-	if err != nil && !custom_error.IsCustomError(err, custom_error.DAO, custom_error.USER, dao.ErrorCodeQueryNotFound) {
+	gerr, ok := err.(gorails.Error)
+
+	if err != nil && ok && gerr.HTTPCode() != http.StatusNotFound {
 		logger.Error("failed to get admin user", zap.Error(err))
 	}
 	if admin == nil {

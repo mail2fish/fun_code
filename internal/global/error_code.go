@@ -26,9 +26,12 @@ const (
 	ErrorCodeProjectUpdateFailed = 201 // 更新项目失败
 	ErrorCodeProjectDeleteFailed = 202 // 删除项目失败
 	ErrorCodeProjectAccessDenied = 203 // 无权访问项目
-	ErrorCodeInsertFailed        = 204 // 插入失败
-	ErrorCodeDeleteFailed        = 205 // 删除失败
-	ErrorCodeQueryFailed         = 206 // 查询失败
+
+	ErrorCodeInsertFailed  = 204 // 插入失败
+	ErrorCodeDeleteFailed  = 205 // 删除失败
+	ErrorCodeQueryFailed   = 206 // 查询失败
+	ErrorCodeQueryNotFound = 207 // 查询失败
+	ErrorCodeUpdateFailed  = 208 // 更新失败
 
 	// File 模块错误码 (300-399)
 	ErrorCodeFileNotFound     = 300 // 文件不存在
@@ -47,6 +50,7 @@ const (
 	ErrorCodeInvalidParams = 306 // 无效的参数
 	ErrorCodeNoPermission  = 307 // 无权限
 	ErrorCodeCreateFailed  = 308 // 创建失败
+
 )
 
 // 错误消息常量
@@ -76,9 +80,12 @@ const (
 	ErrorMsgProjectUpdateFailed = "更新项目失败"
 	ErrorMsgProjectDeleteFailed = "删除项目失败"
 	ErrorMsgProjectAccessDenied = "无权访问项目"
-	ErrorMsgInsertFailed        = "插入失败"
-	ErrorMsgDeleteFailed        = "删除失败"
-	ErrorMsgQueryFailed         = "查询失败"
+
+	ErrorMsgInsertFailed  = "插入失败"
+	ErrorMsgDeleteFailed  = "删除失败"
+	ErrorMsgQueryFailed   = "查询失败"
+	ErrorMsgQueryNotFound = "查询失败"
+	ErrorMsgUpdateFailed  = "更新失败"
 
 	// File 模块错误消息
 	ErrorMsgFileNotFound     = "文件不存在"
