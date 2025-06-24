@@ -35,11 +35,15 @@ interface AdminNavbarProps {
 export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isClassMenuOpen, setIsClassMenuOpen] = useState(false);
+  const [isCourseMenuOpen, setIsCourseMenuOpen] = useState(false);
   const [isProgramMenuOpen, setIsProgramMenuOpen] = useState(false);
   const [isResourceMenuOpen, setIsResourceMenuOpen] = useState(false);
   const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
   const location = useLocation();
   const userTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const classTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const courseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const programTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const resourceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const shareTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -103,6 +107,40 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
     }, 150); // 150ms 延迟
   };
 
+  const handleClassMouseEnter = () => {
+    if (classTimeoutRef.current) {
+      clearTimeout(classTimeoutRef.current);
+      classTimeoutRef.current = null;
+    }
+    setIsClassMenuOpen(true);
+  };
+
+  const handleClassMouseLeave = () => {
+    if (classTimeoutRef.current) {
+      clearTimeout(classTimeoutRef.current);
+    }
+    classTimeoutRef.current = setTimeout(() => {
+      setIsClassMenuOpen(false);
+    }, 150); // 150ms 延迟
+  };
+
+  const handleCourseMouseEnter = () => {
+    if (courseTimeoutRef.current) {
+      clearTimeout(courseTimeoutRef.current);
+      courseTimeoutRef.current = null;
+    }
+    setIsCourseMenuOpen(true);
+  };
+
+  const handleCourseMouseLeave = () => {
+    if (courseTimeoutRef.current) {
+      clearTimeout(courseTimeoutRef.current);
+    }
+    courseTimeoutRef.current = setTimeout(() => {
+      setIsCourseMenuOpen(false);
+    }, 150); // 150ms 延迟
+  };
+
   const handleProgramMouseEnter = () => {
     if (programTimeoutRef.current) {
       clearTimeout(programTimeoutRef.current);
@@ -159,6 +197,12 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
     return () => {
       if (userTimeoutRef.current) {
         clearTimeout(userTimeoutRef.current);
+      }
+      if (classTimeoutRef.current) {
+        clearTimeout(classTimeoutRef.current);
+      }
+      if (courseTimeoutRef.current) {
+        clearTimeout(courseTimeoutRef.current);
       }
       if (programTimeoutRef.current) {
         clearTimeout(programTimeoutRef.current);
@@ -386,11 +430,15 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
             </div>
 
             {/* Class Management Dropdown */}
-            <div className="relative">
+            <div
+              className="relative"
+              onMouseEnter={handleClassMouseEnter}
+              onMouseLeave={handleClassMouseLeave}
+            >
               <Button
                 variant="ghost"
                 className={`group flex items-center space-x-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
-                  isClassMenuActive
+                  isClassMenuActive || isClassMenuOpen
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
                 }`}
@@ -399,14 +447,39 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
                 <span>班级管理</span>
                 <ChevronDown className="h-3 w-3" />
               </Button>
+              
+              {/* 自定义下拉菜单 */}
+              {isClassMenuOpen && (
+                <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                  {classMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        className={`flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-gray-50 transition-colors duration-200 ${
+                          isActive(item.href) ? "bg-blue-50 text-blue-600" : "text-gray-700"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Course Management Dropdown */}
-            <div className="relative">
+            <div
+              className="relative"
+              onMouseEnter={handleCourseMouseEnter}
+              onMouseLeave={handleCourseMouseLeave}
+            >
               <Button
                 variant="ghost"
                 className={`group flex items-center space-x-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
-                  isCourseMenuActive
+                  isCourseMenuActive || isCourseMenuOpen
                     ? "bg-blue-600 text-white shadow-sm"
                     : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
                 }`}
@@ -415,6 +488,27 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
                 <span>课程管理</span>
                 <ChevronDown className="h-3 w-3" />
               </Button>
+              
+              {/* 自定义下拉菜单 */}
+              {isCourseMenuOpen && (
+                <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                  {courseMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        className={`flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-gray-50 transition-colors duration-200 ${
+                          isActive(item.href) ? "bg-blue-50 text-blue-600" : "text-gray-700"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
