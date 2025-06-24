@@ -18,6 +18,8 @@ type Course struct {
 	Author      User           `json:"author" gorm:"foreignKey:AuthorID"`            // 作者信息
 	Content     string         `json:"content" gorm:"type:text"`                     // 课程内容
 	IsPublic    bool           `json:"is_public" gorm:"default:false"`               // 是否公开
+	IsPublished bool           `json:"is_published" gorm:"default:false"`            // 是否发布
+	SortOrder   int            `json:"sort_order" gorm:"default:0;index"`            // 排序号
 	Classes     []Class        `json:"-" gorm:"many2many:class_courses"`             // 关联的班级
 	Lessons     []Lesson       `json:"lessons,omitempty" gorm:"foreignKey:CourseID"` // 课程下的课时列表
 }

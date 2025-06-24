@@ -2,7 +2,6 @@ package dao
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -502,102 +501,6 @@ func (s *ClassDaoImpl) ListJoinedClasses(studentID uint) ([]model.Class, error) 
 	}
 
 	return classes, nil
-}
-
-// CourseServiceImpl 课程服务实现
-type CourseServiceImpl struct {
-	db *gorm.DB
-}
-
-// NewCourseService 创建课程服务实例
-func NewCourseService(db *gorm.DB) CourseDao {
-	return &CourseServiceImpl{db: db}
-}
-
-// CreateCourse 创建课程
-func (s *CourseServiceImpl) CreateCourse(authorID uint, title, description, content string, isPublic bool) (*model.Course, error) {
-	course := model.Course{
-		Title:       title,
-		Description: description,
-		AuthorID:    authorID,
-		Content:     content,
-		IsPublic:    isPublic,
-	}
-
-	if err := s.db.Create(&course).Error; err != nil {
-		return nil, fmt.Errorf("创建课程失败: %w", err)
-	}
-
-	return &course, nil
-}
-
-// UpdateCourse 更新课程信息
-func (s *CourseServiceImpl) UpdateCourse(courseID, authorID uint, updates map[string]interface{}) error {
-	// 检查课程是否存在且属于该作者
-	var course model.Course
-	if err := s.db.Where("id = ? AND author_id = ?", courseID, authorID).First(&course).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("课程不存在或您无权修改")
-		}
-		return err
-	}
-
-	// 更新课程信息
-	if err := s.db.Model(&course).Updates(updates).Error; err != nil {
-		return fmt.Errorf("更新课程失败: %w", err)
-	}
-
-	return nil
-}
-
-// GetCourse 获取课程详情
-func (s *CourseServiceImpl) GetCourse(courseID uint) (*model.Course, error) {
-	var course model.Course
-	if err := s.db.Preload("Author").First(&course, courseID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("课程不存在")
-		}
-		return nil, err
-	}
-
-	return &course, nil
-}
-
-// ListCourses 列出作者创建的所有课程
-func (s *CourseServiceImpl) ListCourses(authorID uint) ([]model.Course, error) {
-	var courses []model.Course
-	if err := s.db.Where("author_id = ?", authorID).Find(&courses).Error; err != nil {
-		return nil, err
-	}
-
-	return courses, nil
-}
-
-// DeleteCourse 删除课程
-func (s *CourseServiceImpl) DeleteCourse(courseID, authorID uint) error {
-	// 检查课程是否存在且属于该作者
-	var course model.Course
-	if err := s.db.Where("id = ? AND author_id = ?", courseID, authorID).First(&course).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("课程不存在或您无权删除")
-		}
-		return err
-	}
-
-	// 使用事务确保数据一致性
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		// 删除课程与班级的关联
-		if err := tx.Where("course_id = ?", courseID).Delete(&model.ClassCourse{}).Error; err != nil {
-			return err
-		}
-
-		// 删除课程
-		if err := tx.Delete(&course).Error; err != nil {
-			return err
-		}
-
-		return nil
-	})
 }
 
 // CountClasses 计算教师创建的班级总数
