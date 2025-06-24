@@ -3,9 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
-	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,7 +14,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jun/fun_code/internal/custom_error"
+	"github.com/jun/fun_code/internal/global"
 	"github.com/jun/fun_code/internal/model"
 	"github.com/jun/fun_code/web"
 	"github.com/mail2fish/gorails/gorails"
@@ -46,7 +44,7 @@ type GetScratchProjectParams struct {
 
 func (p *GetScratchProjectParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindUri(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40012, "无效的项目ID", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -57,7 +55,7 @@ func (h *Handler) GetScratchProjectHandler(c *gin.Context, params *GetScratchPro
 	splitID := strings.Split(rawID, "_")
 
 	if len(splitID) == 0 {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40013, "无效的项目ID格式", nil)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
 	}
 
 	projectID := splitID[0]
@@ -69,23 +67,23 @@ func (h *Handler) GetScratchProjectHandler(c *gin.Context, params *GetScratchPro
 	// 将 projectID 字符串转换为 uint 类型
 	id, err := strconv.ParseUint(projectID, 10, 64)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40014, "无效的项目ID", err)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 
 	// 获取项目创建者ID
 	userID, ok := h.dao.ScratchDao.GetProjectUserID(uint(id))
 	if !ok {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40015, "获取项目失败", nil)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, nil)
 	}
 
 	// 判断用户是否是项目创建者或者为管理员
 	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
-		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40016, "无权限访问", nil)
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, nil)
 	}
 
 	projectData, err := h.dao.ScratchDao.GetProjectBinary(uint(id), historyID)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40017, "获取项目数据失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	// 设置响应头为二进制数据
@@ -102,7 +100,7 @@ type GetLibraryAssetParams struct {
 
 func (p *GetLibraryAssetParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindUri(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40018, "未指定文件名", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -111,7 +109,7 @@ func (p *GetLibraryAssetParams) Parse(c *gin.Context) gorails.Error {
 func (h *Handler) GetLibraryAssetHandler(c *gin.Context, params *GetLibraryAssetParams) ([]byte, *gorails.ResponseMeta, gorails.Error) {
 	filename := params.Filename
 	if filename == "" {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40019, "未指定文件名", nil)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
 	}
 
 	// 去除不安全的字符，使用正则表达式
@@ -124,7 +122,7 @@ func (h *Handler) GetLibraryAssetHandler(c *gin.Context, params *GetLibraryAsset
 		// 获取 assetID 字符串长度，把它分成 4 段
 		assetIDLength := len(filename)
 		if assetIDLength < 36 {
-			return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40020, "无效的资源ID", nil)
+			return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
 		}
 
 		assetID1 := filename[:assetIDLength/4]
@@ -138,7 +136,7 @@ func (h *Handler) GetLibraryAssetHandler(c *gin.Context, params *GetLibraryAsset
 		// 尝试从文件系统中读取资源文件
 		assetData, err = os.ReadFile(filePath)
 		if err != nil {
-			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40021, "获取资源失败", err)
+			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 		}
 	}
 
@@ -173,7 +171,7 @@ type UploadScratchAssetParams struct {
 
 func (p *UploadScratchAssetParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindUri(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40022, "无效的资源ID", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -189,12 +187,12 @@ func (h *Handler) UploadScratchAssetHandler(c *gin.Context, params *UploadScratc
 	// 获取当前用户ID
 	userID := h.getUserID(c)
 	if userID == 0 {
-		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 40023, "用户未登录", nil)
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeUnauthorized, global.ErrorMsgUnauthorized, nil)
 	}
 
 	assetID := params.AssetID
 	if assetID == "" {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40024, "无效的资源ID", nil)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
 	}
 
 	// 去除不安全的字符，使用正则表达式
@@ -204,7 +202,7 @@ func (h *Handler) UploadScratchAssetHandler(c *gin.Context, params *UploadScratc
 	// 获取 assetID 字符串长度，把它分成 4 段
 	assetIDLength := len(assetID)
 	if assetIDLength < 36 {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40025, "无效的资源ID", nil)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
 	}
 
 	//  最多只读取2MB
@@ -213,11 +211,11 @@ func (h *Handler) UploadScratchAssetHandler(c *gin.Context, params *UploadScratc
 	// 读取请求体中的二进制数据
 	bodyData, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40026, "读取请求体失败", err)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeReadBodyFailed, global.ErrorMsgReadBodyFailed, err)
 	}
 
 	if len(bodyData) == 0 {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40027, "请求体为空", nil)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
 	}
 
 	// 根据文件扩展名设置适当的Content-Type
@@ -245,13 +243,13 @@ func (h *Handler) UploadScratchAssetHandler(c *gin.Context, params *UploadScratc
 	// 使用 scratch 服务的基础路径
 	assetDir := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), "assets", assetID1, assetID2, assetID3)
 	if err := os.MkdirAll(assetDir, 0755); err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40028, "创建资源目录失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER_ASSET, global.ErrorCodeCreateFailed, global.ErrorMsgCreateFailed, err)
 	}
 
 	// 保存文件
 	filePath := filepath.Join(assetDir, assetID4)
 	if err := os.WriteFile(filePath, bodyData, 0644); err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40029, "保存资源失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER_ASSET, global.ErrorCodeWriteFileFailed, global.ErrorMsgWriteFileFailed, err)
 	}
 
 	// 保存用户资源
@@ -262,7 +260,7 @@ func (h *Handler) UploadScratchAssetHandler(c *gin.Context, params *UploadScratc
 		Size:      int64(len(bodyData)),
 	})
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER_ASSET), 40030, "保存用户资源记录失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER_ASSET, global.ErrorCodeCreateFailed, global.ErrorMsgCreateFailed, err)
 	}
 
 	return &UploadScratchAssetResponse{
@@ -278,7 +276,7 @@ type GetScratchProjectHistoriesParams struct {
 
 func (p *GetScratchProjectHistoriesParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindUri(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40031, "无效的项目ID", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -298,19 +296,19 @@ func (h *Handler) GetScratchProjectHistoriesHandler(c *gin.Context, params *GetS
 	projectID := params.ID
 	id, err := strconv.ParseUint(projectID, 10, 64)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40032, "无效的项目ID", err)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 
 	// 获取项目创建者ID
 	project, err := h.dao.ScratchDao.GetProject(uint(id))
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40033, "获取项目失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	userID := project.UserID
 	// 判断用户是否是项目创建者或者为管理员
 	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
-		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40034, "无权限访问", nil)
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, nil)
 	}
 
 	// 通过 project id 生成文件名通配符，遍历文件名，获取项目历史文件列表
@@ -318,7 +316,7 @@ func (h *Handler) GetScratchProjectHistoriesHandler(c *gin.Context, params *GetS
 	filename := filepath.Join(dirPath, fmt.Sprintf("%d_*.json", project.ID))
 	files, err := filepath.Glob(filename)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40035, "获取项目历史失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	// 遍历文件名，获取文件创建时间
@@ -351,228 +349,6 @@ func (h *Handler) GetScratchProjectHistoriesHandler(c *gin.Context, params *GetS
 	return response, nil, nil
 }
 
-// GetOpenScratchProject 打开Scratch项目
-// 修改 GetOpenScratchProject 函数中的 AssetHost
-func (h *Handler) GetOpenScratchProject(c *gin.Context) {
-	rawID := c.Param("id")
-	splitID := strings.Split(rawID, "_")
-
-	if len(splitID) == 0 {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidProjectID, "invalid_project_id", nil)
-		c.JSON(http.StatusBadRequest, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	projectID := splitID[0]
-
-	// 从 service 获取项目数据
-	// 将 projectID 字符串转换为 uint 类型
-	id, err := strconv.ParseUint(projectID, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效的项目ID",
-		})
-		return
-	}
-	// 获取项目创建者ID
-	project, err := h.dao.ScratchDao.GetProject(uint(id))
-	if err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-	userID := project.UserID
-	loginedUserID := h.getUserID(c)
-	// 判断用户是否是项目创建者或者为管理员
-	if userID != loginedUserID && !h.hasPermission(c, PermissionManageAll) {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeNoPermission, "no_permission", err)
-		c.JSON(http.StatusUnauthorized, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	user, err := h.dao.UserDao.GetUserByID(loginedUserID)
-	if err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 从嵌入的文件系统中获取index.html
-	scratchFS, err := fs.Sub(web.ScratchStaticFiles, "scratch/dist")
-	if err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 读取index.html文件
-	htmlContent, err := fs.ReadFile(scratchFS, "index.html")
-	if err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 将HTML内容转换为字符串
-	htmlStr := string(htmlContent)
-
-	// 创建模板
-	tmpl, err := template.New("scratch").Parse(htmlStr)
-	if err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 如果项目ID存在保护的数组中，则不允许保存
-	canSaveProject := true
-	for _, id := range h.config.Protected.Projects {
-		if project.ID == id {
-			canSaveProject = false
-			break
-		}
-	}
-
-	// 准备模板数据，新项目不需要项目ID
-	data := struct {
-		CanSaveProject bool
-		ProjectID      string
-		Host           string
-		ProjectTitle   string
-		CanRemix       bool
-		UserName       string
-		NickName       string
-		IsPlayerOnly   bool
-		IsFullScreen   bool
-		ProjectHost    string
-		AssetHost      string
-	}{
-		CanSaveProject: canSaveProject,
-		ProjectID:      rawID,                       // 新项目使用0作为ID
-		Host:           h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
-		ProjectTitle:   project.Name,
-		CanRemix:       project.UserID == loginedUserID,
-		UserName:       user.Username,
-		NickName:       user.Nickname,
-		IsPlayerOnly:   false,
-		IsFullScreen:   false,
-		ProjectHost:    h.config.ScratchEditor.Host + "/api/scratch/projects",
-		AssetHost:      h.config.ScratchEditor.Host + "/assets/scratch",
-	}
-
-	// 设置响应头
-	c.Header("Content-Type", "text/html; charset=utf-8")
-
-	// 执行模板并将结果写入响应
-	if err := tmpl.Execute(c.Writer, data); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "渲染模板失败",
-		})
-		return
-	}
-}
-
-func (h *Handler) GetScratchProject(c *gin.Context) {
-	rawID := c.Param("id")
-	splitID := strings.Split(rawID, "_")
-
-	if len(splitID) == 0 {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidProjectID, "invalid_project_id", nil)
-		c.JSON(http.StatusBadRequest, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-	}
-
-	projectID := splitID[0]
-
-	historyID := ""
-	if len(splitID) == 2 {
-		historyID = splitID[1]
-	}
-	// 从 service 获取项目数据
-	// 将 projectID 字符串转换为 uint 类型
-	id, err := strconv.ParseUint(projectID, 10, 64)
-	if err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidProjectID, "invalid_project_id", err)
-		c.JSON(http.StatusBadRequest, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 获取项目创建者ID
-	userID, ok := h.dao.ScratchDao.GetProjectUserID(uint(id))
-	if !ok {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-	// 判断用户是否是项目创建者或者为管理员
-	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
-		c.JSON(http.StatusUnauthorized, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	projectData, err := h.dao.ScratchDao.GetProjectBinary(uint(id), historyID)
-	if err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeGetProjectFailed, "get_project_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 设置响应头为二进制数据
-	c.Header("Content-Type", "application/octet-stream")
-	c.Header("Content-Length", strconv.Itoa(len(projectData)))
-
-	// 直接写入字节数据
-	c.Writer.Write(projectData)
-}
-
 // DeleteScratchProjectParams 删除Scratch项目参数
 // 只需要项目ID
 type DeleteScratchProjectParams struct {
@@ -581,7 +357,7 @@ type DeleteScratchProjectParams struct {
 
 func (p *DeleteScratchProjectParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindUri(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40001, "无效的项目ID", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -592,21 +368,21 @@ func (h *Handler) DeleteScratchProjectHandler(c *gin.Context, params *DeleteScra
 	// 如果项目ID存在在不允许保存的数组中，则不允许删除
 	for _, protectedID := range h.config.Protected.Projects {
 		if id == protectedID {
-			return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40002, "该项目不允许删除", nil)
+			return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, nil)
 		}
 	}
 	// 获取项目创建者ID
 	userID, ok := h.dao.ScratchDao.GetProjectUserID(id)
 	if !ok {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40003, "获取项目失败", nil)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, nil)
 	}
 	// 判断用户是否是项目创建者或者为管理员
 	if userID != h.getUserID(c) && !h.hasPermission(c, PermissionManageAll) {
-		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40004, "无权限访问", nil)
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, nil)
 	}
 	// 删除项目
 	if err := h.dao.ScratchDao.DeleteProject(userID, id); err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40005, "删除项目失败: "+err.Error(), err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeDeleteFailed, global.ErrorMsgDeleteFailed, err)
 	}
 	// 删除分享
 	h.dao.ShareDao.DeleteShare(id, userID)
@@ -699,143 +475,6 @@ func (h *Handler) PostCreateScratchProject(c *gin.Context) {
 }
 
 var safeFilenameRegex = regexp.MustCompile(`[^a-zA-Z0-9_.-]`)
-
-// UploadScratchAsset 处理上传的Scratch资源文件
-func (h *Handler) UploadScratchAsset(c *gin.Context) {
-	// 获取当前用户ID
-	userID := h.getUserID(c)
-	if userID == 0 {
-		e := custom_error.NewHandlerError(custom_error.USER, ErrorCodeUnauthorized, "unauthorized", nil)
-		c.JSON(http.StatusUnauthorized, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 获取资源ID
-	assetID := c.Param("asset_id")
-	if assetID == "" {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidAssetID, "invalid_asset_id", nil)
-		c.JSON(http.StatusBadRequest, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 去除不安全的字符，使用正则表达式
-	assetID = safeFilenameRegex.ReplaceAllString(assetID, "")
-
-	// 获取 assetID 字符串长度，把它分成 4 段
-	assetIDLength := len(assetID)
-	if assetIDLength < 36 {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeInvalidAssetID, "invalid_asset_id", nil)
-		c.JSON(http.StatusBadRequest, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	//  最多只读取2MB
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2*1024*1024)
-
-	// 读取请求体中的二进制数据
-	bodyData, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeReadBodyFailed, "read_body_failed", err)
-		c.JSON(http.StatusBadRequest, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	if len(bodyData) == 0 {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeReadBodyFailed, "read_body_failed", nil)
-		c.JSON(http.StatusBadRequest, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 根据文件扩展名设置适当的Content-Type
-	contentType := "application/octet-stream" // 默认
-	switch {
-	case strings.HasSuffix(assetID, ".svg"):
-		contentType = "image/svg+xml"
-	case strings.HasSuffix(assetID, ".png"):
-		contentType = "image/png"
-	case strings.HasSuffix(assetID, ".jpg"), strings.HasSuffix(assetID, ".jpeg"):
-		contentType = "image/jpeg"
-	case strings.HasSuffix(assetID, ".wav"):
-		contentType = "audio/wav"
-	case strings.HasSuffix(assetID, ".mp3"):
-		contentType = "audio/mpeg"
-	case strings.HasSuffix(assetID, ".json"):
-		contentType = "application/json"
-	}
-
-	assetID1 := assetID[:assetIDLength/4]
-	assetID2 := assetID[assetIDLength/4 : assetIDLength/2]
-	assetID3 := assetID[assetIDLength/2 : assetIDLength*3/4]
-	assetID4 := assetID[assetIDLength*3/4:]
-
-	// 使用 scratch 服务的基础路径
-	assetDir := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), "assets", assetID1, assetID2, assetID3)
-	if err := os.MkdirAll(assetDir, 0755); err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeCreateAssetDirFailed, "create_asset_dir_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 保存文件
-	filePath := filepath.Join(assetDir, assetID4)
-	if err := os.WriteFile(filePath, bodyData, 0644); err != nil {
-		e := custom_error.NewHandlerError(custom_error.SCRATCH, ErrorCodeSaveAssetFailed, "save_asset_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 保存用户资源
-	err = h.dao.UserAssetDao.CreateUserAsset(&model.UserAsset{
-		UserID:    userID,
-		AssetID:   assetID,
-		AssetType: contentType,
-		Size:      int64(len(bodyData)),
-	})
-	if err != nil {
-		e := custom_error.NewHandlerError(custom_error.USER_ASSET, ErrorCodeSaveAssetFailed, "save_asset_failed", err)
-		c.JSON(http.StatusInternalServerError, ResponseError{
-			Code:    int(e.ErrorCode()),
-			Message: e.Message,
-			Error:   e.Error(),
-		})
-		return
-	}
-
-	// 返回成功响应
-	c.JSON(http.StatusOK, gin.H{
-		"status":       "ok",
-		"assetID":      assetID,
-		"content_type": contentType,
-	})
-}
 
 // RenderScratchProject 渲染Scratch项目数据
 func RenderScratchProject(c *gin.Context, data []byte, meta *gorails.ResponseMeta) {

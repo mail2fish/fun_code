@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jun/fun_code/internal/custom_error"
+	"github.com/jun/fun_code/internal/global"
 	"github.com/jun/fun_code/internal/model"
 	"github.com/mail2fish/gorails/gorails"
 	"gorm.io/gorm"
@@ -22,7 +22,7 @@ type CreateClassParams struct {
 
 func (p *CreateClassParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindJSON(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50001, "无效的请求参数", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -49,7 +49,7 @@ func (h *Handler) CreateClassHandler(c *gin.Context, params *CreateClassParams) 
 	// 调用服务层创建班级
 	class, err := h.dao.ClassDao.CreateClass(userID, params.Name, params.Description, params.StartDate, params.EndDate)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50002, "创建班级失败", err)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeCreateFailed, global.ErrorMsgInsertFailed, err)
 	}
 
 	response := &CreateClassResponse{
@@ -125,7 +125,7 @@ func (h *Handler) ListClassesHandler(c *gin.Context, params *ListClassesParams) 
 	// 获取班级列表
 	classes, hasMore, err := h.dao.ClassDao.ListClassesWithPagination(userID, params.PageSize, params.BeginID, params.Forward, params.Asc)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50003, "获取班级列表失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	return &ListClassesResponse{
@@ -142,7 +142,7 @@ type GetClassParams struct {
 
 func (p *GetClassParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindUri(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50004, "无效的班级ID", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -188,9 +188,9 @@ func (h *Handler) GetClassHandler(c *gin.Context, params *GetClassParams) (*GetC
 	class, err := h.dao.ClassDao.GetClass(params.ClassID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "班级不存在" {
-			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50005, "班级不存在", err)
+			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryNotFound, global.ErrorMsgQueryNotFound, err)
 		}
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50006, "获取班级信息失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	response := &GetClassResponse{}
@@ -286,11 +286,11 @@ type UpdateClassParams struct {
 func (p *UpdateClassParams) Parse(c *gin.Context) gorails.Error {
 	// 先解析路径参数
 	if err := c.ShouldBindUri(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50007, "无效的班级ID", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	// 再解析JSON参数
 	if err := c.ShouldBindJSON(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50008, "无效的请求参数", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -329,15 +329,15 @@ func (h *Handler) UpdateClassHandler(c *gin.Context, params *UpdateClassParams) 
 	err := h.dao.ClassDao.UpdateClass(params.ClassID, userID, updates)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50009, "班级不存在", err)
+			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryNotFound, global.ErrorMsgQueryNotFound, err)
 		}
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50010, "更新班级失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeUpdateFailed, global.ErrorMsgUpdateFailed, err)
 	}
 
 	// 获取更新后的班级信息
 	class, err := h.dao.ClassDao.GetClass(params.ClassID)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50011, "获取更新后的班级信息失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	response := &UpdateClassResponse{
@@ -362,7 +362,7 @@ type DeleteClassParams struct {
 
 func (p *DeleteClassParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindUri(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50012, "无效的班级ID", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -380,9 +380,9 @@ func (h *Handler) DeleteClassHandler(c *gin.Context, params *DeleteClassParams) 
 	err := h.dao.ClassDao.DeleteClass(params.ClassID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "班级不存在或您无权修改" {
-			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50013, "班级不存在", err)
+			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryNotFound, global.ErrorMsgQueryNotFound, err)
 		}
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 50014, "删除班级失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeDeleteFailed, global.ErrorMsgDeleteFailed, err)
 	}
 
 	return &DeleteClassResponse{Message: "班级删除成功"}, nil, nil

@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jun/fun_code/internal/custom_error"
+	"github.com/jun/fun_code/internal/global"
 	"github.com/mail2fish/gorails/gorails"
 )
 
@@ -17,7 +17,7 @@ type RegisterParams struct {
 
 func (p *RegisterParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindJSON(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.AUTH), 40001, "参数无效", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_AUTH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -30,7 +30,7 @@ type RegisterResponse struct {
 // RegisterHandler 用户注册 gorails.Wrap 形式
 func (h *Handler) RegisterHandler(c *gin.Context, params *RegisterParams) (*RegisterResponse, *gorails.ResponseMeta, gorails.Error) {
 	if err := h.dao.AuthDao.Register(params.Username, params.Password, params.Email); err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.AUTH), 40002, err.Error(), err)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_AUTH, global.ErrorCodeInsertFailed, global.ErrorMsgInsertFailed, err)
 	}
 
 	return &RegisterResponse{Message: "注册成功"}, nil, nil
@@ -44,7 +44,7 @@ type LoginParams struct {
 
 func (p *LoginParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindJSON(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.AUTH), 40003, "参数无效", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_AUTH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -59,7 +59,7 @@ type LoginResponse struct {
 func (h *Handler) LoginHandler(c *gin.Context, params *LoginParams) (*LoginResponse, *gorails.ResponseMeta, gorails.Error) {
 	loginResponse, err := h.dao.AuthDao.Login(params.Username, params.Password)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.AUTH), 40004, err.Error(), err)
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_AUTH, global.ErrorCodeLoginFailed, global.ErrorMsgLoginFailed, err)
 	}
 
 	// 设置 cookie
@@ -95,13 +95,13 @@ type LogoutResponse struct {
 func (h *Handler) LogoutHandler(c *gin.Context, params *LogoutParams) (*LogoutResponse, *gorails.ResponseMeta, gorails.Error) {
 	token := getToken(c)
 	if token == "" {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.AUTH), 40005, "未提供认证token", nil)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_AUTH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
 	}
 
 	// 调用服务层登出方法
 	expiredCookie, err := h.dao.AuthDao.Logout(token)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.AUTH), 40006, err.Error(), err)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_AUTH, global.ErrorCodeLogoutFailed, global.ErrorMsgLogoutFailed, err)
 	}
 
 	// 设置过期的 cookie

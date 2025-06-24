@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jun/fun_code/internal/custom_error"
+	"github.com/jun/fun_code/internal/global"
 	"github.com/mail2fish/gorails/gorails"
 )
 
@@ -44,7 +44,7 @@ type SetLanguageParams struct {
 
 func (p *SetLanguageParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindJSON(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.AUTH), 40007, "无效的语言设置请求", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_AUTH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -67,7 +67,7 @@ func (h *Handler) SetLanguageHandler(c *gin.Context, params *SetLanguageParams) 
 	}
 
 	if !supported {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.AUTH), 40008, "不支持的语言", nil)
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_AUTH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
 	}
 
 	// 设置语言 Cookie

@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jun/fun_code/internal/custom_error"
+	"github.com/jun/fun_code/internal/global"
 	"github.com/mail2fish/gorails/gorails"
 )
 
@@ -30,13 +30,13 @@ func (h *Handler) GetMenuListHandler(c *gin.Context, params *gorails.EmptyParams
 	// 获取当前用户ID
 	userID := h.getUserID(c)
 	if userID == 0 {
-		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 70001, "未登录", nil)
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeUnauthorized, global.ErrorMsgUnauthorized, nil)
 	}
 
 	// 从数据库获取用户信息
 	user, err := h.dao.UserDao.GetUserByID(userID)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 70002, "获取用户信息失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	// 根据用户角色返回不同的菜单

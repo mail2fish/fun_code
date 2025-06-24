@@ -572,15 +572,15 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 			admin.GET("/classes/list", h.GetListClasses)
 			admin.GET("/classes/:class_id", h.GetClass)
 			admin.PUT("/classes/:class_id", h.PutUpdateClass)
-			admin.DELETE("/classes/:class_id", h.DeleteClass)
+			admin.DELETE("/classes/:class_id", gorails.Wrap(h.DeleteClassHandler, nil))
 
 			// 用户管理
 			admin.POST("/users/create", h.PostCreateUser)
 			admin.GET("/users/list", gorails.Wrap(h.ListUsersHandler, nil))
 			admin.PUT("/users/:user_id", h.PutUpdateUser)
-			admin.DELETE("/users/:user_id", h.DeleteUser)
+			admin.DELETE("/users/:user_id", gorails.Wrap(h.DeleteUserHandler, nil))
 			admin.GET("/users/:user_id", gorails.Wrap(h.GetUserHandler, nil))
-			admin.GET("/users/search", h.GetSearchUsers)
+			admin.GET("/users/search", gorails.Wrap(h.SearchUsersHandler, nil))
 			admin.GET("/scratch/projects", gorails.Wrap(h.GetAllScratchProjectHandler, nil))
 
 			// 文件上传 - 使用占位符

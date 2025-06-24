@@ -192,7 +192,7 @@ func (s *ScratchDaoImpl) SaveProject(userID uint, projectID uint, name string, c
 			// 写入文件
 			if err := os.WriteFile(filename, content, 0644); err != nil {
 				fmt.Printf("write file failed: %v\n", err)
-				return 0, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeWriteFileFailed, "write file failed", err)
+				return 0, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SCRATCH, global.ErrorCodeWriteFileFailed, global.ErrorMsgWriteFileFailed, err)
 			}
 		}
 
@@ -201,7 +201,7 @@ func (s *ScratchDaoImpl) SaveProject(userID uint, projectID uint, name string, c
 		project.MD5 = md5Str
 		project.UpdatedAt = now
 		if err := s.db.Save(&project).Error; err != nil {
-			return 0, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeUpdateFailed, "save project failed", err)
+			return 0, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SCRATCH, global.ErrorCodeUpdateFailed, global.ErrorMsgUpdateFailed, err)
 		}
 	}
 
@@ -457,11 +457,11 @@ func (s *ScratchDaoImpl) SearchProjects(userID uint, keyword string) ([]model.Sc
 
 	if userID == 0 {
 		if err := s.db.Where("name LIKE ?", "%"+keyword+"%").Find(&projects).Error; err != nil {
-			return nil, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeQueryFailed, "scratch.db_query_failed", err)
+			return nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 		}
 	} else {
 		if err := s.db.Where("user_id = ? AND name LIKE ?", userID, "%"+keyword+"%").Find(&projects).Error; err != nil {
-			return nil, custom_error.NewThirdPartyError(custom_error.SCRATCH, ErrorCodeQueryFailed, "scratch.db_query_failed", err)
+			return nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 		}
 	}
 

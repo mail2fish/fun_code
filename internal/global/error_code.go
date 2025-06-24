@@ -48,10 +48,15 @@ const (
 	ErrorCodeRedisError  = 1002 // Redis错误
 	ErrorCodeConfigError = 1003 // 配置错误
 
-	ErrorCodeInvalidParams = 400 // 无效的参数
-	ErrorCodeNoPermission  = 401 // 无权限
-	ErrorCodeCreateFailed  = 402 // 创建失败
-
+	ErrorCodeInvalidParams   = 400 // 无效的参数
+	ErrorCodeNoPermission    = 401 // 无权限
+	ErrorCodeCreateFailed    = 402 // 创建失败
+	ErrorCodeLoginFailed     = 403 // 登录失败
+	ErrorCodeLogoutFailed    = 404 // 登出失败
+	ErrorCodeUnauthorized    = 405 // 未授权
+	ErrorCodeReadBodyFailed  = 406 // 读取请求体失败
+	ErrorCodeTooManyRequests = 407 // 操作过于频繁，请稍后再试
+	ErrorCodeReadFileFailed  = 408 // 读取文件失败
 )
 
 // 错误消息常量
@@ -104,4 +109,12 @@ const (
 	ErrorMsgConfigError = "配置错误"
 
 	ErrorMsgNoPermission = "无权限"
+
+	ErrorMsgLoginFailed     = "登录失败"
+	ErrorMsgLogoutFailed    = "登出失败"
+	ErrorMsgCreateFailed    = "创建失败"
+	ErrorMsgUnauthorized    = "未授权"
+	ErrorMsgReadBodyFailed  = "读取请求体失败"
+	ErrorMsgTooManyRequests = "操作过于频繁，请稍后再试"
+	ErrorMsgReadFileFailed  = "读取文件失败"
 )
