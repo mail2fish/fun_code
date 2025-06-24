@@ -65,6 +65,8 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
   const courseMenuItems = [
     { href: "/www/admin/list_courses", label: "课程列表", icon: FileText },
     { href: "/www/admin/create_course", label: "创建课程", icon: Plus },
+    { href: "/www/admin/list_lessons", label: "课件列表", icon: BookOpen },
+    { href: "/www/admin/create_lesson", label: "创建课件", icon: Plus },
   ];
 
   const programMenuItems = [

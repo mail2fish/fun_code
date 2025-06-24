@@ -26,6 +26,11 @@ export default [
     route("/www/admin/list_courses", "routes/admin/list_courses.tsx"),
     route("/www/admin/create_course", "routes/admin/create_course.tsx"),
     route("/www/admin/edit_course/:courseId", "routes/admin/edit_course.tsx"),
-    route("/www/admin/course_detail/:courseId", "routes/admin/course_detail.tsx"),  
+    route("/www/admin/course_detail/:courseId", "routes/admin/course_detail.tsx"),
+    
+    // lesson management
+    route("/www/admin/list_lessons", "routes/admin/list_lessons.tsx"),
+    route("/www/admin/create_lesson", "routes/admin/create_lesson.tsx"),
+    route("/www/admin/edit_lesson/:lessonId", "routes/admin/edit_lesson.tsx"),  
 
 ] satisfies RouteConfig;
