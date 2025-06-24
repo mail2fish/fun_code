@@ -10,6 +10,7 @@ type Dao struct {
 	FileDao      FileDao
 	ClassDao     ClassDao
 	CourseDao    CourseDao
+	LessonDao    LessonDao
 	ScratchDao   ScratchDao
 	UserAssetDao UserAssetDao
 	ShareDao     ShareDao

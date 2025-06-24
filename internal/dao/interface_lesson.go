@@ -1,0 +1,64 @@
+package dao
+
+import (
+	"time"
+
+	"github.com/jun/fun_code/internal/model"
+)
+
+// LessonUpdateData 批量更新课时的数据结构
+type LessonUpdateData struct {
+	ExpectedUpdatedAt time.Time              `json:"expected_updated_at"` // 预期的更新时间（乐观锁）
+	Updates           map[string]interface{} `json:"updates"`             // 要更新的字段
+}
+
+// LessonDao 定义了课时服务的接口
+type LessonDao interface {
+	// CreateLesson 创建课时
+	CreateLesson(lesson *model.Lesson) error
+
+	// UpdateLesson 更新课时信息（乐观锁，基于updated_at避免并发更新）
+	UpdateLesson(lessonID, authorID uint, expectedUpdatedAt time.Time, updates map[string]interface{}) error
+
+	// GetLesson 获取课时详情
+	GetLesson(lessonID uint) (*model.Lesson, error)
+
+	// GetLessonWithPermission 获取课时详情（权限验证）
+	GetLessonWithPermission(lessonID, userID uint) (*model.Lesson, error)
+
+	// ListLessonsByCourse 获取课程下的所有课时（按排序）
+	ListLessonsByCourse(courseID uint) ([]model.Lesson, error)
+
+	// ListLessonsWithPagination 分页获取课时列表
+	ListLessonsWithPagination(courseID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Lesson, bool, error)
+
+	// DeleteLesson 删除课时（乐观锁，基于updated_at避免并发删除）
+	DeleteLesson(lessonID, authorID uint, expectedUpdatedAt time.Time) error
+
+	// ReorderLessons 重新排序课时
+	ReorderLessons(courseID uint, lessonIDs []uint) error
+
+	// PublishLesson 发布/取消发布课时（乐观锁，基于updated_at避免并发更新）
+	PublishLesson(lessonID, authorID uint, expectedUpdatedAt time.Time, isPublished bool) error
+
+	// GetLessonsByProjectID 根据项目ID获取相关课时
+	GetLessonsByProjectID(projectID uint) ([]model.Lesson, error)
+
+	// CountLessonsByCourse 统计课程下的课时数量
+	CountLessonsByCourse(courseID uint) (int64, error)
+
+	// GetNextLesson 获取下一课时
+	GetNextLesson(courseID uint, currentSortOrder int) (*model.Lesson, error)
+
+	// GetPreviousLesson 获取上一课时
+	GetPreviousLesson(courseID uint, currentSortOrder int) (*model.Lesson, error)
+
+	// SearchLessons 搜索课时
+	SearchLessons(keyword string, courseID uint) ([]model.Lesson, error)
+
+	// BatchUpdateLessons 批量更新课时（乐观锁，基于updated_at避免并发更新）
+	BatchUpdateLessons(lessonUpdates map[uint]LessonUpdateData) error
+
+	// DuplicateLesson 复制课时
+	DuplicateLesson(lessonID, targetCourseID, authorID uint) (*model.Lesson, error)
+}
