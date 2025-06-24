@@ -225,7 +225,7 @@ export default function ListCoursePage() {
       // 如果向后翻页
       if (forward) {        
         page++
-        if (response.data.hasMore) {
+        if (response.meta.has_next) {
           showForward = true
         }
         if (page > 1) {
@@ -238,12 +238,12 @@ export default function ListCoursePage() {
           showBackward = true
         }
         // 只有在有更多数据或不是第一页时才显示向前按钮
-        showForward = response.data.hasMore || page > 0
+        showForward = response.meta.has_next || page > 0
       }
 
       setCoursesData({
         courses: response.data.data || [],
-        total: response.data.total || 0,
+        total: response.meta.total || 0,
         showForward: showForward,
         showBackward: showBackward,
         currentPage: page,

@@ -67,9 +67,10 @@ interface Lesson {
   project_type: string
   project_id_1: number
   project_id_2: number
-  video_path_1: string
-  video_path_2: string
-  video_path_3: string
+  project_id_3: number
+  video_1: string
+  video_2: string
+  video_3: string
   duration: number
   difficulty: string
   description: string
@@ -292,7 +293,18 @@ async function getCourses() {
       throw new Error(`API 错误: ${response.status}`)
     }
     const data = await response.json()
-    return data.data.data || []
+    console.log("获取到的课程数据:", data) // 调试信息
+    
+    // 确保返回的是数组
+    const courses = data.data?.data || data.data || []
+    console.log("处理后的课程数组:", courses) // 调试信息
+    
+    if (!Array.isArray(courses)) {
+      console.error("课程数据不是数组:", courses)
+      return []
+    }
+    
+    return courses
   } catch (error) {
     console.error("获取课程列表失败:", error)
     return []
@@ -475,13 +487,10 @@ export default function ListLessonsPage() {
     try {
       const response = await getLessons(courseId, beginID, defaultPageSize, forward, asc)
       
-      // 处理API响应数据结构
-      const responseData = response.data || response
-      
       setLessonsData({
-        lessons: responseData.data || [],
-        total: responseData.total || 0,
-        showForward: responseData.hasMore || false,
+        lessons: response.data.data || [],
+        total: response.meta.total || 0,
+        showForward: response.meta.has_next || false,
         showBackward: beginID !== "0",
         pageSize: defaultPageSize,
         currentPage: 1 // 这里需要根据实际分页逻辑计算
@@ -498,12 +507,26 @@ export default function ListLessonsPage() {
   // 初始化数据
   React.useEffect(() => {
     const initData = async () => {
-      // 获取课程列表
-      const courseList = await getCourses()
-      setCourses(courseList)
-      
-      // 获取课件列表
-      await fetchLessons()
+      try {
+        // 获取课程列表
+        const courseList = await getCourses()
+        console.log("设置课程列表:", courseList) // 调试信息
+        
+        // 确保courseList是数组
+        if (Array.isArray(courseList)) {
+          setCourses(courseList)
+        } else {
+          console.error("courseList不是数组:", courseList)
+          setCourses([])
+        }
+        
+        // 获取课件列表
+        await fetchLessons()
+      } catch (error) {
+        console.error("初始化数据失败:", error)
+        setCourses([])
+        setError("初始化数据失败")
+      }
     }
     
     initData()
@@ -668,7 +691,7 @@ export default function ListLessonsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部课程</SelectItem>
-                {courses.map((course) => (
+                {Array.isArray(courses) && courses.map((course) => (
                   <SelectItem key={course.id} value={course.id.toString()}>
                     {course.title}
                   </SelectItem>

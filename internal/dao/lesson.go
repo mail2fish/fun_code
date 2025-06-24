@@ -133,8 +133,11 @@ func (l *LessonDaoImpl) ListLessonsByCourse(courseID uint) ([]model.Lesson, erro
 func (l *LessonDaoImpl) ListLessonsWithPagination(courseID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Lesson, bool, error) {
 	var lessons []model.Lesson
 
+	query := l.db
 	// 构建查询
-	query := l.db.Where("course_id = ?", courseID)
+	if courseID > 0 {
+		query = query.Where("course_id = ?", courseID)
+	}
 
 	// 分页逻辑
 	if beginID > 0 {

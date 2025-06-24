@@ -94,7 +94,18 @@ async function getCourses() {
       throw new Error(`API 错误: ${response.status}`)
     }
     const data = await response.json()
-    return data.data.data || []
+    console.log("获取到的课程数据:", data) // 调试信息
+    
+    // 确保返回的是数组
+    const courses = data.data?.data || data.data || []
+    console.log("处理后的课程数组:", courses) // 调试信息
+    
+    if (!Array.isArray(courses)) {
+      console.error("课程数据不是数组:", courses)
+      return []
+    }
+    
+    return courses
   } catch (error) {
     console.error("获取课程列表失败:", error)
     return []
@@ -219,14 +230,29 @@ export default function CreateLessonPage() {
   // 加载数据
   React.useEffect(() => {
     const loadData = async () => {
-      const [courseList, projectList, userList] = await Promise.all([
-        getCourses(),
-        getProjects(),
-        getUsers()
-      ])
-      setCourses(courseList)
-      setProjects(projectList)
-      setUsers(userList)
+      try {
+        const [courseList, projectList, userList] = await Promise.all([
+          getCourses(),
+          getProjects(),
+          getUsers()
+        ])
+        
+        console.log("设置课程列表:", courseList) // 调试信息
+        console.log("设置项目列表:", projectList) // 调试信息
+        console.log("设置用户列表:", userList) // 调试信息
+        
+        // 确保设置的都是数组
+        setCourses(Array.isArray(courseList) ? courseList : [])
+        setProjects(Array.isArray(projectList) ? projectList : [])
+        setUsers(Array.isArray(userList) ? userList : [])
+      } catch (error) {
+        console.error("初始化数据失败:", error)
+        toast.error("加载数据失败，请刷新页面重试")
+        // 确保状态是数组
+        setCourses([])
+        setProjects([])
+        setUsers([])
+      }
     }
     loadData()
   }, [])
@@ -329,7 +355,7 @@ export default function CreateLessonPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {courses.map((course) => (
+                            {Array.isArray(courses) && courses.map((course) => (
                               <SelectItem key={course.id} value={course.id.toString()}>
                                 {course.title}
                               </SelectItem>

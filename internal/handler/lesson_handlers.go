@@ -653,10 +653,6 @@ func (p *ListLessonsParams) Parse(c *gin.Context) gorails.Error {
 		}
 	}
 
-	if p.CourseID == 0 {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "课程ID不能为空", nil)
-	}
-
 	// 解析页面大小
 	if pageSizeStr := c.DefaultQuery("pageSize", "20"); pageSizeStr != "" {
 		if pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32); err == nil {
@@ -688,9 +684,7 @@ func (p *ListLessonsParams) Parse(c *gin.Context) gorails.Error {
 
 // ListLessonsResponse 列出课时响应
 type ListLessonsResponse struct {
-	Data    []model.Lesson `json:"data"`
-	HasMore bool           `json:"hasMore"`
-	Total   int64          `json:"total"`
+	Data []model.Lesson `json:"data"`
 }
 
 // ListLessonsHandler 列出课时
@@ -705,10 +699,11 @@ func (h *Handler) ListLessonsHandler(c *gin.Context, params *ListLessonsParams) 
 	total, _ := h.dao.LessonDao.CountLessonsByCourse(params.CourseID)
 
 	return &ListLessonsResponse{
-		Data:    lessons,
-		HasMore: hasMore,
-		Total:   total,
-	}, nil, nil
+			Data: lessons,
+		}, &gorails.ResponseMeta{
+			Total:   int(total),
+			HasNext: hasMore,
+		}, nil
 }
 
 // DeleteLessonParams 删除课时请求参数

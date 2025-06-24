@@ -299,9 +299,7 @@ func (p *ListCoursesParams) Parse(c *gin.Context) gorails.Error {
 
 // ListCoursesResponse 列出课程响应
 type ListCoursesResponse struct {
-	Data    []model.Course `json:"data"`
-	HasMore bool           `json:"hasMore"`
-	Total   int64          `json:"total"`
+	Data []model.Course `json:"data"`
 }
 
 // ListCoursesHandler 列出课程
@@ -318,10 +316,11 @@ func (h *Handler) ListCoursesHandler(c *gin.Context, params *ListCoursesParams) 
 	total, _ := h.dao.CourseDao.CountCoursesByAuthor(userID)
 
 	return &ListCoursesResponse{
-		Data:    courses,
-		HasMore: hasMore,
-		Total:   total,
-	}, nil, nil
+			Data: courses,
+		}, &gorails.ResponseMeta{
+			Total:   int(total),
+			HasNext: hasMore,
+		}, nil
 }
 
 // DeleteCourseParams 删除课程请求参数
