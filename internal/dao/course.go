@@ -20,7 +20,7 @@ func NewCourseDao(db *gorm.DB) CourseDao {
 }
 
 // CreateCourse 创建课程
-func (c *CourseDaoImpl) CreateCourse(authorID uint, title, description, content string, isPublic bool) (*model.Course, error) {
+func (c *CourseDaoImpl) CreateCourse(authorID uint, title, description, difficulty string, duration int, isPublished bool, thumbnailPath string) (*model.Course, error) {
 	if title == "" {
 		return nil, errors.New("课程标题不能为空")
 	}
@@ -30,13 +30,15 @@ func (c *CourseDaoImpl) CreateCourse(authorID uint, title, description, content 
 	c.db.Model(&model.Course{}).Where("author_id = ?", authorID).Select("COALESCE(MAX(sort_order), 0)").Scan(&maxSort)
 
 	course := model.Course{
-		Title:       title,
-		Description: description,
-		AuthorID:    authorID,
-		Content:     content,
-		IsPublic:    isPublic,
-		IsPublished: false, // 默认不发布
-		SortOrder:   maxSort + 1,
+		Title:         title,
+		Description:   description,
+		AuthorID:      authorID,
+		Difficulty:    difficulty,
+		Duration:      duration,
+		IsPublished:   isPublished,
+		ThumbnailPath: thumbnailPath,
+		IsPublic:      false, // 默认不公开
+		SortOrder:     maxSort + 1,
 	}
 
 	if err := c.db.Create(&course).Error; err != nil {

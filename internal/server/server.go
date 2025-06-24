@@ -88,6 +88,8 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 		UserDao:      dao.NewUserDao(db),
 		UserAssetDao: dao.NewUserAssetDao(db),
 		ShareDao:     dao.NewShareDao(db, cfg, logger),
+		CourseDao:    dao.NewCourseDao(db),
+		LessonDao:    dao.NewLessonDao(db),
 	}
 
 	// 如果admin 用户不存在，则创建新用户

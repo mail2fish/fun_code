@@ -387,3 +387,251 @@ func (h *Handler) DeleteClassHandler(c *gin.Context, params *DeleteClassParams) 
 
 	return &DeleteClassResponse{Message: "班级删除成功"}, nil, nil
 }
+
+// AddCourseToClassParams 为班级添加课程请求参数
+type AddCourseToClassParams struct {
+	ClassID  uint `json:"class_id" uri:"class_id" binding:"required"`
+	CourseID uint `json:"course_id" binding:"required"`
+}
+
+func (p *AddCourseToClassParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	if err := c.ShouldBindJSON(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+// AddCourseToClassResponse 为班级添加课程响应
+type AddCourseToClassResponse struct {
+	Message string `json:"message"`
+}
+
+// AddCourseToClassHandler 为班级添加课程
+func (h *Handler) AddCourseToClassHandler(c *gin.Context, params *AddCourseToClassParams) (*AddCourseToClassResponse, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+
+	// 调用服务层为班级添加课程
+	// 添加课程时使用班级的日期范围作为默认值
+	class, err := h.dao.ClassDao.GetClass(params.ClassID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	startDateStr := class.StartDate.Format("2006-01-02")
+	endDateStr := class.EndDate.Format("2006-01-02")
+
+	if err := h.dao.ClassDao.AddCourse(params.ClassID, userID, params.CourseID, startDateStr, endDateStr); err != nil {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeUpdateFailed, global.ErrorMsgUpdateFailed, err)
+	}
+
+	return &AddCourseToClassResponse{
+		Message: "课程添加到班级成功",
+	}, nil, nil
+}
+
+// RemoveCourseFromClassParams 从班级移除课程请求参数
+type RemoveCourseFromClassParams struct {
+	ClassID  uint `json:"class_id" uri:"class_id" binding:"required"`
+	CourseID uint `json:"course_id" uri:"course_id" binding:"required"`
+}
+
+func (p *RemoveCourseFromClassParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+// RemoveCourseFromClassResponse 从班级移除课程响应
+type RemoveCourseFromClassResponse struct {
+	Message string `json:"message"`
+}
+
+// RemoveCourseFromClassHandler 从班级移除课程
+func (h *Handler) RemoveCourseFromClassHandler(c *gin.Context, params *RemoveCourseFromClassParams) (*RemoveCourseFromClassResponse, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+
+	// 调用服务层从班级移除课程
+	if err := h.dao.ClassDao.RemoveCourse(params.ClassID, userID, params.CourseID); err != nil {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeUpdateFailed, global.ErrorMsgUpdateFailed, err)
+	}
+
+	return &RemoveCourseFromClassResponse{
+		Message: "课程从班级移除成功",
+	}, nil, nil
+}
+
+// GetClassCoursesParams 获取班级课程列表请求参数
+type GetClassCoursesParams struct {
+	ClassID  uint `json:"class_id" uri:"class_id" binding:"required"`
+	PageSize uint `json:"page_size" form:"pageSize"`
+	BeginID  uint `json:"begin_id" form:"beginID"`
+	Forward  bool `json:"forward" form:"forward"`
+	Asc      bool `json:"asc" form:"asc"`
+}
+
+func (p *GetClassCoursesParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+
+	// 设置默认值
+	p.PageSize = 20
+	p.BeginID = 0
+	p.Forward = true
+	p.Asc = true
+
+	// 解析查询参数
+	if pageSizeStr := c.DefaultQuery("pageSize", "20"); pageSizeStr != "" {
+		if pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32); err == nil {
+			if pageSize > 0 && pageSize <= 100 {
+				p.PageSize = uint(pageSize)
+			}
+		}
+	}
+
+	if beginIDStr := c.DefaultQuery("beginID", "0"); beginIDStr != "" {
+		if beginID, err := strconv.ParseUint(beginIDStr, 10, 32); err == nil {
+			p.BeginID = uint(beginID)
+		}
+	}
+
+	if forwardStr := c.DefaultQuery("forward", "true"); forwardStr != "" {
+		p.Forward = forwardStr != "false"
+	}
+
+	if ascStr := c.DefaultQuery("asc", "true"); ascStr != "" {
+		p.Asc = ascStr != "false"
+	}
+
+	return nil
+}
+
+// GetClassCoursesResponse 获取班级课程列表响应
+type GetClassCoursesResponse struct {
+	Data    []model.Course `json:"data"`
+	HasMore bool           `json:"hasMore"`
+	Total   int64          `json:"total"`
+}
+
+// GetClassCoursesHandler 获取班级课程列表
+func (h *Handler) GetClassCoursesHandler(c *gin.Context, params *GetClassCoursesParams) (*GetClassCoursesResponse, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+
+	// 获取班级课程列表（使用现有的ListCourses方法）
+	courses, err := h.dao.ClassDao.ListCourses(params.ClassID, userID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 简化版本：返回所有课程，不分页
+	return &GetClassCoursesResponse{
+		Data:    courses,
+		HasMore: false,
+		Total:   int64(len(courses)),
+	}, nil, nil
+}
+
+// GetClassLessonsParams 获取班级所有课时请求参数
+type GetClassLessonsParams struct {
+	ClassID  uint `json:"class_id" uri:"class_id" binding:"required"`
+	CourseID uint `json:"course_id" form:"courseId"` // 可选，指定课程
+	PageSize uint `json:"page_size" form:"pageSize"`
+	BeginID  uint `json:"begin_id" form:"beginID"`
+	Forward  bool `json:"forward" form:"forward"`
+	Asc      bool `json:"asc" form:"asc"`
+}
+
+func (p *GetClassLessonsParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+
+	// 设置默认值
+	p.PageSize = 20
+	p.BeginID = 0
+	p.Forward = true
+	p.Asc = true
+
+	// 解析查询参数
+	if courseIDStr := c.DefaultQuery("courseId", "0"); courseIDStr != "" {
+		if courseID, err := strconv.ParseUint(courseIDStr, 10, 32); err == nil {
+			p.CourseID = uint(courseID)
+		}
+	}
+
+	if pageSizeStr := c.DefaultQuery("pageSize", "20"); pageSizeStr != "" {
+		if pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32); err == nil {
+			if pageSize > 0 && pageSize <= 100 {
+				p.PageSize = uint(pageSize)
+			}
+		}
+	}
+
+	if beginIDStr := c.DefaultQuery("beginID", "0"); beginIDStr != "" {
+		if beginID, err := strconv.ParseUint(beginIDStr, 10, 32); err == nil {
+			p.BeginID = uint(beginID)
+		}
+	}
+
+	if forwardStr := c.DefaultQuery("forward", "true"); forwardStr != "" {
+		p.Forward = forwardStr != "false"
+	}
+
+	if ascStr := c.DefaultQuery("asc", "true"); ascStr != "" {
+		p.Asc = ascStr != "false"
+	}
+
+	return nil
+}
+
+// GetClassLessonsResponse 获取班级所有课时响应
+type GetClassLessonsResponse struct {
+	Data    []model.Lesson `json:"data"`
+	HasMore bool           `json:"hasMore"`
+	Total   int64          `json:"total"`
+}
+
+// GetClassLessonsHandler 获取班级所有课时
+func (h *Handler) GetClassLessonsHandler(c *gin.Context, params *GetClassLessonsParams) (*GetClassLessonsResponse, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+
+	if params.CourseID != 0 {
+		// 获取指定课程的课时
+		lessonsSlice, hasMore, err := h.dao.LessonDao.ListLessonsWithPagination(params.CourseID, params.PageSize, params.BeginID, params.Forward, params.Asc)
+		if err != nil {
+			return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+		}
+		total, _ := h.dao.LessonDao.CountLessonsByCourse(params.CourseID)
+
+		return &GetClassLessonsResponse{
+			Data:    lessonsSlice,
+			HasMore: hasMore,
+			Total:   total,
+		}, nil, nil
+	} else {
+		// 获取班级所有课程，然后获取所有课时
+		courses, err := h.dao.ClassDao.ListCourses(params.ClassID, userID)
+		if err != nil {
+			return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+		}
+
+		// 收集所有课程的课时
+		allLessons := make([]model.Lesson, 0)
+		for _, course := range courses {
+			courseLessons, _, err := h.dao.LessonDao.ListLessonsWithPagination(course.ID, 1000, 0, true, true) // 简化：获取所有课时
+			if err == nil {
+				allLessons = append(allLessons, courseLessons...)
+			}
+		}
+
+		return &GetClassLessonsResponse{
+			Data:    allLessons,
+			HasMore: false,
+			Total:   int64(len(allLessons)),
+		}, nil, nil
+	}
+}

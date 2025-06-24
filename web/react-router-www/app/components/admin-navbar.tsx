@@ -20,7 +20,8 @@ import {
   Plus,
   HardDrive,
   User,
-  Globe
+  Globe,
+  BookOpen
 } from "lucide-react";
 
 interface AdminNavbarProps {
@@ -48,8 +49,18 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
   ];
 
   const userMenuItems = [
-    { href: "/www/admin/users/list", label: "用户列表", icon: UserCheck },
-    { href: "/www/admin/users/create", label: "创建用户", icon: UserPlus },
+    { href: "/www/admin/list_users", label: "用户列表", icon: UserCheck },
+    { href: "/www/admin/create_user", label: "创建用户", icon: UserPlus },
+  ]
+
+  const classMenuItems = [
+    { href: "/www/admin/list_classes", label: "班级列表", icon: Users },
+    { href: "/www/admin/create_class", label: "创建班级", icon: UserPlus },
+  ]
+
+  const courseMenuItems = [
+    { href: "/www/admin/list_courses", label: "课程列表", icon: FileText },
+    { href: "/www/admin/create_course", label: "创建课程", icon: Plus },
   ];
 
   const programMenuItems = [
@@ -69,6 +80,8 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
 
   const isActive = (path: string) => location.pathname === path;
   const isUserMenuActive = userMenuItems.some(item => isActive(item.href));
+  const isClassMenuActive = classMenuItems.some(item => isActive(item.href));
+  const isCourseMenuActive = courseMenuItems.some(item => isActive(item.href));
   const isProgramMenuActive = programMenuItems.some(item => isActive(item.href));
   const isResourceMenuActive = resourceMenuItems.some(item => isActive(item.href));
   const isShareMenuActive = shareMenuItems.some(item => isActive(item.href));
@@ -370,6 +383,38 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Class Management Dropdown */}
+            <div className="relative">
+              <Button
+                variant="ghost"
+                className={`group flex items-center space-x-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                  isClassMenuActive
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                }`}
+              >
+                <Users className="h-4 w-4" />
+                <span>班级管理</span>
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </div>
+
+            {/* Course Management Dropdown */}
+            <div className="relative">
+              <Button
+                variant="ghost"
+                className={`group flex items-center space-x-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                  isCourseMenuActive
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                }`}
+              >
+                <BookOpen className="h-4 w-4" />
+                <span>课程管理</span>
+                <ChevronDown className="h-3 w-3" />
+              </Button>
             </div>
           </div>
 

@@ -109,6 +109,30 @@ func (s *Server) setupRoutes() {
 			// 删除班级路由
 			admin.DELETE("/classes/:class_id", gorails.Wrap(s.handler.DeleteClassHandler, nil))
 
+			// 班级课程管理路由
+			admin.POST("/classes/:class_id/courses", gorails.Wrap(s.handler.AddCourseToClassHandler, nil))
+			admin.DELETE("/classes/:class_id/courses/:course_id", gorails.Wrap(s.handler.RemoveCourseFromClassHandler, nil))
+			admin.GET("/classes/:class_id/courses", gorails.Wrap(s.handler.GetClassCoursesHandler, nil))
+			admin.GET("/classes/:class_id/lessons", gorails.Wrap(s.handler.GetClassLessonsHandler, nil))
+
+			// 课程管理路由
+			admin.POST("/courses", gorails.Wrap(s.handler.CreateCourseHandler, nil))
+			admin.PUT("/courses/:course_id", gorails.Wrap(s.handler.UpdateCourseHandler, nil))
+			admin.GET("/courses/:course_id", gorails.Wrap(s.handler.GetCourseHandler, nil))
+			admin.GET("/courses", gorails.Wrap(s.handler.ListCoursesHandler, nil))
+			admin.DELETE("/courses/:course_id", gorails.Wrap(s.handler.DeleteCourseHandler, nil))
+			admin.PUT("/courses/:course_id/publish", gorails.Wrap(s.handler.PublishCourseHandler, nil))
+			admin.POST("/courses/:course_id/copy", gorails.Wrap(s.handler.CopyCourseHandler, nil))
+			admin.PUT("/courses/reorder", gorails.Wrap(s.handler.ReorderCoursesHandler, nil))
+
+			// 课时管理路由
+			admin.POST("/lessons", gorails.Wrap(s.handler.CreateLessonHandler, nil))
+			admin.PUT("/lessons/:lesson_id", gorails.Wrap(s.handler.UpdateLessonHandler, nil))
+			admin.GET("/lessons/:lesson_id", gorails.Wrap(s.handler.GetLessonHandler, nil))
+			admin.GET("/lessons", gorails.Wrap(s.handler.ListLessonsHandler, nil))
+			admin.DELETE("/lessons/:lesson_id", gorails.Wrap(s.handler.DeleteLessonHandler, nil))
+			admin.PUT("/lessons/reorder", gorails.Wrap(s.handler.ReorderLessonsHandler, nil))
+
 			// 用户管理路由 - 已改造为 gorails.Wrap 形式
 			admin.POST("/users/create", s.handler.RequirePermission("manage_users"), gorails.Wrap(s.handler.CreateUserHandler, nil))
 			admin.GET("/users/list", s.handler.RequirePermission("manage_users"), gorails.Wrap(s.handler.ListUsersHandler, nil))

@@ -57,6 +57,7 @@ const (
 	ErrorCodeReadBodyFailed  = 406 // 读取请求体失败
 	ErrorCodeTooManyRequests = 407 // 操作过于频繁，请稍后再试
 	ErrorCodeReadFileFailed  = 408 // 读取文件失败
+	ErrorCodeUpdateConflict  = 409 // 更新冲突
 )
 
 // 错误消息常量
@@ -117,4 +118,5 @@ const (
 	ErrorMsgReadBodyFailed  = "读取请求体失败"
 	ErrorMsgTooManyRequests = "操作过于频繁，请稍后再试"
 	ErrorMsgReadFileFailed  = "读取文件失败"
+	ErrorMsgUpdateConflict  = "更新冲突"
 )

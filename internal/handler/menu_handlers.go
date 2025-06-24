@@ -45,32 +45,73 @@ func (h *Handler) GetMenuListHandler(c *gin.Context, params *gorails.EmptyParams
 	// 管理员和教师可以看到管理菜单
 	if user.Role == "admin" || user.Role == "teacher" {
 		menuGroups = append(menuGroups, MenuGroup{
-			Title: "管理菜单",
+			Title: "用户管理",
 			URL:   "#",
 			Items: []MenuItem{
 				{
 					Title:    "用户列表",
-					URL:      "/www/admin/users/list",
+					URL:      "/admin/list_users",
 					IsActive: false,
 				},
 				{
 					Title:    "创建用户",
-					URL:      "/www/admin/users/create",
+					URL:      "/admin/create_user",
+					IsActive: false,
+				},
+			},
+		})
+
+		menuGroups = append(menuGroups, MenuGroup{
+			Title: "班级管理",
+			URL:   "#",
+			Items: []MenuItem{
+				{
+					Title:    "班级列表",
+					URL:      "/admin/list_classes",
 					IsActive: false,
 				},
 				{
-					Title:    "所有程序列表",
-					URL:      "/www/admin/scratch/projects",
+					Title:    "创建班级",
+					URL:      "/admin/create_class",
 					IsActive: false,
 				},
+			},
+		})
+
+		menuGroups = append(menuGroups, MenuGroup{
+			Title: "课程管理",
+			URL:   "#",
+			Items: []MenuItem{
+				{
+					Title:    "课程列表",
+					URL:      "/admin/list_courses",
+					IsActive: false,
+				},
+				{
+					Title:    "创建课程",
+					URL:      "/admin/create_course",
+					IsActive: false,
+				},
+			},
+		})
+
+		menuGroups = append(menuGroups, MenuGroup{
+			Title: "文件管理",
+			URL:   "#",
+			Items: []MenuItem{
 				{
 					Title:    "上传资源文件",
-					URL:      "/www/admin/files/upload",
+					URL:      "/admin/upload_files",
 					IsActive: false,
 				},
 				{
 					Title:    "资源文件列表",
-					URL:      "/www/admin/files/list",
+					URL:      "/list_files",
+					IsActive: false,
+				},
+				{
+					Title:    "所有程序列表",
+					URL:      "/scratch_projects",
 					IsActive: false,
 				},
 			},
@@ -84,22 +125,22 @@ func (h *Handler) GetMenuListHandler(c *gin.Context, params *gorails.EmptyParams
 		Items: []MenuItem{
 			{
 				Title:    "我的程序列表",
-				URL:      "/www/scratch/projects",
+				URL:      "/scratch_projects",
 				IsActive: false,
 			},
 			{
-				Title:    "资源文件列表",
-				URL:      "/www/files/list",
+				Title:    "程序历史记录",
+				URL:      "/scratch_project_histories",
 				IsActive: false,
 			},
 			{
 				Title:    "我的分享",
-				URL:      "/www/shares/user",
+				URL:      "/user_share",
 				IsActive: false,
 			},
 			{
 				Title:    "全部分享",
-				URL:      "/www/shares/all",
+				URL:      "/all_share",
 				IsActive: false,
 			},
 			{

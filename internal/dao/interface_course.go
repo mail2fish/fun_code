@@ -14,7 +14,7 @@ type CourseUpdateData struct {
 
 type CourseDao interface {
 	// 基础CRUD操作
-	CreateCourse(authorID uint, title, description, content string, isPublic bool) (*model.Course, error)
+	CreateCourse(authorID uint, title, description, difficulty string, duration int, isPublished bool, thumbnailPath string) (*model.Course, error)
 	UpdateCourse(courseID, authorID uint, expectedUpdatedAt time.Time, updates map[string]interface{}) error
 	GetCourse(courseID uint) (*model.Course, error)
 	GetCourseWithLessons(courseID uint) (*model.Course, error)
