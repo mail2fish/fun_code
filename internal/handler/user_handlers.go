@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jun/fun_code/internal/custom_error"
+	"github.com/jun/fun_code/internal/global"
 	"github.com/jun/fun_code/internal/model"
 	"github.com/mail2fish/gorails/gorails"
 	"gorm.io/gorm"
@@ -23,7 +23,7 @@ type CreateUserParams struct {
 
 func (p *CreateUserParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindJSON(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60001, "无效的请求参数", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -59,14 +59,9 @@ func (h *Handler) CreateUserHandler(c *gin.Context, params *CreateUserParams) (*
 	// 调用服务层创建用户
 	err := h.dao.UserDao.CreateUser(user)
 	if err != nil {
-		// 判断是否为自定义错误
-		if ce, ok := err.(*custom_error.CustomError); ok {
-			lang := h.i18n.GetDefaultLanguage()
-			if l := c.GetHeader("Accept-Language"); l != "" {
-				lang = l
-			}
-			msg := h.i18n.Translate(ce.Message, lang)
-			return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), int(ce.Code), msg, err)
+		// 判断是否为 gorails.Error
+		if ge, ok := err.(gorails.Error); ok {
+			return nil, nil, ge
 		}
 		// 其他未知错误
 		lang := h.i18n.GetDefaultLanguage()
@@ -74,7 +69,7 @@ func (h *Handler) CreateUserHandler(c *gin.Context, params *CreateUserParams) (*
 			lang = l
 		}
 		msg := h.i18n.Translate("user.create_failed", lang)
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60002, msg, err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeUserCreateFailed, msg, err)
 	}
 
 	// 返回成功响应
@@ -155,7 +150,7 @@ func (h *Handler) ListUsersHandler(c *gin.Context, params *ListUsersParams) ([]U
 	// 获取用户总数
 	total, err := h.dao.UserDao.CountUsers()
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60003, "获取用户总数失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	// 获取用户列表
@@ -166,7 +161,7 @@ func (h *Handler) ListUsersHandler(c *gin.Context, params *ListUsersParams) ([]U
 			lang = l
 		}
 		msg := h.i18n.Translate("user.list_failed", lang)
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60004, msg, err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeQueryFailed, msg, err)
 	}
 
 	userResponses := make([]UserResponse, len(users))
@@ -204,11 +199,11 @@ type UpdateUserParams struct {
 func (p *UpdateUserParams) Parse(c *gin.Context) gorails.Error {
 	// 先解析路径参数
 	if err := c.ShouldBindUri(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60005, "无效的用户ID", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	// 再解析JSON参数
 	if err := c.ShouldBindJSON(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60006, "无效的请求参数", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -242,14 +237,9 @@ func (h *Handler) UpdateUserHandler(c *gin.Context, params *UpdateUserParams) (*
 	// 调用服务层更新用户
 	err := h.dao.UserDao.UpdateUser(params.UserID, updates)
 	if err != nil {
-		// 判断是否为自定义错误
-		if ce, ok := err.(*custom_error.CustomError); ok {
-			lang := h.i18n.GetDefaultLanguage()
-			if l := c.GetHeader("Accept-Language"); l != "" {
-				lang = l
-			}
-			msg := h.i18n.Translate(ce.Message, lang)
-			return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), int(ce.Code), msg, err)
+		// 判断是否为 gorails.Error
+		if ge, ok := err.(gorails.Error); ok {
+			return nil, nil, ge
 		}
 		// 其他未知错误
 		lang := h.i18n.GetDefaultLanguage()
@@ -257,13 +247,13 @@ func (h *Handler) UpdateUserHandler(c *gin.Context, params *UpdateUserParams) (*
 			lang = l
 		}
 		msg := h.i18n.Translate("user.update_failed", lang)
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60007, msg, err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeUserUpdateFailed, msg, err)
 	}
 
 	// 获取更新后的用户信息
 	user, err := h.dao.UserDao.GetUserByID(params.UserID)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60008, "获取更新后的用户信息失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	response := &UpdateUserResponse{}
@@ -283,7 +273,7 @@ type GetUserParams struct {
 
 func (p *GetUserParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindUri(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60009, "无效的用户ID", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -302,17 +292,12 @@ func (h *Handler) GetUserHandler(c *gin.Context, params *GetUserParams) (*GetUse
 	// 获取用户信息
 	user, err := h.dao.UserDao.GetUserByID(params.UserID)
 	if err != nil {
-		// 判断是否为自定义错误
-		if ce, ok := err.(*custom_error.CustomError); ok {
-			lang := h.i18n.GetDefaultLanguage()
-			if l := c.GetHeader("Accept-Language"); l != "" {
-				lang = l
-			}
-			msg := h.i18n.Translate(ce.Message, lang)
-			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), int(ce.Code), msg, err)
+		// 判断是否为 gorails.Error
+		if ge, ok := err.(gorails.Error); ok {
+			return nil, nil, ge
 		}
 		// 其他未知错误
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60010, "获取用户信息失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	response := &GetUserResponse{}
@@ -334,7 +319,7 @@ func (p *SearchUsersParams) Parse(c *gin.Context) gorails.Error {
 	// 解析关键词
 	p.Keyword = c.DefaultQuery("keyword", "")
 	if p.Keyword == "" {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60012, "无效的搜索关键词", nil)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
 	}
 	return nil
 }
@@ -349,7 +334,7 @@ func (h *Handler) SearchUsersHandler(c *gin.Context, params *SearchUsersParams) 
 			lang = l
 		}
 		msg := h.i18n.Translate("user.search_failed", lang)
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60011, msg, err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeQueryFailed, msg, err)
 	}
 
 	userResponses := make([]UserResponse, len(users))
@@ -454,13 +439,13 @@ func (h *Handler) GetCurrentUserHandler(c *gin.Context, params *gorails.EmptyPar
 	// 获取当前用户ID
 	userID := h.getUserID(c)
 	if userID == 0 {
-		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60013, "未登录", nil)
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeUnauthorized, global.ErrorMsgUnauthorized, nil)
 	}
 
 	// 获取用户信息
 	user, err := h.dao.UserDao.GetUserByID(userID)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60014, "获取用户信息失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	response := &UserResponse{}
