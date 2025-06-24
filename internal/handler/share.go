@@ -8,8 +8,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jun/fun_code/internal/custom_error"
 	"github.com/jun/fun_code/internal/dao"
+	"github.com/jun/fun_code/internal/global"
 	"github.com/jun/fun_code/web"
 	"github.com/mail2fish/gorails/gorails"
 	"go.uber.org/zap"
@@ -220,7 +220,7 @@ func (h *Handler) ListAllSharesHandler(c *gin.Context, params *ListSharesParams)
 	// 获取所有userIDs
 	users, err := h.dao.UserDao.GetUsersByIDs(userIDsList)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60014, "获取用户列表失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	userResponses := h.OnlyUsersIDAndNickname(users)
@@ -295,7 +295,7 @@ func (h *Handler) ListUserSharesHandler(c *gin.Context, params *ListSharesParams
 	// 获取所有userIDs
 	users, err := h.dao.UserDao.GetUsersByIDs(userIDsList)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.USER), 60014, "获取用户列表失败", err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
 	userResponses := h.OnlyUsersIDAndNickname(users)
@@ -589,7 +589,7 @@ type GetShareLibraryAssetParams struct {
 
 func (p *GetShareLibraryAssetParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindUri(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, gorails.ErrorModule(custom_error.SCRATCH), 40019, "未指定文件名", err)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
