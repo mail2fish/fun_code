@@ -548,10 +548,10 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 		auth.GET("/menu/list", gorails.Wrap(h.GetMenuListHandler, nil))
 
 		// Scratch 相关路由 - 使用传统形式方法
-		auth.GET("/scratch/projects/:id", h.GetScratchProject)
-		auth.POST("/scratch/projects", h.PostCreateScratchProject)
+		auth.GET("/scratch/projects/:id", gorails.Wrap(h.GetScratchProjectHandler, nil))
+		auth.POST("/scratch/projects", gorails.Wrap(h.CreateScratchProjectHandler, nil))
 		auth.PUT("/scratch/projects/:id", gorails.Wrap(h.SaveScratchProjectHandler, nil))
-		auth.GET("/scratch/projects", h.ListScratchProjects)
+		auth.GET("/scratch/projects", gorails.Wrap(h.ListScratchProjectsHandler, nil))
 		auth.DELETE("/scratch/projects/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete project"}) })
 		auth.GET("/scratch/projects/:id/histories", gorails.Wrap(h.GetScratchProjectHistoriesHandler, nil))
 		auth.GET("/scratch/projects/search", gorails.Wrap(h.SearchScratchHandler, nil))
@@ -575,9 +575,9 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 			admin.DELETE("/classes/:class_id", gorails.Wrap(h.DeleteClassHandler, nil))
 
 			// 用户管理
-			admin.POST("/users/create", h.PostCreateUser)
+			admin.POST("/users/create", gorails.Wrap(h.CreateUserHandler, nil))
 			admin.GET("/users/list", gorails.Wrap(h.ListUsersHandler, nil))
-			admin.PUT("/users/:user_id", h.PutUpdateUser)
+			admin.PUT("/users/:user_id", gorails.Wrap(h.UpdateUserHandler, nil))
 			admin.DELETE("/users/:user_id", gorails.Wrap(h.DeleteUserHandler, nil))
 			admin.GET("/users/:user_id", gorails.Wrap(h.GetUserHandler, nil))
 			admin.GET("/users/search", gorails.Wrap(h.SearchUsersHandler, nil))
@@ -601,7 +601,7 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 	assets.Use(h.AuthMiddleware())
 	{
 		assets.GET("/scratch/:filename", gorails.Wrap(h.GetLibraryAssetHandler, RenderLibraryAsset))
-		assets.POST("/scratch/:asset_id", h.UploadScratchAsset)
+		assets.POST("/scratch/:asset_id", gorails.Wrap(h.UploadScratchAssetHandler, nil))
 	}
 
 	// 分享路由 - 使用占位符
