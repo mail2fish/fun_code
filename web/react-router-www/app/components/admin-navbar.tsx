@@ -49,7 +49,7 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
   const shareTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const navItems = [
-    { href: "/www/dashboard", label: "首页", icon: LayoutDashboard },
+    { href: "/www//admin/dashboard", label: "首页", icon: LayoutDashboard },
   ];
 
   const userMenuItems = [
@@ -72,11 +72,12 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
   const programMenuItems = [
     { href: "/www/scratch/projects", label: "程序列表", icon: FileText },
     { href: `${typeof window !== 'undefined' ? window.location.origin : ''}/projects/scratch/new`, label: "创建程序", icon: Plus, external: true },
+    { href: "/www/files/list", label: "资源列表", icon: FileText },
+    { href: "/www/admin/files/upload", label: "上传资源", icon: Upload },
   ];
 
   const resourceMenuItems = [
-    { href: "/www/files/list", label: "资源列表", icon: FileText },
-    { href: "/www/admin/files/upload", label: "上传资源", icon: Upload },
+
   ];
 
   const shareMenuItems = [
