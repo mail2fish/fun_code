@@ -78,7 +78,10 @@ const formSchema = z.object({
   difficulty: z.enum(["beginner", "intermediate", "advanced"], {
     required_error: "请选择课程难度",
   }),
-  duration: z.number().min(1, {
+  duration: z.coerce.number({
+    required_error: "请输入课程时长",
+    invalid_type_error: "课程时长必须是数字",
+  }).min(1, {
     message: "课程时长至少为 1 分钟",
   }).max(10000, {
     message: "课程时长不能超过 10000 分钟",
@@ -173,6 +176,11 @@ export default function EditCoursePage() {
 
   // 格式化时长显示
   const formatDuration = (duration: number) => {
+    // 处理无效值
+    if (!duration || isNaN(duration) || duration <= 0) {
+      return "未设置"
+    }
+    
     if (duration < 60) {
       return `${duration}分钟`
     }
@@ -202,12 +210,12 @@ export default function EditCoursePage() {
         
         // 设置表单默认值
         form.reset({
-          title: course.title,
-          description: course.description,
-          difficulty: course.difficulty as "beginner" | "intermediate" | "advanced",
-          duration: course.duration,
-          is_published: course.is_published,
-          thumbnail_path: course.thumbnail_path,
+          title: course.title || "",
+          description: course.description || "",
+          difficulty: (course.difficulty as "beginner" | "intermediate" | "advanced") || "beginner",
+          duration: course.duration && course.duration > 0 ? course.duration : 60,
+          is_published: Boolean(course.is_published),
+          thumbnail_path: course.thumbnail_path || "",
         })
         
         setError(null)
@@ -284,7 +292,7 @@ export default function EditCoursePage() {
             <div className="text-center">
               <h3 className="text-lg font-medium text-red-600 mb-2">加载失败</h3>
               <p className="text-sm text-muted-foreground mb-4">{error}</p>
-              <Button onClick={() => navigate("/admin/list_courses")}>
+              <Button onClick={() => navigate("/www/admin/list_courses")}>
                 返回课程列表
               </Button>
             </div>
@@ -385,13 +393,14 @@ export default function EditCoursePage() {
                           <FormControl>
                             <Input
                               type="number"
-                              placeholder="60"
+                              placeholder="请输入时长，如：60"
+                              min="1"
+                              max="10000"
                               {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                             />
                           </FormControl>
                           <FormDescription>
-                            当前设置：{formatDuration(form.watch("duration"))}
+                            当前设置：{formatDuration(form.watch("duration") || 0)}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
