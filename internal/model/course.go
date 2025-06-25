@@ -17,7 +17,6 @@ type Course struct {
 	AuthorID      uint           `json:"author_id" gorm:"not null"`                    // 作者ID
 	Author        User           `json:"author" gorm:"foreignKey:AuthorID"`            // 作者信息
 	Content       string         `json:"content" gorm:"type:text"`                     // 课程内容
-	IsPublic      bool           `json:"is_public" gorm:"default:false"`               // 是否公开
 	IsPublished   bool           `json:"is_published" gorm:"default:false"`            // 是否发布
 	SortOrder     int            `json:"sort_order" gorm:"default:0;index"`            // 排序号
 	Duration      int            `json:"duration" gorm:"default:0"`                    // 预计时长（分钟）

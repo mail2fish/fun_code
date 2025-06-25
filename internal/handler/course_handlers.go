@@ -79,7 +79,6 @@ type UpdateCourseParams struct {
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
 	Content     string    `json:"content"`
-	IsPublic    *bool     `json:"is_public"`
 	UpdatedAt   time.Time `json:"updated_at" binding:"required"` // 乐观锁
 }
 
@@ -115,9 +114,6 @@ func (h *Handler) UpdateCourseHandler(c *gin.Context, params *UpdateCourseParams
 	}
 	if params.Content != "" {
 		updates["content"] = params.Content
-	}
-	if params.IsPublic != nil {
-		updates["is_public"] = *params.IsPublic
 	}
 
 	// 调用服务层更新课程
@@ -170,7 +166,6 @@ type GetCourseResponse struct {
 	Description string `json:"description"`
 	AuthorID    uint   `json:"author_id"`
 	Content     string `json:"content"`
-	IsPublic    bool   `json:"is_public"`
 	IsPublished bool   `json:"is_published"`
 	SortOrder   int    `json:"sort_order"`
 	CreatedAt   string `json:"created_at"`
@@ -210,7 +205,6 @@ func (h *Handler) GetCourseHandler(c *gin.Context, params *GetCourseParams) (*Ge
 	response.Description = course.Description
 	response.AuthorID = course.AuthorID
 	response.Content = course.Content
-	response.IsPublic = course.IsPublic
 	response.IsPublished = course.IsPublished
 	response.SortOrder = course.SortOrder
 	response.CreatedAt = course.CreatedAt.Format(time.RFC3339)

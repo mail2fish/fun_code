@@ -90,7 +90,6 @@ func (h *Handler) GetClass(c *gin.Context) {
 				"title":       course.Title,
 				"description": course.Description,
 				"author_id":   course.AuthorID,
-				"is_public":   course.IsPublic,
 			})
 		}
 		response["courses"] = courses

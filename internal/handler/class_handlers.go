@@ -176,7 +176,6 @@ type GetClassResponse struct {
 			Title       string `json:"title"`
 			Description string `json:"description"`
 			AuthorID    uint   `json:"author_id"`
-			IsPublic    bool   `json:"is_public"`
 		} `json:"courses,omitempty"`
 		CoursesCount int `json:"courses_count"`
 	} `json:"data"`
@@ -248,7 +247,6 @@ func (h *Handler) GetClassHandler(c *gin.Context, params *GetClassParams) (*GetC
 			Title       string `json:"title"`
 			Description string `json:"description"`
 			AuthorID    uint   `json:"author_id"`
-			IsPublic    bool   `json:"is_public"`
 		}, len(class.Courses))
 		for i, course := range class.Courses {
 			response.Data.Courses[i] = struct {
@@ -256,13 +254,11 @@ func (h *Handler) GetClassHandler(c *gin.Context, params *GetClassParams) (*GetC
 				Title       string `json:"title"`
 				Description string `json:"description"`
 				AuthorID    uint   `json:"author_id"`
-				IsPublic    bool   `json:"is_public"`
 			}{
 				ID:          course.ID,
 				Title:       course.Title,
 				Description: course.Description,
 				AuthorID:    course.AuthorID,
-				IsPublic:    course.IsPublic,
 			}
 		}
 		response.Data.CoursesCount = len(class.Courses)

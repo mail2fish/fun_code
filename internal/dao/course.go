@@ -37,7 +37,6 @@ func (c *CourseDaoImpl) CreateCourse(authorID uint, title, description, difficul
 		Duration:      duration,
 		IsPublished:   isPublished,
 		ThumbnailPath: thumbnailPath,
-		IsPublic:      false, // 默认不公开
 		SortOrder:     maxSort + 1,
 	}
 
@@ -415,8 +414,8 @@ func (c *CourseDaoImpl) DuplicateCourse(courseID, authorID uint) (*model.Course,
 		return nil, err
 	}
 
-	// 检查权限（可以复制自己的课程或公开课程）
-	if originalCourse.AuthorID != authorID && !originalCourse.IsPublic {
+	// 检查权限（只能复制自己的课程）
+	if originalCourse.AuthorID != authorID {
 		return nil, errors.New("您无权复制此课程")
 	}
 
@@ -428,7 +427,6 @@ func (c *CourseDaoImpl) DuplicateCourse(courseID, authorID uint) (*model.Course,
 			Description: originalCourse.Description,
 			AuthorID:    authorID,
 			Content:     originalCourse.Content,
-			IsPublic:    false, // 复制的课程默认不公开
 			IsPublished: false, // 复制的课程默认不发布
 		}
 
