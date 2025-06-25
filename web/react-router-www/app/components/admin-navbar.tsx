@@ -528,7 +528,10 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
               </div>
             )}
             <Button
-              onClick={onLogout}
+              onClick={() => {
+                console.log("Logout button clicked, onLogout:", onLogout);
+                onLogout?.();
+              }}
               variant="outline"
               size="sm"
               className="rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors duration-200"
@@ -710,6 +713,7 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
                 )}
                 <Button
                   onClick={() => {
+                    console.log("Mobile logout button clicked, onLogout:", onLogout);
                     onLogout?.();
                     setIsMobileMenuOpen(false);
                   }}

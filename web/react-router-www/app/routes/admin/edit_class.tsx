@@ -7,6 +7,7 @@ import { z } from "zod"
 import { Check, ChevronsUpDown, X } from "lucide-react"
 
 import { AdminLayout } from "~/components/admin-layout"
+import { useUser } from "~/hooks/use-user"
 import { Button } from "~/components/ui/button"
 import { Calendar } from "~/components/ui/calendar"
 import {
@@ -178,6 +179,7 @@ async function updateClass(classId: string, classData: z.infer<typeof formSchema
 export default function EditClassPage() {
   const navigate = useNavigate();
   const { classId } = useParams();
+  const { userInfo, logout } = useUser();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -304,8 +306,18 @@ export default function EditClassPage() {
     }
   }
 
+  // 格式化管理员信息
+  const adminInfo = userInfo ? {
+    name: userInfo.nickname || userInfo.username,
+    role: userInfo.role === 'admin' ? '管理员' : 
+          userInfo.role === 'teacher' ? '教师' : '学生'
+  } : undefined;
+
   return (
-    <AdminLayout>
+    <AdminLayout
+      adminInfo={adminInfo}
+      onLogout={logout}
+    >
       <div className="mx-auto w-full max-w-2xl">
         <div className="space-y-6">
           <div>
