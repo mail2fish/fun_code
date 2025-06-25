@@ -74,29 +74,27 @@ func (p *CreateLessonParams) Parse(c *gin.Context) gorails.Error {
 
 // CreateLessonResponse 创建课时响应
 type CreateLessonResponse struct {
-	Message string `json:"message"`
-	Data    struct {
-		ID           uint   `json:"id"`
-		CourseID     uint   `json:"course_id"`
-		Title        string `json:"title"`
-		Content      string `json:"content"`
-		SortOrder    int    `json:"sort_order"`
-		IsPublished  bool   `json:"is_published"`
-		DocumentName string `json:"document_name"`
-		DocumentPath string `json:"document_path"`
-		FlowChartID  uint   `json:"flow_chart_id"`
-		ProjectType  string `json:"project_type"`
-		ProjectID1   uint   `json:"project_id_1"`
-		ProjectID2   uint   `json:"project_id_2"`
-		VideoPath1   string `json:"video_path_1"`
-		VideoPath2   string `json:"video_path_2"`
-		VideoPath3   string `json:"video_path_3"`
-		Duration     int    `json:"duration"`
-		Difficulty   string `json:"difficulty"`
-		Description  string `json:"description"`
-		CreatedAt    string `json:"created_at"`
-		UpdatedAt    string `json:"updated_at"`
-	} `json:"data"`
+	Message      string `json:"message"`
+	ID           uint   `json:"id"`
+	CourseID     uint   `json:"course_id"`
+	Title        string `json:"title"`
+	Content      string `json:"content"`
+	SortOrder    int    `json:"sort_order"`
+	IsPublished  bool   `json:"is_published"`
+	DocumentName string `json:"document_name"`
+	DocumentPath string `json:"document_path"`
+	FlowChartID  uint   `json:"flow_chart_id"`
+	ProjectType  string `json:"project_type"`
+	ProjectID1   uint   `json:"project_id_1"`
+	ProjectID2   uint   `json:"project_id_2"`
+	VideoPath1   string `json:"video_path_1"`
+	VideoPath2   string `json:"video_path_2"`
+	VideoPath3   string `json:"video_path_3"`
+	Duration     int    `json:"duration"`
+	Difficulty   string `json:"difficulty"`
+	Description  string `json:"description"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
 }
 
 // CreateLessonHandler 创建课时
@@ -175,28 +173,28 @@ func (h *Handler) CreateLessonHandler(c *gin.Context, params *CreateLessonParams
 	}
 
 	response := &CreateLessonResponse{
-		Message: "课时创建成功",
+		Message:      "课时创建成功",
+		ID:           lesson.ID,
+		CourseID:     lesson.CourseID,
+		Title:        lesson.Title,
+		Content:      lesson.Content,
+		SortOrder:    lesson.SortOrder,
+		IsPublished:  lesson.IsPublished,
+		DocumentName: lesson.DocumentName,
+		DocumentPath: lesson.DocumentPath,
+		FlowChartID:  lesson.FlowChartID,
+		ProjectType:  lesson.ProjectType,
+		ProjectID1:   lesson.ProjectID1,
+		ProjectID2:   lesson.ProjectID2,
+		VideoPath1:   lesson.Video1,
+		VideoPath2:   lesson.Video2,
+		VideoPath3:   lesson.Video3,
+		Duration:     lesson.Duration,
+		Difficulty:   lesson.Difficulty,
+		Description:  lesson.Description,
+		CreatedAt:    time.Unix(lesson.CreatedAt, 0).Format(time.RFC3339),
+		UpdatedAt:    time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339),
 	}
-	response.Data.ID = lesson.ID
-	response.Data.CourseID = lesson.CourseID
-	response.Data.Title = lesson.Title
-	response.Data.Content = lesson.Content
-	response.Data.SortOrder = lesson.SortOrder
-	response.Data.IsPublished = lesson.IsPublished
-	response.Data.DocumentName = lesson.DocumentName
-	response.Data.DocumentPath = lesson.DocumentPath
-	response.Data.FlowChartID = lesson.FlowChartID
-	response.Data.ProjectType = lesson.ProjectType
-	response.Data.ProjectID1 = lesson.ProjectID1
-	response.Data.ProjectID2 = lesson.ProjectID2
-	response.Data.VideoPath1 = lesson.Video1
-	response.Data.VideoPath2 = lesson.Video2
-	response.Data.VideoPath3 = lesson.Video3
-	response.Data.Duration = lesson.Duration
-	response.Data.Difficulty = lesson.Difficulty
-	response.Data.Description = lesson.Description
-	response.Data.CreatedAt = time.Unix(lesson.CreatedAt, 0).Format(time.RFC3339)
-	response.Data.UpdatedAt = time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339)
 
 	return response, nil, nil
 }
@@ -367,13 +365,11 @@ func (p *UpdateLessonParams) Parse(c *gin.Context) gorails.Error {
 
 // UpdateLessonResponse 更新课时响应
 type UpdateLessonResponse struct {
-	Message string `json:"message"`
-	Data    struct {
-		ID        uint   `json:"id"`
-		Title     string `json:"title"`
-		Content   string `json:"content"`
-		UpdatedAt string `json:"updated_at"`
-	} `json:"data"`
+	Message   string `json:"message"`
+	ID        uint   `json:"id"`
+	Title     string `json:"title"`
+	Content   string `json:"content"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 // UpdateLessonHandler 更新课时
@@ -535,12 +531,12 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 	}
 
 	response := &UpdateLessonResponse{
-		Message: "课时更新成功",
+		Message:   "课时更新成功",
+		ID:        lesson.ID,
+		Title:     lesson.Title,
+		Content:   lesson.Content,
+		UpdatedAt: time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339),
 	}
-	response.Data.ID = lesson.ID
-	response.Data.Title = lesson.Title
-	response.Data.Content = lesson.Content
-	response.Data.UpdatedAt = time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339)
 
 	return response, nil, nil
 }
@@ -559,33 +555,31 @@ func (p *GetLessonParams) Parse(c *gin.Context) gorails.Error {
 
 // GetLessonResponse 获取课时详情响应
 type GetLessonResponse struct {
-	Data struct {
-		ID           uint   `json:"id"`
-		CourseID     uint   `json:"course_id"`
-		Title        string `json:"title"`
-		Content      string `json:"content"`
-		SortOrder    int    `json:"sort_order"`
-		IsPublished  bool   `json:"is_published"`
-		DocumentName string `json:"document_name"`
-		DocumentPath string `json:"document_path"`
-		FlowChartID  uint   `json:"flow_chart_id"`
-		ProjectType  string `json:"project_type"`
-		ProjectID1   uint   `json:"project_id_1"`
-		ProjectID2   uint   `json:"project_id_2"`
-		VideoPath1   string `json:"video_path_1"`
-		VideoPath2   string `json:"video_path_2"`
-		VideoPath3   string `json:"video_path_3"`
-		Duration     int    `json:"duration"`
-		Difficulty   string `json:"difficulty"`
-		Description  string `json:"description"`
-		CreatedAt    string `json:"created_at"`
-		UpdatedAt    string `json:"updated_at"`
-		Course       *struct {
-			ID          uint   `json:"id"`
-			Title       string `json:"title"`
-			Description string `json:"description"`
-		} `json:"course,omitempty"`
-	} `json:"data"`
+	ID           uint   `json:"id"`
+	CourseID     uint   `json:"course_id"`
+	Title        string `json:"title"`
+	Content      string `json:"content"`
+	SortOrder    int    `json:"sort_order"`
+	IsPublished  bool   `json:"is_published"`
+	DocumentName string `json:"document_name"`
+	DocumentPath string `json:"document_path"`
+	FlowChartID  uint   `json:"flow_chart_id"`
+	ProjectType  string `json:"project_type"`
+	ProjectID1   uint   `json:"project_id_1"`
+	ProjectID2   uint   `json:"project_id_2"`
+	VideoPath1   string `json:"video_path_1"`
+	VideoPath2   string `json:"video_path_2"`
+	VideoPath3   string `json:"video_path_3"`
+	Duration     int    `json:"duration"`
+	Difficulty   string `json:"difficulty"`
+	Description  string `json:"description"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+	Course       *struct {
+		ID          uint   `json:"id"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+	} `json:"course,omitempty"`
 }
 
 // GetLessonHandler 获取课时详情
@@ -598,31 +592,32 @@ func (h *Handler) GetLessonHandler(c *gin.Context, params *GetLessonParams) (*Ge
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
-	response := &GetLessonResponse{}
-	response.Data.ID = lesson.ID
-	response.Data.CourseID = lesson.CourseID
-	response.Data.Title = lesson.Title
-	response.Data.Content = lesson.Content
-	response.Data.SortOrder = lesson.SortOrder
-	response.Data.IsPublished = lesson.IsPublished
-	response.Data.DocumentName = lesson.DocumentName
-	response.Data.DocumentPath = lesson.DocumentPath
-	response.Data.FlowChartID = lesson.FlowChartID
-	response.Data.ProjectType = lesson.ProjectType
-	response.Data.ProjectID1 = lesson.ProjectID1
-	response.Data.ProjectID2 = lesson.ProjectID2
-	response.Data.VideoPath1 = lesson.Video1
-	response.Data.VideoPath2 = lesson.Video2
-	response.Data.VideoPath3 = lesson.Video3
-	response.Data.Duration = lesson.Duration
-	response.Data.Difficulty = lesson.Difficulty
-	response.Data.Description = lesson.Description
-	response.Data.CreatedAt = time.Unix(lesson.CreatedAt, 0).Format(time.RFC3339)
-	response.Data.UpdatedAt = time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339)
+	response := &GetLessonResponse{
+		ID:           lesson.ID,
+		CourseID:     lesson.CourseID,
+		Title:        lesson.Title,
+		Content:      lesson.Content,
+		SortOrder:    lesson.SortOrder,
+		IsPublished:  lesson.IsPublished,
+		DocumentName: lesson.DocumentName,
+		DocumentPath: lesson.DocumentPath,
+		FlowChartID:  lesson.FlowChartID,
+		ProjectType:  lesson.ProjectType,
+		ProjectID1:   lesson.ProjectID1,
+		ProjectID2:   lesson.ProjectID2,
+		VideoPath1:   lesson.Video1,
+		VideoPath2:   lesson.Video2,
+		VideoPath3:   lesson.Video3,
+		Duration:     lesson.Duration,
+		Difficulty:   lesson.Difficulty,
+		Description:  lesson.Description,
+		CreatedAt:    time.Unix(lesson.CreatedAt, 0).Format(time.RFC3339),
+		UpdatedAt:    time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339),
+	}
 
 	// 如果有关联的课程信息，也添加到响应中
 	if lesson.Course.ID > 0 {
-		response.Data.Course = &struct {
+		response.Course = &struct {
 			ID          uint   `json:"id"`
 			Title       string `json:"title"`
 			Description string `json:"description"`
@@ -774,12 +769,10 @@ func (p *PublishLessonParams) Parse(c *gin.Context) gorails.Error {
 
 // PublishLessonResponse 发布课时响应
 type PublishLessonResponse struct {
-	Message string `json:"message"`
-	Data    struct {
-		ID          uint   `json:"id"`
-		IsPublished bool   `json:"is_published"`
-		UpdatedAt   string `json:"updated_at"`
-	} `json:"data"`
+	Message     string `json:"message"`
+	ID          uint   `json:"id"`
+	IsPublished bool   `json:"is_published"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 // PublishLessonHandler 发布/撤销课时
@@ -801,11 +794,11 @@ func (h *Handler) PublishLessonHandler(c *gin.Context, params *PublishLessonPara
 	}
 
 	response := &PublishLessonResponse{
-		Message: "课时发布状态更新成功",
+		Message:     "课时发布状态更新成功",
+		ID:          lesson.ID,
+		IsPublished: lesson.IsPublished,
+		UpdatedAt:   time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339),
 	}
-	response.Data.ID = lesson.ID
-	response.Data.IsPublished = lesson.IsPublished
-	response.Data.UpdatedAt = time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339)
 
 	return response, nil, nil
 }
