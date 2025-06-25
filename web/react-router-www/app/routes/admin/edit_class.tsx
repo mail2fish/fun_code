@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { format, parse } from "date-fns"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Check, ChevronsUpDown, X } from "lucide-react"
+import { Check, ChevronsUpDown, X, Plus, Trash2 } from "lucide-react"
 
 import { AdminLayout } from "~/components/admin-layout"
 import { useUser } from "~/hooks/use-user"
@@ -45,6 +45,14 @@ import {
 import { Badge } from "~/components/ui/badge"
 import { toast } from "sonner"
 import { Skeleton } from "~/components/ui/skeleton"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "~/components/ui/table"
 
 // 导入自定义的 fetch 函数
 import { fetchWithAuth } from "~/utils/api"
@@ -71,6 +79,7 @@ interface ClassData {
   }
   students?: {
     id: number
+    nickname: string
     username: string
     email: string
   }[]
@@ -93,6 +102,14 @@ interface Student {
   role: string
 }
 
+// 课程数据接口
+interface Course {
+  id: number
+  title: string
+  description: string
+  author_id: number
+}
+
 // 表单验证 Schema
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -111,6 +128,7 @@ const formSchema = z.object({
   }),
   isActive: z.boolean(),
   studentIds: z.array(z.number()).optional(),
+  courseIds: z.array(z.number()).optional(),
 }).refine(data => data.endDate > data.startDate, {
   message: "结课日期必须晚于开课日期",
   path: ["endDate"],
@@ -126,8 +144,8 @@ async function getClass(classId: string) {
       throw new Error(errorData.error || `API 错误: ${response.status}`);
     }
     
-    const data = await response.json();
-    return data as ClassData;
+    const result = await response.json();
+    return result.data as ClassData;
   } catch (error) {
     console.error("获取班级信息失败:", error);
     throw error;
@@ -149,17 +167,17 @@ async function getStudents() {
   }
 }
 
-// 获取班级学生列表
-async function getClassStudents(classId: string) {
+// 获取课程列表
+async function getCourses() {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/admin/classes/${classId}/students`)
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/courses/list?pageSize=100`)
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`)
     }
     const data = await response.json()
     return Array.isArray(data.data) ? data.data : []
   } catch (error) {
-    console.error("获取班级学生列表失败:", error)
+    console.error("获取课程列表失败:", error)
     return []
   }
 }
@@ -179,6 +197,7 @@ async function updateClass(classId: string, classData: z.infer<typeof formSchema
         end_date: format(classData.endDate, "yyyy-MM-dd"),
         is_active: classData.isActive,
         student_ids: classData.studentIds || [],
+        course_ids: classData.courseIds || [],
       }),
     });
 
@@ -205,8 +224,12 @@ export default function EditClassPage() {
   const [classData, setClassData] = React.useState<ClassData | null>(null);
   const [students, setStudents] = React.useState<Student[]>([]);
   const [selectedStudents, setSelectedStudents] = React.useState<Student[]>([]);
+  const [courses, setCourses] = React.useState<Course[]>([]);
+  const [selectedCourses, setSelectedCourses] = React.useState<Course[]>([]);
   const [studentDialogOpen, setStudentDialogOpen] = React.useState(false);
+  const [courseDialogOpen, setCourseDialogOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [courseSearchQuery, setCourseSearchQuery] = React.useState("");
 
   // 初始化表单
   const form = useForm<z.infer<typeof formSchema>>({
@@ -218,6 +241,7 @@ export default function EditClassPage() {
       endDate: new Date(new Date().setMonth(new Date().getMonth() + 4)),
       isActive: true,
       studentIds: [],
+      courseIds: [],
     },
   });
 
@@ -243,11 +267,39 @@ export default function EditClassPage() {
     form.setValue('studentIds', newSelectedStudents.map(s => s.id));
   };
 
+  // 处理课程选择
+  const handleCourseSelect = (course: Course) => {
+    const isSelected = selectedCourses.some(c => c.id === course.id);
+    let newSelectedCourses;
+    
+    if (isSelected) {
+      newSelectedCourses = selectedCourses.filter(c => c.id !== course.id);
+    } else {
+      newSelectedCourses = [...selectedCourses, course];
+    }
+    
+    setSelectedCourses(newSelectedCourses);
+    form.setValue('courseIds', newSelectedCourses.map(c => c.id));
+  };
+
+  // 移除选中的课程
+  const handleRemoveCourse = (courseId: number) => {
+    const newSelectedCourses = selectedCourses.filter(c => c.id !== courseId);
+    setSelectedCourses(newSelectedCourses);
+    form.setValue('courseIds', newSelectedCourses.map(c => c.id));
+  };
+
   // 过滤学生列表
   const filteredStudents = students.filter(student =>
     student.nickname.toLowerCase().includes(searchQuery.toLowerCase()) ||
     student.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
     student.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // 过滤课程列表
+  const filteredCourses = courses.filter(course =>
+    course.title.toLowerCase().includes(courseSearchQuery.toLowerCase()) ||
+    course.description.toLowerCase().includes(courseSearchQuery.toLowerCase())
   );
 
   // 加载班级数据
@@ -262,10 +314,11 @@ export default function EditClassPage() {
       try {
         setIsLoading(true);
         
-        // 并行加载班级数据和学生列表
-        const [classData, allStudents] = await Promise.all([
+        // 并行加载班级数据、学生列表和课程列表
+        const [classData, allStudents, allCourses] = await Promise.all([
           getClass(classId),
-          getStudents()
+          getStudents(),
+          getCourses()
         ]);
         
         // 验证返回的数据格式
@@ -279,17 +332,22 @@ export default function EditClassPage() {
         
         setClassData(classData);
         setStudents(Array.isArray(allStudents) ? allStudents : []);
+        setCourses(Array.isArray(allCourses) ? allCourses : []);
         
         // 从班级数据中获取已选择的学生
         const classStudents = classData.students || [];
         const selectedStudentsList = classStudents.map(s => ({
           id: s.id,
-          nickname: s.username, // 使用username作为nickname
+          nickname: s.nickname || s.username, // 优先使用nickname，回退到username
           username: s.username,
           email: s.email,
           role: 'student'
         }));
         setSelectedStudents(selectedStudentsList);
+
+        // 从班级数据中获取已选择的课程
+        const classCourses = classData.courses || [];
+        setSelectedCourses(classCourses);
         
         // 解析日期字符串为 Date 对象
         let startDate: Date;
@@ -322,6 +380,7 @@ export default function EditClassPage() {
           endDate,
           isActive: Boolean(classData.is_active),
           studentIds: selectedStudentsList.map(s => s.id),
+          courseIds: classCourses.map(c => c.id),
         });
         
         setError(null);
@@ -573,102 +632,199 @@ export default function EditClassPage() {
                   )}
                 />
 
-                {/* 学生选择 */}
-                <FormField
-                  control={form.control}
-                  name="studentIds"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>选择学生</FormLabel>
-                      <div className="space-y-3">
-                        <Dialog open={studentDialogOpen} onOpenChange={setStudentDialogOpen}>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" className="w-full justify-between">
-                              <span>
-                                {selectedStudents.length > 0 
-                                  ? `已选择 ${selectedStudents.length} 名学生` 
-                                  : "选择学生"}
-                              </span>
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-md">
-                            <DialogHeader>
-                              <DialogTitle>选择学生</DialogTitle>
-                              <DialogDescription>
-                                选择要加入班级的学生。可以多选。
-                              </DialogDescription>
-                            </DialogHeader>
-                            <Command>
-                              <CommandInput 
-                                placeholder="搜索学生..." 
-                                value={searchQuery}
-                                onValueChange={setSearchQuery}
-                              />
-                              <CommandList className="max-h-64">
-                                <CommandEmpty>未找到学生。</CommandEmpty>
-                                <CommandGroup>
-                                  {filteredStudents.map((student) => {
-                                    const isSelected = selectedStudents.some(s => s.id === student.id);
-                                    return (
-                                      <CommandItem
-                                        key={student.id}
-                                        onSelect={() => handleStudentSelect(student)}
-                                        className="cursor-pointer"
-                                      >
-                                        <Check
-                                          className={`mr-2 h-4 w-4 ${
-                                            isSelected ? "opacity-100" : "opacity-0"
-                                          }`}
-                                        />
-                                        <div className="flex flex-col">
-                                          <span className="font-medium">{student.nickname}</span>
-                                          <span className="text-sm text-muted-foreground">
-                                            {student.username} • {student.email}
-                                          </span>
-                                        </div>
-                                      </CommandItem>
-                                    );
-                                  })}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </DialogContent>
-                        </Dialog>
-                        
-                        {/* 显示已选择的学生 */}
-                        {selectedStudents.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {selectedStudents.map((student) => (
-                              <Badge key={student.id} variant="secondary" className="pr-1">
-                                {student.nickname}
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="ml-1 h-auto p-0 text-muted-foreground hover:text-foreground"
-                                  onClick={() => handleRemoveStudent(student.id)}
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <FormDescription>
-                        选择要加入这个班级的学生。也可以稍后通过班级代码邀请学生加入。
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
+                {/* 学生管理 */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-lg font-medium">班级学生</h4>
+                    <Dialog open={studentDialogOpen} onOpenChange={setStudentDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Plus className="mr-2 h-4 w-4" />
+                          添加学生
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>添加学生</DialogTitle>
+                          <DialogDescription>
+                            选择要加入班级的学生。
+                          </DialogDescription>
+                        </DialogHeader>
+                        <Command>
+                          <CommandInput 
+                            placeholder="搜索学生..." 
+                            value={searchQuery}
+                            onValueChange={setSearchQuery}
+                          />
+                          <CommandList className="max-h-64">
+                            <CommandEmpty>未找到学生。</CommandEmpty>
+                            <CommandGroup>
+                              {filteredStudents.map((student) => {
+                                const isSelected = selectedStudents.some(s => s.id === student.id);
+                                if (isSelected) return null; // 不显示已选择的学生
+                                return (
+                                  <CommandItem
+                                    key={student.id}
+                                    onSelect={() => {
+                                      handleStudentSelect(student);
+                                      setStudentDialogOpen(false);
+                                    }}
+                                    className="cursor-pointer"
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{student.nickname}</span>
+                                      <span className="text-sm text-muted-foreground">
+                                        {student.username} • {student.email}
+                                      </span>
+                                    </div>
+                                  </CommandItem>
+                                );
+                              })}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+
+                  {selectedStudents.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>姓名</TableHead>
+                          <TableHead>用户名</TableHead>
+                          <TableHead>邮箱</TableHead>
+                          <TableHead className="w-24">操作</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedStudents.map((student) => (
+                          <TableRow key={student.id}>
+                            <TableCell className="font-medium">{student.nickname}</TableCell>
+                            <TableCell>{student.username}</TableCell>
+                            <TableCell>{student.email}</TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveStudent(student.id)}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      暂无学生，点击"添加学生"按钮添加学生到班级
+                    </div>
                   )}
-                />
+                </div>
+
+                {/* 课程管理 */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-lg font-medium">班级课程</h4>
+                    <Dialog open={courseDialogOpen} onOpenChange={setCourseDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Plus className="mr-2 h-4 w-4" />
+                          添加课程
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>添加课程</DialogTitle>
+                          <DialogDescription>
+                            选择要加入班级的课程。
+                          </DialogDescription>
+                        </DialogHeader>
+                        <Command>
+                          <CommandInput 
+                            placeholder="搜索课程..." 
+                            value={courseSearchQuery}
+                            onValueChange={setCourseSearchQuery}
+                          />
+                          <CommandList className="max-h-64">
+                            <CommandEmpty>未找到课程。</CommandEmpty>
+                            <CommandGroup>
+                              {filteredCourses.map((course) => {
+                                const isSelected = selectedCourses.some(c => c.id === course.id);
+                                if (isSelected) return null; // 不显示已选择的课程
+                                return (
+                                  <CommandItem
+                                    key={course.id}
+                                    onSelect={() => {
+                                      handleCourseSelect(course);
+                                      setCourseDialogOpen(false);
+                                    }}
+                                    className="cursor-pointer"
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{course.title}</span>
+                                      <span className="text-sm text-muted-foreground">
+                                        {course.description}
+                                      </span>
+                                    </div>
+                                  </CommandItem>
+                                );
+                              })}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+
+                  {selectedCourses.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>课程名称</TableHead>
+                          <TableHead>课程描述</TableHead>
+                          <TableHead className="w-24">操作</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedCourses.map((course) => (
+                          <TableRow key={course.id}>
+                            <TableCell className="font-medium">{course.title}</TableCell>
+                            <TableCell>{course.description}</TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveCourse(course.id)}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      暂无课程，点击"添加课程"按钮添加课程到班级
+                    </div>
+                  )}
+                </div>
 
                 {classData && (
                   <div className="rounded-md bg-muted p-4 text-sm">
                     <p className="font-medium">班级信息</p>
                     <p className="mt-1">班级代码: <span className="font-mono">{classData.code}</span></p>
-                    <p className="mt-1">创建时间: {new Date(classData.created_at).toLocaleString()}</p>
+                    <p className="mt-1">创建时间: {classData.created_at}</p>
+                    {classData.students && classData.students.length > 0 && (
+                      <p className="mt-1">已关联学生: {classData.students_count} 名</p>
+                    )}
+                    {classData.courses && classData.courses.length > 0 && (
+                      <p className="mt-1">已关联课程: {classData.courses_count} 门</p>
+                    )}
                   </div>
                 )}
                 
