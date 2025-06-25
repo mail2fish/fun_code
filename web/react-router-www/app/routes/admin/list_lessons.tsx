@@ -211,7 +211,7 @@ function SortableLessonRow({
         </div>
       </TableCell>
       <TableCell>
-        {lesson.course?.title || `课程 ${lesson.course_id}`}
+        {(lesson.course?.title && lesson.course.title.trim() !== "") ? lesson.course.title : `课程 ${lesson.course_id}`}
       </TableCell>
       <TableCell>
         <Badge variant="outline">
@@ -486,11 +486,12 @@ export default function ListLessonsPage() {
     
     try {
       const response = await getLessons(courseId, beginID, defaultPageSize, forward, asc)
+      console.log("获取到的课件数据:", response) // 调试信息
       
       setLessonsData({
-        lessons: response.data.data || [],
-        total: response.meta.total || 0,
-        showForward: response.meta.has_next || false,
+        lessons: response.data || [],
+        total: response.meta?.total || (response.data ? response.data.length : 0),
+        showForward: response.meta?.has_next || false,
         showBackward: beginID !== "0",
         pageSize: defaultPageSize,
         currentPage: 1 // 这里需要根据实际分页逻辑计算
@@ -853,7 +854,7 @@ export default function ListLessonsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {lesson.course?.title || `课程 ${lesson.course_id}`}
+                        {(lesson.course?.title && lesson.course.title.trim() !== "") ? lesson.course.title : `课程 ${lesson.course_id}`}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">

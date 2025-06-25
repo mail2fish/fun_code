@@ -682,13 +682,8 @@ func (p *ListLessonsParams) Parse(c *gin.Context) gorails.Error {
 	return nil
 }
 
-// ListLessonsResponse 列出课时响应
-type ListLessonsResponse struct {
-	Data []model.Lesson `json:"data"`
-}
-
 // ListLessonsHandler 列出课时
-func (h *Handler) ListLessonsHandler(c *gin.Context, params *ListLessonsParams) (*ListLessonsResponse, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) ListLessonsHandler(c *gin.Context, params *ListLessonsParams) ([]model.Lesson, *gorails.ResponseMeta, gorails.Error) {
 	// 获取课时列表
 	lessons, hasMore, err := h.dao.LessonDao.ListLessonsWithPagination(params.CourseID, params.PageSize, params.BeginID, params.Forward, params.Asc)
 	if err != nil {
@@ -698,12 +693,10 @@ func (h *Handler) ListLessonsHandler(c *gin.Context, params *ListLessonsParams) 
 	// 获取总数
 	total, _ := h.dao.LessonDao.CountLessonsByCourse(params.CourseID)
 
-	return &ListLessonsResponse{
-			Data: lessons,
-		}, &gorails.ResponseMeta{
-			Total:   int(total),
-			HasNext: hasMore,
-		}, nil
+	return lessons, &gorails.ResponseMeta{
+		Total:   int(total),
+		HasNext: hasMore,
+	}, nil
 }
 
 // DeleteLessonParams 删除课时请求参数
@@ -837,4 +830,25 @@ func (h *Handler) ReorderLessonsHandler(c *gin.Context, params *ReorderLessonsPa
 	}
 
 	return response, nil, nil
+}
+
+// GetCourseLessonsParams 获取课程课时请求参数
+type GetCourseLessonsParams struct {
+	CourseID uint `json:"course_id" uri:"course_id" binding:"required"`
+}
+
+func (p *GetCourseLessonsParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+// GetCourseLessonsHandler 获取课程课时
+func (h *Handler) GetCourseLessonsHandler(c *gin.Context, params *GetCourseLessonsParams) ([]model.Lesson, *gorails.ResponseMeta, gorails.Error) {
+	lessons, err := h.dao.LessonDao.ListLessonsByCourse(params.CourseID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+	return lessons, nil, nil
 }
