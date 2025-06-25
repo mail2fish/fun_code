@@ -475,7 +475,7 @@ export default function EditLessonPage() {
     }
   }
 
-  // 获取项目显示文本 - 专为SelectValue设计的简洁版本
+  // 获取项目显示文本 - 与下拉列表格式保持一致
   const getProjectDisplayText = (projectId: string | undefined) => {
     if (!projectId || projectId === "none") {
       return "无关联项目"
@@ -494,8 +494,9 @@ export default function EditLessonPage() {
     })
     
     if (selectedProject) {
-      // 只显示项目名称，保持SelectValue简洁
-      return selectedProject.name
+      // 显示与下拉列表相同的格式：ID:xx - 项目名 (by 创建者)
+      const creator = users.find(user => user.id === selectedProject.user_id)?.nickname || "未知用户"
+      return `ID:${selectedProject.id} - ${selectedProject.name} (by ${creator})`
     }
     
     // 如果找不到项目，仍然显示项目ID，但用户可以知道这是一个问题
