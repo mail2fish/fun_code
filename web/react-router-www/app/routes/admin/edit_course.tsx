@@ -21,7 +21,7 @@ import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
+  SelectTrigger,  
   SelectValue,
 } from "~/components/ui/select"
 import { Toggle } from "~/components/ui/toggle"
@@ -33,6 +33,27 @@ import { toast } from "sonner"
 
 // 导入自定义的 fetch 函数
 import { fetchWithAuth, formatDate } from "~/utils/api"
+
+// 导入拖拽相关组件
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core"
+import type { DragEndEvent } from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import {
+  useSortable,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 // API 服务
 import { HOST_URL } from "~/config"
@@ -152,6 +173,70 @@ async function getCourseLessons(courseId: string) {
   }
 }
 
+// 可拖拽的课件项组件
+function SortableLessonItem({ 
+  lesson, 
+  index, 
+  formatDuration,
+  onEdit 
+}: {
+  lesson: LessonData
+  index: number
+  formatDuration: (duration: number) => string
+  onEdit: (lessonId: number) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: lesson.id.toString() })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`flex items-center gap-3 p-3 border rounded-lg bg-white cursor-grab active:cursor-grabbing transition-all ${
+        isDragging ? 'shadow-lg scale-105 rotate-1 bg-blue-50 border-blue-200' : 'hover:shadow-md hover:border-gray-300'
+      }`}
+    >
+      <div className="flex-shrink-0 w-6 h-6 bg-muted rounded-full flex items-center justify-center text-xs font-medium">
+        {index + 1}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">
+          {lesson.title}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {formatDuration(lesson.duration)} • {lesson.is_published ? "已发布" : "草稿"}
+        </p>
+      </div>
+      <div className="flex items-center gap-1">
+        <Button 
+          size="sm" 
+          variant="ghost"
+          onClick={(e) => {
+            e.stopPropagation() // 防止触发拖拽
+            onEdit(lesson.id)
+          }}
+        >
+          编辑
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export default function EditCoursePage() {
   const navigate = useNavigate()
   const { courseId } = useParams()
@@ -160,6 +245,17 @@ export default function EditCoursePage() {
   const [error, setError] = React.useState<string | null>(null)
   const [courseData, setCourseData] = React.useState<CourseData | null>(null)
   const [lessons, setLessons] = React.useState<LessonData[]>([])
+  const [originalLessons, setOriginalLessons] = React.useState<LessonData[]>([])
+  const [hasOrderChanged, setHasOrderChanged] = React.useState(false)
+  const [isSavingOrder, setIsSavingOrder] = React.useState(false)
+
+  // 初始化拖拽传感器
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   // 初始化表单
   const form = useForm<z.infer<typeof formSchema>>({
@@ -189,6 +285,84 @@ export default function EditCoursePage() {
     return minutes > 0 ? `${hours}小时${minutes}分钟` : `${hours}小时`
   }
 
+  // 处理拖拽结束
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      setLessons((items) => {
+        const oldIndex = items.findIndex((item) => item.id.toString() === active.id)
+        const newIndex = items.findIndex((item) => item.id.toString() === over.id)
+
+        const newOrder = arrayMove(items, oldIndex, newIndex)
+        
+        // 检查顺序是否有变化
+        const orderChanged = newOrder.some((lesson, index) => 
+          originalLessons[index]?.id !== lesson.id
+        )
+        setHasOrderChanged(orderChanged)
+        
+        return newOrder
+      })
+    }
+  }
+
+  // 保存排序
+  const handleSaveOrder = async () => {
+    if (!courseId || !hasOrderChanged) return
+
+    try {
+      setIsSavingOrder(true)
+      
+      // 构建排序数据
+      const orderData = lessons.map((lesson, index) => ({
+        id: lesson.id,
+        sort_order: index + 1
+      }))
+
+      const response = await fetchWithAuth(`${HOST_URL}/api/admin/courses/${courseId}/lessons/reorder`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ lessons: orderData }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "保存排序失败")
+      }
+
+      // 更新原始顺序
+      setOriginalLessons([...lessons])
+      setHasOrderChanged(false)
+      toast.success("课件排序已保存")
+      
+    } catch (error) {
+      console.error("保存排序失败:", error)
+      toast.error("保存排序失败，请重试")
+    } finally {
+      setIsSavingOrder(false)
+    }
+  }
+
+  // 重置排序
+  const handleResetOrder = () => {
+    setLessons([...originalLessons])
+    setHasOrderChanged(false)
+  }
+
+  // 添加课件处理函数
+  const handleAddLesson = () => {
+    if (!courseId) return
+    navigate(`/www/admin/create_lesson?courseId=${courseId}`)
+  }
+
+  // 编辑课件处理函数
+  const handleEditLesson = (lessonId: number) => {
+    navigate(`/www/admin/edit_lesson/${lessonId}`)
+  }
+
   // 加载课程数据
   React.useEffect(() => {
     if (!courseId) {
@@ -207,6 +381,7 @@ export default function EditCoursePage() {
         
         setCourseData(course)
         setLessons(courseLessons)
+        setOriginalLessons([...courseLessons]) // 保存原始顺序
         
         // 设置表单默认值
         form.reset({
@@ -302,13 +477,13 @@ export default function EditCoursePage() {
     )
   }
 
-  return (
-    <AdminLayout>
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="mx-auto w-full max-w-4xl">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* 左侧：课程信息编辑 */}
-            <div className="lg:col-span-2 space-y-6">
+      return (
+      <AdminLayout>
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <div className="mx-auto w-full max-w-4xl">
+            <div className="space-y-6">
+              {/* 课程信息编辑 */}
+              <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-medium">编辑课程</h3>
                 <p className="text-sm text-muted-foreground">
@@ -496,89 +671,121 @@ export default function EditCoursePage() {
                   </div>
                 </form>
               </Form>
-            </div>
-            
-            {/* 右侧：课件管理 */}
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-medium">课件管理</h3>
-                <p className="text-sm text-muted-foreground">
-                  管理课程的课件内容和顺序。
-                </p>
               </div>
+              
               <Separator />
               
-              <div className="space-y-4">
+              {/* 课件管理 */}
+              <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">
-                    课件列表 ({lessons.length})
-                  </span>
-                  <Button size="sm" variant="outline">
+                  <div>
+                    <h3 className="text-lg font-medium">课件管理</h3>
+                    <p className="text-sm text-muted-foreground">
+                      管理课程的课件内容和顺序，支持拖拽排序。
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handleAddLesson}
+                  >
                     添加课件
                   </Button>
                 </div>
                 
-                {lessons.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p className="text-sm">暂无课件</p>
-                    <p className="text-xs mt-1">点击"添加课件"创建第一个课件</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {lessons.map((lesson, index) => (
-                      <div
-                        key={lesson.id}
-                        className="flex items-center gap-3 p-3 border rounded-lg"
-                      >
-                        <div className="flex-shrink-0 w-6 h-6 bg-muted rounded-full flex items-center justify-center text-xs">
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {lesson.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDuration(lesson.duration)} • {lesson.is_published ? "已发布" : "草稿"}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button size="sm" variant="ghost">
-                            编辑
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* 课件列表 */}
+                  <div className="lg:col-span-2 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        课件列表 ({lessons.length})
+                      </span>
+                      {hasOrderChanged && (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleResetOrder}
+                            disabled={isSavingOrder}
+                          >
+                            重置
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleSaveOrder}
+                            disabled={isSavingOrder}
+                          >
+                            {isSavingOrder ? "保存中..." : "保存排序"}
                           </Button>
                         </div>
+                      )}
+                    </div>
+                    
+                    {lessons.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                        <p className="text-sm">暂无课件</p>
+                        <p className="text-xs mt-1">点击"添加课件"创建第一个课件</p>
                       </div>
-                    ))}
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="text-xs text-muted-foreground bg-blue-50 border border-blue-200 rounded-lg p-2">
+                          💡 提示：拖拽课件框可以调整顺序，调整后点击"保存排序"按钮保存更改
+                        </div>
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <SortableContext
+                            items={lessons.map(lesson => lesson.id.toString())}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div className="space-y-2">
+                              {lessons.map((lesson, index) => (
+                                <SortableLessonItem
+                                  key={lesson.id}
+                                  lesson={lesson}
+                                  index={index}
+                                  formatDuration={formatDuration}
+                                  onEdit={handleEditLesson}
+                                />
+                              ))}
+                            </div>
+                          </SortableContext>
+                        </DndContext>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              
-              {courseData && (
-                <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
-                  <h4 className="text-sm font-medium">课程统计</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>课件数量：</span>
-                      <span>{lessons.length}</span>
+                  
+                  {/* 课程统计 */}
+                  {courseData && (
+                    <div className="space-y-3 p-4 bg-muted/50 rounded-lg h-fit">
+                      <h4 className="text-sm font-medium">课程统计</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span>课件数量：</span>
+                          <span>{lessons.length}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>总时长：</span>
+                          <span>{formatDuration(lessons.reduce((sum, lesson) => sum + lesson.duration, 0))}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>已发布课件：</span>
+                          <span>{lessons.filter(lesson => lesson.is_published).length}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>课程状态：</span>
+                          <span>{courseData.is_published ? "已发布" : "草稿"}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span>总时长：</span>
-                      <span>{formatDuration(lessons.reduce((sum, lesson) => sum + lesson.duration, 0))}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>已发布课件：</span>
-                      <span>{lessons.filter(lesson => lesson.is_published).length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>课程状态：</span>
-                      <span>{courseData.is_published ? "已发布" : "草稿"}</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </AdminLayout>
-  )
+      </AdminLayout>
+    )
 } 

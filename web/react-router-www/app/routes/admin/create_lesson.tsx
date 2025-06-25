@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useNavigate } from "react-router"
+import { useNavigate, useSearchParams } from "react-router"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -199,6 +199,8 @@ async function createLesson(lessonData: FormData, files: {
 
 export default function CreateLessonPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const courseIdFromParams = searchParams.get('courseId')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [courses, setCourses] = React.useState<Course[]>([])
   const [projects, setProjects] = React.useState<Project[]>([])
@@ -245,6 +247,14 @@ export default function CreateLessonPage() {
         setCourses(Array.isArray(courseList) ? courseList : [])
         setProjects(Array.isArray(projectList) ? projectList : [])
         setUsers(Array.isArray(userList) ? userList : [])
+
+        // 如果URL参数中有courseId，预选择该课程
+        if (courseIdFromParams) {
+          const courseId = parseInt(courseIdFromParams)
+          if (!isNaN(courseId)) {
+            form.setValue('course_id', courseId)
+          }
+        }
       } catch (error) {
         console.error("初始化数据失败:", error)
         toast.error("加载数据失败，请刷新页面重试")
@@ -255,7 +265,7 @@ export default function CreateLessonPage() {
       }
     }
     loadData()
-  }, [])
+  }, [courseIdFromParams, form])
 
   // 处理文件上传
   const handleFileChange = (fileType: string, file: File | null) => {
