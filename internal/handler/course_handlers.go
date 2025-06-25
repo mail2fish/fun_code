@@ -173,26 +173,24 @@ func (p *GetCourseParams) Parse(c *gin.Context) gorails.Error {
 
 // GetCourseResponse 获取课程详情响应
 type GetCourseResponse struct {
-	Data struct {
-		ID          uint   `json:"id"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		AuthorID    uint   `json:"author_id"`
-		Content     string `json:"content"`
-		IsPublic    bool   `json:"is_public"`
-		IsPublished bool   `json:"is_published"`
-		SortOrder   int    `json:"sort_order"`
-		CreatedAt   string `json:"created_at"`
-		UpdatedAt   string `json:"updated_at"`
-		Author      *struct {
-			ID       uint   `json:"id"`
-			Username string `json:"username"`
-			Email    string `json:"email"`
-		} `json:"author,omitempty"`
-		Lessons     []model.Lesson   `json:"lessons,omitempty"`
-		LessonCount int              `json:"lesson_count"`
-		Stats       *dao.CourseStats `json:"stats,omitempty"`
-	} `json:"data"`
+	ID          uint   `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	AuthorID    uint   `json:"author_id"`
+	Content     string `json:"content"`
+	IsPublic    bool   `json:"is_public"`
+	IsPublished bool   `json:"is_published"`
+	SortOrder   int    `json:"sort_order"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+	Author      *struct {
+		ID       uint   `json:"id"`
+		Username string `json:"username"`
+		Email    string `json:"email"`
+	} `json:"author,omitempty"`
+	Lessons     []model.Lesson   `json:"lessons,omitempty"`
+	LessonCount int              `json:"lesson_count"`
+	Stats       *dao.CourseStats `json:"stats,omitempty"`
 }
 
 // GetCourseHandler 获取课程详情
@@ -215,20 +213,20 @@ func (h *Handler) GetCourseHandler(c *gin.Context, params *GetCourseParams) (*Ge
 	}
 
 	response := &GetCourseResponse{}
-	response.Data.ID = course.ID
-	response.Data.Title = course.Title
-	response.Data.Description = course.Description
-	response.Data.AuthorID = course.AuthorID
-	response.Data.Content = course.Content
-	response.Data.IsPublic = course.IsPublic
-	response.Data.IsPublished = course.IsPublished
-	response.Data.SortOrder = course.SortOrder
-	response.Data.CreatedAt = course.CreatedAt.Format(time.RFC3339)
-	response.Data.UpdatedAt = course.UpdatedAt.Format(time.RFC3339)
+	response.ID = course.ID
+	response.Title = course.Title
+	response.Description = course.Description
+	response.AuthorID = course.AuthorID
+	response.Content = course.Content
+	response.IsPublic = course.IsPublic
+	response.IsPublished = course.IsPublished
+	response.SortOrder = course.SortOrder
+	response.CreatedAt = course.CreatedAt.Format(time.RFC3339)
+	response.UpdatedAt = course.UpdatedAt.Format(time.RFC3339)
 
 	// 作者信息
 	if course.Author.ID != 0 {
-		response.Data.Author = &struct {
+		response.Author = &struct {
 			ID       uint   `json:"id"`
 			Username string `json:"username"`
 			Email    string `json:"email"`
@@ -241,13 +239,13 @@ func (h *Handler) GetCourseHandler(c *gin.Context, params *GetCourseParams) (*Ge
 
 	// 课时信息
 	if params.IncludeLessons && len(course.Lessons) > 0 {
-		response.Data.Lessons = course.Lessons
+		response.Lessons = course.Lessons
 	}
-	response.Data.LessonCount = len(course.Lessons)
+	response.LessonCount = len(course.Lessons)
 
 	// 获取统计信息
 	if stats, err := h.dao.CourseDao.GetCourseStats(params.CourseID); err == nil {
-		response.Data.Stats = stats
+		response.Stats = stats
 	}
 
 	return response, nil, nil

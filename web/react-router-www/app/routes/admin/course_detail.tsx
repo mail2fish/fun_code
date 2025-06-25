@@ -64,7 +64,23 @@ async function getCourse(courseId: string) {
     }
     
     const data = await response.json()
-    return data.data as CourseData
+    console.log("获取到的课程详情数据:", data) // 调试信息
+    
+    // 兼容API响应格式
+    const course = data.data
+    if (!course || !course.id) {
+      throw new Error("课程数据格式错误或课程不存在")
+    }
+    
+    // 补充缺失的字段
+    const courseData = {
+      ...course,
+      difficulty: course.difficulty || 'beginner', // API没有返回difficulty，使用默认值
+      thumbnail_path: course.thumbnail_path || '', // API没有返回thumbnail_path
+      duration: course.stats?.total_duration || course.duration || 0 // 使用stats中的total_duration
+    }
+    
+    return courseData as CourseData
   } catch (error) {
     console.error("获取课程信息失败:", error)
     throw error
@@ -74,7 +90,7 @@ async function getCourse(courseId: string) {
 // 获取课程的课时列表
 async function getCourseLessons(courseId: string) {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/admin/courses/${courseId}/lessons`)
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/lessons?courseId=${courseId}`)
     
     if (!response.ok) {
       const errorData = await response.json()
@@ -82,10 +98,20 @@ async function getCourseLessons(courseId: string) {
     }
     
     const data = await response.json()
-    return data.data as LessonData[]
+    console.log("获取到的课时列表数据:", data) // 调试信息
+    
+    // 兼容API响应格式
+    const lessons = data.data || []
+    if (!Array.isArray(lessons)) {
+      console.error("课时数据不是数组:", lessons)
+      return []
+    }
+    
+    return lessons as LessonData[]
   } catch (error) {
     console.error("获取课时列表失败:", error)
-    throw error
+    // 如果获取课时失败，返回空数组而不是抛出错误
+    return []
   }
 }
 
@@ -277,7 +303,7 @@ export default function CourseDetailPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Link to={`/www/admin/edit_course/${courseData.id}`}>
+                <Link to={`/www/admin/edit_course/${courseId}`}>
                   <Button>
                     <IconEdit className="mr-2 h-4 w-4" />
                     编辑课程
@@ -413,7 +439,7 @@ export default function CourseDetailPage() {
                     <IconPlus className="h-5 w-5" />
                     课时列表 ({lessons.length})
                   </CardTitle>
-                  <Link to={`/www/admin/edit_course/${courseData.id}`}>
+                  <Link to={`/www/admin/edit_course/${courseId}`}>
                     <Button variant="outline" size="sm">
                       <IconPlus className="mr-2 h-4 w-4" />
                       添加课时
@@ -431,7 +457,7 @@ export default function CourseDetailPage() {
                     <h3 className="mt-2 text-sm font-semibold text-gray-900">暂无课时</h3>
                     <p className="mt-1 text-sm text-gray-500">开始创建第一个课时吧！</p>
                     <div className="mt-6">
-                      <Link to={`/www/admin/edit_course/${courseData.id}`}>
+                      <Link to={`/www/admin/edit_course/${courseId}`}>
                         <Button>
                           <IconPlus className="mr-2 h-4 w-4" />
                           添加课时
