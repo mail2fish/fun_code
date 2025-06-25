@@ -170,7 +170,7 @@ async function getStudents() {
 // 获取课程列表
 async function getCourses() {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/admin/courses/list?pageSize=100`)
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/courses?pageSize=100`)
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`)
     }
@@ -191,6 +191,7 @@ async function updateClass(classId: string, classData: z.infer<typeof formSchema
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        class_id: parseInt(classId),
         name: classData.name,
         description: classData.description || "",
         start_date: format(classData.startDate, "yyyy-MM-dd"),

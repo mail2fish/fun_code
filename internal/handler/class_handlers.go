@@ -2,8 +2,11 @@ package handler
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -291,25 +294,62 @@ func (h *Handler) GetClassHandler(c *gin.Context, params *GetClassParams) (*GetC
 
 // UpdateClassParams 更新班级信息请求参数
 type UpdateClassParams struct {
-	ClassID     uint   `json:"class_id" uri:"class_id" binding:"required"`
-	Name        string `json:"name" binding:"required"`
+	ClassID     uint   `uri:"class_id" binding:"required"` // 只从URI绑定
+	Name        string `json:"name"`                       // 只从JSON绑定，验证在JSON结构体中
 	Description string `json:"description"`
-	StartDate   string `json:"start_date" binding:"required"`
-	EndDate     string `json:"end_date" binding:"required"`
-	IsActive    *bool  `json:"is_active"` // 使用指针以区分false和未设置
+	StartDate   string `json:"start_date"`
+	EndDate     string `json:"end_date"`
+	IsActive    bool   `json:"is_active"`
 	StudentIDs  []uint `json:"student_ids"`
 	CourseIDs   []uint `json:"course_ids"`
 }
 
 func (p *UpdateClassParams) Parse(c *gin.Context) gorails.Error {
 	// 先解析路径参数
+	fmt.Printf("[DEBUG] 开始解析路径参数...\n")
 	if err := c.ShouldBindUri(p); err != nil {
+		fmt.Printf("[ERROR] 路径参数解析失败: %v\n", err)
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
-	// 再解析JSON参数
-	if err := c.ShouldBindJSON(p); err != nil {
+	fmt.Printf("[DEBUG] 路径参数解析成功, ClassID: %d\n", p.ClassID)
+
+	// 获取原始JSON数据用于调试
+	body, _ := c.GetRawData()
+	fmt.Printf("[DEBUG] 接收到的JSON数据: %s\n", string(body))
+
+	// 重新设置body，因为GetRawData会消耗掉body
+	c.Request.Body = io.NopCloser(strings.NewReader(string(body)))
+
+	// 解析JSON参数到临时结构体（排除class_id）
+	fmt.Printf("[DEBUG] 开始解析JSON参数...\n")
+	var jsonParams struct {
+		Name        string `json:"name" binding:"required"`
+		Description string `json:"description"`
+		StartDate   string `json:"start_date" binding:"required"`
+		EndDate     string `json:"end_date" binding:"required"`
+		IsActive    bool   `json:"is_active"`
+		StudentIDs  []uint `json:"student_ids"`
+		CourseIDs   []uint `json:"course_ids"`
+	}
+	if err := c.ShouldBindJSON(&jsonParams); err != nil {
+		fmt.Printf("[ERROR] JSON参数解析失败: %v\n", err)
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
+	fmt.Printf("[DEBUG] JSON参数解析成功: Name=%s, Description=%s, StartDate=%s, EndDate=%s, IsActive=%t, StudentIDs=%v, CourseIDs=%v\n",
+		jsonParams.Name, jsonParams.Description, jsonParams.StartDate, jsonParams.EndDate, jsonParams.IsActive, jsonParams.StudentIDs, jsonParams.CourseIDs)
+
+	// 将JSON参数复制到主结构体
+	p.Name = jsonParams.Name
+	p.Description = jsonParams.Description
+	p.StartDate = jsonParams.StartDate
+	p.EndDate = jsonParams.EndDate
+	p.IsActive = jsonParams.IsActive
+	p.StudentIDs = jsonParams.StudentIDs
+	p.CourseIDs = jsonParams.CourseIDs
+
+	fmt.Printf("[DEBUG] 参数解析完成，最终参数: ClassID=%d, Name=%s, Description=%s, StartDate=%s, EndDate=%s, IsActive=%t, StudentIDs=%v, CourseIDs=%v\n",
+		p.ClassID, p.Name, p.Description, p.StartDate, p.EndDate, p.IsActive, p.StudentIDs, p.CourseIDs)
+
 	return nil
 }
 
@@ -337,9 +377,7 @@ func (h *Handler) UpdateClassHandler(c *gin.Context, params *UpdateClassParams) 
 		"start_date":  params.StartDate,
 		"end_date":    params.EndDate,
 	}
-	if params.IsActive != nil {
-		updates["is_active"] = *params.IsActive
-	}
+	updates["is_active"] = params.IsActive
 
 	// 调用服务层更新班级
 	err := h.dao.ClassDao.UpdateClass(params.ClassID, userID, updates)
