@@ -178,7 +178,8 @@ async function updateClass(classId: string, classData: z.infer<typeof formSchema
 
 export default function EditClassPage() {
   const navigate = useNavigate();
-  const { classId } = useParams();
+  const params = useParams<{ classId: string }>();
+  const classId = params.classId;
   const { userInfo, logout } = useUser();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -250,22 +251,48 @@ export default function EditClassPage() {
           getClassStudents(classId)
         ]);
         
+        // 验证返回的数据格式
+        if (!classData || typeof classData !== 'object') {
+          throw new Error("班级数据格式不正确");
+        }
+        
+        console.log("加载的班级数据:", classData);
+        
         setClassData(classData);
-        setStudents(allStudents);
-        setSelectedStudents(classStudents);
+        setStudents(Array.isArray(allStudents) ? allStudents : []);
+        setSelectedStudents(Array.isArray(classStudents) ? classStudents : []);
         
         // 解析日期字符串为 Date 对象
-        const startDate = parse(classData.start_date, "yyyy-MM-dd", new Date());
-        const endDate = parse(classData.end_date, "yyyy-MM-dd", new Date());
+        let startDate: Date;
+        let endDate: Date;
         
-        // 设置表单默认值
+        try {
+          startDate = classData.start_date ? parse(classData.start_date, "yyyy-MM-dd", new Date()) : new Date();
+          endDate = classData.end_date ? parse(classData.end_date, "yyyy-MM-dd", new Date()) : new Date();
+          
+          // 检查解析后的日期是否有效
+          if (isNaN(startDate.getTime())) {
+            console.warn("开课日期解析失败，使用默认值:", classData.start_date);
+            startDate = new Date();
+          }
+          if (isNaN(endDate.getTime())) {
+            console.warn("结课日期解析失败，使用默认值:", classData.end_date);
+            endDate = new Date(new Date().setMonth(new Date().getMonth() + 4));
+          }
+        } catch (parseError) {
+          console.error("日期解析错误:", parseError);
+          startDate = new Date();
+          endDate = new Date(new Date().setMonth(new Date().getMonth() + 4));
+        }
+        
+                // 设置表单默认值
         form.reset({
-          name: classData.name,
-          description: classData.description,
+          name: classData.name || "",
+          description: classData.description || "",
           startDate,
           endDate,
-          isActive: classData.is_active,
-                     studentIds: classStudents.map((s: Student) => s.id),
+          isActive: Boolean(classData.is_active),
+          studentIds: Array.isArray(classStudents) ? classStudents.map((s: Student) => s.id) : [],
         });
         
         setError(null);
@@ -283,8 +310,10 @@ export default function EditClassPage() {
 
   // 提交表单
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!classId) {
-      toast.error("班级ID无效");
+    // 检查 classId 是否存在且为有效字符串
+    if (!classId || typeof classId !== 'string' || classId.trim() === '') {
+      console.error("提交时班级ID无效:", { classId, params });
+      toast.error("班级ID无效，无法更新");
       return;
     }
 
