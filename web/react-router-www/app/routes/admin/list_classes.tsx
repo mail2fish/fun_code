@@ -329,16 +329,7 @@ export default function ListClassPage() {
                         <TableCell>{classItem.courses?.length || 0}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            title="查看学生"
-                            asChild
-                          >
-                            <Link to={`/www/admin/classes/${classItem.id}/students`}>
-                              <IconUsers className="h-4 w-4" />
-                            </Link>
-                          </Button>
+       
                           <Button 
                             variant="ghost" 
                             size="icon" 
