@@ -420,21 +420,54 @@ export default function EditCoursePage() {
                     control={form.control}
                     name="is_published"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            发布状态
-                          </FormLabel>
-                          <FormDescription>
-                            开启后课程将对学生可见，关闭则隐藏课程。
+                      <FormItem className="rounded-lg border p-4">
+                        <FormLabel className="text-base font-medium">
+                          发布状态
+                        </FormLabel>
+                        <div className="mt-3 space-y-3">
+                          <div className={`p-4 rounded-lg border-2 transition-all ${
+                            field.value 
+                              ? 'border-green-200 bg-green-50' 
+                              : 'border-orange-200 bg-orange-50'
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className={`w-3 h-3 rounded-full ${
+                                  field.value ? 'bg-green-500' : 'bg-orange-500'
+                                }`} />
+                                <div>
+                                  <p className={`font-medium ${
+                                    field.value ? 'text-green-800' : 'text-orange-800'
+                                  }`}>
+                                    {field.value ? '已发布' : '未发布'}
+                                  </p>
+                                  <p className={`text-sm ${
+                                    field.value ? 'text-green-600' : 'text-orange-600'
+                                  }`}>
+                                    {field.value 
+                                      ? '课程对学生可见，可以报名和学习' 
+                                      : '课程对学生隐藏，仅管理员可见'
+                                    }
+                                  </p>
+                                </div>
+                              </div>
+                              <FormControl>
+                                <Toggle
+                                  pressed={field.value}
+                                  onPressedChange={field.onChange}
+                                  className={`${
+                                    field.value 
+                                      ? 'data-[state=on]:bg-green-600 data-[state=on]:text-white' 
+                                      : 'data-[state=off]:bg-gray-200'
+                                  }`}
+                                />
+                              </FormControl>
+                            </div>
+                          </div>
+                          <FormDescription className="text-xs text-muted-foreground">
+                            点击右侧开关来切换课程的发布状态
                           </FormDescription>
                         </div>
-                        <FormControl>
-                          <Toggle
-                            pressed={field.value}
-                            onPressedChange={field.onChange}
-                          />
-                        </FormControl>
                       </FormItem>
                     )}
                   />
