@@ -74,7 +74,6 @@ interface Lesson {
   video_path_3: string
   duration: number
   difficulty: string
-  description: string
   created_at: string
   updated_at: string
   course?: {
@@ -94,9 +93,6 @@ const formSchema = z.object({
   }).max(200, {
     message: "课件标题不能超过 200 个字符",
   }),
-  description: z.string().max(1000, {
-    message: "课件描述不能超过 1000 个字符",
-  }).optional(),
   content: z.string().max(20000, {
     message: "课件内容不能超过 20000 个字符",
   }).optional(),
@@ -113,7 +109,7 @@ const formSchema = z.object({
   }),
   project_id_1: z.string().optional(),
   project_id_2: z.string().optional(),
-  updated_at: z.string(),
+  updated_at: z.number(),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -284,14 +280,13 @@ export default function EditLessonPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
-      description: "",
       content: "",
       difficulty: "beginner",
       duration: 30,
       project_type: "scratch",
       project_id_1: undefined,
       project_id_2: undefined,
-      updated_at: "",
+      updated_at: 0,
     },
   })
 
@@ -330,7 +325,6 @@ export default function EditLessonPage() {
         form.reset({
           course_id: lessonInfo.course_id,
           title: lessonInfo.title,
-          description: lessonInfo.description || "",
           content: lessonInfo.content || "",
           difficulty: lessonInfo.difficulty,
           duration: lessonInfo.duration,
@@ -338,7 +332,7 @@ export default function EditLessonPage() {
           project_type: (lessonInfo.project_type === "python" || lessonInfo.project_type === "scratch") ? lessonInfo.project_type : "scratch",
           project_id_1: lessonInfo.project_id_1 || "none",
           project_id_2: lessonInfo.project_id_2 || "none",
-          updated_at: lessonInfo.updated_at,
+          updated_at: Math.floor(new Date(lessonInfo.updated_at).getTime() / 1000),
         })
         
       } catch (error) {
@@ -614,27 +608,7 @@ export default function EditLessonPage() {
                     )}
                   />
                   
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>课件描述</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="描述这个课件的内容、学习目标等..."
-                            className="resize-none min-h-20"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          简要描述课件内容。
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
+
                   <FormField
                     control={form.control}
                     name="content"

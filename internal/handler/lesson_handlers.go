@@ -480,10 +480,10 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 		updates["project_type"] = params.ProjectType
 	}
 	if params.ProjectID1 != nil {
-		updates["project_id_1"] = *params.ProjectID1
+		updates["ProjectID1"] = *params.ProjectID1
 	}
 	if params.ProjectID2 != nil {
-		updates["project_id_2"] = *params.ProjectID2
+		updates["ProjectID2"] = *params.ProjectID2
 	}
 	if params.Duration != nil {
 		updates["duration"] = *params.Duration
