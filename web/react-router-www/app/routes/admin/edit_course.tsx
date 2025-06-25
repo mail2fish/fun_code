@@ -205,15 +205,22 @@ function SortableLessonItem({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
-      className={`flex items-center gap-3 p-3 border rounded-lg bg-white cursor-grab active:cursor-grabbing transition-all ${
+      className={`flex items-center gap-3 p-3 border rounded-lg bg-white transition-all ${
         isDragging ? 'shadow-lg scale-105 rotate-1 bg-blue-50 border-blue-200' : 'hover:shadow-md hover:border-gray-300'
       }`}
     >
-      <div className="flex-shrink-0 w-6 h-6 bg-muted rounded-full flex items-center justify-center text-xs font-medium">
+      <div 
+        {...listeners}
+        className="flex-shrink-0 w-6 h-6 bg-muted rounded-full flex items-center justify-center text-xs font-medium cursor-grab active:cursor-grabbing hover:bg-muted-foreground/20"
+        title="拖拽此处重新排序"
+      >
         {index + 1}
       </div>
-      <div className="flex-1 min-w-0">
+      <div 
+        {...listeners}
+        className="flex-1 min-w-0 cursor-grab active:cursor-grabbing"
+        title="拖拽此处重新排序"
+      >
         <p className="text-sm font-medium truncate">
           {lesson.title}
         </p>
@@ -226,7 +233,9 @@ function SortableLessonItem({
           size="sm" 
           variant="ghost"
           onClick={(e) => {
+            e.preventDefault()
             e.stopPropagation() // 防止触发拖拽
+            console.log('SortableLessonItem 编辑按钮被点击，课件ID:', lesson.id)
             onEdit(lesson.id)
           }}
         >
@@ -360,6 +369,7 @@ export default function EditCoursePage() {
 
   // 编辑课件处理函数
   const handleEditLesson = (lessonId: number) => {
+    console.log('点击编辑课件，ID:', lessonId)
     navigate(`/www/admin/edit_lesson/${lessonId}`)
   }
 
@@ -729,7 +739,7 @@ export default function EditCoursePage() {
                     ) : (
                       <div className="space-y-3">
                         <div className="text-xs text-muted-foreground bg-blue-50 border border-blue-200 rounded-lg p-2">
-                          💡 提示：拖拽课件框可以调整顺序，调整后点击"保存排序"按钮保存更改
+                          💡 提示：拖拽序号或课件名称可以调整顺序，点击"编辑"按钮编辑课件，调整顺序后点击"保存排序"按钮保存更改
                         </div>
                         <DndContext
                           sensors={sensors}

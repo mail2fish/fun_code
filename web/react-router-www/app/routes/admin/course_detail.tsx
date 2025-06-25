@@ -496,11 +496,18 @@ export default function CourseDetailPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm">
-                            <IconEye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              navigate(`/www/admin/edit_lesson/${lesson.id}`)
+                            }}
+                            title="编辑课件"
+                          >
                             <IconEdit className="h-4 w-4" />
+                            编辑
                           </Button>
                         </div>
                       </div>
