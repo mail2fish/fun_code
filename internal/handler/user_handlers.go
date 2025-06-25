@@ -30,14 +30,11 @@ func (p *CreateUserParams) Parse(c *gin.Context) gorails.Error {
 
 // CreateUserResponse 创建用户响应
 type CreateUserResponse struct {
-	Message string `json:"message"`
-	Data    struct {
-		ID       uint   `json:"id"`
-		Username string `json:"username"`
-		Nickname string `json:"nickname"`
-		Email    string `json:"email"`
-		Role     string `json:"role"`
-	} `json:"data"`
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+	Nickname string `json:"nickname"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
 }
 
 // CreateUserHandler 创建用户 gorails.Wrap 形式
@@ -72,20 +69,13 @@ func (h *Handler) CreateUserHandler(c *gin.Context, params *CreateUserParams) (*
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_USER, global.ErrorCodeUserCreateFailed, msg, err)
 	}
 
-	// 返回成功响应
-	lang := h.i18n.GetDefaultLanguage()
-	if l := c.GetHeader("Accept-Language"); l != "" {
-		lang = l
-	}
-
 	response := &CreateUserResponse{
-		Message: h.i18n.Translate("user.create_success", lang),
+		ID:       user.ID,
+		Username: user.Username,
+		Nickname: user.Nickname,
+		Email:    user.Email,
+		Role:     user.Role,
 	}
-	response.Data.ID = user.ID
-	response.Data.Username = user.Username
-	response.Data.Nickname = user.Nickname
-	response.Data.Email = user.Email
-	response.Data.Role = user.Role
 
 	return response, nil, nil
 }
