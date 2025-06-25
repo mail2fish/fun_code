@@ -1,31 +1,29 @@
 package dao
 
 import (
-	"time"
-
 	"github.com/jun/fun_code/internal/model"
 )
 
 // CourseUpdateData 批量更新课程的数据结构
 type CourseUpdateData struct {
-	ExpectedUpdatedAt time.Time              `json:"expected_updated_at"` // 预期的更新时间（乐观锁）
+	ExpectedUpdatedAt int64                  `json:"expected_updated_at"` // 预期的更新时间（乐观锁）
 	Updates           map[string]interface{} `json:"updates"`             // 要更新的字段
 }
 
 type CourseDao interface {
 	// 基础CRUD操作
 	CreateCourse(authorID uint, title, description, difficulty string, duration int, isPublished bool, thumbnailPath string) (*model.Course, error)
-	UpdateCourse(courseID, authorID uint, expectedUpdatedAt time.Time, updates map[string]interface{}) error
+	UpdateCourse(courseID, authorID uint, expectedUpdatedAt int64, updates map[string]interface{}) error
 	GetCourse(courseID uint) (*model.Course, error)
 	GetCourseWithLessons(courseID uint) (*model.Course, error)
 	ListCourses(authorID uint) ([]model.Course, error)
-	DeleteCourse(courseID, authorID uint, expectedUpdatedAt time.Time) error
+	DeleteCourse(courseID, authorID uint, expectedUpdatedAt int64) error
 
 	// 分页查询
 	ListCoursesWithPagination(authorID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Course, bool, error)
 
 	// 发布管理
-	PublishCourse(courseID, authorID uint, expectedUpdatedAt time.Time, isPublished bool) error
+	PublishCourse(courseID, authorID uint, expectedUpdatedAt int64, isPublished bool) error
 
 	// 排序功能
 	ReorderCourses(authorID uint, courseIDs []uint) error
@@ -36,7 +34,7 @@ type CourseDao interface {
 
 	// 课时管理
 	AddLessonToCourse(courseID, authorID uint, lesson *model.Lesson) error
-	RemoveLessonFromCourse(courseID, lessonID, authorID uint, expectedUpdatedAt time.Time) error
+	RemoveLessonFromCourse(courseID, lessonID, authorID uint, expectedUpdatedAt int64) error
 
 	// 批量操作
 	BatchUpdateCourses(courseUpdates map[uint]CourseUpdateData) error

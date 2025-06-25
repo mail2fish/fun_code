@@ -32,7 +32,7 @@ import { Skeleton } from "~/components/ui/skeleton"
 import { toast } from "sonner"
 
 // 导入自定义的 fetch 函数
-import { fetchWithAuth } from "~/utils/api"
+import { fetchWithAuth, formatDate } from "~/utils/api"
 
 // API 服务
 import { HOST_URL } from "~/config"
@@ -48,8 +48,8 @@ interface CourseData {
   duration: number
   difficulty: string
   thumbnail_path: string
-  created_at: string
-  updated_at: string
+  created_at: number
+  updated_at: number
 }
 
 // 课时数据接口
@@ -61,8 +61,8 @@ interface LessonData {
   sort_order: number
   duration: number
   is_published: boolean
-  created_at: string
-  updated_at: string
+  created_at: number
+  updated_at: number
 }
 
 // 表单验证 Schema
@@ -109,7 +109,7 @@ async function getCourse(courseId: string) {
 }
 
 // 更新课程
-async function updateCourse(courseId: string, courseData: z.infer<typeof formSchema>, updatedAt: string) {
+async function updateCourse(courseId: string, courseData: z.infer<typeof formSchema>, updatedAt: number) {
   try {
     const response = await fetchWithAuth(`${HOST_URL}/api/admin/courses/${courseId}`, {
       method: "PUT",

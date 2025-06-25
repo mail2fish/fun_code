@@ -8,10 +8,10 @@ import (
 
 // Lesson 课时模型
 type Lesson struct {
-	ID        uint           `json:"id" gorm:"primarykey;autoIncrement"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
+	ID        uint   `json:"id" gorm:"primarykey;autoIncrement"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+	DeletedAt *int64 `json:"deleted_at,omitempty" gorm:"index"`
 
 	// 基本信息
 	Title       string `json:"title" gorm:"size:200;not null"`    // 课时标题
@@ -49,4 +49,18 @@ type Lesson struct {
 
 func (l *Lesson) TableName() string {
 	return "lessons"
+}
+
+// BeforeCreate GORM钩子，在创建前设置时间戳
+func (l *Lesson) BeforeCreate(tx *gorm.DB) error {
+	now := time.Now().Unix()
+	l.CreatedAt = now
+	l.UpdatedAt = now
+	return nil
+}
+
+// BeforeUpdate GORM钩子，在更新前设置时间戳
+func (l *Lesson) BeforeUpdate(tx *gorm.DB) error {
+	l.UpdatedAt = time.Now().Unix()
+	return nil
 }

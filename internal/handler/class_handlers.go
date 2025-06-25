@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/global"
@@ -201,8 +202,8 @@ func (h *Handler) GetClassHandler(c *gin.Context, params *GetClassParams) (*GetC
 	response.Data.StartDate = class.StartDate.Format("2006-01-02")
 	response.Data.EndDate = class.EndDate.Format("2006-01-02")
 	response.Data.IsActive = class.IsActive
-	response.Data.CreatedAt = class.CreatedAt.Format("2006-01-02 15:04:05")
-	response.Data.UpdatedAt = class.UpdatedAt.Format("2006-01-02 15:04:05")
+	response.Data.CreatedAt = time.Unix(class.CreatedAt, 0).Format("2006-01-02 15:04:05")
+	response.Data.UpdatedAt = time.Unix(class.UpdatedAt, 0).Format("2006-01-02 15:04:05")
 
 	// 如果预加载了教师信息，则添加到响应中
 	if class.Teacher.ID > 0 {

@@ -29,6 +29,7 @@ func (c *CourseDaoImpl) CreateCourse(authorID uint, title, description, difficul
 	var maxSort int
 	c.db.Model(&model.Course{}).Where("author_id = ?", authorID).Select("COALESCE(MAX(sort_order), 0)").Scan(&maxSort)
 
+	now := time.Now().Unix()
 	course := model.Course{
 		Title:         title,
 		Description:   description,
@@ -38,6 +39,8 @@ func (c *CourseDaoImpl) CreateCourse(authorID uint, title, description, difficul
 		IsPublished:   isPublished,
 		ThumbnailPath: thumbnailPath,
 		SortOrder:     maxSort + 1,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 
 	if err := c.db.Create(&course).Error; err != nil {
@@ -48,7 +51,7 @@ func (c *CourseDaoImpl) CreateCourse(authorID uint, title, description, difficul
 }
 
 // UpdateCourse 更新课程信息（乐观锁）
-func (c *CourseDaoImpl) UpdateCourse(courseID, authorID uint, expectedUpdatedAt time.Time, updates map[string]interface{}) error {
+func (c *CourseDaoImpl) UpdateCourse(courseID, authorID uint, expectedUpdatedAt int64, updates map[string]interface{}) error {
 	// 检查课程是否存在且属于该作者
 	var course model.Course
 	if err := c.db.Where("id = ? AND author_id = ?", courseID, authorID).First(&course).Error; err != nil {
@@ -58,7 +61,24 @@ func (c *CourseDaoImpl) UpdateCourse(courseID, authorID uint, expectedUpdatedAt 
 		return err
 	}
 
-	// 乐观锁：检查updated_at是否匹配
+	// 调试：记录时间戳信息
+	fmt.Printf("UpdateCourse Debug:\n")
+	fmt.Printf("  Course ID: %d\n", courseID)
+	fmt.Printf("  DB UpdatedAt: %d (%s)\n", course.UpdatedAt, time.Unix(course.UpdatedAt, 0).Format(time.RFC3339))
+	fmt.Printf("  Expected UpdatedAt: %d (%s)\n", expectedUpdatedAt, time.Unix(expectedUpdatedAt, 0).Format(time.RFC3339))
+	fmt.Printf("  Time Match: %v\n", course.UpdatedAt == expectedUpdatedAt)
+
+	// 乐观锁：检查时间戳是否匹配
+	if course.UpdatedAt != expectedUpdatedAt {
+		fmt.Printf("  Optimistic lock failed: DB time=%d, Expected time=%d\n",
+			course.UpdatedAt, expectedUpdatedAt)
+		return errors.New("课程已被其他用户修改，请刷新后重试")
+	}
+
+	// 设置更新时间
+	updates["updated_at"] = time.Now().Unix()
+
+	// 执行更新，使用时间戳进行数据库级别的乐观锁检查
 	result := c.db.Model(&course).
 		Where("id = ? AND updated_at = ?", courseID, expectedUpdatedAt).
 		Updates(updates)
@@ -117,7 +137,7 @@ func (c *CourseDaoImpl) ListCourses(authorID uint) ([]model.Course, error) {
 }
 
 // DeleteCourse 删除课程（乐观锁）
-func (c *CourseDaoImpl) DeleteCourse(courseID, authorID uint, expectedUpdatedAt time.Time) error {
+func (c *CourseDaoImpl) DeleteCourse(courseID, authorID uint, expectedUpdatedAt int64) error {
 	// 检查课程是否存在且属于该作者
 	var course model.Course
 	if err := c.db.Where("id = ? AND author_id = ?", courseID, authorID).First(&course).Error; err != nil {
@@ -203,7 +223,7 @@ func (c *CourseDaoImpl) ListCoursesWithPagination(authorID uint, pageSize uint, 
 }
 
 // PublishCourse 发布/取消发布课程（乐观锁）
-func (c *CourseDaoImpl) PublishCourse(courseID, authorID uint, expectedUpdatedAt time.Time, isPublished bool) error {
+func (c *CourseDaoImpl) PublishCourse(courseID, authorID uint, expectedUpdatedAt int64, isPublished bool) error {
 	// 检查权限
 	var course model.Course
 	if err := c.db.Where("id = ? AND author_id = ?", courseID, authorID).First(&course).Error; err != nil {
@@ -323,7 +343,7 @@ func (c *CourseDaoImpl) AddLessonToCourse(courseID, authorID uint, lesson *model
 }
 
 // RemoveLessonFromCourse 从课程移除课时（乐观锁）
-func (c *CourseDaoImpl) RemoveLessonFromCourse(courseID, lessonID, authorID uint, expectedUpdatedAt time.Time) error {
+func (c *CourseDaoImpl) RemoveLessonFromCourse(courseID, lessonID, authorID uint, expectedUpdatedAt int64) error {
 	// 检查课程权限和课时是否属于该课程
 	var lesson model.Lesson
 	if err := c.db.Joins("JOIN courses ON courses.id = lessons.course_id").

@@ -38,3 +38,44 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   
   return response;
 };
+
+// 格式化时间戳为可读的日期字符串
+export const formatDate = (timestamp?: number | string) => {
+  if (!timestamp) return '';
+  
+  let date: Date;
+  
+  // 如果是字符串，先尝试解析为数字（Unix时间戳）
+  if (typeof timestamp === 'string') {
+    // 尝试解析为Unix时间戳
+    const unixTime = parseInt(timestamp, 10);
+    if (!isNaN(unixTime)) {
+      date = new Date(unixTime * 1000); // Unix时间戳是秒，需要转换为毫秒
+    } else {
+      // 如果不是Unix时间戳，尝试直接解析时间字符串
+      date = new Date(timestamp);
+    }
+  } else {
+    // 如果是数字，直接作为Unix时间戳处理
+    date = new Date(timestamp * 1000);
+  }
+  
+  // 检查日期是否有效
+  if (isNaN(date.getTime())) {
+    return '';
+  }
+  
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+};
+
+// 获取当前Unix时间戳
+export const getCurrentTimestamp = () => {
+  return Math.floor(Date.now() / 1000);
+};

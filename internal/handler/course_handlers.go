@@ -2,8 +2,11 @@ package handler
 
 import (
 	"errors"
+	"io"
+	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -33,41 +36,27 @@ func (p *CreateCourseParams) Parse(c *gin.Context) gorails.Error {
 
 // CreateCourseResponse 创建课程响应
 type CreateCourseResponse struct {
-	ID            uint   `json:"id"`
-	Title         string `json:"title"`
-	Description   string `json:"description"`
-	AuthorID      uint   `json:"author_id"`
-	Difficulty    string `json:"difficulty"`
-	Duration      int    `json:"duration"`
-	IsPublished   bool   `json:"is_published"`
-	ThumbnailPath string `json:"thumbnail_path"`
-	SortOrder     int    `json:"sort_order"`
-	CreatedAt     string `json:"created_at"`
-	UpdatedAt     string `json:"updated_at"`
+	ID          uint   `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	CreatedAt   int64  `json:"created_at"`
 }
 
 // CreateCourseHandler 创建课程
 func (h *Handler) CreateCourseHandler(c *gin.Context, params *CreateCourseParams) (*CreateCourseResponse, *gorails.ResponseMeta, gorails.Error) {
 	userID := h.getUserID(c)
 
-	// 调用服务层创建课程
+	// 创建课程
 	course, err := h.dao.CourseDao.CreateCourse(userID, params.Title, params.Description, params.Difficulty, params.Duration, params.IsPublished, params.ThumbnailPath)
 	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeCreateFailed, global.ErrorMsgInsertFailed, err)
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeCreateFailed, global.ErrorMsgCreateFailed, err)
 	}
 
 	response := &CreateCourseResponse{
-		ID:            course.ID,
-		Title:         course.Title,
-		Description:   course.Description,
-		AuthorID:      course.AuthorID,
-		Difficulty:    course.Difficulty,
-		Duration:      course.Duration,
-		IsPublished:   course.IsPublished,
-		ThumbnailPath: course.ThumbnailPath,
-		SortOrder:     course.SortOrder,
-		CreatedAt:     course.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:     course.UpdatedAt.Format(time.RFC3339),
+		ID:          course.ID,
+		Title:       course.Title,
+		Description: course.Description,
+		CreatedAt:   course.CreatedAt,
 	}
 
 	return response, nil, nil
@@ -75,20 +64,41 @@ func (h *Handler) CreateCourseHandler(c *gin.Context, params *CreateCourseParams
 
 // UpdateCourseParams 更新课程请求参数
 type UpdateCourseParams struct {
-	CourseID    uint      `json:"course_id" uri:"course_id" binding:"required"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Content     string    `json:"content"`
-	UpdatedAt   time.Time `json:"updated_at" binding:"required"` // 乐观锁
+	CourseID      uint   `json:"course_id" uri:"course_id" binding:"required"`
+	Title         string `json:"title"`
+	Description   string `json:"description"`
+	Content       string `json:"content"`
+	IsPublished   *bool  `json:"is_published"` // 使用指针以区分false和未设置
+	Difficulty    string `json:"difficulty"`
+	Duration      *int   `json:"duration"` // 使用指针以区分0和未设置
+	ThumbnailPath string `json:"thumbnail_path"`
+	UpdatedAt     int64  `json:"updated_at"` // 乐观锁，只在JSON中验证
 }
 
 func (p *UpdateCourseParams) Parse(c *gin.Context) gorails.Error {
+	// 记录原始请求体用于调试
+	if body, err := c.GetRawData(); err == nil {
+		log.Printf("UpdateCourse Request Body: %s", string(body))
+		// 重新设置请求体以便后续读取
+		c.Request.Body = io.NopCloser(strings.NewReader(string(body)))
+	}
+
 	if err := c.ShouldBindUri(p); err != nil {
+		log.Printf("URI binding error: %v", err)
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	if err := c.ShouldBindJSON(p); err != nil {
+		log.Printf("JSON binding error: %v", err)
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
+
+	// 手动验证必需的字段
+	if p.UpdatedAt == 0 {
+		log.Printf("UpdatedAt validation failed: value is %d", p.UpdatedAt)
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeInvalidParams, "updated_at字段为必填项", nil)
+	}
+
+	log.Printf("Parsed UpdateCourseParams: %+v", p)
 	return nil
 }
 
@@ -97,7 +107,7 @@ type UpdateCourseResponse struct {
 	ID          uint   `json:"id"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
-	UpdatedAt   string `json:"updated_at"`
+	UpdatedAt   int64  `json:"updated_at"`
 }
 
 // UpdateCourseHandler 更新课程
@@ -115,13 +125,29 @@ func (h *Handler) UpdateCourseHandler(c *gin.Context, params *UpdateCourseParams
 	if params.Content != "" {
 		updates["content"] = params.Content
 	}
+	if params.IsPublished != nil {
+		updates["is_published"] = *params.IsPublished
+	}
+	if params.Difficulty != "" {
+		updates["difficulty"] = params.Difficulty
+	}
+	if params.Duration != nil {
+		updates["duration"] = *params.Duration
+	}
+	if params.ThumbnailPath != "" {
+		updates["thumbnail_path"] = params.ThumbnailPath
+	}
 
-	// 调用服务层更新课程
+	// 更新课程
 	if err := h.dao.CourseDao.UpdateCourse(params.CourseID, userID, params.UpdatedAt, updates); err != nil {
-		if err.Error() == "课程已被其他用户修改，请刷新后重试" {
-			return nil, nil, gorails.NewError(http.StatusConflict, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeUpdateConflict, "课程已被其他用户修改，请刷新后重试", err)
+		// 根据错误类型返回不同的错误码
+		if strings.Contains(err.Error(), "已被其他用户修改") {
+			return nil, nil, gorails.NewError(http.StatusConflict, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeUpdateConflict, global.ErrorMsgUpdateConflict, err)
 		}
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeUpdateFailed, global.ErrorMsgUpdateFailed, err)
+		if strings.Contains(err.Error(), "不存在或您无权") {
+			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeQueryNotFound, global.ErrorMsgQueryNotFound, err)
+		}
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeUpdateFailed, global.ErrorMsgUpdateFailed, err)
 	}
 
 	// 获取更新后的课程信息
@@ -134,7 +160,7 @@ func (h *Handler) UpdateCourseHandler(c *gin.Context, params *UpdateCourseParams
 		ID:          course.ID,
 		Title:       course.Title,
 		Description: course.Description,
-		UpdatedAt:   course.UpdatedAt.Format(time.RFC3339),
+		UpdatedAt:   course.UpdatedAt,
 	}
 
 	return response, nil, nil
@@ -161,16 +187,19 @@ func (p *GetCourseParams) Parse(c *gin.Context) gorails.Error {
 
 // GetCourseResponse 获取课程详情响应
 type GetCourseResponse struct {
-	ID          uint   `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	AuthorID    uint   `json:"author_id"`
-	Content     string `json:"content"`
-	IsPublished bool   `json:"is_published"`
-	SortOrder   int    `json:"sort_order"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
-	Author      *struct {
+	ID            uint   `json:"id"`
+	Title         string `json:"title"`
+	Description   string `json:"description"`
+	AuthorID      uint   `json:"author_id"`
+	Content       string `json:"content"`
+	IsPublished   bool   `json:"is_published"`
+	SortOrder     int    `json:"sort_order"`
+	Duration      int    `json:"duration"`
+	Difficulty    string `json:"difficulty"`
+	ThumbnailPath string `json:"thumbnail_path"`
+	CreatedAt     int64  `json:"created_at"`
+	UpdatedAt     int64  `json:"updated_at"`
+	Author        *struct {
 		ID       uint   `json:"id"`
 		Username string `json:"username"`
 		Email    string `json:"email"`
@@ -207,8 +236,11 @@ func (h *Handler) GetCourseHandler(c *gin.Context, params *GetCourseParams) (*Ge
 	response.Content = course.Content
 	response.IsPublished = course.IsPublished
 	response.SortOrder = course.SortOrder
-	response.CreatedAt = course.CreatedAt.Format(time.RFC3339)
-	response.UpdatedAt = course.UpdatedAt.Format(time.RFC3339)
+	response.Duration = course.Duration
+	response.Difficulty = course.Difficulty
+	response.ThumbnailPath = course.ThumbnailPath
+	response.CreatedAt = course.CreatedAt
+	response.UpdatedAt = course.UpdatedAt
 
 	// 作者信息
 	if course.Author.ID != 0 {
@@ -309,8 +341,8 @@ func (h *Handler) ListCoursesHandler(c *gin.Context, params *ListCoursesParams) 
 
 // DeleteCourseParams 删除课程请求参数
 type DeleteCourseParams struct {
-	CourseID  uint      `json:"course_id" uri:"course_id" binding:"required"`
-	UpdatedAt time.Time `json:"updated_at" binding:"required"` // 乐观锁
+	CourseID  uint  `json:"course_id" uri:"course_id" binding:"required"`
+	UpdatedAt int64 `json:"updated_at"` // 乐观锁
 }
 
 func (p *DeleteCourseParams) Parse(c *gin.Context) gorails.Error {
@@ -320,6 +352,12 @@ func (p *DeleteCourseParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindJSON(p); err != nil {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
+
+	// 手动验证必需的字段
+	if p.UpdatedAt == 0 {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeInvalidParams, "updated_at字段为必填项", nil)
+	}
+
 	return nil
 }
 
@@ -347,9 +385,9 @@ func (h *Handler) DeleteCourseHandler(c *gin.Context, params *DeleteCourseParams
 
 // PublishCourseParams 发布课程请求参数
 type PublishCourseParams struct {
-	CourseID    uint      `json:"course_id" uri:"course_id" binding:"required"`
-	IsPublished bool      `json:"is_published" binding:"required"`
-	UpdatedAt   time.Time `json:"updated_at" binding:"required"` // 乐观锁
+	CourseID    uint  `json:"course_id" uri:"course_id" binding:"required"`
+	IsPublished bool  `json:"is_published"`
+	UpdatedAt   int64 `json:"updated_at"` // 乐观锁
 }
 
 func (p *PublishCourseParams) Parse(c *gin.Context) gorails.Error {
@@ -359,14 +397,20 @@ func (p *PublishCourseParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindJSON(p); err != nil {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
+
+	// 手动验证必需的字段
+	if p.UpdatedAt == 0 {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeInvalidParams, "updated_at字段为必填项", nil)
+	}
+
 	return nil
 }
 
 // PublishCourseResponse 发布课程响应
 type PublishCourseResponse struct {
-	ID          uint   `json:"id"`
-	IsPublished bool   `json:"is_published"`
-	UpdatedAt   string `json:"updated_at"`
+	ID          uint  `json:"id"`
+	IsPublished bool  `json:"is_published"`
+	UpdatedAt   int64 `json:"updated_at"`
 }
 
 // PublishCourseHandler 发布/取消发布课程
@@ -390,7 +434,7 @@ func (h *Handler) PublishCourseHandler(c *gin.Context, params *PublishCoursePara
 	response := &PublishCourseResponse{
 		ID:          course.ID,
 		IsPublished: course.IsPublished,
-		UpdatedAt:   course.UpdatedAt.Format(time.RFC3339),
+		UpdatedAt:   course.UpdatedAt,
 	}
 
 	return response, nil, nil
@@ -436,7 +480,7 @@ func (h *Handler) CopyCourseHandler(c *gin.Context, params *CopyCourseParams) (*
 		Title:       newCourse.Title,
 		Description: newCourse.Description,
 		AuthorID:    newCourse.AuthorID,
-		CreatedAt:   newCourse.CreatedAt.Format(time.RFC3339),
+		CreatedAt:   time.Unix(newCourse.CreatedAt, 0).Format(time.RFC3339),
 	}
 
 	if stats != nil {

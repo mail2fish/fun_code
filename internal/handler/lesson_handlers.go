@@ -194,8 +194,8 @@ func (h *Handler) CreateLessonHandler(c *gin.Context, params *CreateLessonParams
 	response.Data.Duration = lesson.Duration
 	response.Data.Difficulty = lesson.Difficulty
 	response.Data.Description = lesson.Description
-	response.Data.CreatedAt = lesson.CreatedAt.Format(time.RFC3339)
-	response.Data.UpdatedAt = lesson.UpdatedAt.Format(time.RFC3339)
+	response.Data.CreatedAt = time.Unix(lesson.CreatedAt, 0).Format(time.RFC3339)
+	response.Data.UpdatedAt = time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339)
 
 	return response, nil, nil
 }
@@ -310,15 +310,15 @@ type UpdateLessonParams struct {
 	Duration      *int                  `json:"duration" form:"duration"`
 	Difficulty    string                `json:"difficulty" form:"difficulty"`
 	Description   string                `json:"description" form:"description"`
-	UpdatedAt     time.Time             `json:"updated_at" form:"updated_at" binding:"required"` // 乐观锁
-	DocumentFile  *multipart.FileHeader `json:"-" form:"document_file"`                          // 文档文件(可选，如果提供则替换现有文件)
-	Video1File    *multipart.FileHeader `json:"-" form:"video_1_file"`                           // 视频1文件(可选)
-	Video2File    *multipart.FileHeader `json:"-" form:"video_2_file"`                           // 视频2文件(可选)
-	Video3File    *multipart.FileHeader `json:"-" form:"video_3_file"`                           // 视频3文件(可选)
-	ClearDocument bool                  `json:"clear_document" form:"clear_document"`            // 清除文档文件
-	ClearVideo1   bool                  `json:"clear_video_1" form:"clear_video_1"`              // 清除视频1
-	ClearVideo2   bool                  `json:"clear_video_2" form:"clear_video_2"`              // 清除视频2
-	ClearVideo3   bool                  `json:"clear_video_3" form:"clear_video_3"`              // 清除视频3
+	UpdatedAt     int64                 `json:"updated_at" form:"updated_at"`         // 乐观锁
+	DocumentFile  *multipart.FileHeader `json:"-" form:"document_file"`               // 文档文件(可选，如果提供则替换现有文件)
+	Video1File    *multipart.FileHeader `json:"-" form:"video_1_file"`                // 视频1文件(可选)
+	Video2File    *multipart.FileHeader `json:"-" form:"video_2_file"`                // 视频2文件(可选)
+	Video3File    *multipart.FileHeader `json:"-" form:"video_3_file"`                // 视频3文件(可选)
+	ClearDocument bool                  `json:"clear_document" form:"clear_document"` // 清除文档文件
+	ClearVideo1   bool                  `json:"clear_video_1" form:"clear_video_1"`   // 清除视频1
+	ClearVideo2   bool                  `json:"clear_video_2" form:"clear_video_2"`   // 清除视频2
+	ClearVideo3   bool                  `json:"clear_video_3" form:"clear_video_3"`   // 清除视频3
 }
 
 func (p *UpdateLessonParams) Parse(c *gin.Context) gorails.Error {
@@ -330,6 +330,11 @@ func (p *UpdateLessonParams) Parse(c *gin.Context) gorails.Error {
 	// 解析表单字段
 	if err := c.ShouldBind(p); err != nil {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+
+	// 手动验证必需的字段
+	if p.UpdatedAt == 0 {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "updated_at字段为必填项", nil)
 	}
 
 	// 解析文件字段
@@ -534,7 +539,7 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 	response.Data.ID = lesson.ID
 	response.Data.Title = lesson.Title
 	response.Data.Content = lesson.Content
-	response.Data.UpdatedAt = lesson.UpdatedAt.Format(time.RFC3339)
+	response.Data.UpdatedAt = time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339)
 
 	return response, nil, nil
 }
@@ -611,8 +616,8 @@ func (h *Handler) GetLessonHandler(c *gin.Context, params *GetLessonParams) (*Ge
 	response.Data.Duration = lesson.Duration
 	response.Data.Difficulty = lesson.Difficulty
 	response.Data.Description = lesson.Description
-	response.Data.CreatedAt = lesson.CreatedAt.Format(time.RFC3339)
-	response.Data.UpdatedAt = lesson.UpdatedAt.Format(time.RFC3339)
+	response.Data.CreatedAt = time.Unix(lesson.CreatedAt, 0).Format(time.RFC3339)
+	response.Data.UpdatedAt = time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339)
 
 	// 如果有关联的课程信息，也添加到响应中
 	if lesson.Course.ID > 0 {
@@ -701,8 +706,8 @@ func (h *Handler) ListLessonsHandler(c *gin.Context, params *ListLessonsParams) 
 
 // DeleteLessonParams 删除课时请求参数
 type DeleteLessonParams struct {
-	LessonID  uint      `json:"lesson_id" uri:"lesson_id" binding:"required"`
-	UpdatedAt time.Time `json:"updated_at" binding:"required"` // 乐观锁
+	LessonID  uint  `json:"lesson_id" uri:"lesson_id" binding:"required"`
+	UpdatedAt int64 `json:"updated_at"` // 乐观锁
 }
 
 func (p *DeleteLessonParams) Parse(c *gin.Context) gorails.Error {
@@ -712,6 +717,12 @@ func (p *DeleteLessonParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindJSON(p); err != nil {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
+
+	// 手动验证必需的字段
+	if p.UpdatedAt == 0 {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "updated_at字段为必填项", nil)
+	}
+
 	return nil
 }
 
@@ -739,9 +750,9 @@ func (h *Handler) DeleteLessonHandler(c *gin.Context, params *DeleteLessonParams
 
 // PublishLessonParams 发布课时请求参数
 type PublishLessonParams struct {
-	LessonID    uint      `json:"lesson_id" uri:"lesson_id" binding:"required"`
-	IsPublished bool      `json:"is_published" binding:"required"`
-	UpdatedAt   time.Time `json:"updated_at" binding:"required"` // 乐观锁
+	LessonID    uint  `json:"lesson_id" uri:"lesson_id" binding:"required"`
+	IsPublished bool  `json:"is_published"`
+	UpdatedAt   int64 `json:"updated_at"` // 乐观锁
 }
 
 func (p *PublishLessonParams) Parse(c *gin.Context) gorails.Error {
@@ -751,6 +762,12 @@ func (p *PublishLessonParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindJSON(p); err != nil {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
+
+	// 手动验证必需的字段
+	if p.UpdatedAt == 0 {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "updated_at字段为必填项", nil)
+	}
+
 	return nil
 }
 
@@ -787,7 +804,7 @@ func (h *Handler) PublishLessonHandler(c *gin.Context, params *PublishLessonPara
 	}
 	response.Data.ID = lesson.ID
 	response.Data.IsPublished = lesson.IsPublished
-	response.Data.UpdatedAt = lesson.UpdatedAt.Format(time.RFC3339)
+	response.Data.UpdatedAt = time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339)
 
 	return response, nil, nil
 }

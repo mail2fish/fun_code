@@ -1,14 +1,12 @@
 package dao
 
 import (
-	"time"
-
 	"github.com/jun/fun_code/internal/model"
 )
 
 // LessonUpdateData 批量更新课时的数据结构
 type LessonUpdateData struct {
-	ExpectedUpdatedAt time.Time              `json:"expected_updated_at"` // 预期的更新时间（乐观锁）
+	ExpectedUpdatedAt int64                  `json:"expected_updated_at"` // 预期的更新时间（乐观锁）
 	Updates           map[string]interface{} `json:"updates"`             // 要更新的字段
 }
 
@@ -18,7 +16,7 @@ type LessonDao interface {
 	CreateLesson(lesson *model.Lesson) error
 
 	// UpdateLesson 更新课时信息（乐观锁，基于updated_at避免并发更新）
-	UpdateLesson(lessonID, authorID uint, expectedUpdatedAt time.Time, updates map[string]interface{}) error
+	UpdateLesson(lessonID, authorID uint, expectedUpdatedAt int64, updates map[string]interface{}) error
 
 	// GetLesson 获取课时详情
 	GetLesson(lessonID uint) (*model.Lesson, error)
@@ -33,13 +31,13 @@ type LessonDao interface {
 	ListLessonsWithPagination(courseID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Lesson, bool, error)
 
 	// DeleteLesson 删除课时（乐观锁，基于updated_at避免并发删除）
-	DeleteLesson(lessonID, authorID uint, expectedUpdatedAt time.Time) error
+	DeleteLesson(lessonID, authorID uint, expectedUpdatedAt int64) error
 
 	// ReorderLessons 重新排序课时
 	ReorderLessons(courseID uint, lessonIDs []uint) error
 
 	// PublishLesson 发布/取消发布课时（乐观锁，基于updated_at避免并发更新）
-	PublishLesson(lessonID, authorID uint, expectedUpdatedAt time.Time, isPublished bool) error
+	PublishLesson(lessonID, authorID uint, expectedUpdatedAt int64, isPublished bool) error
 
 	// GetLessonsByProjectID 根据项目ID获取相关课时
 	GetLessonsByProjectID(projectID uint) ([]model.Lesson, error)

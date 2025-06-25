@@ -41,6 +41,11 @@ func (l *LessonDaoImpl) CreateLesson(lesson *model.Lesson) error {
 		lesson.SortOrder = maxSort + 1
 	}
 
+	// 设置时间戳
+	now := time.Now().Unix()
+	lesson.CreatedAt = now
+	lesson.UpdatedAt = now
+
 	if err := l.db.Create(lesson).Error; err != nil {
 		return fmt.Errorf("创建课时失败: %w", err)
 	}
@@ -49,7 +54,7 @@ func (l *LessonDaoImpl) CreateLesson(lesson *model.Lesson) error {
 }
 
 // UpdateLesson 更新课时信息（乐观锁，基于updated_at避免并发更新）
-func (l *LessonDaoImpl) UpdateLesson(lessonID, authorID uint, expectedUpdatedAt time.Time, updates map[string]interface{}) error {
+func (l *LessonDaoImpl) UpdateLesson(lessonID, authorID uint, expectedUpdatedAt int64, updates map[string]interface{}) error {
 	// 检查课时是否存在且用户有权限修改
 	var lesson model.Lesson
 	if err := l.db.Joins("JOIN courses ON courses.id = lessons.course_id").
@@ -61,7 +66,15 @@ func (l *LessonDaoImpl) UpdateLesson(lessonID, authorID uint, expectedUpdatedAt 
 		return err
 	}
 
-	// 乐观锁：检查updated_at是否匹配，避免并发更新
+	// 乐观锁：检查updated_at是否匹配
+	if lesson.UpdatedAt != expectedUpdatedAt {
+		return errors.New("课时已被其他用户修改，请刷新后重试")
+	}
+
+	// 设置更新时间
+	updates["updated_at"] = time.Now().Unix()
+
+	// 执行更新
 	result := l.db.Model(&lesson).
 		Where("id = ? AND updated_at = ?", lessonID, expectedUpdatedAt).
 		Updates(updates)
@@ -180,7 +193,7 @@ func (l *LessonDaoImpl) ListLessonsWithPagination(courseID uint, pageSize uint, 
 }
 
 // DeleteLesson 删除课时（乐观锁，基于updated_at避免并发删除）
-func (l *LessonDaoImpl) DeleteLesson(lessonID, authorID uint, expectedUpdatedAt time.Time) error {
+func (l *LessonDaoImpl) DeleteLesson(lessonID, authorID uint, expectedUpdatedAt int64) error {
 	// 检查课时是否存在且用户有权限删除
 	var lesson model.Lesson
 	if err := l.db.Joins("JOIN courses ON courses.id = lessons.course_id").
@@ -192,7 +205,12 @@ func (l *LessonDaoImpl) DeleteLesson(lessonID, authorID uint, expectedUpdatedAt 
 		return err
 	}
 
-	// 乐观锁：检查updated_at是否匹配，避免并发删除
+	// 乐观锁：检查updated_at是否匹配
+	if lesson.UpdatedAt != expectedUpdatedAt {
+		return errors.New("课时已被其他用户修改，请刷新后重试")
+	}
+
+	// 执行删除
 	result := l.db.Where("id = ? AND updated_at = ?", lessonID, expectedUpdatedAt).
 		Delete(&lesson)
 
@@ -223,7 +241,7 @@ func (l *LessonDaoImpl) ReorderLessons(courseID uint, lessonIDs []uint) error {
 }
 
 // PublishLesson 发布/取消发布课时（乐观锁，基于updated_at避免并发更新）
-func (l *LessonDaoImpl) PublishLesson(lessonID, authorID uint, expectedUpdatedAt time.Time, isPublished bool) error {
+func (l *LessonDaoImpl) PublishLesson(lessonID, authorID uint, expectedUpdatedAt int64, isPublished bool) error {
 	// 检查权限
 	var lesson model.Lesson
 	if err := l.db.Joins("JOIN courses ON courses.id = lessons.course_id").
@@ -235,7 +253,12 @@ func (l *LessonDaoImpl) PublishLesson(lessonID, authorID uint, expectedUpdatedAt
 		return err
 	}
 
-	// 乐观锁：检查updated_at是否匹配，避免并发更新
+	// 乐观锁：检查updated_at是否匹配
+	if lesson.UpdatedAt != expectedUpdatedAt {
+		return errors.New("课时已被其他用户修改，请刷新后重试")
+	}
+
+	// 执行更新
 	result := l.db.Model(&lesson).
 		Where("id = ? AND updated_at = ?", lessonID, expectedUpdatedAt).
 		Update("is_published", isPublished)
@@ -334,7 +357,7 @@ func (l *LessonDaoImpl) BatchUpdateLessons(lessonUpdates map[uint]LessonUpdateDa
 		var failedLessons []uint
 
 		for lessonID, updateData := range lessonUpdates {
-			// 乐观锁：检查updated_at是否匹配，避免并发更新
+			// 乐观锁：检查updated_at是否匹配
 			result := tx.Model(&model.Lesson{}).
 				Where("id = ? AND updated_at = ?", lessonID, updateData.ExpectedUpdatedAt).
 				Updates(updateData.Updates)
