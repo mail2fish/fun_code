@@ -33,20 +33,17 @@ func (p *CreateCourseParams) Parse(c *gin.Context) gorails.Error {
 
 // CreateCourseResponse 创建课程响应
 type CreateCourseResponse struct {
-	Message string `json:"message"`
-	Data    struct {
-		ID            uint   `json:"id"`
-		Title         string `json:"title"`
-		Description   string `json:"description"`
-		AuthorID      uint   `json:"author_id"`
-		Difficulty    string `json:"difficulty"`
-		Duration      int    `json:"duration"`
-		IsPublished   bool   `json:"is_published"`
-		ThumbnailPath string `json:"thumbnail_path"`
-		SortOrder     int    `json:"sort_order"`
-		CreatedAt     string `json:"created_at"`
-		UpdatedAt     string `json:"updated_at"`
-	} `json:"data"`
+	ID            uint   `json:"id"`
+	Title         string `json:"title"`
+	Description   string `json:"description"`
+	AuthorID      uint   `json:"author_id"`
+	Difficulty    string `json:"difficulty"`
+	Duration      int    `json:"duration"`
+	IsPublished   bool   `json:"is_published"`
+	ThumbnailPath string `json:"thumbnail_path"`
+	SortOrder     int    `json:"sort_order"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
 }
 
 // CreateCourseHandler 创建课程
@@ -60,19 +57,18 @@ func (h *Handler) CreateCourseHandler(c *gin.Context, params *CreateCourseParams
 	}
 
 	response := &CreateCourseResponse{
-		Message: "课程创建成功",
+		ID:            course.ID,
+		Title:         course.Title,
+		Description:   course.Description,
+		AuthorID:      course.AuthorID,
+		Difficulty:    course.Difficulty,
+		Duration:      course.Duration,
+		IsPublished:   course.IsPublished,
+		ThumbnailPath: course.ThumbnailPath,
+		SortOrder:     course.SortOrder,
+		CreatedAt:     course.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:     course.UpdatedAt.Format(time.RFC3339),
 	}
-	response.Data.ID = course.ID
-	response.Data.Title = course.Title
-	response.Data.Description = course.Description
-	response.Data.AuthorID = course.AuthorID
-	response.Data.Difficulty = course.Difficulty
-	response.Data.Duration = course.Duration
-	response.Data.IsPublished = course.IsPublished
-	response.Data.ThumbnailPath = course.ThumbnailPath
-	response.Data.SortOrder = course.SortOrder
-	response.Data.CreatedAt = course.CreatedAt.Format(time.RFC3339)
-	response.Data.UpdatedAt = course.UpdatedAt.Format(time.RFC3339)
 
 	return response, nil, nil
 }
@@ -99,13 +95,10 @@ func (p *UpdateCourseParams) Parse(c *gin.Context) gorails.Error {
 
 // UpdateCourseResponse 更新课程响应
 type UpdateCourseResponse struct {
-	Message string `json:"message"`
-	Data    struct {
-		ID          uint   `json:"id"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		UpdatedAt   string `json:"updated_at"`
-	} `json:"data"`
+	ID          uint   `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 // UpdateCourseHandler 更新课程
@@ -142,12 +135,11 @@ func (h *Handler) UpdateCourseHandler(c *gin.Context, params *UpdateCourseParams
 	}
 
 	response := &UpdateCourseResponse{
-		Message: "课程更新成功",
+		ID:          course.ID,
+		Title:       course.Title,
+		Description: course.Description,
+		UpdatedAt:   course.UpdatedAt.Format(time.RFC3339),
 	}
-	response.Data.ID = course.ID
-	response.Data.Title = course.Title
-	response.Data.Description = course.Description
-	response.Data.UpdatedAt = course.UpdatedAt.Format(time.RFC3339)
 
 	return response, nil, nil
 }
@@ -378,12 +370,9 @@ func (p *PublishCourseParams) Parse(c *gin.Context) gorails.Error {
 
 // PublishCourseResponse 发布课程响应
 type PublishCourseResponse struct {
-	Message string `json:"message"`
-	Data    struct {
-		ID          uint   `json:"id"`
-		IsPublished bool   `json:"is_published"`
-		UpdatedAt   string `json:"updated_at"`
-	} `json:"data"`
+	ID          uint   `json:"id"`
+	IsPublished bool   `json:"is_published"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 // PublishCourseHandler 发布/取消发布课程
@@ -404,19 +393,11 @@ func (h *Handler) PublishCourseHandler(c *gin.Context, params *PublishCoursePara
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
-	var action string
-	if params.IsPublished {
-		action = "发布"
-	} else {
-		action = "取消发布"
-	}
-
 	response := &PublishCourseResponse{
-		Message: "课程" + action + "成功",
+		ID:          course.ID,
+		IsPublished: course.IsPublished,
+		UpdatedAt:   course.UpdatedAt.Format(time.RFC3339),
 	}
-	response.Data.ID = course.ID
-	response.Data.IsPublished = course.IsPublished
-	response.Data.UpdatedAt = course.UpdatedAt.Format(time.RFC3339)
 
 	return response, nil, nil
 }
@@ -435,15 +416,12 @@ func (p *CopyCourseParams) Parse(c *gin.Context) gorails.Error {
 
 // CopyCourseResponse 复制课程响应
 type CopyCourseResponse struct {
-	Message string `json:"message"`
-	Data    struct {
-		ID          uint   `json:"id"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		AuthorID    uint   `json:"author_id"`
-		LessonCount int    `json:"lesson_count"`
-		CreatedAt   string `json:"created_at"`
-	} `json:"data"`
+	ID          uint   `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	AuthorID    uint   `json:"author_id"`
+	LessonCount int    `json:"lesson_count"`
+	CreatedAt   string `json:"created_at"`
 }
 
 // CopyCourseHandler 复制课程
@@ -460,16 +438,15 @@ func (h *Handler) CopyCourseHandler(c *gin.Context, params *CopyCourseParams) (*
 	stats, _ := h.dao.CourseDao.GetCourseStats(newCourse.ID)
 
 	response := &CopyCourseResponse{
-		Message: "课程复制成功",
+		ID:          newCourse.ID,
+		Title:       newCourse.Title,
+		Description: newCourse.Description,
+		AuthorID:    newCourse.AuthorID,
+		CreatedAt:   newCourse.CreatedAt.Format(time.RFC3339),
 	}
-	response.Data.ID = newCourse.ID
-	response.Data.Title = newCourse.Title
-	response.Data.Description = newCourse.Description
-	response.Data.AuthorID = newCourse.AuthorID
-	response.Data.CreatedAt = newCourse.CreatedAt.Format(time.RFC3339)
 
 	if stats != nil {
-		response.Data.LessonCount = int(stats.LessonCount)
+		response.LessonCount = int(stats.LessonCount)
 	}
 
 	return response, nil, nil
