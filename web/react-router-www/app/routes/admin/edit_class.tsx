@@ -118,7 +118,7 @@ async function getClass(classId: string) {
 // 获取学生列表
 async function getStudents() {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?role=student&pageSize=1000`)
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?role=student&pageSize=100`)
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`)
     }

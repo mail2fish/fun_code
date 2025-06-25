@@ -313,13 +313,8 @@ func (p *ListCoursesParams) Parse(c *gin.Context) gorails.Error {
 	return nil
 }
 
-// ListCoursesResponse 列出课程响应
-type ListCoursesResponse struct {
-	Data []model.Course `json:"data"`
-}
-
 // ListCoursesHandler 列出课程
-func (h *Handler) ListCoursesHandler(c *gin.Context, params *ListCoursesParams) (*ListCoursesResponse, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) ListCoursesHandler(c *gin.Context, params *ListCoursesParams) ([]model.Course, *gorails.ResponseMeta, gorails.Error) {
 	userID := h.getUserID(c)
 
 	// 获取课程列表
@@ -331,12 +326,10 @@ func (h *Handler) ListCoursesHandler(c *gin.Context, params *ListCoursesParams) 
 	// 获取总数
 	total, _ := h.dao.CourseDao.CountCoursesByAuthor(userID)
 
-	return &ListCoursesResponse{
-			Data: courses,
-		}, &gorails.ResponseMeta{
-			Total:   int(total),
-			HasNext: hasMore,
-		}, nil
+	return courses, &gorails.ResponseMeta{
+		Total:   int(total),
+		HasNext: hasMore,
+	}, nil
 }
 
 // DeleteCourseParams 删除课程请求参数

@@ -64,7 +64,7 @@ export function LoginForm({
       if (userRole === "admin") {
         navigate("/www/admin/dashboard"); // 管理员跳转到用户管理
       } else {
-        navigate("/www/dashboard"); // 学生/教师跳转到项目页面
+        navigate("/www/user/dashboard"); // 学生/教师跳转到项目页面
       }
     } catch (err: any) {
       setError(err.response?.data?.error || "登录失败，请检查用户名和密码");
