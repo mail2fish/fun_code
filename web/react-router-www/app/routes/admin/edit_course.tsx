@@ -52,7 +52,7 @@ interface CourseData {
   updated_at: number
 }
 
-// 课时数据接口
+// 课件数据接口
 interface LessonData {
   id: number
   title: string
@@ -134,7 +134,7 @@ async function updateCourse(courseId: string, courseData: z.infer<typeof formSch
   }
 }
 
-// 获取课程的课时列表
+// 获取课程的课件列表
 async function getCourseLessons(courseId: string) {
   try {
     const response = await fetchWithAuth(`${HOST_URL}/api/admin/courses/${courseId}/lessons`)
@@ -147,7 +147,7 @@ async function getCourseLessons(courseId: string) {
     const data = await response.json()
     return data.data as LessonData[]
   } catch (error) {
-    console.error("获取课时列表失败:", error)
+    console.error("获取课件列表失败:", error)
     throw error
   }
 }
@@ -498,12 +498,12 @@ export default function EditCoursePage() {
               </Form>
             </div>
             
-            {/* 右侧：课时管理 */}
+            {/* 右侧：课件管理 */}
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-medium">课时管理</h3>
+                <h3 className="text-lg font-medium">课件管理</h3>
                 <p className="text-sm text-muted-foreground">
-                  管理课程的课时内容和顺序。
+                  管理课程的课件内容和顺序。
                 </p>
               </div>
               <Separator />
@@ -511,17 +511,17 @@ export default function EditCoursePage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">
-                    课时列表 ({lessons.length})
+                    课件列表 ({lessons.length})
                   </span>
                   <Button size="sm" variant="outline">
-                    添加课时
+                    添加课件
                   </Button>
                 </div>
                 
                 {lessons.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    <p className="text-sm">暂无课时</p>
-                    <p className="text-xs mt-1">点击"添加课时"创建第一个课时</p>
+                    <p className="text-sm">暂无课件</p>
+                    <p className="text-xs mt-1">点击"添加课件"创建第一个课件</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -557,7 +557,7 @@ export default function EditCoursePage() {
                   <h4 className="text-sm font-medium">课程统计</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span>课时数量：</span>
+                      <span>课件数量：</span>
                       <span>{lessons.length}</span>
                     </div>
                     <div className="flex justify-between">
@@ -565,7 +565,7 @@ export default function EditCoursePage() {
                       <span>{formatDuration(lessons.reduce((sum, lesson) => sum + lesson.duration, 0))}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>已发布课时：</span>
+                      <span>已发布课件：</span>
                       <span>{lessons.filter(lesson => lesson.is_published).length}</span>
                     </div>
                     <div className="flex justify-between">

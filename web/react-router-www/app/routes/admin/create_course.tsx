@@ -135,7 +135,7 @@ export default function CreateCoursePage() {
               <div>
                 <h3 className="text-lg font-medium">创建新课程</h3>
                 <p className="text-sm text-muted-foreground">
-                  填写以下信息创建一个新的课程。课程创建后，您可以添加课时内容。
+                  填写以下信息创建一个新的课程。课程创建后，您可以添加课件内容。
                 </p>
               </div>
               <Separator />
