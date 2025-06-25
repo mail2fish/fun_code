@@ -108,7 +108,7 @@ async function getClass(classId: string) {
     }
     
     const data = await response.json();
-    return data.data as ClassData;
+    return data as ClassData;
   } catch (error) {
     console.error("获取班级信息失败:", error);
     throw error;

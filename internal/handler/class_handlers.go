@@ -19,6 +19,7 @@ type CreateClassParams struct {
 	Description string `json:"description"`
 	StartDate   string `json:"start_date" binding:"required"`
 	EndDate     string `json:"end_date" binding:"required"`
+	StudentIDs  []uint `json:"student_ids"`
 }
 
 func (p *CreateClassParams) Parse(c *gin.Context) gorails.Error {
@@ -30,17 +31,15 @@ func (p *CreateClassParams) Parse(c *gin.Context) gorails.Error {
 
 // CreateClassResponse 创建班级响应
 type CreateClassResponse struct {
-	Message string `json:"message"`
-	Data    struct {
-		ID          uint   `json:"id"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Code        string `json:"code"`
-		TeacherID   uint   `json:"teacher_id"`
-		StartDate   string `json:"start_date"`
-		EndDate     string `json:"end_date"`
-		IsActive    bool   `json:"is_active"`
-	} `json:"data"`
+	Message     string `json:"message"`
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Code        string `json:"code"`
+	TeacherID   uint   `json:"teacher_id"`
+	StartDate   string `json:"start_date"`
+	EndDate     string `json:"end_date"`
+	IsActive    bool   `json:"is_active"`
 }
 
 // CreateClassHandler 创建班级 gorails.Wrap 形式
@@ -54,16 +53,25 @@ func (h *Handler) CreateClassHandler(c *gin.Context, params *CreateClassParams) 
 	}
 
 	response := &CreateClassResponse{
-		Message: "班级创建成功",
+		Message:     "班级创建成功",
+		ID:          class.ID,
+		Name:        class.Name,
+		Description: class.Description,
+		Code:        class.Code,
+		TeacherID:   class.TeacherID,
+		StartDate:   class.StartDate.Format("2006-01-02"),
+		EndDate:     class.EndDate.Format("2006-01-02"),
+		IsActive:    class.IsActive,
 	}
-	response.Data.ID = class.ID
-	response.Data.Name = class.Name
-	response.Data.Description = class.Description
-	response.Data.Code = class.Code
-	response.Data.TeacherID = class.TeacherID
-	response.Data.StartDate = class.StartDate.Format("2006-01-02")
-	response.Data.EndDate = class.EndDate.Format("2006-01-02")
-	response.Data.IsActive = class.IsActive
+
+	// 如果有学生ID，添加学生到班级
+	if len(params.StudentIDs) > 0 {
+		// 这里可以添加学生到班级的逻辑
+		// err := h.dao.ClassDao.AddStudents(class.ID, params.StudentIDs)
+		// if err != nil {
+		//     // 记录错误但不影响班级创建成功
+		// }
+	}
 
 	return response, nil, nil
 }
@@ -150,36 +158,34 @@ func (p *GetClassParams) Parse(c *gin.Context) gorails.Error {
 
 // GetClassResponse 获取班级信息响应
 type GetClassResponse struct {
-	Data struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Code        string `json:"code"`
+	TeacherID   uint   `json:"teacher_id"`
+	StartDate   string `json:"start_date"`
+	EndDate     string `json:"end_date"`
+	IsActive    bool   `json:"is_active"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+	Teacher     *struct {
+		ID       uint   `json:"id"`
+		Username string `json:"username"`
+		Email    string `json:"email"`
+	} `json:"teacher,omitempty"`
+	Students []struct {
+		ID       uint   `json:"id"`
+		Username string `json:"username"`
+		Email    string `json:"email"`
+	} `json:"students,omitempty"`
+	StudentsCount int `json:"students_count"`
+	Courses       []struct {
 		ID          uint   `json:"id"`
-		Name        string `json:"name"`
+		Title       string `json:"title"`
 		Description string `json:"description"`
-		Code        string `json:"code"`
-		TeacherID   uint   `json:"teacher_id"`
-		StartDate   string `json:"start_date"`
-		EndDate     string `json:"end_date"`
-		IsActive    bool   `json:"is_active"`
-		CreatedAt   string `json:"created_at"`
-		UpdatedAt   string `json:"updated_at"`
-		Teacher     *struct {
-			ID       uint   `json:"id"`
-			Username string `json:"username"`
-			Email    string `json:"email"`
-		} `json:"teacher,omitempty"`
-		Students []struct {
-			ID       uint   `json:"id"`
-			Username string `json:"username"`
-			Email    string `json:"email"`
-		} `json:"students,omitempty"`
-		StudentsCount int `json:"students_count"`
-		Courses       []struct {
-			ID          uint   `json:"id"`
-			Title       string `json:"title"`
-			Description string `json:"description"`
-			AuthorID    uint   `json:"author_id"`
-		} `json:"courses,omitempty"`
-		CoursesCount int `json:"courses_count"`
-	} `json:"data"`
+		AuthorID    uint   `json:"author_id"`
+	} `json:"courses,omitempty"`
+	CoursesCount int `json:"courses_count"`
 }
 
 // GetClassHandler 获取班级信息 gorails.Wrap 形式
@@ -193,21 +199,22 @@ func (h *Handler) GetClassHandler(c *gin.Context, params *GetClassParams) (*GetC
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
-	response := &GetClassResponse{}
-	response.Data.ID = class.ID
-	response.Data.Name = class.Name
-	response.Data.Description = class.Description
-	response.Data.Code = class.Code
-	response.Data.TeacherID = class.TeacherID
-	response.Data.StartDate = class.StartDate.Format("2006-01-02")
-	response.Data.EndDate = class.EndDate.Format("2006-01-02")
-	response.Data.IsActive = class.IsActive
-	response.Data.CreatedAt = time.Unix(class.CreatedAt, 0).Format("2006-01-02 15:04:05")
-	response.Data.UpdatedAt = time.Unix(class.UpdatedAt, 0).Format("2006-01-02 15:04:05")
+	response := &GetClassResponse{
+		ID:          class.ID,
+		Name:        class.Name,
+		Description: class.Description,
+		Code:        class.Code,
+		TeacherID:   class.TeacherID,
+		StartDate:   class.StartDate.Format("2006-01-02"),
+		EndDate:     class.EndDate.Format("2006-01-02"),
+		IsActive:    class.IsActive,
+		CreatedAt:   time.Unix(class.CreatedAt, 0).Format("2006-01-02 15:04:05"),
+		UpdatedAt:   time.Unix(class.UpdatedAt, 0).Format("2006-01-02 15:04:05"),
+	}
 
 	// 如果预加载了教师信息，则添加到响应中
 	if class.Teacher.ID > 0 {
-		response.Data.Teacher = &struct {
+		response.Teacher = &struct {
 			ID       uint   `json:"id"`
 			Username string `json:"username"`
 			Email    string `json:"email"`
@@ -220,13 +227,13 @@ func (h *Handler) GetClassHandler(c *gin.Context, params *GetClassParams) (*GetC
 
 	// 如果预加载了学生信息，则添加到响应中
 	if len(class.Students) > 0 {
-		response.Data.Students = make([]struct {
+		response.Students = make([]struct {
 			ID       uint   `json:"id"`
 			Username string `json:"username"`
 			Email    string `json:"email"`
 		}, len(class.Students))
 		for i, student := range class.Students {
-			response.Data.Students[i] = struct {
+			response.Students[i] = struct {
 				ID       uint   `json:"id"`
 				Username string `json:"username"`
 				Email    string `json:"email"`
@@ -236,21 +243,21 @@ func (h *Handler) GetClassHandler(c *gin.Context, params *GetClassParams) (*GetC
 				Email:    student.Email,
 			}
 		}
-		response.Data.StudentsCount = len(class.Students)
+		response.StudentsCount = len(class.Students)
 	} else {
-		response.Data.StudentsCount = 0
+		response.StudentsCount = 0
 	}
 
 	// 如果预加载了课程信息，则添加到响应中
 	if len(class.Courses) > 0 {
-		response.Data.Courses = make([]struct {
+		response.Courses = make([]struct {
 			ID          uint   `json:"id"`
 			Title       string `json:"title"`
 			Description string `json:"description"`
 			AuthorID    uint   `json:"author_id"`
 		}, len(class.Courses))
 		for i, course := range class.Courses {
-			response.Data.Courses[i] = struct {
+			response.Courses[i] = struct {
 				ID          uint   `json:"id"`
 				Title       string `json:"title"`
 				Description string `json:"description"`
@@ -262,9 +269,9 @@ func (h *Handler) GetClassHandler(c *gin.Context, params *GetClassParams) (*GetC
 				AuthorID:    course.AuthorID,
 			}
 		}
-		response.Data.CoursesCount = len(class.Courses)
+		response.CoursesCount = len(class.Courses)
 	} else {
-		response.Data.CoursesCount = 0
+		response.CoursesCount = 0
 	}
 
 	return response, nil, nil
@@ -278,6 +285,7 @@ type UpdateClassParams struct {
 	StartDate   string `json:"start_date" binding:"required"`
 	EndDate     string `json:"end_date" binding:"required"`
 	IsActive    *bool  `json:"is_active"` // 使用指针以区分false和未设置
+	StudentIDs  []uint `json:"student_ids"`
 }
 
 func (p *UpdateClassParams) Parse(c *gin.Context) gorails.Error {
@@ -294,17 +302,15 @@ func (p *UpdateClassParams) Parse(c *gin.Context) gorails.Error {
 
 // UpdateClassResponse 更新班级信息响应
 type UpdateClassResponse struct {
-	Message string `json:"message"`
-	Data    struct {
-		ID          uint   `json:"id"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Code        string `json:"code"`
-		TeacherID   uint   `json:"teacher_id"`
-		StartDate   string `json:"start_date"`
-		EndDate     string `json:"end_date"`
-		IsActive    bool   `json:"is_active"`
-	} `json:"data"`
+	Message     string `json:"message"`
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Code        string `json:"code"`
+	TeacherID   uint   `json:"teacher_id"`
+	StartDate   string `json:"start_date"`
+	EndDate     string `json:"end_date"`
+	IsActive    bool   `json:"is_active"`
 }
 
 // UpdateClassHandler 更新班级信息 gorails.Wrap 形式
@@ -331,6 +337,15 @@ func (h *Handler) UpdateClassHandler(c *gin.Context, params *UpdateClassParams) 
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeUpdateFailed, global.ErrorMsgUpdateFailed, err)
 	}
 
+	// 如果有学生ID，更新班级学生
+	if len(params.StudentIDs) > 0 {
+		// 这里可以添加更新班级学生的逻辑
+		// err := h.dao.ClassDao.UpdateStudents(params.ClassID, params.StudentIDs)
+		// if err != nil {
+		//     // 记录错误但不影响班级更新成功
+		// }
+	}
+
 	// 获取更新后的班级信息
 	class, err := h.dao.ClassDao.GetClass(params.ClassID)
 	if err != nil {
@@ -338,16 +353,16 @@ func (h *Handler) UpdateClassHandler(c *gin.Context, params *UpdateClassParams) 
 	}
 
 	response := &UpdateClassResponse{
-		Message: "班级更新成功",
+		Message:     "班级更新成功",
+		ID:          class.ID,
+		Name:        class.Name,
+		Description: class.Description,
+		Code:        class.Code,
+		TeacherID:   class.TeacherID,
+		StartDate:   class.StartDate.Format("2006-01-02"),
+		EndDate:     class.EndDate.Format("2006-01-02"),
+		IsActive:    class.IsActive,
 	}
-	response.Data.ID = class.ID
-	response.Data.Name = class.Name
-	response.Data.Description = class.Description
-	response.Data.Code = class.Code
-	response.Data.TeacherID = class.TeacherID
-	response.Data.StartDate = class.StartDate.Format("2006-01-02")
-	response.Data.EndDate = class.EndDate.Format("2006-01-02")
-	response.Data.IsActive = class.IsActive
 
 	return response, nil, nil
 }
