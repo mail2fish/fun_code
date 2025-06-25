@@ -114,6 +114,7 @@ func (s *Server) setupRoutes() {
 			admin.DELETE("/classes/:class_id/courses/:course_id", gorails.Wrap(s.handler.RemoveCourseFromClassHandler, nil))
 			admin.GET("/classes/:class_id/courses", gorails.Wrap(s.handler.GetClassCoursesHandler, nil))
 			admin.GET("/classes/:class_id/lessons", gorails.Wrap(s.handler.GetClassLessonsHandler, nil))
+			admin.GET("/classes/:class_id/students", gorails.Wrap(s.handler.GetClassStudentsHandler, nil))
 
 			// 课程管理路由
 			admin.POST("/courses", gorails.Wrap(s.handler.CreateCourseHandler, nil))

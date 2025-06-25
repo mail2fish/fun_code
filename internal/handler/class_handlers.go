@@ -643,3 +643,34 @@ func (h *Handler) GetClassLessonsHandler(c *gin.Context, params *GetClassLessons
 		}, nil, nil
 	}
 }
+
+type GetClassStudentsParams struct {
+	ClassID uint `json:"class_id" uri:"class_id" binding:"required"`
+}
+
+func (p *GetClassStudentsParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+func (h *Handler) GetClassStudentsHandler(c *gin.Context, params *GetClassStudentsParams) ([]UserResponse, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+
+	students, err := h.dao.ClassDao.ListStudents(params.ClassID, userID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	userResponses := make([]UserResponse, len(students))
+	for i, student := range students {
+		userResponses[i] = UserResponse{
+			ID:       student.ID,
+			Username: student.Username,
+			Email:    student.Email,
+		}
+	}
+
+	return userResponses, nil, nil
+}
