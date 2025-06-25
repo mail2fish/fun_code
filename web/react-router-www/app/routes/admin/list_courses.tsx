@@ -242,7 +242,7 @@ export default function ListCoursePage() {
       }
 
       setCoursesData({
-        courses: response.data.data || [],
+        courses: response.data || [],
         total: response.meta.total || 0,
         showForward: showForward,
         showBackward: showBackward,
