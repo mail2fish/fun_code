@@ -4,16 +4,9 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { Check, ChevronsUpDown, X } from "lucide-react"
 
-import { AppSidebar } from "~/components/my-app-sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "~/components/ui/breadcrumb"
+import { AdminLayout } from "~/components/admin-layout"
 import { Button } from "~/components/ui/button"
 import { Calendar } from "~/components/ui/calendar"
 import {
@@ -31,20 +24,40 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "~/components/ui/popover"
-import { Separator } from "~/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "~/components/ui/sidebar"
 import { Textarea } from "~/components/ui/textarea"
-import { toast } from  "sonner" 
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "~/components/ui/command"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog"
+import { Badge } from "~/components/ui/badge"
+import { toast } from "sonner" 
 
 // 导入自定义的 fetch 函数
 import { fetchWithAuth } from "~/utils/api"
 
 // API 服务
 import { HOST_URL } from "~/config"
+
+// 学生数据接口
+interface Student {
+  id: number
+  nickname: string
+  username: string
+  email: string
+  role: string
+}
 
 // 表单验证 Schema
 const formSchema = z.object({
@@ -62,10 +75,26 @@ const formSchema = z.object({
   endDate: z.date({
     required_error: "请选择结课日期",
   }),
+  studentIds: z.array(z.number()).optional(),
 }).refine(data => data.endDate > data.startDate, {
   message: "结课日期必须晚于开课日期",
   path: ["endDate"],
 });
+
+// 获取学生列表
+async function getStudents() {
+  try {
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?role=student&pageSize=1000`)
+    if (!response.ok) {
+      throw new Error(`API 错误: ${response.status}`)
+    }
+    const data = await response.json()
+    return Array.isArray(data.data) ? data.data : []
+  } catch (error) {
+    console.error("获取学生列表失败:", error)
+    return []
+  }
+}
 
 // 创建班级
 async function createClass(classData: z.infer<typeof formSchema>) {
@@ -80,6 +109,7 @@ async function createClass(classData: z.infer<typeof formSchema>) {
         description: classData.description || "",
         start_date: format(classData.startDate, "yyyy-MM-dd"),
         end_date: format(classData.endDate, "yyyy-MM-dd"),
+        student_ids: classData.studentIds || [],
       }),
     });
 
@@ -98,6 +128,10 @@ async function createClass(classData: z.infer<typeof formSchema>) {
 export default function CreateClassPage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [students, setStudents] = React.useState<Student[]>([]);
+  const [selectedStudents, setSelectedStudents] = React.useState<Student[]>([]);
+  const [studentDialogOpen, setStudentDialogOpen] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
 
   // 初始化表单
   const form = useForm<z.infer<typeof formSchema>>({
@@ -107,8 +141,47 @@ export default function CreateClassPage() {
       description: "",
       startDate: new Date(),
       endDate: new Date(new Date().setMonth(new Date().getMonth() + 4)), // 默认结束日期为 4 个月后
+      studentIds: [],
     },
   });
+
+  // 加载学生数据
+  React.useEffect(() => {
+    const loadStudents = async () => {
+      const studentList = await getStudents();
+      setStudents(studentList);
+    };
+    loadStudents();
+  }, []);
+
+  // 处理学生选择
+  const handleStudentSelect = (student: Student) => {
+    const isSelected = selectedStudents.some(s => s.id === student.id);
+    let newSelectedStudents;
+    
+    if (isSelected) {
+      newSelectedStudents = selectedStudents.filter(s => s.id !== student.id);
+    } else {
+      newSelectedStudents = [...selectedStudents, student];
+    }
+    
+    setSelectedStudents(newSelectedStudents);
+    form.setValue('studentIds', newSelectedStudents.map(s => s.id));
+  };
+
+  // 移除选中的学生
+  const handleRemoveStudent = (studentId: number) => {
+    const newSelectedStudents = selectedStudents.filter(s => s.id !== studentId);
+    setSelectedStudents(newSelectedStudents);
+    form.setValue('studentIds', newSelectedStudents.map(s => s.id));
+  };
+
+  // 过滤学生列表
+  const filteredStudents = students.filter(student =>
+    student.nickname.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    student.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    student.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // 提交表单
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -116,193 +189,261 @@ export default function CreateClassPage() {
       setIsSubmitting(true);
       const result = await createClass(values);
       
-      toast("班级创建成功");
+      toast.success("班级创建成功");
       
       // 创建成功后跳转到班级列表页
       setTimeout(() => {
-        navigate("/www/classes/list");
+        navigate("/www/admin/list_classes");
       }, 2000);
     } catch (error) {
       console.error("提交表单失败:", error);
-      toast("创建失败");
+      toast.error("创建失败：" + (error instanceof Error ? error.message : "未知错误"));
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/www/classes/list">
-                    班级管理
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>创建新班级</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+    <AdminLayout>
+      <div className="mx-auto w-full max-w-2xl">
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-medium">创建新班级</h3>
+            <p className="text-sm text-muted-foreground">
+              填写以下信息创建一个新的班级。创建后，您将获得一个邀请码，可以分享给学生加入班级。
+            </p>
           </div>
-        </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <div className="mx-auto w-full max-w-2xl">
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-medium">创建新班级</h3>
-                <p className="text-sm text-muted-foreground">
-                  填写以下信息创建一个新的班级。创建后，您将获得一个邀请码，可以分享给学生加入班级。
-                </p>
-              </div>
-              <Separator />
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>班级名称</FormLabel>
-                        <FormControl>
-                          <Input placeholder="例如：2023 秋季 Python 编程班" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          这将是班级的显示名称，学生将看到这个名称。
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>班级描述</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="描述这个班级的内容、目标或其他信息..."
-                            className="resize-none"
-                            {...field}
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>班级名称</FormLabel>
+                    <FormControl>
+                      <Input placeholder="例如：2023 秋季 Python 编程班" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      这将是班级的显示名称，学生将看到这个名称。
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>班级描述</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="描述这个班级的内容、目标或其他信息..."
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      简要描述班级的内容和目标，帮助学生了解这个班级。
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>开课日期</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={`w-full pl-3 text-left font-normal ${
+                                !field.value ? "text-muted-foreground" : ""
+                              }`}
+                            >
+                              {field.value ? (
+                                format(field.value, "yyyy-MM-dd")
+                              ) : (
+                                <span>选择日期</span>
+                              )}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
                           />
-                        </FormControl>
-                        <FormDescription>
-                          简要描述班级的内容和目标，帮助学生了解这个班级。
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="startDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>开课日期</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className={`w-full pl-3 text-left font-normal ${
-                                    !field.value ? "text-muted-foreground" : ""
-                                  }`}
-                                >
-                                  {field.value ? (
-                                    format(field.value, "yyyy-MM-dd")
-                                  ) : (
-                                    <span>选择日期</span>
-                                  )}
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          <FormDescription>
-                            班级的开始日期
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
+                        </PopoverContent>
+                      </Popover>
+                      <FormDescription>
+                        班级的开始日期
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>结课日期</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={`w-full pl-3 text-left font-normal ${
+                                !field.value ? "text-muted-foreground" : ""
+                              }`}
+                            >
+                              {field.value ? (
+                                format(field.value, "yyyy-MM-dd")
+                              ) : (
+                                <span>选择日期</span>
+                              )}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormDescription>
+                        班级的结束日期
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* 学生选择 */}
+              <FormField
+                control={form.control}
+                name="studentIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>选择学生</FormLabel>
+                    <div className="space-y-3">
+                      <Dialog open={studentDialogOpen} onOpenChange={setStudentDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" className="w-full justify-between">
+                            <span>
+                              {selectedStudents.length > 0 
+                                ? `已选择 ${selectedStudents.length} 名学生` 
+                                : "选择学生"}
+                            </span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>选择学生</DialogTitle>
+                            <DialogDescription>
+                              选择要加入班级的学生。可以多选。
+                            </DialogDescription>
+                          </DialogHeader>
+                          <Command>
+                            <CommandInput 
+                              placeholder="搜索学生..." 
+                              value={searchQuery}
+                              onValueChange={setSearchQuery}
+                            />
+                            <CommandList className="max-h-64">
+                              <CommandEmpty>未找到学生。</CommandEmpty>
+                              <CommandGroup>
+                                {filteredStudents.map((student) => {
+                                  const isSelected = selectedStudents.some(s => s.id === student.id);
+                                  return (
+                                    <CommandItem
+                                      key={student.id}
+                                      onSelect={() => handleStudentSelect(student)}
+                                      className="cursor-pointer"
+                                    >
+                                      <Check
+                                        className={`mr-2 h-4 w-4 ${
+                                          isSelected ? "opacity-100" : "opacity-0"
+                                        }`}
+                                      />
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">{student.nickname}</span>
+                                        <span className="text-sm text-muted-foreground">
+                                          {student.username} • {student.email}
+                                        </span>
+                                      </div>
+                                    </CommandItem>
+                                  );
+                                })}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </DialogContent>
+                      </Dialog>
+                      
+                      {/* 显示已选择的学生 */}
+                      {selectedStudents.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedStudents.map((student) => (
+                            <Badge key={student.id} variant="secondary" className="pr-1">
+                              {student.nickname}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="ml-1 h-auto p-0 text-muted-foreground hover:text-foreground"
+                                onClick={() => handleRemoveStudent(student.id)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </Badge>
+                          ))}
+                        </div>
                       )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="endDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>结课日期</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className={`w-full pl-3 text-left font-normal ${
-                                    !field.value ? "text-muted-foreground" : ""
-                                  }`}
-                                >
-                                  {field.value ? (
-                                    format(field.value, "yyyy-MM-dd")
-                                  ) : (
-                                    <span>选择日期</span>
-                                  )}
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          <FormDescription>
-                            班级的结束日期
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="flex justify-end space-x-4">
-                    <Button 
-                      variant="outline" 
-                      type="button"
-                      onClick={() => navigate("/www/classes/list")}
-                      disabled={isSubmitting}
-                    >
-                      取消
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? "创建中..." : "创建班级"}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </div>
-          </div>
+                    </div>
+                    <FormDescription>
+                      选择要加入这个班级的学生。也可以稍后通过班级代码邀请学生加入。
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex justify-end space-x-4">
+                <Button 
+                  variant="outline" 
+                  type="button"
+                  onClick={() => navigate("/www/admin/list_classes")}
+                  disabled={isSubmitting}
+                >
+                  取消
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "创建中..." : "创建班级"}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+    </AdminLayout>
   )
 }
