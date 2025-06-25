@@ -59,6 +59,17 @@ interface Student {
   role: string
 }
 
+// 课程数据接口
+interface Course {
+  id: number
+  title: string
+  description: string
+  author_id: number
+  is_published: boolean
+  created_at: string
+  updated_at: string
+}
+
 // 表单验证 Schema
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -76,6 +87,7 @@ const formSchema = z.object({
     required_error: "请选择结课日期",
   }),
   studentIds: z.array(z.number()).optional(),
+  courseIds: z.array(z.number()).optional(),
 }).refine(data => data.endDate > data.startDate, {
   message: "结课日期必须晚于开课日期",
   path: ["endDate"],
@@ -96,6 +108,21 @@ async function getStudents() {
   }
 }
 
+// 获取课程列表
+async function getCourses() {
+  try {
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/courses/list?pageSize=1000`)
+    if (!response.ok) {
+      throw new Error(`API 错误: ${response.status}`)
+    }
+    const data = await response.json()
+    return Array.isArray(data.data) ? data.data : []
+  } catch (error) {
+    console.error("获取课程列表失败:", error)
+    return []
+  }
+}
+
 // 创建班级
 async function createClass(classData: z.infer<typeof formSchema>) {
   try {
@@ -110,6 +137,7 @@ async function createClass(classData: z.infer<typeof formSchema>) {
         start_date: format(classData.startDate, "yyyy-MM-dd"),
         end_date: format(classData.endDate, "yyyy-MM-dd"),
         student_ids: classData.studentIds || [],
+        course_ids: classData.courseIds || [],
       }),
     });
 
@@ -132,6 +160,10 @@ export default function CreateClassPage() {
   const [selectedStudents, setSelectedStudents] = React.useState<Student[]>([]);
   const [studentDialogOpen, setStudentDialogOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [courses, setCourses] = React.useState<Course[]>([]);
+  const [selectedCourses, setSelectedCourses] = React.useState<Course[]>([]);
+  const [courseDialogOpen, setCourseDialogOpen] = React.useState(false);
+  const [courseSearchQuery, setCourseSearchQuery] = React.useState("");
 
   // 初始化表单
   const form = useForm<z.infer<typeof formSchema>>({
@@ -142,16 +174,21 @@ export default function CreateClassPage() {
       startDate: new Date(),
       endDate: new Date(new Date().setMonth(new Date().getMonth() + 4)), // 默认结束日期为 4 个月后
       studentIds: [],
+      courseIds: [],
     },
   });
 
-  // 加载学生数据
+  // 加载学生和课程数据
   React.useEffect(() => {
-    const loadStudents = async () => {
-      const studentList = await getStudents();
+    const loadData = async () => {
+      const [studentList, courseList] = await Promise.all([
+        getStudents(),
+        getCourses()
+      ]);
       setStudents(studentList);
+      setCourses(courseList);
     };
-    loadStudents();
+    loadData();
   }, []);
 
   // 处理学生选择
@@ -176,11 +213,39 @@ export default function CreateClassPage() {
     form.setValue('studentIds', newSelectedStudents.map(s => s.id));
   };
 
+  // 处理课程选择
+  const handleCourseSelect = (course: Course) => {
+    const isSelected = selectedCourses.some(c => c.id === course.id);
+    let newSelectedCourses;
+    
+    if (isSelected) {
+      newSelectedCourses = selectedCourses.filter(c => c.id !== course.id);
+    } else {
+      newSelectedCourses = [...selectedCourses, course];
+    }
+    
+    setSelectedCourses(newSelectedCourses);
+    form.setValue('courseIds', newSelectedCourses.map(c => c.id));
+  };
+
+  // 移除选中的课程
+  const handleRemoveCourse = (courseId: number) => {
+    const newSelectedCourses = selectedCourses.filter(c => c.id !== courseId);
+    setSelectedCourses(newSelectedCourses);
+    form.setValue('courseIds', newSelectedCourses.map(c => c.id));
+  };
+
   // 过滤学生列表
   const filteredStudents = students.filter(student =>
     student.nickname.toLowerCase().includes(searchQuery.toLowerCase()) ||
     student.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
     student.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // 过滤课程列表
+  const filteredCourses = courses.filter(course =>
+    course.title.toLowerCase().includes(courseSearchQuery.toLowerCase()) ||
+    course.description.toLowerCase().includes(courseSearchQuery.toLowerCase())
   );
 
   // 提交表单
@@ -421,6 +486,97 @@ export default function CreateClassPage() {
                     </div>
                     <FormDescription>
                       选择要加入这个班级的学生。也可以稍后通过班级代码邀请学生加入。
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* 课程选择 */}
+              <FormField
+                control={form.control}
+                name="courseIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>选择课程</FormLabel>
+                    <div className="space-y-3">
+                      <Dialog open={courseDialogOpen} onOpenChange={setCourseDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" className="w-full justify-between">
+                            <span>
+                              {selectedCourses.length > 0 
+                                ? `已选择 ${selectedCourses.length} 门课程` 
+                                : "选择课程"}
+                            </span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>选择课程</DialogTitle>
+                            <DialogDescription>
+                              选择要加入班级的课程。可以多选。
+                            </DialogDescription>
+                          </DialogHeader>
+                          <Command>
+                            <CommandInput 
+                              placeholder="搜索课程..." 
+                              value={courseSearchQuery}
+                              onValueChange={setCourseSearchQuery}
+                            />
+                            <CommandList className="max-h-64">
+                              <CommandEmpty>未找到课程。</CommandEmpty>
+                              <CommandGroup>
+                                {filteredCourses.map((course) => {
+                                  const isSelected = selectedCourses.some(c => c.id === course.id);
+                                  return (
+                                    <CommandItem
+                                      key={course.id}
+                                      onSelect={() => handleCourseSelect(course)}
+                                      className="cursor-pointer"
+                                    >
+                                      <Check
+                                        className={`mr-2 h-4 w-4 ${
+                                          isSelected ? "opacity-100" : "opacity-0"
+                                        }`}
+                                      />
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">{course.title}</span>
+                                        <span className="text-sm text-muted-foreground">
+                                          {course.description}
+                                        </span>
+                                      </div>
+                                    </CommandItem>
+                                  );
+                                })}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </DialogContent>
+                      </Dialog>
+                      
+                      {/* 显示已选择的课程 */}
+                      {selectedCourses.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedCourses.map((course) => (
+                            <Badge key={course.id} variant="secondary" className="pr-1">
+                              {course.title}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="ml-1 h-auto p-0 text-muted-foreground hover:text-foreground"
+                                onClick={() => handleRemoveCourse(course.id)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <FormDescription>
+                      选择要包含在这个班级中的课程。学生可以学习这些课程内容。
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

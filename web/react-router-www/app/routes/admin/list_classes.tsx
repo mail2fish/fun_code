@@ -2,15 +2,7 @@ import * as React from "react"
 import { Link } from "react-router"
 import { IconPlus, IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconUsers } from "@tabler/icons-react"
 
-import { AppSidebar } from "~/components/my-app-sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "~/components/ui/breadcrumb"
+import { AdminLayout } from "~/components/admin-layout"
 import { Button } from "~/components/ui/button"
 import {
   Dialog,
@@ -22,12 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog"
-import { Separator } from "~/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "~/components/ui/sidebar"
 import {
   Table,
   TableBody,
@@ -54,10 +40,17 @@ interface Class {
   start_date: string
   end_date: string
   is_active: boolean
-  created_at: string
-  updated_at: string
-  students_count?: number
-  courses_count?: number
+  created_at: number // Unix时间戳
+  updated_at: number // Unix时间戳
+  teacher?: {
+    id: number
+    username: string
+    nickname: string
+    email: string
+    role: string
+  }
+  students?: any[] | null
+  courses?: any[] | null
 }
 
 // 班级列表数据类型
@@ -164,7 +157,7 @@ export default function ListClassPage() {
       // 如果向后翻页
       if (forward) {        
         page++
-        if (response.hasMore) {
+        if (response.meta?.has_next) {
           showForward = true
         }
         if (page > 1) {
@@ -177,13 +170,13 @@ export default function ListClassPage() {
           showBackward = true
         }
         // 只有在有更多数据或不是第一页时才显示向前按钮
-        showForward = response.hasMore || page > 0
+        showForward = response.meta?.has_next || page > 0
       }
 
       setClassesData({
         classes: response.data || [],
-        total: response.total || 0,
-        showForward: showForward,
+        total: response.meta?.total || 0,
+        showForward: response.meta?.has_next || false,
         showBackward: showBackward,
         currentPage: page,
         pageSize: defaultPageSize
@@ -259,181 +252,163 @@ export default function ListClassPage() {
   let asc = false
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    班级管理
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>班级列表</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-medium">班级管理</h3>
+            <p className="text-sm text-muted-foreground">
+              管理所有班级，查看学生和课程信息
+            </p>
           </div>
-          <div className="ml-auto mr-4">
-            <Button 
-              size="sm" 
-              asChild
-              disabled={isButtonCooling}
+          <Button 
+            size="sm" 
+            asChild
+            disabled={isButtonCooling}
+          >
+            <Link 
+              to="/www/admin/create_class" 
+              onClick={handleNewClassClick}
+              className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
             >
-              <Link 
-                to="/www/classes/create" 
-                onClick={handleNewClassClick}
-                className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
-              >
-                <IconPlus className="mr-2 h-4 w-4" />
-                {isButtonCooling ? "请稍候..." : "创建班级"}
-              </Link>
-            </Button>
+              <IconPlus className="mr-2 h-4 w-4" />
+              {isButtonCooling ? "请稍候..." : "创建班级"}
+            </Link>
+          </Button>
+        </div>
+
+        {error && (
+          <div className="bg-destructive/10 text-destructive p-3 rounded-md">
+            {error}
           </div>
-        </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          {error && (
-            <div className="bg-destructive/10 text-destructive p-3 rounded-md">
-              {error}
+        )}
+        
+        <div className="flex flex-col gap-4">
+          <div className="rounded-xl overflow-hidden border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>班级名称</TableHead>
+                  <TableHead>邀请码</TableHead>
+                  <TableHead>开课日期</TableHead>
+                  <TableHead>结课日期</TableHead>
+                  <TableHead>学生数量</TableHead>
+                  <TableHead>课程数量</TableHead>
+                  <TableHead className="w-[150px]">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      加载中...
+                    </TableCell>
+                  </TableRow>
+                ) : Array.isArray(classes) && classes.length > 0 ? (
+                  classes.map((classItem) => (
+                    <TableRow key={classItem.id || Math.random()}>
+                      <TableCell className="font-medium">
+                        <Link to={`/www/admin/classes/${classItem.id}`}>{classItem.name || "未命名班级"}</Link>
+                      </TableCell>
+                      <TableCell>{classItem.code}</TableCell>
+                                              <TableCell>{formatDate(classItem.start_date)}</TableCell>
+                        <TableCell>{formatDate(classItem.end_date)}</TableCell>
+                        <TableCell>{classItem.students?.length || 0}</TableCell>
+                        <TableCell>{classItem.courses?.length || 0}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            title="查看学生"
+                            asChild
+                          >
+                            <Link to={`/www/admin/classes/${classItem.id}/students`}>
+                              <IconUsers className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            title="编辑"
+                            asChild
+                          >
+                            <Link to={`/www/admin/edit_class/${classItem.id}`}>
+                              <IconEdit className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="icon" title="删除">
+                                <IconTrash className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>确认删除</DialogTitle>
+                                <DialogDescription>
+                                  您确定要删除班级 "{classItem.name}" 吗？此操作将删除所有相关的学生关联和课程安排，但不会删除学生账户和课程内容。此操作无法撤销。
+                                </DialogDescription>
+                              </DialogHeader>
+                              <DialogFooter>
+                                <DialogClose asChild>
+                                  <Button variant="outline">取消</Button>
+                                </DialogClose>
+                                <Button 
+                                  variant="destructive" 
+                                  onClick={() => handleDeleteClass(classItem.id.toString())}
+                                  disabled={deletingId === classItem.id.toString()}
+                                >
+                                  {deletingId === classItem.id.toString() ? "删除中..." : "删除"}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      没有找到班级，点击右上角"创建班级"按钮创建您的第一个班级
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          
+          {classesData.total > 0 && (
+            <div className="flex items-center justify-between px-2">
+              <div className="text-sm text-muted-foreground">
+                共 {classesData.total} 个班级，共 {totalPages} 页，当前第 {classesData.currentPage} 页
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  disabled={!classesData.showBackward}
+                  onClick={() => handlePageChange(classes[0].id.toString(), false, asc)}
+                >
+                  <IconChevronLeft className="h-4 w-4" />
+                  上一页
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  disabled={!classesData.showForward}
+                  onClick={() => handlePageChange(classes[classes.length - 1].id.toString(), true, asc)}
+                >
+                  下一页
+                  <IconChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
-          
-          <div className="flex flex-col gap-4">
-            <div className="rounded-xl overflow-hidden border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>班级名称</TableHead>
-                    <TableHead>邀请码</TableHead>
-                    <TableHead>开课日期</TableHead>
-                    <TableHead>结课日期</TableHead>
-                    <TableHead>学生数量</TableHead>
-                    <TableHead>课程数量</TableHead>
-                    <TableHead className="w-[150px]">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
-                        加载中...
-                      </TableCell>
-                    </TableRow>
-                  ) : Array.isArray(classes) && classes.length > 0 ? (
-                    classes.map((classItem) => (
-                      <TableRow key={classItem.id || Math.random()}>
-                        <TableCell className="font-medium">
-                          <Link to={`/www/classes/${classItem.id}`}>{classItem.name || "未命名班级"}</Link>
-                        </TableCell>
-                        <TableCell>{classItem.code}</TableCell>
-                        <TableCell>{formatDate(classItem.start_date)}</TableCell>
-                        <TableCell>{formatDate(classItem.end_date)}</TableCell>
-                        <TableCell>{classItem.students_count || 0}</TableCell>
-                        <TableCell>{classItem.courses_count || 0}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              title="查看学生"
-                              asChild
-                            >
-                              <Link to={`/www/classes/${classItem.id}/students`}>
-                                <IconUsers className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              title="编辑"
-                              asChild
-                            >
-                              <Link to={`/www/classes/${classItem.id}/edit`}>
-                                <IconEdit className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon" title="删除">
-                                  <IconTrash className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>确认删除</DialogTitle>
-                                  <DialogDescription>
-                                    您确定要删除班级 "{classItem.name}" 吗？此操作将删除所有相关的学生关联和课程安排，但不会删除学生账户和课程内容。此操作无法撤销。
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <DialogFooter>
-                                  <DialogClose asChild>
-                                    <Button variant="outline">取消</Button>
-                                  </DialogClose>
-                                  <Button 
-                                    variant="destructive" 
-                                    onClick={() => handleDeleteClass(classItem.id.toString())}
-                                    disabled={deletingId === classItem.id.toString()}
-                                  >
-                                    {deletingId === classItem.id.toString() ? "删除中..." : "删除"}
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
-                        没有找到班级，点击右上角"创建班级"按钮创建您的第一个班级
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            
-            {classesData.total > 0 && (
-              <div className="flex items-center justify-between px-2">
-                <div className="text-sm text-muted-foreground">
-                  共 {classesData.total} 个班级，共 {totalPages} 页，当前第 {classesData.currentPage} 页
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    disabled={!classesData.showBackward}
-                    onClick={() => handlePageChange(classes[0].id.toString(), false, asc)}
-                  >
-                    <IconChevronLeft className="h-4 w-4" />
-                    上一页
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    disabled={!classesData.showForward}
-                    onClick={() => handlePageChange(classes[classes.length - 1].id.toString(), true, asc)}
-                  >
-                    下一页
-                    <IconChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+    </AdminLayout>
   )
 }

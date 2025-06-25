@@ -120,15 +120,8 @@ func (p *ListClassesParams) Parse(c *gin.Context) gorails.Error {
 	return nil
 }
 
-// ListClassesResponse 列出班级响应
-type ListClassesResponse struct {
-	Data    []model.Class `json:"data"`
-	HasMore bool          `json:"hasMore"`
-	Total   int64         `json:"total"`
-}
-
 // ListClassesHandler 列出班级 gorails.Wrap 形式
-func (h *Handler) ListClassesHandler(c *gin.Context, params *ListClassesParams) (*ListClassesResponse, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) ListClassesHandler(c *gin.Context, params *ListClassesParams) ([]model.Class, *gorails.ResponseMeta, gorails.Error) {
 	userID := h.getUserID(c)
 
 	// 获取班级列表
@@ -136,12 +129,15 @@ func (h *Handler) ListClassesHandler(c *gin.Context, params *ListClassesParams) 
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
+	total, err := h.dao.ClassDao.CountClasses(userID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
 
-	return &ListClassesResponse{
-		Data:    classes,
-		HasMore: hasMore,
-		Total:   0, // 暂时使用0，可以后续添加计数方法
-	}, nil, nil
+	return classes, &gorails.ResponseMeta{
+		HasNext: hasMore,
+		Total:   int(total),
+	}, nil
 }
 
 // GetClassParams 获取班级信息请求参数
