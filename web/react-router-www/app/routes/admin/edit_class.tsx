@@ -64,6 +64,24 @@ interface ClassData {
   is_active: boolean
   created_at: string
   updated_at: string
+  teacher?: {
+    id: number
+    username: string
+    email: string
+  }
+  students?: {
+    id: number
+    username: string
+    email: string
+  }[]
+  students_count: number
+  courses?: {
+    id: number
+    title: string
+    description: string
+    author_id: number
+  }[]
+  courses_count: number
 }
 
 // 学生数据接口
@@ -244,11 +262,10 @@ export default function EditClassPage() {
       try {
         setIsLoading(true);
         
-        // 并行加载班级数据、学生列表和班级学生
-        const [classData, allStudents, classStudents] = await Promise.all([
+        // 并行加载班级数据和学生列表
+        const [classData, allStudents] = await Promise.all([
           getClass(classId),
-          getStudents(),
-          getClassStudents(classId)
+          getStudents()
         ]);
         
         // 验证返回的数据格式
@@ -257,10 +274,22 @@ export default function EditClassPage() {
         }
         
         console.log("加载的班级数据:", classData);
+        console.log("班级包含的学生:", classData.students);
+        console.log("班级包含的课程:", classData.courses);
         
         setClassData(classData);
         setStudents(Array.isArray(allStudents) ? allStudents : []);
-        setSelectedStudents(Array.isArray(classStudents) ? classStudents : []);
+        
+        // 从班级数据中获取已选择的学生
+        const classStudents = classData.students || [];
+        const selectedStudentsList = classStudents.map(s => ({
+          id: s.id,
+          nickname: s.username, // 使用username作为nickname
+          username: s.username,
+          email: s.email,
+          role: 'student'
+        }));
+        setSelectedStudents(selectedStudentsList);
         
         // 解析日期字符串为 Date 对象
         let startDate: Date;
@@ -292,7 +321,7 @@ export default function EditClassPage() {
           startDate,
           endDate,
           isActive: Boolean(classData.is_active),
-          studentIds: Array.isArray(classStudents) ? classStudents.map((s: Student) => s.id) : [],
+          studentIds: selectedStudentsList.map(s => s.id),
         });
         
         setError(null);

@@ -96,11 +96,29 @@ func (s *ClassDaoImpl) UpdateClass(classID, teacherID uint, updates map[string]i
 // GetClass 获取班级详情
 func (s *ClassDaoImpl) GetClass(classID uint) (*model.Class, error) {
 	var class model.Class
-	if err := s.db.Preload("Teacher").Preload("Students").Preload("Courses").First(&class, classID).Error; err != nil {
+	if err := s.db.Preload("Teacher").First(&class, classID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("班级不存在")
 		}
 		return nil, err
+	}
+
+	// 手动加载学生列表
+	var students []model.User
+	if err := s.db.Table("users").
+		Joins("JOIN class_users ON users.id = class_users.user_id").
+		Where("class_users.class_id = ? AND class_users.is_active = ?", classID, true).
+		Find(&students).Error; err == nil {
+		class.Students = students
+	}
+
+	// 手动加载课程列表
+	var courses []model.Course
+	if err := s.db.Table("courses").
+		Joins("JOIN class_courses ON courses.id = class_courses.course_id").
+		Where("class_courses.class_id = ?", classID).
+		Find(&courses).Error; err == nil {
+		class.Courses = courses
 	}
 
 	return &class, nil
@@ -288,7 +306,7 @@ func (s *ClassDaoImpl) AddStudent(classID, teacherID, studentID uint, role strin
 	classUser := model.ClassUser{
 		ClassID:  classID,
 		UserID:   studentID,
-		JoinedAt: time.Now(),
+		JoinedAt: time.Now().Unix(),
 		Role:     role,
 		IsActive: true,
 	}
@@ -360,24 +378,26 @@ func (s *ClassDaoImpl) AddCourse(classID, teacherID, courseID uint, startDateStr
 		return err
 	}
 
-	// 解析日期
+	// 解析日期并转换为 Unix 时间戳
 	startDate, err := time.Parse("2006-01-02", startDateStr)
 	if err != nil {
 		return errors.New("开始日期格式无效")
 	}
+	startDateUnix := startDate.Unix()
 
 	endDate, err := time.Parse("2006-01-02", endDateStr)
 	if err != nil {
 		return errors.New("结束日期格式无效")
 	}
+	endDateUnix := endDate.Unix()
 
 	// 检查课程是否已添加到班级
 	var existingRelation model.ClassCourse
 	result := s.db.Where("class_id = ? AND course_id = ?", classID, courseID).First(&existingRelation)
 	if result.Error == nil {
 		// 课程已添加，更新日期
-		existingRelation.StartDate = startDate
-		existingRelation.EndDate = endDate
+		existingRelation.StartDate = startDateUnix
+		existingRelation.EndDate = endDateUnix
 		if err := s.db.Save(&existingRelation).Error; err != nil {
 			return errors.New("更新课程信息失败")
 		}
@@ -390,8 +410,8 @@ func (s *ClassDaoImpl) AddCourse(classID, teacherID, courseID uint, startDateStr
 	classCourse := model.ClassCourse{
 		ClassID:     classID,
 		CourseID:    courseID,
-		StartDate:   startDate,
-		EndDate:     endDate,
+		StartDate:   startDateUnix,
+		EndDate:     endDateUnix,
 		IsPublished: false,
 	}
 
@@ -463,7 +483,7 @@ func (s *ClassDaoImpl) JoinClass(studentID uint, classCode string) error {
 
 		// 重新激活
 		existingRelation.IsActive = true
-		existingRelation.JoinedAt = time.Now()
+		existingRelation.JoinedAt = time.Now().Unix()
 		if err := s.db.Save(&existingRelation).Error; err != nil {
 			return errors.New("加入班级失败")
 		}
@@ -476,7 +496,7 @@ func (s *ClassDaoImpl) JoinClass(studentID uint, classCode string) error {
 	classUser := model.ClassUser{
 		ClassID:  class.ID,
 		UserID:   studentID,
-		JoinedAt: time.Now(),
+		JoinedAt: time.Now().Unix(),
 		Role:     "student",
 		IsActive: true,
 	}

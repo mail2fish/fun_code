@@ -20,6 +20,7 @@ type CreateClassParams struct {
 	StartDate   string `json:"start_date" binding:"required"`
 	EndDate     string `json:"end_date" binding:"required"`
 	StudentIDs  []uint `json:"student_ids"`
+	CourseIDs   []uint `json:"course_ids"`
 }
 
 func (p *CreateClassParams) Parse(c *gin.Context) gorails.Error {
@@ -64,13 +65,28 @@ func (h *Handler) CreateClassHandler(c *gin.Context, params *CreateClassParams) 
 		IsActive:    class.IsActive,
 	}
 
-	// 如果有学生ID，添加学生到班级
+	// 添加学生到班级
 	if len(params.StudentIDs) > 0 {
-		// 这里可以添加学生到班级的逻辑
-		// err := h.dao.ClassDao.AddStudents(class.ID, params.StudentIDs)
-		// if err != nil {
-		//     // 记录错误但不影响班级创建成功
-		// }
+		for _, studentID := range params.StudentIDs {
+			err := h.dao.ClassDao.AddStudent(class.ID, userID, studentID, "student")
+			if err != nil {
+				// 记录错误但不影响班级创建成功
+				// TODO: 可以考虑记录到日志中
+				continue
+			}
+		}
+	}
+
+	// 添加课程到班级
+	if len(params.CourseIDs) > 0 {
+		for _, courseID := range params.CourseIDs {
+			err := h.dao.ClassDao.AddCourse(class.ID, userID, courseID, params.StartDate, params.EndDate)
+			if err != nil {
+				// 记录错误但不影响班级创建成功
+				// TODO: 可以考虑记录到日志中
+				continue
+			}
+		}
 	}
 
 	return response, nil, nil
@@ -282,6 +298,7 @@ type UpdateClassParams struct {
 	EndDate     string `json:"end_date" binding:"required"`
 	IsActive    *bool  `json:"is_active"` // 使用指针以区分false和未设置
 	StudentIDs  []uint `json:"student_ids"`
+	CourseIDs   []uint `json:"course_ids"`
 }
 
 func (p *UpdateClassParams) Parse(c *gin.Context) gorails.Error {
@@ -333,13 +350,70 @@ func (h *Handler) UpdateClassHandler(c *gin.Context, params *UpdateClassParams) 
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeUpdateFailed, global.ErrorMsgUpdateFailed, err)
 	}
 
-	// 如果有学生ID，更新班级学生
+	// 更新班级学生关联（如果提供了学生ID列表）
 	if len(params.StudentIDs) > 0 {
-		// 这里可以添加更新班级学生的逻辑
-		// err := h.dao.ClassDao.UpdateStudents(params.ClassID, params.StudentIDs)
-		// if err != nil {
-		//     // 记录错误但不影响班级更新成功
-		// }
+		// 获取当前班级的学生列表
+		currentStudents, err := h.dao.ClassDao.ListStudents(params.ClassID, userID)
+		if err == nil {
+			// 创建当前学生ID的映射
+			currentStudentIDs := make(map[uint]bool)
+			for _, student := range currentStudents {
+				currentStudentIDs[student.ID] = true
+			}
+
+			// 添加新学生
+			for _, studentID := range params.StudentIDs {
+				if !currentStudentIDs[studentID] {
+					_ = h.dao.ClassDao.AddStudent(params.ClassID, userID, studentID, "student")
+				}
+			}
+
+			// 创建新学生ID的映射，用于移除不再需要的学生
+			newStudentIDs := make(map[uint]bool)
+			for _, studentID := range params.StudentIDs {
+				newStudentIDs[studentID] = true
+			}
+
+			// 移除不再需要的学生
+			for _, student := range currentStudents {
+				if !newStudentIDs[student.ID] {
+					_ = h.dao.ClassDao.RemoveStudent(params.ClassID, userID, student.ID)
+				}
+			}
+		}
+	}
+
+	// 更新班级课程关联（如果提供了课程ID列表）
+	if len(params.CourseIDs) > 0 {
+		// 获取当前班级的课程列表
+		currentCourses, err := h.dao.ClassDao.ListCourses(params.ClassID, userID)
+		if err == nil {
+			// 创建当前课程ID的映射
+			currentCourseIDs := make(map[uint]bool)
+			for _, course := range currentCourses {
+				currentCourseIDs[course.ID] = true
+			}
+
+			// 添加新课程
+			for _, courseID := range params.CourseIDs {
+				if !currentCourseIDs[courseID] {
+					_ = h.dao.ClassDao.AddCourse(params.ClassID, userID, courseID, params.StartDate, params.EndDate)
+				}
+			}
+
+			// 创建新课程ID的映射，用于移除不再需要的课程
+			newCourseIDs := make(map[uint]bool)
+			for _, courseID := range params.CourseIDs {
+				newCourseIDs[courseID] = true
+			}
+
+			// 移除不再需要的课程
+			for _, course := range currentCourses {
+				if !newCourseIDs[course.ID] {
+					_ = h.dao.ClassDao.RemoveCourse(params.ClassID, userID, course.ID)
+				}
+			}
+		}
 	}
 
 	// 获取更新后的班级信息
