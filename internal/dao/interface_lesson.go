@@ -10,6 +10,12 @@ type LessonUpdateData struct {
 	Updates           map[string]interface{} `json:"updates"`             // 要更新的字段
 }
 
+// LessonOrder 课件排序项
+type LessonOrder struct {
+	ID        uint `json:"id" binding:"required"`
+	SortOrder uint `json:"sort_order" binding:"required"`
+}
+
 // LessonDao 定义了课时服务的接口
 type LessonDao interface {
 	// CreateLesson 创建课时
@@ -35,6 +41,9 @@ type LessonDao interface {
 
 	// ReorderLessons 重新排序课时
 	ReorderLessons(courseID uint, lessonIDs []uint) error
+
+	// ReorderLessonsWithOrder 使用明确排序信息重新排序课时
+	ReorderLessonsWithOrder(courseID uint, lessons []LessonOrder) error
 
 	// PublishLesson 发布/取消发布课时（乐观锁，基于updated_at避免并发更新）
 	PublishLesson(lessonID, authorID uint, expectedUpdatedAt int64, isPublished bool) error

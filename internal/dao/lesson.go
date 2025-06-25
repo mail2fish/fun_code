@@ -240,6 +240,20 @@ func (l *LessonDaoImpl) ReorderLessons(courseID uint, lessonIDs []uint) error {
 	})
 }
 
+// ReorderLessonsWithOrder 使用明确排序信息重新排序课时
+func (l *LessonDaoImpl) ReorderLessonsWithOrder(courseID uint, lessons []LessonOrder) error {
+	return l.db.Transaction(func(tx *gorm.DB) error {
+		for _, lesson := range lessons {
+			if err := tx.Model(&model.Lesson{}).
+				Where("id = ? AND course_id = ?", lesson.ID, courseID).
+				Update("sort_order", lesson.SortOrder).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // PublishLesson 发布/取消发布课时（乐观锁，基于updated_at避免并发更新）
 func (l *LessonDaoImpl) PublishLesson(lessonID, authorID uint, expectedUpdatedAt int64, isPublished bool) error {
 	// 检查权限

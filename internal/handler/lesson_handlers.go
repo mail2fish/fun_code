@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jun/fun_code/internal/dao"
 	"github.com/jun/fun_code/internal/global"
 	"github.com/jun/fun_code/internal/model"
 	"github.com/mail2fish/gorails/gorails"
@@ -811,14 +812,40 @@ func (h *Handler) PublishLessonHandler(c *gin.Context, params *PublishLessonPara
 
 // ReorderLessonsParams 重新排序课时请求参数
 type ReorderLessonsParams struct {
-	CourseID  uint   `json:"course_id" binding:"required"`
-	LessonIDs []uint `json:"lesson_ids" binding:"required"`
+	CourseID uint              `uri:"course_id" binding:"required"`
+	Lessons  []dao.LessonOrder `json:"lessons"`
 }
 
 func (p *ReorderLessonsParams) Parse(c *gin.Context) gorails.Error {
-	if err := c.ShouldBindJSON(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	// 先绑定URI参数
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, fmt.Sprintf("绑定URI参数失败: %v", err), err)
 	}
+
+	// 再绑定JSON body
+	if err := c.ShouldBindJSON(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, fmt.Sprintf("绑定JSON参数失败: %v", err), err)
+	}
+
+	// 验证必需的字段
+	if p.CourseID == 0 {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "course_id字段为必填项", nil)
+	}
+
+	if len(p.Lessons) == 0 {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "lessons字段为必填项", nil)
+	}
+
+	// 验证每个lesson的必需字段
+	for i, lesson := range p.Lessons {
+		if lesson.ID == 0 {
+			return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, fmt.Sprintf("lessons[%d].id字段为必填项", i), nil)
+		}
+		if lesson.SortOrder == 0 {
+			return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, fmt.Sprintf("lessons[%d].sort_order字段为必填项", i), nil)
+		}
+	}
+
 	return nil
 }
 
@@ -838,7 +865,7 @@ func (h *Handler) ReorderLessonsHandler(c *gin.Context, params *ReorderLessonsPa
 	}
 
 	// 调用服务层重排课时
-	if err := h.dao.LessonDao.ReorderLessons(params.CourseID, params.LessonIDs); err != nil {
+	if err := h.dao.LessonDao.ReorderLessonsWithOrder(params.CourseID, params.Lessons); err != nil {
 		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeUpdateFailed, global.ErrorMsgUpdateFailed, err)
 	}
 
