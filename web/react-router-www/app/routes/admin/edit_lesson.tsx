@@ -475,6 +475,35 @@ export default function EditLessonPage() {
     }
   }
 
+  // 获取项目显示文本 - 专为SelectValue设计的简洁版本
+  const getProjectDisplayText = (projectId: string | undefined) => {
+    if (!projectId || projectId === "none") {
+      return "无关联项目"
+    }
+    
+    // 如果项目数据还没有加载完成，显示加载中
+    if (!projects || projects.length === 0) {
+      return "加载中..."
+    }
+    
+    // 强制类型匹配 - 尝试多种方式查找项目
+    const selectedProject = projects.find(p => {
+      const pId = String(p.id).trim()
+      const searchId = String(projectId).trim()
+      return pId === searchId
+    })
+    
+    if (selectedProject) {
+      // 只显示项目名称，保持SelectValue简洁
+      return selectedProject.name
+    }
+    
+    // 如果找不到项目，仍然显示项目ID，但用户可以知道这是一个问题
+    return `项目 ${projectId}`
+  }
+
+
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -720,7 +749,9 @@ export default function EditLessonPage() {
                             <Select onValueChange={field.onChange} value={field.value || ""}>
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="选择项目" />
+                                  <SelectValue placeholder="选择项目">
+                                    {getProjectDisplayText(field.value)}
+                                  </SelectValue>
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -762,7 +793,12 @@ export default function EditLessonPage() {
                       {form.watch("project_id_1") && form.watch("project_id_1") !== "none" && (
                         <div className="border rounded-lg p-3 bg-muted/50">
                           {(() => {
-                            const selectedProject = projects.find(p => p.id === form.watch("project_id_1"))
+                            const projectId = form.watch("project_id_1")
+                            const selectedProject = projects.find(p => {
+                              const pId = String(p.id).trim()
+                              const searchId = String(projectId).trim()
+                              return pId === searchId
+                            })
                             if (!selectedProject) return null
                             const creator = users.find(user => user.id === selectedProject.user_id)?.nickname || "未知用户"
                             return (
@@ -804,7 +840,9 @@ export default function EditLessonPage() {
                             <Select onValueChange={field.onChange} value={field.value || ""}>
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="选择项目" />
+                                  <SelectValue placeholder="选择项目">
+                                    {getProjectDisplayText(field.value)}
+                                  </SelectValue>
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -846,7 +884,12 @@ export default function EditLessonPage() {
                       {form.watch("project_id_2") && form.watch("project_id_2") !== "none" && (
                         <div className="border rounded-lg p-3 bg-muted/50">
                           {(() => {
-                            const selectedProject = projects.find(p => p.id === form.watch("project_id_2"))
+                            const projectId = form.watch("project_id_2")
+                            const selectedProject = projects.find(p => {
+                              const pId = String(p.id).trim()
+                              const searchId = String(projectId).trim()
+                              return pId === searchId
+                            })
                             if (!selectedProject) return null
                             const creator = users.find(user => user.id === selectedProject.user_id)?.nickname || "未知用户"
                             return (
