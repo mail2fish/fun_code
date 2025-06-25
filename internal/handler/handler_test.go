@@ -461,9 +461,11 @@ func (m *MockClassDao) RemoveCourse(classID, teacherID, courseID uint) error {
 
 func (m *MockClassDao) ListCourses(classID, teacherID uint) ([]model.Course, error) {
 	args := m.Called(classID, teacherID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
+	return args.Get(0).([]model.Course), args.Error(1)
+}
+
+func (m *MockClassDao) ListCoursesByClass(classID uint) ([]model.Course, error) {
+	args := m.Called(classID)
 	return args.Get(0).([]model.Course), args.Error(1)
 }
 
@@ -483,6 +485,14 @@ func (m *MockClassDao) ListJoinedClasses(studentID uint) ([]model.Class, error) 
 func (m *MockClassDao) CountClasses(teacherID uint) (int64, error) {
 	args := m.Called(teacherID)
 	return args.Get(0).(int64), args.Error(1)
+}
+
+func (m *MockClassDao) GetUserClasses(userID uint) ([]model.Class, error) {
+	args := m.Called(userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]model.Class), args.Error(1)
 }
 
 type MockDao struct {
@@ -569,9 +579,9 @@ func setupTestHandler() (*gin.Engine, *MockDao) {
 		{
 			// 班级管理
 			admin.POST("/classes/create", h.PostCreateClass)
-			admin.GET("/classes/list", h.GetListClasses)
-			admin.GET("/classes/:class_id", h.GetClass)
-			admin.PUT("/classes/:class_id", h.PutUpdateClass)
+			admin.GET("/classes/list", gorails.Wrap(h.ListClassesHandler, nil))
+			admin.GET("/classes/:class_id", gorails.Wrap(h.GetClassHandler, nil))
+			admin.PUT("/classes/:class_id", gorails.Wrap(h.UpdateClassHandler, nil))
 			admin.DELETE("/classes/:class_id", gorails.Wrap(h.DeleteClassHandler, nil))
 
 			// 用户管理

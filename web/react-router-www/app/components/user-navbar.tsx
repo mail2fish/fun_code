@@ -29,7 +29,7 @@ export function UserNavbar({ userInfo, onLogout }: UserNavbarProps) {
   const navItems = [
     { href: "/www/dashboard", label: "首页", icon: Home },
     { href: "/www/scratch/projects", label: "我的程序", icon: Blocks },
-    // { href: "/www/classes/list", label: "我的班级", icon: Users },
+    { href: "/www/user/my_classes", label: "我的班级", icon: Users },
     { href: "/www/shares/user", label: "我的分享", icon: Share2 },
     { href: "/www/shares/all", label: "全部分享", icon: Globe },
     { href: "/www/files/list", label: "资源文件", icon: FileText },

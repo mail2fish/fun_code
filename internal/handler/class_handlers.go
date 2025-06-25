@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -306,22 +305,17 @@ type UpdateClassParams struct {
 
 func (p *UpdateClassParams) Parse(c *gin.Context) gorails.Error {
 	// 先解析路径参数
-	fmt.Printf("[DEBUG] 开始解析路径参数...\n")
 	if err := c.ShouldBindUri(p); err != nil {
-		fmt.Printf("[ERROR] 路径参数解析失败: %v\n", err)
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
-	fmt.Printf("[DEBUG] 路径参数解析成功, ClassID: %d\n", p.ClassID)
 
 	// 获取原始JSON数据用于调试
 	body, _ := c.GetRawData()
-	fmt.Printf("[DEBUG] 接收到的JSON数据: %s\n", string(body))
 
 	// 重新设置body，因为GetRawData会消耗掉body
 	c.Request.Body = io.NopCloser(strings.NewReader(string(body)))
 
 	// 解析JSON参数到临时结构体（排除class_id）
-	fmt.Printf("[DEBUG] 开始解析JSON参数...\n")
 	var jsonParams struct {
 		Name        string `json:"name" binding:"required"`
 		Description string `json:"description"`
@@ -332,11 +326,8 @@ func (p *UpdateClassParams) Parse(c *gin.Context) gorails.Error {
 		CourseIDs   []uint `json:"course_ids"`
 	}
 	if err := c.ShouldBindJSON(&jsonParams); err != nil {
-		fmt.Printf("[ERROR] JSON参数解析失败: %v\n", err)
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
-	fmt.Printf("[DEBUG] JSON参数解析成功: Name=%s, Description=%s, StartDate=%s, EndDate=%s, IsActive=%t, StudentIDs=%v, CourseIDs=%v\n",
-		jsonParams.Name, jsonParams.Description, jsonParams.StartDate, jsonParams.EndDate, jsonParams.IsActive, jsonParams.StudentIDs, jsonParams.CourseIDs)
 
 	// 将JSON参数复制到主结构体
 	p.Name = jsonParams.Name
@@ -346,9 +337,6 @@ func (p *UpdateClassParams) Parse(c *gin.Context) gorails.Error {
 	p.IsActive = jsonParams.IsActive
 	p.StudentIDs = jsonParams.StudentIDs
 	p.CourseIDs = jsonParams.CourseIDs
-
-	fmt.Printf("[DEBUG] 参数解析完成，最终参数: ClassID=%d, Name=%s, Description=%s, StartDate=%s, EndDate=%s, IsActive=%t, StudentIDs=%v, CourseIDs=%v\n",
-		p.ClassID, p.Name, p.Description, p.StartDate, p.EndDate, p.IsActive, p.StudentIDs, p.CourseIDs)
 
 	return nil
 }
@@ -785,4 +773,314 @@ func (h *Handler) GetClassStudentsHandler(c *gin.Context, params *GetClassStuden
 	}
 
 	return userResponses, nil, nil
+}
+
+// ===== 学生端API处理函数 =====
+
+// GetMyClassesParams 获取我的班级列表请求参数
+type GetMyClassesParams struct {
+	PageSize uint `json:"page_size" form:"pageSize"`
+	BeginID  uint `json:"begin_id" form:"beginID"`
+	Forward  bool `json:"forward" form:"forward"`
+	Asc      bool `json:"asc" form:"asc"`
+}
+
+func (p *GetMyClassesParams) Parse(c *gin.Context) gorails.Error {
+	// 设置默认值
+	p.PageSize = 20
+	p.BeginID = 0
+	p.Forward = true
+	p.Asc = true
+
+	// 解析页面大小
+	if pageSizeStr := c.DefaultQuery("pageSize", "20"); pageSizeStr != "" {
+		if pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32); err == nil {
+			if pageSize > 0 && pageSize <= 100 {
+				p.PageSize = uint(pageSize)
+			}
+		}
+	}
+
+	// 解析起始ID
+	if beginIDStr := c.DefaultQuery("beginID", "0"); beginIDStr != "" {
+		if beginID, err := strconv.ParseUint(beginIDStr, 10, 32); err == nil {
+			p.BeginID = uint(beginID)
+		}
+	}
+
+	// 解析翻页方向
+	if forwardStr := c.DefaultQuery("forward", "true"); forwardStr != "" {
+		p.Forward = forwardStr != "false"
+	}
+
+	// 解析排序方向
+	if ascStr := c.DefaultQuery("asc", "true"); ascStr != "" {
+		p.Asc = ascStr != "false"
+	}
+
+	return nil
+}
+
+// GetMyClassesHandler 获取我的班级列表（学生端）
+func (h *Handler) GetMyClassesHandler(c *gin.Context, params *GetMyClassesParams) ([]model.Class, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+
+	// 获取用户参与的班级列表
+	classes, err := h.dao.ClassDao.GetUserClasses(userID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	return classes, &gorails.ResponseMeta{
+		HasNext: false,
+		Total:   len(classes),
+	}, nil
+}
+
+// GetMyClassParams 获取我的班级详情请求参数
+type GetMyClassParams struct {
+	ClassID uint `json:"class_id" uri:"class_id" binding:"required"`
+}
+
+func (p *GetMyClassParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+// GetMyClassHandler 获取我的班级详情（学生端）
+func (h *Handler) GetMyClassHandler(c *gin.Context, params *GetMyClassParams) (*GetClassResponse, *gorails.ResponseMeta, gorails.Error) {
+	// 检查用户是否是班级成员
+	if !h.isClassMember(c, params.ClassID) {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, errors.New("您不是该班级的成员"))
+	}
+
+	// 获取班级信息
+	class, err := h.dao.ClassDao.GetClass(params.ClassID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryNotFound, global.ErrorMsgQueryNotFound, err)
+		}
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 构建响应（复用GetClassResponse结构）
+	response := &GetClassResponse{
+		ID:          class.ID,
+		Name:        class.Name,
+		Description: class.Description,
+		Code:        class.Code,
+		TeacherID:   class.TeacherID,
+		StartDate:   class.StartDate.Format("2006-01-02"),
+		EndDate:     class.EndDate.Format("2006-01-02"),
+		IsActive:    class.IsActive,
+		CreatedAt:   time.Unix(class.CreatedAt, 0).Format("2006-01-02 15:04:05"),
+		UpdatedAt:   time.Unix(class.UpdatedAt, 0).Format("2006-01-02 15:04:05"),
+	}
+
+	// 添加教师信息
+	if class.Teacher.ID != 0 {
+		response.Teacher = &struct {
+			ID       uint   `json:"id"`
+			Username string `json:"username"`
+			Email    string `json:"email"`
+		}{
+			ID:       class.Teacher.ID,
+			Username: class.Teacher.Username,
+			Email:    class.Teacher.Email,
+		}
+	}
+
+	// 添加学生信息
+	if len(class.Students) > 0 {
+		response.Students = make([]struct {
+			ID       uint   `json:"id"`
+			Username string `json:"username"`
+			Email    string `json:"email"`
+		}, len(class.Students))
+		for i, student := range class.Students {
+			response.Students[i] = struct {
+				ID       uint   `json:"id"`
+				Username string `json:"username"`
+				Email    string `json:"email"`
+			}{
+				ID:       student.ID,
+				Username: student.Username,
+				Email:    student.Email,
+			}
+		}
+		response.StudentsCount = len(class.Students)
+	} else {
+		response.StudentsCount = 0
+	}
+
+	// 添加课程信息
+	if len(class.Courses) > 0 {
+		response.Courses = make([]struct {
+			ID          uint   `json:"id"`
+			Title       string `json:"title"`
+			Description string `json:"description"`
+			AuthorID    uint   `json:"author_id"`
+		}, len(class.Courses))
+		for i, course := range class.Courses {
+			response.Courses[i] = struct {
+				ID          uint   `json:"id"`
+				Title       string `json:"title"`
+				Description string `json:"description"`
+				AuthorID    uint   `json:"author_id"`
+			}{
+				ID:          course.ID,
+				Title:       course.Title,
+				Description: course.Description,
+				AuthorID:    course.AuthorID,
+			}
+		}
+		response.CoursesCount = len(class.Courses)
+	} else {
+		response.CoursesCount = 0
+	}
+
+	return response, nil, nil
+}
+
+// GetMyClassCoursesParams 获取我的班级课程列表请求参数
+type GetMyClassCoursesParams struct {
+	ClassID uint `json:"class_id" uri:"class_id" binding:"required"`
+}
+
+func (p *GetMyClassCoursesParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+// GetMyClassCoursesHandler 获取我的班级课程列表（学生端）
+func (h *Handler) GetMyClassCoursesHandler(c *gin.Context, params *GetMyClassCoursesParams) (*GetClassCoursesResponse, *gorails.ResponseMeta, gorails.Error) {
+	// 检查用户是否是班级成员
+	if !h.isClassMember(c, params.ClassID) {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, errors.New("您不是该班级的成员"))
+	}
+
+	// 获取班级课程列表（不需要权限检查，因为上面已经检查过了）
+	courses, err := h.dao.ClassDao.ListCoursesByClass(params.ClassID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 复用GetClassCoursesResponse结构
+	return &GetClassCoursesResponse{
+		Data:    courses,
+		HasMore: false,
+		Total:   int64(len(courses)),
+	}, nil, nil
+}
+
+// GetMyCourseLessonsParams 获取我的课程课时列表请求参数
+type GetMyCourseLessonsParams struct {
+	CourseID uint `json:"course_id" uri:"course_id" binding:"required"`
+}
+
+func (p *GetMyCourseLessonsParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+// GetMyCourseLessonsHandler 获取我的课程课时列表（学生端）
+func (h *Handler) GetMyCourseLessonsHandler(c *gin.Context, params *GetMyCourseLessonsParams) ([]model.Lesson, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+
+	// 检查用户是否有权限访问该课程（通过班级成员身份）
+	// 获取用户参与的班级
+	userClasses, err := h.dao.ClassDao.GetUserClasses(userID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 检查课程是否在用户的任何一个班级中
+	hasAccess := false
+	for _, class := range userClasses {
+		for _, course := range class.Courses {
+			if course.ID == params.CourseID {
+				hasAccess = true
+				break
+			}
+		}
+		if hasAccess {
+			break
+		}
+	}
+
+	if !hasAccess {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, errors.New("您无权访问该课程"))
+	}
+
+	// 获取课程的课时列表（只返回已发布的课时）
+	lessons, err := h.dao.LessonDao.ListLessonsByCourse(params.CourseID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 过滤只显示已发布的课时
+	publishedLessons := make([]model.Lesson, 0)
+	for _, lesson := range lessons {
+		if lesson.IsPublished {
+			publishedLessons = append(publishedLessons, lesson)
+		}
+	}
+
+	return publishedLessons, nil, nil
+}
+
+// GetMyCourseParams 获取我的课程详情请求参数
+type GetMyCourseParams struct {
+	CourseID uint `json:"course_id" uri:"course_id" binding:"required"`
+}
+
+func (p *GetMyCourseParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+// GetMyCourseHandler 获取我的课程详情（学生端）
+func (h *Handler) GetMyCourseHandler(c *gin.Context, params *GetMyCourseParams) (*model.Course, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+
+	// 检查用户是否有权限访问该课程（通过班级成员身份）
+	// 获取用户参与的班级
+	userClasses, err := h.dao.ClassDao.GetUserClasses(userID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 检查课程是否在用户的任何一个班级中
+	hasAccess := false
+	for _, class := range userClasses {
+		for _, course := range class.Courses {
+			if course.ID == params.CourseID {
+				hasAccess = true
+				break
+			}
+		}
+		if hasAccess {
+			break
+		}
+	}
+
+	if !hasAccess {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, errors.New("您无权访问该课程"))
+	}
+
+	// 获取课程详情
+	course, err := h.dao.CourseDao.GetCourse(params.CourseID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	return course, nil, nil
 }

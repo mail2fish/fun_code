@@ -37,8 +37,11 @@ type ClassDao interface {
 	// RemoveCourse 从班级移除课程
 	RemoveCourse(classID, teacherID, courseID uint) error
 
-	// ListCourses 列出班级中的所有课程
+	// ListCourses 列出班级中的所有课程（管理员用，需要权限检查）
 	ListCourses(classID, teacherID uint) ([]model.Course, error)
+
+	// ListCoursesByClass 列出班级中的所有课程（学生端用，不需要权限检查）
+	ListCoursesByClass(classID uint) ([]model.Course, error)
 
 	// JoinClass 学生加入班级
 	JoinClass(studentID uint, classCode string) error
@@ -48,4 +51,7 @@ type ClassDao interface {
 
 	// CountClasses 统计教师创建的班级数量
 	CountClasses(teacherID uint) (int64, error)
+
+	// GetUserClasses 获取用户参与的所有班级（包括作为教师和学生的班级）
+	GetUserClasses(userID uint) ([]model.Class, error)
 }

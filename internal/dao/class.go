@@ -462,6 +462,20 @@ func (s *ClassDaoImpl) ListCourses(classID, teacherID uint) ([]model.Course, err
 	return courses, nil
 }
 
+// ListCoursesByClass 列出班级中的所有课程（不需要权限检查）
+func (s *ClassDaoImpl) ListCoursesByClass(classID uint) ([]model.Course, error) {
+	// 直接获取班级中的所有课程，不进行权限检查
+	var courses []model.Course
+	if err := s.db.Table("courses").
+		Joins("JOIN class_courses ON courses.id = class_courses.course_id").
+		Where("class_courses.class_id = ?", classID).
+		Find(&courses).Error; err != nil {
+		return nil, err
+	}
+
+	return courses, nil
+}
+
 // JoinClass 学生加入班级
 func (s *ClassDaoImpl) JoinClass(studentID uint, classCode string) error {
 	// 查找班级
@@ -541,4 +555,47 @@ func (s *ClassDaoImpl) CountClasses(teacherID uint) (int64, error) {
 	}
 
 	return total, nil
+}
+
+// GetUserClasses 获取用户参与的所有班级（包括作为教师和学生的班级）
+func (s *ClassDaoImpl) GetUserClasses(userID uint) ([]model.Class, error) {
+	var classes []model.Class
+
+	// 查询用户作为教师的班级和作为学生加入的班级
+	if err := s.db.Raw(`
+		SELECT DISTINCT c.* FROM classes c
+		LEFT JOIN class_users cu ON c.id = cu.class_id
+		WHERE (c.teacher_id = ? OR (cu.user_id = ? AND cu.is_active = ?))
+		ORDER BY c.id DESC
+	`, userID, userID, true).Scan(&classes).Error; err != nil {
+		return nil, err
+	}
+
+	// 为每个班级预加载相关数据
+	for i := range classes {
+		// 预加载教师信息
+		if err := s.db.Model(&classes[i]).Association("Teacher").Find(&classes[i].Teacher); err != nil {
+			continue // 忽略错误，继续处理其他班级
+		}
+
+		// 预加载学生信息
+		var students []model.User
+		if err := s.db.Table("users").
+			Joins("JOIN class_users ON users.id = class_users.user_id").
+			Where("class_users.class_id = ? AND class_users.is_active = ?", classes[i].ID, true).
+			Find(&students).Error; err == nil {
+			classes[i].Students = students
+		}
+
+		// 预加载课程信息
+		var courses []model.Course
+		if err := s.db.Table("courses").
+			Joins("JOIN class_courses ON courses.id = class_courses.course_id").
+			Where("class_courses.class_id = ?", classes[i].ID).
+			Find(&courses).Error; err == nil {
+			classes[i].Courses = courses
+		}
+	}
+
+	return classes, nil
 }

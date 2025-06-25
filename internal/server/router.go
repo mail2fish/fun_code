@@ -97,6 +97,12 @@ func (s *Server) setupRoutes() {
 
 		auth.GET("/user/info", gorails.Wrap(s.handler.GetCurrentUserHandler, nil))
 
+		// 学生端路由 - 查看自己参与的班级和课程
+		auth.GET("/student/classes", gorails.Wrap(s.handler.GetMyClassesHandler, nil))                          // 我的班级列表
+		auth.GET("/student/classes/:class_id", gorails.Wrap(s.handler.GetMyClassHandler, nil))                  // 我的班级详情
+		auth.GET("/student/classes/:class_id/courses", gorails.Wrap(s.handler.GetMyClassCoursesHandler, nil))   // 我的班级课程
+		auth.GET("/student/courses/:course_id/lessons", gorails.Wrap(s.handler.GetMyCourseLessonsHandler, nil)) // 我的课程课时
+		auth.GET("/student/courses/:course_id", gorails.Wrap(s.handler.GetMyCourseHandler, nil))                // 我的课程详情
 		{
 			admin := auth.Group("/admin").Use(s.handler.RequirePermission(handler.PermissionManageAll))
 			admin.POST("/classes/create", gorails.Wrap(s.handler.CreateClassHandler, nil))
