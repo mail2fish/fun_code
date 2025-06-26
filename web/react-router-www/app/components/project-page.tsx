@@ -33,7 +33,21 @@ async function deleteScratchProject(id: string) {
   }
 }
 
-export default function ScratchProjectsPage() {
+interface ProjectPageProps {
+  title: string;
+  subtitle: string;
+  projectsApiUrl: string;
+  showUserFilter: boolean;
+  showCreateLessonButton: boolean;
+}
+
+export function ProjectPage({ 
+  title, 
+  subtitle, 
+  projectsApiUrl, 
+  showUserFilter, 
+  showCreateLessonButton 
+}: ProjectPageProps) {
   const [error, setError] = React.useState<string | null>(null);
   const [isButtonCooling, setIsButtonCooling] = React.useState(false);
   
@@ -67,8 +81,8 @@ export default function ScratchProjectsPage() {
 
   return (
     <LayoutProvider
-      title="我的编程项目"
-      subtitle="查看和管理你的所有Scratch创意作品"
+      title={title}
+      subtitle={subtitle}
     >
       {/* 错误提示 */}
       {error && (
@@ -111,9 +125,9 @@ export default function ScratchProjectsPage() {
         <CardContent>
           <ProjectTable 
             onDeleteProject={handleDeleteProject}
-            projectsApiUrl={`${HOST_URL}/api/scratch/projects`}
-            showUserFilter={true}
-            showCreateLessonButton={true}
+            projectsApiUrl={projectsApiUrl}
+            showUserFilter={showUserFilter}
+            showCreateLessonButton={showCreateLessonButton}
           />
         </CardContent>
       </Card>
@@ -126,4 +140,4 @@ export default function ScratchProjectsPage() {
       />
     </LayoutProvider>
   )
-}
+} 

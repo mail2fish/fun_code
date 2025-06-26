@@ -24,7 +24,8 @@ export default [
     route("/www/admin/create_class", "routes/admin/create_class.tsx"),
     route("/www/admin/list_classes", "routes/admin/list_classes.tsx"),
     route("/www/admin/edit_class/:classId", "routes/admin/edit_class.tsx"),
-    route("/www/admin/scratch_projects", "routes/admin/scratch_projects.tsx"),
+    route("/www/admin/all_projects", "routes/admin/all_projects.tsx"),
+    route("/www/admin/my_projects", "routes/admin/my_projects.tsx"),
     
     // course management
     route("/www/admin/list_courses", "routes/admin/list_courses.tsx"),

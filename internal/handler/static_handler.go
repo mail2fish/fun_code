@@ -64,8 +64,8 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 		// 静态 Scratch 文件
 		currentFS = h.scratchFS
 		filePath = strings.TrimPrefix(filePath, "/static/scratch")
-	} else if filePath == "/scratch" || strings.HasPrefix(filePath, "/scratch/") {
-		// /scratch 路径及其子路径，返回 Scratch 编辑器
+	} else if filePath == "/scratch" || (strings.HasPrefix(filePath, "/scratch/") && !strings.HasPrefix(filePath, "/www/scratch")) {
+		// /scratch 路径及其子路径，但排除 /www/scratch 开头的路径，返回 Scratch 编辑器
 		currentFS = h.scratchFS
 		filePath = "/index.html"
 	} else if filePath == "/" {

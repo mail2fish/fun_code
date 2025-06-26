@@ -153,8 +153,10 @@ export function ProjectTable({
     localStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
   }, [sortOrder, selectedUser]);
 
-  // 获取用户列表
+  // 获取用户列表 - 仅在需要用户筛选时才调用
   React.useEffect(() => {
+    if (!showUserFilter) return;
+    
     async function fetchUsers() {
       try {
         const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?pageSize=100`);
@@ -165,11 +167,11 @@ export function ProjectTable({
       } catch (e) {}
     }
     fetchUsers()
-  }, [])
+  }, [showUserFilter])
 
-  // 搜索用户（带防抖）
+  // 搜索用户（带防抖）- 仅在需要用户筛选时才调用
   React.useEffect(() => {
-    if (!searchKeyword) {
+    if (!showUserFilter || !searchKeyword) {
       setSearchResults([]);
       return;
     }
@@ -190,7 +192,7 @@ export function ProjectTable({
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchKeyword]);
+  }, [searchKeyword, showUserFilter]);
 
   // 项目名称搜索逻辑（带防抖）
   React.useEffect(() => {

@@ -86,7 +86,7 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
   ];
 
   const programMenuItems: MenuItem[] = [
-    { href: "/www/admin/scratch_projects", label: "全部程序", icon: FileText },
+    { href: "/www/admin/all_projects", label: "全部程序", icon: FileText },
     { href: "/www/shares/all", label: "全部分享", icon: Globe },
     { href: "/www/files/list", label: "资源列表", icon: HardDrive },
     { href: "/www/admin/upload_files", label: "上传资源", icon: Upload },
@@ -94,7 +94,7 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
 
   const shareMenuItems: MenuItem[] = [
     { href: `${typeof window !== 'undefined' ? window.location.origin : ''}/projects/scratch/new`, label: "创建程序", icon: Plus, external: true },
-    { href: "/www/scratch/projects", label: "我的程序", icon: FileText },
+    { href: "/www/admin/my_projects", label: "我的程序", icon: FileText },
     { href: "/www/shares/user", label: "我的分享", icon: User },
   ];
 
