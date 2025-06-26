@@ -71,8 +71,8 @@ interface Lesson {
   duration: number
   difficulty: string
   description: string
-  created_at: string
-  updated_at: string
+  created_at: number
+  updated_at: number
   course?: {
     id: number
     title: string
@@ -151,11 +151,24 @@ function SortableLessonRow({
   }
 
   // 格式化日期
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "未知日期"
+  const formatDate = (timestamp?: string | number) => {
+    if (!timestamp) return "未知日期"
     
     try {
-      const date = new Date(dateString)
+      let date: Date
+      if (typeof timestamp === 'number') {
+        date = new Date(timestamp * 1000) // Unix时间戳需要乘以1000
+      } else if (typeof timestamp === 'string') {
+        // 如果是纯数字字符串，当作时间戳处理
+        const numTimestamp = parseInt(timestamp)
+        if (!isNaN(numTimestamp)) {
+          date = new Date(numTimestamp * 1000)
+        } else {
+          date = new Date(timestamp)
+        }
+      } else {
+        return "未知日期"
+      }
       
       if (isNaN(date.getTime())) {
         return "未知日期"
@@ -241,7 +254,7 @@ function SortableLessonRow({
                 <DialogClose asChild>
                   <Button
                     variant="destructive"
-                    onClick={() => onDelete(lesson.id.toString(), lesson.updated_at)}
+                    onClick={() => onDelete(lesson.id.toString(), lesson.updated_at.toString())}
                     disabled={deletingId === lesson.id.toString()}
                   >
                     {deletingId === lesson.id.toString() ? "删除中..." : "确认删除"}
@@ -359,6 +372,7 @@ export default function ListLessonsPage() {
   })
   const [courses, setCourses] = React.useState<Course[]>([])
   const [selectedCourse, setSelectedCourse] = React.useState("all")
+  const [courseFilter, setCourseFilter] = React.useState("all") // 新增：课程关联筛选
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
@@ -374,11 +388,24 @@ export default function ListLessonsPage() {
   )
 
   // 格式化日期
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "未知日期"
+  const formatDate = (timestamp?: string | number) => {
+    if (!timestamp) return "未知日期"
     
     try {
-      const date = new Date(dateString)
+      let date: Date
+      if (typeof timestamp === 'number') {
+        date = new Date(timestamp * 1000) // Unix时间戳需要乘以1000
+      } else if (typeof timestamp === 'string') {
+        // 如果是纯数字字符串，当作时间戳处理
+        const numTimestamp = parseInt(timestamp)
+        if (!isNaN(numTimestamp)) {
+          date = new Date(numTimestamp * 1000)
+        } else {
+          date = new Date(timestamp)
+        }
+      } else {
+        return "未知日期"
+      }
       
       if (isNaN(date.getTime())) {
         return "未知日期"
@@ -481,9 +508,6 @@ export default function ListLessonsPage() {
           getCourses()
         ])
         setCourses(coursesResponse)
-        
-        // 加载课件数据
-        await fetchLessons("")
       } catch (error) {
         console.error("初始化数据失败:", error)
         setError("初始化数据失败")
@@ -565,7 +589,7 @@ export default function ListLessonsPage() {
 
   // 全选/取消全选
   const handleSelectAll = (checked: boolean) => {
-    setSelectedLessons(checked ? lessonsData.lessons.map(lesson => lesson.id) : [])
+    setSelectedLessons(checked ? filteredLessons.map(lesson => lesson.id) : [])
   }
 
   // 删除课件
@@ -597,6 +621,18 @@ export default function ListLessonsPage() {
     }, 1000)
   }
 
+  // 根据课程关联筛选课件
+  const filteredLessons = React.useMemo(() => {
+    if (courseFilter === "all") {
+      return lessonsData.lessons
+    } else if (courseFilter === "with_course") {
+      return lessonsData.lessons.filter(lesson => lesson.course_id > 0 && lesson.course?.title)
+    } else if (courseFilter === "without_course") {
+      return lessonsData.lessons.filter(lesson => lesson.course_id === 0 || !lesson.course?.title)
+    }
+    return lessonsData.lessons
+  }, [lessonsData.lessons, courseFilter])
+
   return (
     <AdminLayout>
       <div className="flex flex-1 flex-col gap-4">
@@ -617,6 +653,16 @@ export default function ListLessonsPage() {
                     {course.title}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={courseFilter} onValueChange={setCourseFilter}>
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="课程关联" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部</SelectItem>
+                <SelectItem value="with_course">有课程</SelectItem>
+                <SelectItem value="without_course">无课程</SelectItem>
               </SelectContent>
             </Select>
             <Link 
@@ -652,7 +698,7 @@ export default function ListLessonsPage() {
                   <TableRow>
                     <TableHead className="w-12">
                       <Checkbox
-                        checked={selectedLessons.length === lessonsData.lessons.length && lessonsData.lessons.length > 0}
+                        checked={selectedLessons.length === filteredLessons.length && filteredLessons.length > 0}
                         onCheckedChange={handleSelectAll}
                       />
                     </TableHead>
@@ -667,18 +713,20 @@ export default function ListLessonsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {lessonsData.lessons.length === 0 ? (
+                  {filteredLessons.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={9} className="h-24 text-center">
-                        {selectedCourse ? "该课程下暂无课件" : "暂无课件数据"}
+                        {courseFilter === "with_course" ? "暂无有课程关联的课件" : 
+                         courseFilter === "without_course" ? "暂无无课程关联的课件" :
+                         selectedCourse ? "该课程下暂无课件" : "暂无课件数据"}
                       </TableCell>
                     </TableRow>
                   ) : (
                     <SortableContext
-                      items={lessonsData.lessons.map(lesson => lesson.id)}
+                      items={filteredLessons.map(lesson => lesson.id)}
                       strategy={verticalListSortingStrategy}
                     >
-                      {lessonsData.lessons.map((lesson) => (
+                      {filteredLessons.map((lesson) => (
                         <SortableLessonRow
                           key={lesson.id}
                           lesson={lesson}
@@ -700,6 +748,11 @@ export default function ListLessonsPage() {
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
             共 {lessonsData.total} 个课件
+            {courseFilter !== "all" && (
+              <span className="ml-2">
+                (筛选后: {filteredLessons.length} 个)
+              </span>
+            )}
             {selectedLessons.length > 0 && (
               <span className="ml-2">
                 已选择 {selectedLessons.length} 个

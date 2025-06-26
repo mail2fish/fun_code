@@ -94,7 +94,7 @@ func (l *LessonDaoImpl) UpdateLesson(lessonID, authorID uint, expectedUpdatedAt 
 // GetLesson 获取课时详情
 func (l *LessonDaoImpl) GetLesson(lessonID uint) (*model.Lesson, error) {
 	var lesson model.Lesson
-	if err := l.db.Preload("Course").First(&lesson, lessonID).Error; err != nil {
+	if err := l.db.Preload("Course.Author").Preload("Course").First(&lesson, lessonID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("课时不存在")
 		}
@@ -109,7 +109,7 @@ func (l *LessonDaoImpl) GetLessonWithPermission(lessonID, userID uint) (*model.L
 	var lesson model.Lesson
 
 	// 查询课时并检查权限（课程作者或班级成员）
-	query := l.db.Preload("Course").
+	query := l.db.Preload("Course.Author").Preload("Course").
 		Joins("JOIN courses ON courses.id = lessons.course_id").
 		Where("lessons.id = ?", lessonID)
 
@@ -133,7 +133,7 @@ func (l *LessonDaoImpl) GetLessonWithPermission(lessonID, userID uint) (*model.L
 // ListLessonsByCourse 获取课程下的所有课时（按排序）
 func (l *LessonDaoImpl) ListLessonsByCourse(courseID uint) ([]model.Lesson, error) {
 	var lessons []model.Lesson
-	if err := l.db.Where("course_id = ?", courseID).
+	if err := l.db.Preload("Course.Author").Preload("Course").Where("course_id = ?", courseID).
 		Order("sort_order ASC, id ASC").
 		Find(&lessons).Error; err != nil {
 		return nil, err
@@ -146,7 +146,7 @@ func (l *LessonDaoImpl) ListLessonsByCourse(courseID uint) ([]model.Lesson, erro
 func (l *LessonDaoImpl) ListLessonsWithPagination(courseID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Lesson, bool, error) {
 	var lessons []model.Lesson
 
-	query := l.db
+	query := l.db.Preload("Course.Author").Preload("Course") // 预加载关联的课程数据和课程作者
 	// 构建查询
 	if courseID > 0 {
 		query = query.Where("course_id = ?", courseID)
@@ -259,7 +259,7 @@ func (l *LessonDaoImpl) GetLessonsByProjectID(projectID uint) ([]model.Lesson, e
 	var lessons []model.Lesson
 	if err := l.db.Where("project_id_1 = ? OR project_id_2 = ? OR project_id_3 = ?",
 		projectID, projectID, projectID).
-		Preload("Course").
+		Preload("Course.Author").Preload("Course").
 		Find(&lessons).Error; err != nil {
 		return nil, err
 	}
@@ -316,7 +316,7 @@ func (l *LessonDaoImpl) SearchLessons(keyword string, courseID uint) ([]model.Le
 		query = query.Where("course_id = ?", courseID)
 	}
 
-	if err := query.Preload("Course").
+	if err := query.Preload("Course.Author").Preload("Course").
 		Order("sort_order ASC").
 		Find(&lessons).Error; err != nil {
 		return nil, err
