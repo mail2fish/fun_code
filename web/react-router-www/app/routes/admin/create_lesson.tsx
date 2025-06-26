@@ -201,6 +201,8 @@ export default function CreateLessonPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const courseIdFromParams = searchParams.get('courseId')
+  const projectIdFromParams = searchParams.get('projectId')
+  const projectNameFromParams = searchParams.get('projectName')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [courses, setCourses] = React.useState<Course[]>([])
   const [projects, setProjects] = React.useState<Project[]>([])
@@ -218,12 +220,12 @@ export default function CreateLessonPage() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: "",
-      content: "",
+      title: projectNameFromParams ? `课件：${decodeURIComponent(projectNameFromParams)}` : "",
+      content: projectNameFromParams ? `本课件将基于 Scratch 项目"${decodeURIComponent(projectNameFromParams)}"进行教学。\n\n学习目标：\n- 理解项目的基本概念\n- 掌握相关编程技能\n- 能够独立完成类似项目\n\n教学内容：\n1. 项目分析与介绍\n2. 核心功能实现\n3. 扩展与创新` : "",
       difficulty: "beginner",
       duration: 30,
       project_type: "scratch",
-      project_id_1: "none",
+      project_id_1: projectIdFromParams || "none",
       project_id_2: "none",
     },
   })
@@ -253,6 +255,32 @@ export default function CreateLessonPage() {
           if (!isNaN(courseId)) {
             form.setValue('course_id', courseId)
           }
+        }
+
+        // 如果URL参数中有项目信息，更新表单
+        if (projectIdFromParams) {
+          form.setValue('project_id_1', projectIdFromParams)
+        }
+        if (projectNameFromParams) {
+          const decodedName = decodeURIComponent(projectNameFromParams)
+          form.setValue('title', `课件：${decodedName}`)
+          form.setValue('content', `本课件将基于 Scratch 项目"${decodedName}"进行教学。
+
+学习目标：
+- 理解项目的基本概念和设计思路
+- 掌握项目中使用的编程技能和方法
+- 能够独立完成类似的创意项目
+
+教学内容：
+1. 项目分析与功能介绍
+2. 核心代码块讲解
+3. 关键技术点实现
+4. 项目扩展与创新思路
+
+学习重点：
+- 程序逻辑设计
+- 问题解决方法
+- 创意思维培养`)
         }
       } catch (error) {
         console.error("初始化数据失败:", error)
@@ -367,7 +395,19 @@ export default function CreateLessonPage() {
                 </p>
                 <div className="flex items-center gap-2 mt-2">
                   <Badge variant="default">新课件</Badge>
+                  {projectNameFromParams && (
+                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                      📚 基于项目：{decodeURIComponent(projectNameFromParams)}
+                    </Badge>
+                  )}
                 </div>
+                {projectNameFromParams && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      💡 <strong>提示：</strong>系统已根据选择的 Scratch 项目自动填充了课件标题和内容模板，您可以根据需要进行调整。
+                    </p>
+                  </div>
+                )}
               </div>
               <Button
                 variant="outline"

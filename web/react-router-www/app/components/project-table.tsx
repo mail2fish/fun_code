@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link } from "react-router"
-import { IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconHistory, IconRefresh, IconShare } from "@tabler/icons-react"
+import { IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconHistory, IconRefresh, IconShare, IconBook } from "@tabler/icons-react"
 
 import { Button } from "~/components/ui/button"
 import {
@@ -62,6 +62,7 @@ interface ProjectTableProps {
   onDeleteProject: (id: string) => Promise<void>
   showUserFilter?: boolean
   projectsApiUrl: string
+  showCreateLessonButton?: boolean
 }
 
 // 缓存相关常量
@@ -72,6 +73,7 @@ export function ProjectTable({
   onDeleteProject,
   showUserFilter = false,
   projectsApiUrl,
+  showCreateLessonButton = false,
 }: ProjectTableProps) {
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
   const [sharingId, setSharingId] = React.useState<string | null>(null)
@@ -659,8 +661,8 @@ export function ProjectTable({
                     </div>
                   </CardContent>
                   <CardFooter className="p-5 pt-0 pb-5">
-                    {/* 第一行：编辑和分享 */}
                     <div className="flex flex-col gap-2 w-full">
+                      {/* 第一行：编辑和分享 */}
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
@@ -686,6 +688,7 @@ export function ProjectTable({
                           {sharingId === project.id ? "分享中..." : "分享"}
                         </Button>
                       </div>
+                      
                       {/* 第二行：删除和历史 */}
                       <div className="flex gap-2 w-full">
                         <Dialog>
@@ -755,6 +758,26 @@ export function ProjectTable({
                           </a>
                         </Button>
                       </div>
+                      
+                      {/* 最后一行：创建课件（仅在 admin 页面显示） */}
+                      {showCreateLessonButton && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            title="创建课件"
+                            asChild
+                            className="flex-1 h-9 bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100 hover:border-yellow-300 hover:scale-105 hover:shadow-md transition-all duration-200 font-medium text-sm group"
+                          >
+                            <a 
+                              href={`/www/admin/create_lesson?projectId=${project.id}&projectName=${encodeURIComponent(project.name || '')}`}
+                            >
+                              <IconBook className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
+                              创建课件
+                            </a>
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </CardFooter>
                 </Card>

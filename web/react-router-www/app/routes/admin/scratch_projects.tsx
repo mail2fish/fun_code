@@ -113,6 +113,7 @@ export default function ScratchProjectsPage() {
             onDeleteProject={handleDeleteProject}
             projectsApiUrl={`${HOST_URL}/api/scratch/projects`}
             showUserFilter={true}
+            showCreateLessonButton={true}
           />
         </CardContent>
       </Card>
