@@ -8,7 +8,7 @@ export default [
     route("/www/user/my_classes", "routes/user/my_classes.tsx"),
     route("/www/user/class_courses/:classId", "routes/user/class_courses.tsx"),
     route("/www/user/course_lessons/:courseId", "routes/user/course_lessons.tsx"),
-    route("/www/scratch/projects", "routes/scratch_projects.tsx"),
+    route("/www/user/scratch", "routes/user/user_scratch.tsx"),
     route("/www/scratch/project/:projectId/histories", "routes/scratch_project_histories.tsx"),
     route("/www/files/list", "routes/list_files.tsx"),
     route("/www/shares/user", "routes/user_share.tsx"),
@@ -24,8 +24,8 @@ export default [
     route("/www/admin/create_class", "routes/admin/create_class.tsx"),
     route("/www/admin/list_classes", "routes/admin/list_classes.tsx"),
     route("/www/admin/edit_class/:classId", "routes/admin/edit_class.tsx"),
-    route("/www/admin/all_projects", "routes/admin/all_projects.tsx"),
-    route("/www/admin/my_projects", "routes/admin/my_projects.tsx"),
+    route("/www/admin/all_scratch", "routes/admin/all_scratch.tsx"),
+    route("/www/admin/my_scratch", "routes/admin/my_scratch.tsx"),
     
     // course management
     route("/www/admin/list_courses", "routes/admin/list_courses.tsx"),

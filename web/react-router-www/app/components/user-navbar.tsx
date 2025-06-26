@@ -28,7 +28,7 @@ export function UserNavbar({ userInfo, onLogout }: UserNavbarProps) {
 
   const navItems = [
     { href: "/www/user/dashboard", label: "首页", icon: Home },
-    { href: "/www/scratch/projects", label: "我的程序", icon: Blocks },
+    { href: "/www/user/scratch", label: "我的程序", icon: Blocks },
     { href: "/www/user/my_classes", label: "我的班级", icon: Users },
     { href: "/www/shares/user", label: "我的分享", icon: Share2 },
     { href: "/www/shares/all", label: "全部分享", icon: Globe },

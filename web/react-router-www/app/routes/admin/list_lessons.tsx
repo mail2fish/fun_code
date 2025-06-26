@@ -1,21 +1,7 @@
 import * as React from "react"
 import { Link } from "react-router"
-import { IconPlus, IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconBook, IconGripVertical, IconFileText } from "@tabler/icons-react"
-import {
-  DndContext,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  closestCenter,
-} from "@dnd-kit/core"
-import type { DragEndEvent } from "@dnd-kit/core"
-import {
-  arrayMove,
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
+import { IconPlus, IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconBook, IconFileText } from "@tabler/icons-react"
+
 
 import { AdminLayout } from "~/components/admin-layout"
 import { Button } from "~/components/ui/button"
@@ -97,8 +83,8 @@ interface LessonsData {
   currentPage: number
 }
 
-// 可排序的课件行组件
-function SortableLessonRow({ 
+// 课件行组件
+function LessonRow({ 
   lesson, 
   isSelected, 
   onSelect, 
@@ -111,20 +97,6 @@ function SortableLessonRow({
   onDelete: (id: string, updatedAt: string) => void
   deletingId: string | null
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: lesson.id })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  }
 
   // 格式化难度
   const formatDifficulty = (difficulty: string) => {
@@ -186,8 +158,6 @@ function SortableLessonRow({
 
   return (
     <TableRow
-      ref={setNodeRef}
-      style={style}
       className={isSelected ? "bg-muted/50" : ""}
     >
       <TableCell>
@@ -195,15 +165,6 @@ function SortableLessonRow({
           checked={isSelected}
           onCheckedChange={(checked) => onSelect(lesson.id, checked as boolean)}
         />
-      </TableCell>
-      <TableCell>
-        <div 
-          {...attributes} 
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing"
-        >
-          <IconGripVertical className="h-4 w-4 text-muted-foreground" />
-        </div>
       </TableCell>
       <TableCell className="font-medium">{lesson.sort_order}</TableCell>
       <TableCell>
@@ -331,33 +292,7 @@ async function deleteLesson(id: string, updatedAt: string) {
   }
 }
 
-// 重新排序课件
-async function reorderLessons(courseId: number, lessonIds: number[]) {
-  try {
-    const lessons = lessonIds.map((id, index) => ({
-      id,
-      sort_order: index + 1
-    }))
 
-    const response = await fetchWithAuth(`${HOST_URL}/api/admin/lessons/reorder`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        course_id: courseId,
-        lessons
-      })
-    })
-    if (!response.ok) {
-      throw new Error(`API 错误: ${response.status}`)
-    }
-    return await response.json()
-  } catch (error) {
-    console.error("重新排序课件失败:", error)
-    throw error
-  }
-}
 
 const defaultPageSize = 10
 
@@ -379,13 +314,7 @@ export default function ListLessonsPage() {
   const [selectedLessons, setSelectedLessons] = React.useState<number[]>([])
   const [isButtonCooling, setIsButtonCooling] = React.useState(false)
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  )
+
 
   // 格式化日期
   const formatDate = (timestamp?: string | number) => {
@@ -535,48 +464,7 @@ export default function ListLessonsPage() {
     fetchLessons(courseIdToFetch, beginID, forward, asc)
   }
 
-  // 拖拽结束处理
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event
 
-    if (!over || active.id === over.id) {
-      return
-    }
-
-    // 如果选择的是"所有课程"，则不允许排序
-    if (selectedCourse === "all") {
-      toast.error("请先选择具体课程才能进行排序")
-      return
-    }
-
-    const oldIndex = lessonsData.lessons.findIndex(lesson => lesson.id === active.id)
-    const newIndex = lessonsData.lessons.findIndex(lesson => lesson.id === over.id)
-
-    if (oldIndex === -1 || newIndex === -1) {
-      return
-    }
-
-    const newLessons = arrayMove(lessonsData.lessons, oldIndex, newIndex)
-
-    setLessonsData({
-      ...lessonsData,
-      lessons: newLessons
-    })
-
-    try {
-      const lessonIds = newLessons.map(lesson => lesson.id)
-      await reorderLessons(parseInt(selectedCourse), lessonIds)
-      toast.success("课件排序已更新")
-    } catch (error) {
-      console.error("重新排序失败:", error)
-      toast.error("重新排序失败")
-      // 回滚
-      setLessonsData({
-        ...lessonsData,
-        lessons: lessonsData.lessons
-      })
-    }
-  }
 
   // 课件选择
   const handleLessonSelect = (lessonId: number, checked: boolean) => {
@@ -688,59 +576,47 @@ export default function ListLessonsPage() {
               <div className="text-sm text-red-600">{error}</div>
             </div>
           ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <Table>
-                <TableHeader>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedLessons.length === filteredLessons.length && filteredLessons.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead className="w-16">序号</TableHead>
+                  <TableHead>课件名称</TableHead>
+                  <TableHead>所属课程</TableHead>
+                  <TableHead>难度</TableHead>
+                  <TableHead>时长</TableHead>
+                  <TableHead>创建时间</TableHead>
+                  <TableHead className="text-right">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredLessons.length === 0 ? (
                   <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={selectedLessons.length === filteredLessons.length && filteredLessons.length > 0}
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead className="w-12">排序</TableHead>
-                    <TableHead className="w-16">序号</TableHead>
-                    <TableHead>课件名称</TableHead>
-                    <TableHead>所属课程</TableHead>
-                    <TableHead>难度</TableHead>
-                    <TableHead>时长</TableHead>
-                    <TableHead>创建时间</TableHead>
-                    <TableHead className="text-right">操作</TableHead>
+                    <TableCell colSpan={8} className="h-24 text-center">
+                      {courseFilter === "with_course" ? "暂无有课程关联的课件" : 
+                       courseFilter === "without_course" ? "暂无无课程关联的课件" :
+                       selectedCourse ? "该课程下暂无课件" : "暂无课件数据"}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredLessons.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={9} className="h-24 text-center">
-                        {courseFilter === "with_course" ? "暂无有课程关联的课件" : 
-                         courseFilter === "without_course" ? "暂无无课程关联的课件" :
-                         selectedCourse ? "该课程下暂无课件" : "暂无课件数据"}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <SortableContext
-                      items={filteredLessons.map(lesson => lesson.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {filteredLessons.map((lesson) => (
-                        <SortableLessonRow
-                          key={lesson.id}
-                          lesson={lesson}
-                          isSelected={selectedLessons.includes(lesson.id)}
-                          onSelect={handleLessonSelect}
-                          onDelete={handleDeleteLesson}
-                          deletingId={deletingId}
-                        />
-                      ))}
-                    </SortableContext>
-                  )}
-                </TableBody>
-              </Table>
-            </DndContext>
+                ) : (
+                  filteredLessons.map((lesson) => (
+                    <LessonRow
+                      key={lesson.id}
+                      lesson={lesson}
+                      isSelected={selectedLessons.includes(lesson.id)}
+                      onSelect={handleLessonSelect}
+                      onDelete={handleDeleteLesson}
+                      deletingId={deletingId}
+                    />
+                  ))
+                )}
+              </TableBody>
+            </Table>
           )}
         </div>
 
