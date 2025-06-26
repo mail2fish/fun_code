@@ -387,7 +387,7 @@ export default function ListUserPage() {
           className="bg-blue-600 hover:bg-blue-700"
         >
           <Link 
-            to="/www/admin/users/create" 
+            to="/www/admin/create_user" 
             onClick={handleNewUserClick}
             className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
           >
