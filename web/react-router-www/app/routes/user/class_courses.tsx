@@ -21,13 +21,26 @@ import { HOST_URL } from "~/config";
 // 课件接口
 interface Lesson {
   id: number;
+  created_at: number;
+  updated_at: number;
   title: string;
-  description: string;
+  content: string;
   sort_order: number;
+  course_id: number;
+  course?: Course;
+  document_name: string;
+  document_path: string;
+  flow_chart_id: number;
+  project_type: string;
+  project_id_1: number;
+  project_id_2: number;
+  project_id_3: number;
+  video_1: string;
+  video_2: string;
+  video_3: string;
   duration: number;
   difficulty: string;
-  created_at: number;
-  project_id_1: number;
+  description: string;
 }
 
 // 课程数据接口
@@ -439,15 +452,27 @@ export default function ClassCourses() {
                         {formatDuration(lesson.duration)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Link to={`/www/scratch?lesson_id=${lesson.id}`}>
+                        {lesson.project_id_1 > 0 ? (
+                          <Link to={`${HOST_URL}/projects/scratch/open/${lesson.project_id_1}`} target="_blank">
+                            <Button 
+                              size="sm" 
+                              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                            >
+                              <Play className="w-4 h-4 mr-1" />
+                              开始学习
+                            </Button>
+                          </Link>
+                        ) : (
                           <Button 
                             size="sm" 
-                            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                            variant="outline"
+                            disabled
+                            className="text-gray-400"
                           >
                             <Play className="w-4 h-4 mr-1" />
-                            开始学习
+                            暂无项目
                           </Button>
-                        </Link>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
