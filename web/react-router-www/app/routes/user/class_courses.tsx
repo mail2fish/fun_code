@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router";
+import { useParams, Link, useSearchParams } from "react-router";
 import { UserLayout } from "~/components/user-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { 
   BookOpen, 
   Play,
@@ -17,6 +18,17 @@ import { useUser, useUserInfo } from "~/hooks/use-user";
 import { fetchWithAuth } from "~/utils/api";
 import { HOST_URL } from "~/config";
 
+// 课件接口
+interface Lesson {
+  id: number;
+  title: string;
+  description: string;
+  sort_order: number;
+  duration: number;
+  difficulty: string;
+  created_at: number;
+}
+
 // 课程数据接口
 interface Course {
   id: number;
@@ -25,7 +37,6 @@ interface Course {
   author_id: number;
   created_at: string;
   updated_at: string;
-
   difficulty_level: string;
   estimated_duration: number;
   tags: string;
@@ -99,29 +110,78 @@ async function getClassCourses(classId: string) {
   }
 }
 
+// 获取课程详细信息
+async function getCourseInfo(courseId: string) {
+  try {
+    const response = await fetchWithAuth(`${HOST_URL}/api/courses/${courseId}`);
+    if (!response.ok) {
+      throw new Error(`API 错误: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("获取课程信息失败:", error);
+    return null;
+  }
+}
+
+// 获取课程的课件列表
+async function getCourseLessons(courseId: string) {
+  try {
+    const response = await fetchWithAuth(`${HOST_URL}/api/lessons/course/${courseId}`);
+    if (!response.ok) {
+      throw new Error(`API 错误: ${response.status}`);
+    }
+    const data = await response.json();
+    return Array.isArray(data.data) ? data.data : [];
+  } catch (error) {
+    console.error("获取课程课件列表失败:", error);
+    return [];
+  }
+}
+
 export default function ClassCourses() {
   const params = useParams();
+  const [searchParams] = useSearchParams();
   const classId = params.classId;
+  const courseId = searchParams.get('course_id');
   const { userInfo } = useUserInfo();
   const { logout } = useUser();
   const [classData, setClassData] = useState<ClassData | null>(null);
+  const [courseData, setCourseData] = useState<Course | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 获取班级信息和课程列表
+  // 获取数据
   useEffect(() => {
     if (!classId) return;
 
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [classInfo, coursesData] = await Promise.all([
-          getClassInfo(classId),
-          getClassCourses(classId)
-        ]);
         
-        setClassData(classInfo);
-        setCourses(coursesData);
+        if (courseId) {
+          // 如果有课程ID，获取课程信息和课件列表
+          const [classInfo, courseInfo, lessonsData] = await Promise.all([
+            getClassInfo(classId),
+            getCourseInfo(courseId),
+            getCourseLessons(courseId)
+          ]);
+          
+          setClassData(classInfo);
+          setCourseData(courseInfo);
+          setLessons(lessonsData);
+        } else {
+          // 如果没有课程ID，获取班级信息和课程列表
+          const [classInfo, coursesData] = await Promise.all([
+            getClassInfo(classId),
+            getClassCourses(classId)
+          ]);
+          
+          setClassData(classInfo);
+          setCourses(coursesData);
+        }
       } catch (error) {
         console.error("获取数据失败:", error);
       } finally {
@@ -130,7 +190,7 @@ export default function ClassCourses() {
     };
 
     fetchData();
-  }, [classId]);
+  }, [classId, courseId]);
 
   // 格式化难度等级
   const formatDifficulty = (level: string) => {
@@ -157,11 +217,11 @@ export default function ClassCourses() {
     <UserLayout
       userInfo={userInfo || undefined}
       onLogout={logout}
-      title={classData?.name ? `${classData.name} - 课程列表` : "课程列表"}
-      subtitle="查看班级中的所有课程"
+      title={courseId && courseData ? `${courseData.title} - 课件列表` : classData?.name ? `${classData.name} - 课程列表` : "课程列表"}
+      subtitle={courseId ? "查看课程中的所有课件" : "查看班级中的所有课程"}
     >
       {/* 导航面包屑 */}
-      <div className="mb-6">
+      <div className="mb-6 flex items-center space-x-2">
         <Link 
           to="/www/user/my_classes"
           className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors"
@@ -169,12 +229,23 @@ export default function ClassCourses() {
           <ChevronLeft className="w-4 h-4 mr-1" />
           返回我的班级
         </Link>
+        {courseId && (
+          <>
+            <span className="text-gray-400">/</span>
+            <Link 
+              to={`/www/user/class_courses/${classId}`}
+              className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors"
+            >
+              课程列表
+            </Link>
+          </>
+        )}
       </div>
 
       {/* 主要内容 */}
       <div className="space-y-6">
         {/* 班级信息卡片 */}
-        {classData && (
+        {classData && !courseId && (
           <Card className="fun-card border-blue-200">
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -203,6 +274,39 @@ export default function ClassCourses() {
           </Card>
         )}
 
+        {/* 课程信息卡片（显示课件时） */}
+        {courseData && courseId && (
+          <Card className="fun-card border-purple-200">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-xl font-bold text-gray-800 mb-2">
+                    {courseData.title}
+                  </CardTitle>
+                  <CardDescription className="text-gray-600">
+                    {courseData.description || "暂无描述"}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline">
+                    {formatDifficulty(courseData.difficulty_level).text}
+                  </Badge>
+                  <span className="flex items-center text-sm text-gray-500">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {formatDuration(courseData.estimated_duration)}
+                  </span>
+                </div>
+              </div>
+              {courseData.author && (
+                <div className="flex items-center text-sm text-gray-600 mt-4">
+                  <User className="w-4 h-4 mr-2 text-purple-500" />
+                  <span>课程作者：{courseData.author.username}</span>
+                </div>
+              )}
+            </CardHeader>
+          </Card>
+        )}
+
         {/* 加载状态 */}
         {loading && (
           <div className="text-center py-12">
@@ -212,7 +316,7 @@ export default function ClassCourses() {
         )}
 
         {/* 课程列表 */}
-        {!loading && courses.length > 0 && (
+        {!loading && !courseId && courses.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {courses.map((course) => {
               const difficulty = formatDifficulty(course.difficulty_level);
@@ -271,7 +375,7 @@ export default function ClassCourses() {
                     {/* 操作按钮 */}
                     <div className="flex gap-2">
                       <Link 
-                        to={`/www/user/course_lessons/${course.id}`}
+                        to={`/www/user/class_courses/${classId}?course_id=${course.id}`}
                         className="flex-1"
                       >
                         <Button 
@@ -279,8 +383,8 @@ export default function ClassCourses() {
                           size="sm" 
                           className="w-full rounded-full hover:bg-purple-50 hover:text-purple-600 hover:border-purple-300 transition-all duration-300"
                         >
-                          <Play className="w-4 h-4 mr-2" />
-                          开始学习
+                          <BookOpen className="w-4 h-4 mr-2" />
+                          查看课件
                           <ChevronRight className="w-4 h-4 ml-2" />
                         </Button>
                       </Link>
@@ -292,8 +396,72 @@ export default function ClassCourses() {
           </div>
         )}
 
-        {/* 空状态 */}
-        {!loading && courses.length === 0 && (
+        {/* 课件列表 */}
+        {!loading && courseId && lessons.length > 0 && (
+          <Card className="fun-card border-gray-200">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold text-gray-800 flex items-center">
+                <BookOpen className="w-5 h-5 mr-2 text-purple-500" />
+                课件列表 ({lessons.length} 个课件)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">序号</TableHead>
+                    <TableHead>课件名称</TableHead>
+                    <TableHead>描述</TableHead>
+                    <TableHead className="w-24">难度</TableHead>
+                    <TableHead className="w-24">时长</TableHead>
+                    <TableHead className="w-32 text-right">操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lessons
+                    .sort((a, b) => a.sort_order - b.sort_order)
+                    .map((lesson) => (
+                    <TableRow key={lesson.id} className="hover:bg-gray-50">
+                      <TableCell className="font-medium text-gray-600">
+                        {lesson.sort_order}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium text-gray-800">{lesson.title}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-gray-600 max-w-xs truncate">
+                          {lesson.description || "暂无描述"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {formatDifficulty(lesson.difficulty).text}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-gray-600">
+                        {formatDuration(lesson.duration)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Link to={`/www/scratch?lesson_id=${lesson.id}`}>
+                          <Button 
+                            size="sm" 
+                            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                          >
+                            <Play className="w-4 h-4 mr-1" />
+                            开始学习
+                          </Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 空状态 - 课程列表 */}
+        {!loading && !courseId && courses.length === 0 && (
           <Card className="fun-card text-center py-12">
             <CardContent>
               <div className="w-24 h-24 bg-gradient-to-r from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -306,6 +474,26 @@ export default function ClassCourses() {
               <div className="bg-purple-50 rounded-lg p-4 inline-block">
                 <p className="text-sm text-purple-800">
                   💡 提示：老师添加课程后，你就可以开始学习了
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 空状态 - 课件列表 */}
+        {!loading && courseId && lessons.length === 0 && (
+          <Card className="fun-card text-center py-12">
+            <CardContent>
+              <div className="w-24 h-24 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <BookOpen className="w-12 h-12 text-blue-500" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">这个课程还没有课件</h3>
+              <p className="text-gray-600 mb-6">
+                请等待老师添加课件，或联系老师了解更多信息。
+              </p>
+              <div className="bg-blue-50 rounded-lg p-4 inline-block">
+                <p className="text-sm text-blue-800">
+                  💡 提示：老师添加课件后，你就可以开始学习了
                 </p>
               </div>
             </CardContent>
