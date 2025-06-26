@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -513,4 +514,115 @@ func RenderLibraryAsset(c *gin.Context, data []byte, meta *gorails.ResponseMeta)
 	c.Header("Content-Type", contentType)
 	c.Header("Content-Length", strconv.Itoa(len(data)))
 	c.Data(http.StatusOK, contentType, data)
+}
+
+// GetOpenScratchProjectParams 打开Scratch项目参数
+type GetStudentScratchProjectParams struct {
+	RawID     string `uri:"id"`
+	ClassID   int64
+	CourseID  int64
+	LessonID  int64
+	ProjectID int64
+}
+
+func (p *GetStudentScratchProjectParams) Parse(c *gin.Context) gorails.Error {
+	rawID := c.Param("id")
+	splitID := strings.Split(rawID, "_")
+	if len(splitID) != 4 {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
+	}
+	var err error
+	p.ClassID, err = strconv.ParseInt(splitID[0], 10, 64)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	p.CourseID, err = strconv.ParseInt(splitID[1], 10, 64)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	p.LessonID, err = strconv.ParseInt(splitID[2], 10, 64)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	p.ProjectID, err = strconv.ParseInt(splitID[3], 10, 64)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+// GetStudentScratchProjectHandler 获取Scratch项目 gorails.Wrap 形式
+func (h *Handler) GetStudentScratchProjectHandler(c *gin.Context, params *GetStudentScratchProjectParams) ([]byte, *gorails.ResponseMeta, gorails.Error) {
+
+	loginedUserID := h.getUserID(c)
+
+	// 获取课时信息
+	lesson, err := h.dao.LessonDao.GetLesson(uint(params.LessonID))
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryNotFound, global.ErrorMsgQueryNotFound, err)
+	}
+
+	// 验证课程ID是否匹配课时
+	if lesson.CourseID != uint(params.CourseID) {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, errors.New("课时不属于指定课程"))
+	}
+
+	// 检查 project_id 是否是 lesson_id 的 project_id_1
+	if lesson.ProjectID1 != uint(params.ProjectID) {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, errors.New("项目ID与课时关联的项目不匹配"))
+	}
+
+	// 检查课程是否在指定班级中
+	isLessonInClass, err := h.dao.ClassDao.IsLessonInClass(uint(params.ClassID), uint(params.CourseID), uint(params.LessonID))
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	if !isLessonInClass {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, errors.New("课时所属的课程不在指定班级中"))
+	}
+
+	// 获取项目信息
+	project, err := h.dao.ScratchDao.GetProject(uint(params.ProjectID))
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 检查权限：管理员、班级成员、课程作者或项目创建者都可以访问
+	hasPermission := false
+
+	// 1. 检查是否是管理员
+	if h.hasPermission(c, PermissionManageAll) {
+		hasPermission = true
+	}
+
+	// 2. 检查是否是项目创建者
+	if !hasPermission && project.UserID == loginedUserID {
+		hasPermission = true
+	}
+
+	// 3. 检查是否是课程作者
+	if !hasPermission && lesson.Course.AuthorID == loginedUserID {
+		hasPermission = true
+	}
+
+	// 4. 检查是否是班级成员（学生或教师）
+	if !hasPermission && h.isClassMember(c, uint(params.ClassID)) {
+		hasPermission = true
+	}
+
+	if !hasPermission {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, errors.New("您没有权限访问该项目"))
+	}
+
+	projectData, err := h.dao.ScratchDao.GetProjectBinary(uint(params.ProjectID), "")
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 设置响应头为二进制数据
+	c.Header("Content-Type", "application/octet-stream")
+	c.Header("Content-Length", strconv.Itoa(len(projectData)))
+
+	return projectData, nil, nil
 }

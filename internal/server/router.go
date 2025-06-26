@@ -103,6 +103,8 @@ func (s *Server) setupRoutes() {
 		auth.GET("/student/classes/:class_id/courses", gorails.Wrap(s.handler.GetMyClassCoursesHandler, nil))   // 我的班级课程
 		auth.GET("/student/courses/:course_id/lessons", gorails.Wrap(s.handler.GetMyCourseLessonsHandler, nil)) // 我的课程课时
 		auth.GET("/student/courses/:course_id", gorails.Wrap(s.handler.GetMyCourseHandler, nil))                // 我的课程详情
+		auth.GET("/student/scratch/projects/:id", gorails.Wrap(s.handler.GetStudentScratchProjectHandler, handler.RenderScratchProject))
+
 		{
 			admin := auth.Group("/admin").Use(s.handler.RequirePermission(handler.PermissionManageAll))
 			admin.POST("/classes/create", gorails.Wrap(s.handler.CreateClassHandler, nil))
@@ -164,6 +166,8 @@ func (s *Server) setupRoutes() {
 	{
 		projects.GET("/scratch/new", gorails.Wrap(s.handler.GetNewScratchProjectHandler, handler.RenderGetNewScratchProjectResponse))
 		projects.GET("/scratch/open/:id", gorails.Wrap(s.handler.GetOpenScratchProjectHandler, handler.RenderTemplateResponse))
+		projects.GET("/scratch/lesson/:class_id/:course_id/:lesson_id/:project_id", gorails.Wrap(s.handler.GetLessonScratchProjectHandler, handler.RenderTemplateResponse))
+
 	}
 
 	assets := s.router.Group("/assets")

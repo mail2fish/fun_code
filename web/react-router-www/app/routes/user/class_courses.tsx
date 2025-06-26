@@ -453,7 +453,7 @@ export default function ClassCourses() {
                       </TableCell>
                       <TableCell className="text-right">
                         {lesson.project_id_1 > 0 ? (
-                          <Link to={`${HOST_URL}/projects/scratch/open/${lesson.project_id_1}`} target="_blank">
+                          <Link to={`${HOST_URL}/projects/scratch/lesson/${classId}/${courseId}/${lesson.id}/${lesson.project_id_1}`}>
                             <Button 
                               size="sm" 
                               className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"

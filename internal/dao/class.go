@@ -598,3 +598,26 @@ func (s *ClassDaoImpl) GetUserClasses(userID uint) ([]model.Class, error) {
 
 	return classes, nil
 }
+
+// IsLessonInClass 检查课时是否在班级中
+func (s *ClassDaoImpl) IsLessonInClass(classID, courseID, lessonID uint) (bool, error) {
+	// 检查课程是否在班级中
+	var classCourse model.ClassCourse
+	if err := s.db.Where("class_id = ? AND course_id = ?", classID, courseID).First(&classCourse).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	// 检查课时是否属于该课程
+	var lesson model.Lesson
+	if err := s.db.Where("id = ? AND course_id = ?", lessonID, courseID).First(&lesson).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
+}

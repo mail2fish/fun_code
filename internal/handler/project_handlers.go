@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -117,6 +118,16 @@ func (h *Handler) GetOpenScratchProjectHandler(c *gin.Context, params *GetOpenSc
 		}
 	}
 
+	projectCreator, err := h.dao.UserDao.GetUserByID(project.UserID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	projectNickname := projectCreator.Nickname
+	if projectNickname == "" {
+		projectNickname = projectCreator.Username
+	}
+
 	// 准备模板数据，新项目不需要项目ID
 	data := struct {
 		CanSaveProject bool
@@ -134,13 +145,147 @@ func (h *Handler) GetOpenScratchProjectHandler(c *gin.Context, params *GetOpenSc
 		CanSaveProject: canSaveProject,
 		ProjectID:      params.RawID,                // 新项目使用0作为ID
 		Host:           h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
-		ProjectTitle:   project.Name,
+		ProjectTitle:   projectNickname + " - " + project.Name,
 		CanRemix:       project.UserID == loginedUserID,
 		UserName:       user.Username,
 		NickName:       user.Nickname,
 		IsPlayerOnly:   false,
 		IsFullScreen:   false,
 		ProjectHost:    h.config.ScratchEditor.Host + "/api/scratch/projects",
+		AssetHost:      h.config.ScratchEditor.Host + "/assets/scratch",
+	}
+
+	return &TemplateRenderResponse{Tmpl: tmpl, Data: data}, nil, nil
+}
+
+// GetOpenScratchProjectParams 打开Scratch项目参数
+type GetLessonScratchProjectParams struct {
+	ClassID   uint `uri:"class_id"`
+	CourseID  uint `uri:"course_id"`
+	LessonID  uint `uri:"lesson_id"`
+	ProjectID uint `uri:"project_id"`
+}
+
+func (p *GetLessonScratchProjectParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+func (h *Handler) GetLessonScratchProjectHandler(c *gin.Context, params *GetLessonScratchProjectParams) (*TemplateRenderResponse, *gorails.ResponseMeta, gorails.Error) {
+
+	loginedUserID := h.getUserID(c)
+
+	// 获取课时信息
+	lesson, err := h.dao.LessonDao.GetLesson(params.LessonID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryNotFound, global.ErrorMsgQueryNotFound, err)
+	}
+
+	// 验证课程ID是否匹配课时
+	if lesson.CourseID != params.CourseID {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, errors.New("课时不属于指定课程"))
+	}
+
+	// 检查 project_id 是否是 lesson_id 的 project_id_1
+	if lesson.ProjectID1 != params.ProjectID {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, errors.New("项目ID与课时关联的项目不匹配"))
+	}
+
+	// 检查课程是否在指定班级中
+	isLessonInClass, err := h.dao.ClassDao.IsLessonInClass(params.ClassID, params.CourseID, params.LessonID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	if !isLessonInClass {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, errors.New("课时所属的课程不在指定班级中"))
+	}
+
+	// 获取项目信息
+	project, err := h.dao.ScratchDao.GetProject(params.ProjectID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 检查权限：管理员、班级成员、课程作者或项目创建者都可以访问
+	hasPermission := false
+
+	// 1. 检查是否是管理员
+	if h.hasPermission(c, PermissionManageAll) {
+		hasPermission = true
+	}
+
+	// 2. 检查是否是项目创建者
+	if !hasPermission && project.UserID == loginedUserID {
+		hasPermission = true
+	}
+
+	// 3. 检查是否是课程作者
+	if !hasPermission && lesson.Course.AuthorID == loginedUserID {
+		hasPermission = true
+	}
+
+	// 4. 检查是否是班级成员（学生或教师）
+	if !hasPermission && h.isClassMember(c, params.ClassID) {
+		hasPermission = true
+	}
+
+	if !hasPermission {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, errors.New("您没有权限访问该项目"))
+	}
+
+	user, err := h.dao.UserDao.GetUserByID(loginedUserID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 从嵌入的文件系统中获取index.html
+	scratchFS, err := fs.Sub(web.ScratchStaticFiles, "scratch/dist")
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 读取index.html文件
+	htmlContent, err := fs.ReadFile(scratchFS, "index.html")
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 将HTML内容转换为字符串
+	htmlStr := string(htmlContent)
+
+	// 创建模板
+	tmpl, err := template.New("scratch").Parse(htmlStr)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 准备模板数据
+	data := struct {
+		CanSaveProject bool
+		ProjectID      string
+		Host           string
+		ProjectTitle   string
+		CanRemix       bool
+		UserName       string
+		NickName       string
+		IsPlayerOnly   bool
+		IsFullScreen   bool
+		ProjectHost    string
+		AssetHost      string
+	}{
+		CanSaveProject: false, // 课时项目通常为只读
+		CanRemix:       true,  // 允许基于课时项目创建新项目
+		ProjectID:      fmt.Sprintf("%d_%d_%d_%d", params.ClassID, params.CourseID, params.LessonID, params.ProjectID),
+		Host:           h.config.ScratchEditor.Host,
+		ProjectTitle:   fmt.Sprintf("Lesson %s - %s", lesson.Title, project.Name),
+		UserName:       user.Username,
+		NickName:       user.Nickname,
+		IsPlayerOnly:   false,
+		IsFullScreen:   false,
+		ProjectHost:    h.config.ScratchEditor.Host + "/api/student/scratch/projects",
 		AssetHost:      h.config.ScratchEditor.Host + "/assets/scratch",
 	}
 

@@ -54,4 +54,7 @@ type ClassDao interface {
 
 	// GetUserClasses 获取用户参与的所有班级（包括作为教师和学生的班级）
 	GetUserClasses(userID uint) ([]model.Class, error)
+
+	// IsLessonInClass 检查课时是否在班级中
+	IsLessonInClass(classID, courseID, lessonID uint) (bool, error)
 }

@@ -477,6 +477,16 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 19, "解析模板失败", err)
 	}
 
+	projectUser, err := h.dao.UserDao.GetUserByID(project.UserID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_THIRD_PARTY, MODULE_SHARE, 19, "获取项目创建者信息失败", err)
+	}
+
+	projectNickname := projectUser.Nickname
+	if projectNickname == "" {
+		projectNickname = projectUser.Username
+	}
+
 	// 准备模板数据，分享项目的特殊配置
 	data := struct {
 		CanSaveProject bool
@@ -491,15 +501,15 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		ProjectHost    string
 		AssetHost      string
 	}{
-		CanSaveProject: false,                                        // 分享项目不能保存
-		ProjectID:      share.ShareToken,                             // 使用项目ID
-		Host:           h.config.ScratchEditor.Host,                  // 从配置中获取 ScratchEditorHost
-		ProjectTitle:   fmt.Sprintf("%s (分享)", project.Name),         // 使用项目名称
-		CanRemix:       share.AllowRemix,                             // 根据分享设置决定是否允许Remix
-		UserName:       fmt.Sprintf("guest_%s", params.Token[:8]),    // 访客用户名
-		NickName:       fmt.Sprintf("访客 (查看 %s 的作品)", user.Nickname), // 访客昵称
-		IsPlayerOnly:   true,                                         // 分享项目为播放器模式
-		IsFullScreen:   false,                                        // 分享项目为全屏模式
+		CanSaveProject: false,                                                       // 分享项目不能保存
+		ProjectID:      share.ShareToken,                                            // 使用项目ID
+		Host:           h.config.ScratchEditor.Host,                                 // 从配置中获取 ScratchEditorHost
+		ProjectTitle:   fmt.Sprintf("%s (分享) by %s", project.Name, projectNickname), // 使用项目名称
+		CanRemix:       share.AllowRemix,                                            // 根据分享设置决定是否允许Remix
+		UserName:       fmt.Sprintf("guest_%s", params.Token[:8]),                   // 访客用户名
+		NickName:       fmt.Sprintf("访客 (查看 %s 的作品)", user.Nickname),                // 访客昵称
+		IsPlayerOnly:   true,                                                        // 分享项目为播放器模式
+		IsFullScreen:   false,                                                       // 分享项目为全屏模式
 		ProjectHost:    h.config.ScratchEditor.Host + "/api/shares/scratch",
 		AssetHost:      h.config.ScratchEditor.Host + "/shares/assets/scratch/" + share.ShareToken,
 	}
