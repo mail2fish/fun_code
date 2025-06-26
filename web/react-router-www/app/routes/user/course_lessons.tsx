@@ -26,7 +26,7 @@ interface Lesson {
   course_id: number;
   order_index: number;
   duration: number;
-  is_published: boolean;
+
   lesson_type: string;
   video_url: string;
   project_1: string;

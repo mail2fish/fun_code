@@ -14,10 +14,9 @@ type Lesson struct {
 	DeletedAt *int64 `json:"deleted_at,omitempty" gorm:"index"`
 
 	// 基本信息
-	Title       string `json:"title" gorm:"size:200;not null"`    // 课时标题
-	Content     string `json:"content" gorm:"type:text"`          // 课时内容
-	SortOrder   int    `json:"sort_order" gorm:"default:0;index"` // 排序号
-	IsPublished bool   `json:"is_published" gorm:"default:false"` // 是否发布
+	Title     string `json:"title" gorm:"size:200;not null"`    // 课时标题
+	Content   string `json:"content" gorm:"type:text"`          // 课时内容
+	SortOrder int    `json:"sort_order" gorm:"default:0;index"` // 排序号
 
 	// 关联关系
 	CourseID uint   `json:"course_id" gorm:"not null;index"`   // 课程ID

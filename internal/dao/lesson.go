@@ -254,41 +254,6 @@ func (l *LessonDaoImpl) ReorderLessonsWithOrder(courseID uint, lessons []LessonO
 	})
 }
 
-// PublishLesson 发布/取消发布课时（乐观锁，基于updated_at避免并发更新）
-func (l *LessonDaoImpl) PublishLesson(lessonID, authorID uint, expectedUpdatedAt int64, isPublished bool) error {
-	// 检查权限
-	var lesson model.Lesson
-	if err := l.db.Joins("JOIN courses ON courses.id = lessons.course_id").
-		Where("lessons.id = ? AND courses.author_id = ?", lessonID, authorID).
-		First(&lesson).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("课时不存在或您无权操作")
-		}
-		return err
-	}
-
-	// 乐观锁：检查updated_at是否匹配
-	if lesson.UpdatedAt != expectedUpdatedAt {
-		return errors.New("课时已被其他用户修改，请刷新后重试")
-	}
-
-	// 执行更新
-	result := l.db.Model(&lesson).
-		Where("id = ? AND updated_at = ?", lessonID, expectedUpdatedAt).
-		Update("is_published", isPublished)
-
-	if result.Error != nil {
-		return fmt.Errorf("更新发布状态失败: %w", result.Error)
-	}
-
-	// 检查是否真的更新了记录（如果updated_at不匹配，RowsAffected会是0）
-	if result.RowsAffected == 0 {
-		return errors.New("课时已被其他用户修改，请刷新后重试")
-	}
-
-	return nil
-}
-
 // GetLessonsByProjectID 根据项目ID获取相关课时
 func (l *LessonDaoImpl) GetLessonsByProjectID(projectID uint) ([]model.Lesson, error) {
 	var lessons []model.Lesson
@@ -431,7 +396,6 @@ func (l *LessonDaoImpl) DuplicateLesson(lessonID, targetCourseID, authorID uint)
 		Duration:     originalLesson.Duration,
 		Difficulty:   originalLesson.Difficulty,
 		Description:  originalLesson.Description,
-		IsPublished:  false, // 复制的课时默认不发布
 	}
 
 	if err := l.CreateLesson(&newLesson); err != nil {

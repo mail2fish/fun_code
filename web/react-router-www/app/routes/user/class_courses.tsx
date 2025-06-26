@@ -25,7 +25,7 @@ interface Course {
   author_id: number;
   created_at: string;
   updated_at: string;
-  is_published: boolean;
+
   difficulty_level: string;
   estimated_duration: number;
   tags: string;

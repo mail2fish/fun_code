@@ -140,7 +140,7 @@ func (s *Server) setupRoutes() {
 			admin.GET("/lessons/:lesson_id", gorails.Wrap(s.handler.GetLessonHandler, nil))
 			admin.GET("/lessons", gorails.Wrap(s.handler.ListLessonsHandler, nil))
 			admin.DELETE("/lessons/:lesson_id", gorails.Wrap(s.handler.DeleteLessonHandler, nil))
-			admin.PUT("/lessons/:lesson_id/publish", gorails.Wrap(s.handler.PublishLessonHandler, nil))
+
 			admin.PUT("/lessons/reorder", gorails.Wrap(s.handler.ReorderLessonsHandler, nil))
 
 			// 用户管理路由 - 已改造为 gorails.Wrap 形式

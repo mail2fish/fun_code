@@ -408,11 +408,10 @@ func (s *ClassDaoImpl) AddCourse(classID, teacherID, courseID uint, startDateStr
 
 	// 添加课程到班级
 	classCourse := model.ClassCourse{
-		ClassID:     classID,
-		CourseID:    courseID,
-		StartDate:   startDateUnix,
-		EndDate:     endDateUnix,
-		IsPublished: false,
+		ClassID:   classID,
+		CourseID:  courseID,
+		StartDate: startDateUnix,
+		EndDate:   endDateUnix,
 	}
 
 	if err := s.db.Create(&classCourse).Error; err != nil {

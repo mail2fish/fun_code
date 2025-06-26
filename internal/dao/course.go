@@ -482,7 +482,6 @@ func (c *CourseDaoImpl) DuplicateCourse(courseID, authorID uint) (*model.Course,
 				Duration:     originalLesson.Duration,
 				Difficulty:   originalLesson.Difficulty,
 				Description:  originalLesson.Description,
-				IsPublished:  false, // 复制的课时默认不发布
 			}
 
 			if err := tx.Create(&newLesson).Error; err != nil {

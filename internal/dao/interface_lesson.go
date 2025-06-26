@@ -45,9 +45,6 @@ type LessonDao interface {
 	// ReorderLessonsWithOrder 使用明确排序信息重新排序课时
 	ReorderLessonsWithOrder(courseID uint, lessons []LessonOrder) error
 
-	// PublishLesson 发布/取消发布课时（乐观锁，基于updated_at避免并发更新）
-	PublishLesson(lessonID, authorID uint, expectedUpdatedAt int64, isPublished bool) error
-
 	// GetLessonsByProjectID 根据项目ID获取相关课时
 	GetLessonsByProjectID(projectID uint) ([]model.Lesson, error)
 

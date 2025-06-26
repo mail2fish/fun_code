@@ -1,25 +1,21 @@
 import * as React from "react"
 import { Link } from "react-router"
+import { IconPlus, IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconBook, IconGripVertical, IconFileText } from "@tabler/icons-react"
 import {
   DndContext,
-  closestCenter,
-  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core'
+  closestCenter,
+} from "@dnd-kit/core"
+import type { DragEndEvent } from "@dnd-kit/core"
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import {
   useSortable,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { IconPlus, IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconBook, IconEye, IconFileText, IconGripVertical } from "@tabler/icons-react"
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 import { AdminLayout } from "~/components/admin-layout"
 import { Button } from "~/components/ui/button"
@@ -42,25 +38,26 @@ import {
   TableRow,
 } from "~/components/ui/table"
 import { Badge } from "~/components/ui/badge"
-import { Input } from "~/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select"
 import { Checkbox } from "~/components/ui/checkbox"
 import { toast } from "sonner"
 
-// 导入自定义的 fetch 函数
 import { fetchWithAuth } from "~/utils/api"
-
-// API 服务
 import { HOST_URL } from "~/config"
 
-// 课件类型定义
+// 课时类型定义
 interface Lesson {
   id: number
   course_id: number
   title: string
   content: string
   sort_order: number
-  is_published: boolean
   document_name: string
   document_path: string
   flow_chart_id: number
@@ -105,17 +102,13 @@ function SortableLessonRow({
   lesson, 
   isSelected, 
   onSelect, 
-  onPublish, 
   onDelete, 
-  publishingId, 
   deletingId 
 }: {
   lesson: Lesson
   isSelected: boolean
   onSelect: (id: number, checked: boolean) => void
-  onPublish: (id: string, isPublished: boolean, updatedAt: string) => void
   onDelete: (id: string, updatedAt: string) => void
-  publishingId: string | null
   deletingId: string | null
 }) {
   const {
@@ -219,11 +212,6 @@ function SortableLessonRow({
         </Badge>
       </TableCell>
       <TableCell>{formatDuration(lesson.duration)}</TableCell>
-      <TableCell>
-        <Badge variant={lesson.is_published ? "default" : "secondary"}>
-          {lesson.is_published ? "已发布" : "草稿"}
-        </Badge>
-      </TableCell>
       <TableCell>{formatDate(lesson.created_at)}</TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end space-x-2">
@@ -231,23 +219,6 @@ function SortableLessonRow({
             <Link to={`/www/admin/edit_lesson/${lesson.id}`}>
               <IconEdit className="h-4 w-4" />
             </Link>
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onPublish(
-              lesson.id.toString(),
-              !lesson.is_published,
-              lesson.updated_at
-            )}
-            disabled={publishingId === lesson.id.toString()}
-          >
-            {lesson.is_published ? (
-              <IconEye className="h-4 w-4" />
-            ) : (
-              <IconFileText className="h-4 w-4" />
-            )}
           </Button>
 
           <Dialog>
@@ -258,9 +229,9 @@ function SortableLessonRow({
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>确认删除课件</DialogTitle>
+                <DialogTitle>确认删除</DialogTitle>
                 <DialogDescription>
-                  你确定要删除课件 "{lesson.title}" 吗？此操作无法撤销。
+                  确定要删除课件 "{lesson.title}" 吗？此操作不可撤销。
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
@@ -273,7 +244,7 @@ function SortableLessonRow({
                     onClick={() => onDelete(lesson.id.toString(), lesson.updated_at)}
                     disabled={deletingId === lesson.id.toString()}
                   >
-                    删除
+                    {deletingId === lesson.id.toString() ? "删除中..." : "确认删除"}
                   </Button>
                 </DialogClose>
               </DialogFooter>
@@ -285,7 +256,7 @@ function SortableLessonRow({
   )
 }
 
-// 获取课程列表（用于过滤）
+// 获取课程列表
 async function getCourses() {
   try {
     const response = await fetchWithAuth(`${HOST_URL}/api/admin/courses?pageSize=100`)
@@ -293,21 +264,10 @@ async function getCourses() {
       throw new Error(`API 错误: ${response.status}`)
     }
     const data = await response.json()
-    console.log("获取到的课程数据:", data) // 调试信息
-    
-    // 确保返回的是数组
-    const courses = data.data?.data || data.data || []
-    console.log("处理后的课程数组:", courses) // 调试信息
-    
-    if (!Array.isArray(courses)) {
-      console.error("课程数据不是数组:", courses)
-      return []
-    }
-    
-    return courses
+    return data.data || []
   } catch (error) {
     console.error("获取课程列表失败:", error)
-    return []
+    throw error
   }
 }
 
@@ -315,14 +275,14 @@ async function getCourses() {
 async function getLessons(courseId = "", beginID = "0", pageSize = 10, forward = false, asc = false) {
   try {
     const params = new URLSearchParams()
-    if (courseId) {
-      params.append('courseId', courseId)
-    }
     params.append('pageSize', pageSize.toString())
     params.append('asc', asc.toString())
     params.append('forward', forward.toString())
     if (beginID !== "0") {
       params.append('beginID', beginID.toString())
+    }
+    if (courseId) {
+      params.append('courseId', courseId)
     }
     
     const response = await fetchWithAuth(`${HOST_URL}/api/admin/lessons?${params.toString()}`)
@@ -358,32 +318,14 @@ async function deleteLesson(id: string, updatedAt: string) {
   }
 }
 
-// 发布/撤销课件
-async function publishLesson(id: string, isPublished: boolean, updatedAt: string) {
-  try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/admin/lessons/${id}/publish`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        is_published: isPublished,
-        updated_at: updatedAt
-      })
-    })
-    if (!response.ok) {
-      throw new Error(`API 错误: ${response.status}`)
-    }
-    return await response.json()
-  } catch (error) {
-    console.error("发布课件失败:", error)
-    throw error
-  }
-}
-
 // 重新排序课件
 async function reorderLessons(courseId: number, lessonIds: number[]) {
   try {
+    const lessons = lessonIds.map((id, index) => ({
+      id,
+      sort_order: index + 1
+    }))
+
     const response = await fetchWithAuth(`${HOST_URL}/api/admin/lessons/reorder`, {
       method: "PUT",
       headers: {
@@ -391,7 +333,7 @@ async function reorderLessons(courseId: number, lessonIds: number[]) {
       },
       body: JSON.stringify({
         course_id: courseId,
-        lesson_ids: lessonIds
+        lessons
       })
     })
     if (!response.ok) {
@@ -399,12 +341,12 @@ async function reorderLessons(courseId: number, lessonIds: number[]) {
     }
     return await response.json()
   } catch (error) {
-    console.error("排序课件失败:", error)
+    console.error("重新排序课件失败:", error)
     throw error
   }
 }
 
-const defaultPageSize = 20 // 每页显示的课件数量
+const defaultPageSize = 10
 
 export default function ListLessonsPage() {
   const [lessonsData, setLessonsData] = React.useState<LessonsData>({
@@ -416,21 +358,18 @@ export default function ListLessonsPage() {
     pageSize: defaultPageSize
   })
   const [courses, setCourses] = React.useState<Course[]>([])
-  const [selectedCourse, setSelectedCourse] = React.useState<string>("")
+  const [selectedCourse, setSelectedCourse] = React.useState("all")
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
-  const [publishingId, setPublishingId] = React.useState<string | null>(null)
   const [selectedLessons, setSelectedLessons] = React.useState<number[]>([])
-  const [isReordering, setIsReordering] = React.useState(false)
-  // 添加按钮冷却状态
   const [isButtonCooling, setIsButtonCooling] = React.useState(false)
 
-  // 拖拽传感器
   const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
     })
   )
 
@@ -479,83 +418,115 @@ export default function ListLessonsPage() {
     }
   }
 
-  // 获取课件列表数据
+  // 加载数据
   const fetchLessons = async (courseId = "", beginID = "0", forward = false, asc = false) => {
-    setIsLoading(true)
-    setError(null)
-    
     try {
+      setIsLoading(true)
       const response = await getLessons(courseId, beginID, defaultPageSize, forward, asc)
-      console.log("获取到的课件数据:", response) // 调试信息
-      
+
+      let page = lessonsData.currentPage
+      if (beginID === "0") {
+        page = 1
+      }
+
+      let showForward = false
+      let showBackward = false
+
+      if (forward) {
+        page++
+        if (response.meta.has_next) {
+          showForward = true
+        }
+        if (page > 1) {
+          showBackward = true
+        }
+      } else {
+        page--
+        if (page > 1) {
+          showBackward = true
+        }
+        showForward = response.meta.has_next || page > 0
+      }
+
       setLessonsData({
         lessons: response.data || [],
-        total: response.meta?.total || (response.data ? response.data.length : 0),
-        showForward: response.meta?.has_next || false,
-        showBackward: beginID !== "0",
-        pageSize: defaultPageSize,
-        currentPage: 1 // 这里需要根据实际分页逻辑计算
+        total: response.meta.total || 0,
+        showForward: showForward,
+        showBackward: showBackward,
+        currentPage: page,
+        pageSize: defaultPageSize
       })
+      setError(null)
     } catch (error) {
-      console.error("获取课件列表失败:", error)
-      setError(error instanceof Error ? error.message : "获取课件列表失败")
-      toast.error("获取课件列表失败")
+      console.error("加载数据失败:", error)
+      setError("加载课件列表失败")
+      setLessonsData({
+        lessons: [],
+        total: 0,
+        showForward: false,
+        showBackward: false,
+        currentPage: 1,
+        pageSize: defaultPageSize
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
-  // 初始化数据
+  // 初始化
   React.useEffect(() => {
     const initData = async () => {
       try {
-        // 获取课程列表
-        const courseList = await getCourses()
-        console.log("设置课程列表:", courseList) // 调试信息
+        const [coursesResponse] = await Promise.all([
+          getCourses()
+        ])
+        setCourses(coursesResponse)
         
-        // 确保courseList是数组
-        if (Array.isArray(courseList)) {
-          setCourses(courseList)
-        } else {
-          console.error("courseList不是数组:", courseList)
-          setCourses([])
-        }
-        
-        // 获取课件列表
-        await fetchLessons()
+        // 加载课件数据
+        await fetchLessons("")
       } catch (error) {
         console.error("初始化数据失败:", error)
-        setCourses([])
         setError("初始化数据失败")
       }
     }
-    
+
     initData()
   }, [])
 
-  // 处理课程选择变化
+  // 当选择课程变化时重新加载数据
+  React.useEffect(() => {
+    const courseIdToFetch = selectedCourse === "all" ? "" : selectedCourse
+    fetchLessons(courseIdToFetch)
+  }, [selectedCourse])
+
+  // 课程选择变化
   const handleCourseChange = (courseId: string) => {
-    const actualCourseId = courseId === "all" ? "" : courseId
-    setSelectedCourse(actualCourseId)
+    setSelectedCourse(courseId)
     setSelectedLessons([]) // 清空选择
-    fetchLessons(actualCourseId)
   }
 
-  // 处理分页
+  // 翻页处理
   const handlePageChange = (beginID: string, forward: boolean, asc: boolean) => {
-    fetchLessons(selectedCourse, beginID, forward, asc)
+    const courseIdToFetch = selectedCourse === "all" ? "" : selectedCourse
+    fetchLessons(courseIdToFetch, beginID, forward, asc)
   }
 
-  // 处理拖拽排序
+  // 拖拽结束处理
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
 
-    if (!over || active.id === over.id || !selectedCourse) {
+    if (!over || active.id === over.id) {
       return
     }
 
-    const oldIndex = lessonsData.lessons.findIndex(item => item.id === active.id)
-    const newIndex = lessonsData.lessons.findIndex(item => item.id === over.id)
+    // 如果选择的是"所有课程"，则不允许排序
+    if (selectedCourse === "all") {
+      toast.error("请先选择具体课程才能进行排序")
+      return
+    }
+
+    const oldIndex = lessonsData.lessons.findIndex(lesson => lesson.id === active.id)
+    const newIndex = lessonsData.lessons.findIndex(lesson => lesson.id === over.id)
 
     if (oldIndex === -1 || newIndex === -1) {
       return
@@ -563,70 +534,48 @@ export default function ListLessonsPage() {
 
     const newLessons = arrayMove(lessonsData.lessons, oldIndex, newIndex)
 
-    // 立即更新UI
-    setLessonsData(prev => ({ ...prev, lessons: newLessons }))
+    setLessonsData({
+      ...lessonsData,
+      lessons: newLessons
+    })
 
-    // 发送排序请求
     try {
-      setIsReordering(true)
-      const lessonIds = newLessons.map(item => item.id)
-      await reorderLessons(Number(selectedCourse), lessonIds)
+      const lessonIds = newLessons.map(lesson => lesson.id)
+      await reorderLessons(parseInt(selectedCourse), lessonIds)
       toast.success("课件排序已更新")
     } catch (error) {
-      console.error("排序失败:", error)
-      toast.error("排序失败，请刷新页面")
-      // 恢复原始顺序
-      await fetchLessons(selectedCourse)
-    } finally {
-      setIsReordering(false)
+      console.error("重新排序失败:", error)
+      toast.error("重新排序失败")
+      // 回滚
+      setLessonsData({
+        ...lessonsData,
+        lessons: lessonsData.lessons
+      })
     }
   }
 
-  // 处理单个课件选择
+  // 课件选择
   const handleLessonSelect = (lessonId: number, checked: boolean) => {
-    setSelectedLessons(prev => 
-      checked 
-        ? [...prev, lessonId]
-        : prev.filter(id => id !== lessonId)
-    )
+    if (checked) {
+      setSelectedLessons(prev => [...prev, lessonId])
+    } else {
+      setSelectedLessons(prev => prev.filter(id => id !== lessonId))
+    }
   }
 
-  // 处理全选
+  // 全选/取消全选
   const handleSelectAll = (checked: boolean) => {
     setSelectedLessons(checked ? lessonsData.lessons.map(lesson => lesson.id) : [])
   }
 
-  // 批量发布/撤销
-  const handleBatchPublish = async (isPublished: boolean) => {
-    if (selectedLessons.length === 0) {
-      toast.error("请先选择要操作的课件")
-      return
-    }
-
-    try {
-      for (const lessonId of selectedLessons) {
-        const lesson = lessonsData.lessons.find(l => l.id === lessonId)
-        if (lesson) {
-          await publishLesson(lessonId.toString(), isPublished, lesson.updated_at)
-        }
-      }
-      toast.success(`已${isPublished ? '发布' : '撤销发布'}${selectedLessons.length}个课件`)
-      setSelectedLessons([])
-      await fetchLessons(selectedCourse)
-    } catch (error) {
-      console.error("批量操作失败:", error)
-      toast.error("批量操作失败")
-    }
-  }
-
-  // 处理删除课件
+  // 删除课件
   const handleDeleteLesson = async (id: string, updatedAt: string) => {
     setDeletingId(id)
     try {
       await deleteLesson(id, updatedAt)
       toast.success("课件删除成功")
-      // 重新获取列表
-      await fetchLessons(selectedCourse)
+      const courseIdToFetch = selectedCourse === "all" ? "" : selectedCourse
+      await fetchLessons(courseIdToFetch)
     } catch (error) {
       console.error("删除课件失败:", error)
       toast.error("删除课件失败")
@@ -635,23 +584,7 @@ export default function ListLessonsPage() {
     }
   }
 
-  // 处理发布/撤销课件
-  const handlePublishLesson = async (id: string, isPublished: boolean, updatedAt: string) => {
-    setPublishingId(id)
-    try {
-      await publishLesson(id, isPublished, updatedAt)
-      toast.success(isPublished ? "课件发布成功" : "课件撤销发布成功")
-      // 重新获取列表
-      await fetchLessons(selectedCourse)
-    } catch (error) {
-      console.error("发布课件失败:", error)
-      toast.error("发布课件失败")
-    } finally {
-      setPublishingId(null)
-    }
-  }
-
-  // 处理新建课件按钮点击（防止重复点击）
+  // 新建课件点击处理
   const handleNewLessonClick = (e: React.MouseEvent) => {
     if (isButtonCooling) {
       e.preventDefault()
@@ -659,94 +592,56 @@ export default function ListLessonsPage() {
     }
     
     setIsButtonCooling(true)
-    setTimeout(() => setIsButtonCooling(false), 1000) // 1秒冷却
-  }
-
-  if (error) {
-    return (
-      <AdminLayout>
-        <div className="flex items-center justify-center min-h-96">
-          <div className="text-center">
-            <p className="text-lg text-red-600 mb-4">加载失败: {error}</p>
-            <Button onClick={() => fetchLessons(selectedCourse)}>重试</Button>
-          </div>
-        </div>
-      </AdminLayout>
-    )
+    setTimeout(() => {
+      setIsButtonCooling(false)
+    }, 1000)
   }
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">课件管理</h1>
-            <p className="text-muted-foreground">
-              管理课程中的课件内容，支持拖拽排序
-            </p>
+      <div className="flex flex-1 flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <IconBook className="h-6 w-6" />
+            <h1 className="text-2xl font-bold">课件管理</h1>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Select value={selectedCourse || "all"} onValueChange={handleCourseChange}>
+          <div className="flex items-center gap-2">
+            <Select value={selectedCourse} onValueChange={handleCourseChange}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="选择课程" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">全部课程</SelectItem>
-                {Array.isArray(courses) && courses.map((course) => (
+                <SelectItem value="all">所有课程</SelectItem>
+                {courses.map((course) => (
                   <SelectItem key={course.id} value={course.id.toString()}>
                     {course.title}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Button 
-              asChild 
+            <Link 
+              to="/www/admin/create_lesson" 
               onClick={handleNewLessonClick}
-              disabled={isButtonCooling}
+              className={isButtonCooling ? 'pointer-events-none' : ''}
             >
-              <Link to="/www/admin/create_lesson">
+              <Button disabled={isButtonCooling}>
                 <IconPlus className="mr-2 h-4 w-4" />
                 新建课件
-              </Link>
-            </Button>
+              </Button>
+            </Link>
           </div>
         </div>
 
-        {/* 批量操作工具栏 */}
-        {selectedLessons.length > 0 && (
-          <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-            <span className="text-sm text-muted-foreground">
-              已选择 {selectedLessons.length} 个课件
-            </span>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleBatchPublish(true)}
-              >
-                批量发布
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleBatchPublish(false)}
-              >
-                批量撤销
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setSelectedLessons([])}
-              >
-                清空选择
-              </Button>
-            </div>
-          </div>
-        )}
-
         <div className="rounded-md border">
-          {selectedCourse && selectedCourse !== "" && lessonsData.lessons.length > 0 ? (
-            // 拖拽排序模式（仅在选择了课程时启用）
+          {isLoading ? (
+            <div className="flex h-64 items-center justify-center">
+              <div className="text-sm text-muted-foreground">加载中...</div>
+            </div>
+          ) : error ? (
+            <div className="flex h-64 items-center justify-center">
+              <div className="text-sm text-red-600">{error}</div>
+            </div>
+          ) : (
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -755,231 +650,94 @@ export default function ListLessonsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]">
+                    <TableHead className="w-12">
                       <Checkbox
-                        checked={selectedLessons.length === lessonsData.lessons.length}
+                        checked={selectedLessons.length === lessonsData.lessons.length && lessonsData.lessons.length > 0}
                         onCheckedChange={handleSelectAll}
                       />
                     </TableHead>
-                    <TableHead className="w-[30px]"></TableHead>
-                    <TableHead className="w-[100px]">排序</TableHead>
-                    <TableHead>课件标题</TableHead>
+                    <TableHead className="w-12">排序</TableHead>
+                    <TableHead className="w-16">序号</TableHead>
+                    <TableHead>课件名称</TableHead>
                     <TableHead>所属课程</TableHead>
                     <TableHead>难度</TableHead>
                     <TableHead>时长</TableHead>
-                    <TableHead>状态</TableHead>
                     <TableHead>创建时间</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <SortableContext
-                    items={lessonsData.lessons.map(lesson => lesson.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {lessonsData.lessons.map((lesson) => (
-                      <SortableLessonRow
-                        key={lesson.id}
-                        lesson={lesson}
-                        isSelected={selectedLessons.includes(lesson.id)}
-                        onSelect={handleLessonSelect}
-                        onPublish={handlePublishLesson}
-                        onDelete={handleDeleteLesson}
-                        publishingId={publishingId}
-                        deletingId={deletingId}
-                      />
-                    ))}
-                  </SortableContext>
+                  {lessonsData.lessons.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="h-24 text-center">
+                        {selectedCourse ? "该课程下暂无课件" : "暂无课件数据"}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <SortableContext
+                      items={lessonsData.lessons.map(lesson => lesson.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {lessonsData.lessons.map((lesson) => (
+                        <SortableLessonRow
+                          key={lesson.id}
+                          lesson={lesson}
+                          isSelected={selectedLessons.includes(lesson.id)}
+                          onSelect={handleLessonSelect}
+                          onDelete={handleDeleteLesson}
+                          deletingId={deletingId}
+                        />
+                      ))}
+                    </SortableContext>
+                  )}
                 </TableBody>
               </Table>
             </DndContext>
-          ) : (
-            // 普通表格模式
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]">
-                    <Checkbox
-                      checked={selectedLessons.length === lessonsData.lessons.length && lessonsData.lessons.length > 0}
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead className="w-[100px]">ID</TableHead>
-                  <TableHead>课件标题</TableHead>
-                  <TableHead>所属课程</TableHead>
-                  <TableHead>难度</TableHead>
-                  <TableHead>时长</TableHead>
-                  <TableHead>排序</TableHead>
-                  <TableHead>状态</TableHead>
-                  <TableHead>创建时间</TableHead>
-                  <TableHead className="text-right">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
-                      加载中...
-                    </TableCell>
-                  </TableRow>
-                ) : lessonsData.lessons.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      {selectedCourse ? "该课程暂无课件" : "暂无课件"}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  lessonsData.lessons.map((lesson) => (
-                    <TableRow 
-                      key={lesson.id}
-                      className={selectedLessons.includes(lesson.id) ? "bg-muted/50" : ""}
-                    >
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedLessons.includes(lesson.id)}
-                          onCheckedChange={(checked) => 
-                            handleLessonSelect(lesson.id, checked as boolean)
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">{lesson.id}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{lesson.title}</span>
-                          {lesson.description && (
-                            <span className="text-sm text-muted-foreground truncate max-w-xs">
-                              {lesson.description}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {(lesson.course?.title && lesson.course.title.trim() !== "") ? lesson.course.title : `课程 ${lesson.course_id}`}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {formatDifficulty(lesson.difficulty)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatDuration(lesson.duration)}</TableCell>
-                      <TableCell>{lesson.sort_order}</TableCell>
-                      <TableCell>
-                        <Badge variant={lesson.is_published ? "default" : "secondary"}>
-                          {lesson.is_published ? "已发布" : "草稿"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(lesson.created_at)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link to={`/www/admin/edit_lesson/${lesson.id}`}>
-                              <IconEdit className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handlePublishLesson(
-                              lesson.id.toString(),
-                              !lesson.is_published,
-                              lesson.updated_at
-                            )}
-                            disabled={publishingId === lesson.id.toString()}
-                          >
-                            {lesson.is_published ? (
-                              <IconEye className="h-4 w-4" />
-                            ) : (
-                              <IconFileText className="h-4 w-4" />
-                            )}
-                          </Button>
-
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <IconTrash className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>确认删除课件</DialogTitle>
-                                <DialogDescription>
-                                  你确定要删除课件 "{lesson.title}" 吗？此操作无法撤销。
-                                </DialogDescription>
-                              </DialogHeader>
-                              <DialogFooter>
-                                <DialogClose asChild>
-                                  <Button variant="outline">取消</Button>
-                                </DialogClose>
-                                <DialogClose asChild>
-                                  <Button
-                                    variant="destructive"
-                                    onClick={() => handleDeleteLesson(lesson.id.toString(), lesson.updated_at)}
-                                    disabled={deletingId === lesson.id.toString()}
-                                  >
-                                    删除
-                                  </Button>
-                                </DialogClose>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
           )}
         </div>
 
-        {/* 分页控件 */}
-        {lessonsData.lessons.length > 0 && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <p className="text-sm text-muted-foreground">
-                共 {lessonsData.total} 个课件
-              </p>
-              {selectedCourse && (
-                <Badge variant="outline">
-                  {courses.find(c => c.id.toString() === selectedCourse)?.title || "未知课程"}
-                </Badge>
-              )}
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const firstId = lessonsData.lessons[0]?.id
-                  if (firstId && lessonsData.showBackward) {
-                    handlePageChange(firstId.toString(), false, false)
-                  }
-                }}
-                disabled={!lessonsData.showBackward || isLoading}
-              >
-                <IconChevronLeft className="h-4 w-4" />
-                上一页
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const lastId = lessonsData.lessons[lessonsData.lessons.length - 1]?.id
-                  if (lastId && lessonsData.showForward) {
-                    handlePageChange(lastId.toString(), true, false)
-                  }
-                }}
-                disabled={!lessonsData.showForward || isLoading}
-              >
-                下一页
-                <IconChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+        {/* 分页控制 */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            共 {lessonsData.total} 个课件
+            {selectedLessons.length > 0 && (
+              <span className="ml-2">
+                已选择 {selectedLessons.length} 个
+              </span>
+            )}
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const firstLesson = lessonsData.lessons[0]
+                if (firstLesson) {
+                  handlePageChange(firstLesson.id.toString(), false, false)
+                }
+              }}
+              disabled={!lessonsData.showBackward || isLoading}
+            >
+              <IconChevronLeft className="h-4 w-4" />
+              上一页
+            </Button>
+            <span className="text-sm">第 {lessonsData.currentPage} 页</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const lastLesson = lessonsData.lessons[lessonsData.lessons.length - 1]
+                if (lastLesson) {
+                  handlePageChange(lastLesson.id.toString(), true, false)
+                }
+              }}
+              disabled={!lessonsData.showForward || isLoading}
+            >
+              下一页
+              <IconChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
     </AdminLayout>
   )

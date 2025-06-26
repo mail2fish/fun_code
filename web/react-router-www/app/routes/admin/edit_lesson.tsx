@@ -63,7 +63,7 @@ interface Lesson {
   title: string
   content: string
   sort_order: number
-  is_published: boolean
+
   document_name: string
   document_path: string
   project_type: string
@@ -537,9 +537,9 @@ export default function EditLessonPage() {
                 </p>
                 <div className="flex items-center gap-2 mt-2">
                   <Badge variant="outline">ID: {lesson.id}</Badge>
-                  <Badge variant={lesson.is_published ? "default" : "secondary"}>
-                    {lesson.is_published ? "已发布" : "草稿"}
-                  </Badge>
+                                  <Badge variant="default">
+                  课时
+                </Badge>
                   <span className="text-xs text-muted-foreground">
                     最后更新：{formatDate(lesson.updated_at)}
                   </span>

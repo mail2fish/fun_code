@@ -1024,15 +1024,7 @@ func (h *Handler) GetMyCourseLessonsHandler(c *gin.Context, params *GetMyCourseL
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
-	// 过滤只显示已发布的课时
-	publishedLessons := make([]model.Lesson, 0)
-	for _, lesson := range lessons {
-		if lesson.IsPublished {
-			publishedLessons = append(publishedLessons, lesson)
-		}
-	}
-
-	return publishedLessons, nil, nil
+	return lessons, nil, nil
 }
 
 // GetMyCourseParams 获取我的课程详情请求参数

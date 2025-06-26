@@ -48,7 +48,6 @@ interface LessonData {
   course_id: number
   sort_order: number
   duration: number
-  is_published: boolean
   created_at: string
   updated_at: string
 }
@@ -419,7 +418,7 @@ export default function CourseDetailPage() {
                   <div>
                     <label className="text-sm font-medium text-gray-500">已发布课时</label>
                     <p className="text-lg font-semibold">
-                      {lessons.filter(lesson => lesson.is_published).length} / {lessons.length}
+                      {lessons.length}
                     </p>
                   </div>
                   
@@ -486,12 +485,12 @@ export default function CourseDetailPage() {
                                 <IconClock className="h-3 w-3" />
                                 {formatDuration(lesson.duration)}
                               </span>
-                              <Badge 
-                                variant={lesson.is_published ? "default" : "secondary"}
-                                className="text-xs"
-                              >
-                                {lesson.is_published ? "已发布" : "未发布"}
-                              </Badge>
+                                                    <Badge 
+                        variant="default"
+                        className="text-xs"
+                      >
+                        课时
+                      </Badge>
                             </div>
                           </div>
                         </div>

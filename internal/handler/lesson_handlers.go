@@ -74,13 +74,13 @@ func (p *CreateLessonParams) Parse(c *gin.Context) gorails.Error {
 
 // CreateLessonResponse 创建课时响应
 type CreateLessonResponse struct {
-	Message      string `json:"message"`
-	ID           uint   `json:"id"`
-	CourseID     uint   `json:"course_id"`
-	Title        string `json:"title"`
-	Content      string `json:"content"`
-	SortOrder    int    `json:"sort_order"`
-	IsPublished  bool   `json:"is_published"`
+	Message   string `json:"message"`
+	ID        uint   `json:"id"`
+	CourseID  uint   `json:"course_id"`
+	Title     string `json:"title"`
+	Content   string `json:"content"`
+	SortOrder int    `json:"sort_order"`
+
 	DocumentName string `json:"document_name"`
 	DocumentPath string `json:"document_path"`
 	FlowChartID  uint   `json:"flow_chart_id"`
@@ -162,7 +162,6 @@ func (h *Handler) CreateLessonHandler(c *gin.Context, params *CreateLessonParams
 		Duration:     params.Duration,
 		Difficulty:   params.Difficulty,
 		Description:  params.Description,
-		IsPublished:  false, // 默认未发布
 	}
 
 	// 调用服务层创建课时
@@ -173,13 +172,13 @@ func (h *Handler) CreateLessonHandler(c *gin.Context, params *CreateLessonParams
 	}
 
 	response := &CreateLessonResponse{
-		Message:      "课时创建成功",
-		ID:           lesson.ID,
-		CourseID:     lesson.CourseID,
-		Title:        lesson.Title,
-		Content:      lesson.Content,
-		SortOrder:    lesson.SortOrder,
-		IsPublished:  lesson.IsPublished,
+		Message:   "课时创建成功",
+		ID:        lesson.ID,
+		CourseID:  lesson.CourseID,
+		Title:     lesson.Title,
+		Content:   lesson.Content,
+		SortOrder: lesson.SortOrder,
+
 		DocumentName: lesson.DocumentName,
 		DocumentPath: lesson.DocumentPath,
 		FlowChartID:  lesson.FlowChartID,
@@ -555,12 +554,12 @@ func (p *GetLessonParams) Parse(c *gin.Context) gorails.Error {
 
 // GetLessonResponse 获取课时详情响应
 type GetLessonResponse struct {
-	ID           uint   `json:"id"`
-	CourseID     uint   `json:"course_id"`
-	Title        string `json:"title"`
-	Content      string `json:"content"`
-	SortOrder    int    `json:"sort_order"`
-	IsPublished  bool   `json:"is_published"`
+	ID        uint   `json:"id"`
+	CourseID  uint   `json:"course_id"`
+	Title     string `json:"title"`
+	Content   string `json:"content"`
+	SortOrder int    `json:"sort_order"`
+
 	DocumentName string `json:"document_name"`
 	DocumentPath string `json:"document_path"`
 	FlowChartID  uint   `json:"flow_chart_id"`
@@ -593,12 +592,12 @@ func (h *Handler) GetLessonHandler(c *gin.Context, params *GetLessonParams) (*Ge
 	}
 
 	response := &GetLessonResponse{
-		ID:           lesson.ID,
-		CourseID:     lesson.CourseID,
-		Title:        lesson.Title,
-		Content:      lesson.Content,
-		SortOrder:    lesson.SortOrder,
-		IsPublished:  lesson.IsPublished,
+		ID:        lesson.ID,
+		CourseID:  lesson.CourseID,
+		Title:     lesson.Title,
+		Content:   lesson.Content,
+		SortOrder: lesson.SortOrder,
+
 		DocumentName: lesson.DocumentName,
 		DocumentPath: lesson.DocumentPath,
 		FlowChartID:  lesson.FlowChartID,
@@ -742,65 +741,6 @@ func (h *Handler) DeleteLessonHandler(c *gin.Context, params *DeleteLessonParams
 	return &DeleteLessonResponse{
 		Message: "课时删除成功",
 	}, nil, nil
-}
-
-// PublishLessonParams 发布课时请求参数
-type PublishLessonParams struct {
-	LessonID    uint  `json:"lesson_id" uri:"lesson_id" binding:"required"`
-	IsPublished bool  `json:"is_published"`
-	UpdatedAt   int64 `json:"updated_at"` // 乐观锁
-}
-
-func (p *PublishLessonParams) Parse(c *gin.Context) gorails.Error {
-	if err := c.ShouldBindUri(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
-	}
-	if err := c.ShouldBindJSON(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
-	}
-
-	// 手动验证必需的字段
-	if p.UpdatedAt == 0 {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "updated_at字段为必填项", nil)
-	}
-
-	return nil
-}
-
-// PublishLessonResponse 发布课时响应
-type PublishLessonResponse struct {
-	Message     string `json:"message"`
-	ID          uint   `json:"id"`
-	IsPublished bool   `json:"is_published"`
-	UpdatedAt   string `json:"updated_at"`
-}
-
-// PublishLessonHandler 发布/撤销课时
-func (h *Handler) PublishLessonHandler(c *gin.Context, params *PublishLessonParams) (*PublishLessonResponse, *gorails.ResponseMeta, gorails.Error) {
-	userID := h.getUserID(c)
-
-	// 调用服务层发布/撤销课时
-	if err := h.dao.LessonDao.PublishLesson(params.LessonID, userID, params.UpdatedAt, params.IsPublished); err != nil {
-		if err.Error() == "课时已被其他用户修改，请刷新后重试" {
-			return nil, nil, gorails.NewError(http.StatusConflict, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeUpdateConflict, "课时已被其他用户修改，请刷新后重试", err)
-		}
-		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeUpdateFailed, global.ErrorMsgUpdateFailed, err)
-	}
-
-	// 获取更新后的课时信息
-	lesson, err := h.dao.LessonDao.GetLesson(params.LessonID)
-	if err != nil {
-		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
-	}
-
-	response := &PublishLessonResponse{
-		Message:     "课时发布状态更新成功",
-		ID:          lesson.ID,
-		IsPublished: lesson.IsPublished,
-		UpdatedAt:   time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339),
-	}
-
-	return response, nil, nil
 }
 
 // ReorderLessonsParams 重新排序课时请求参数

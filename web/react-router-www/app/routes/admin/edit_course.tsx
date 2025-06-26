@@ -225,7 +225,7 @@ function SortableLessonItem({
           {lesson.title}
         </p>
         <p className="text-xs text-muted-foreground">
-          {formatDuration(lesson.duration)} • {lesson.is_published ? "已发布" : "草稿"}
+                                    {formatDuration(lesson.duration)}
         </p>
       </div>
       <div className="flex items-center gap-1">
@@ -782,7 +782,7 @@ export default function EditCoursePage() {
                         </div>
                         <div className="flex justify-between">
                           <span>已发布课件：</span>
-                          <span>{lessons.filter(lesson => lesson.is_published).length}</span>
+                          <span>{lessons.length}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>课程状态：</span>
