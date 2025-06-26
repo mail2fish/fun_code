@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "~/components/ui/select"
 import { Textarea } from "~/components/ui/textarea"
+import { Badge } from "~/components/ui/badge"
 import { toast } from "sonner"
 
 // 导入自定义的 fetch 函数
@@ -65,9 +66,6 @@ const formSchema = z.object({
   }).max(200, {
     message: "课件标题不能超过 200 个字符",
   }),
-  description: z.string().max(1000, {
-    message: "课件描述不能超过 1000 个字符",
-  }).optional(),
   content: z.string().max(20000, {
     message: "课件内容不能超过 20000 个字符",
   }).optional(),
@@ -79,7 +77,9 @@ const formSchema = z.object({
   }).max(1000, {
     message: "课件时长不能超过 1000 分钟",
   }),
-  project_type: z.string().optional(),
+  project_type: z.enum(["python", "scratch"], {
+    required_error: "请选择项目类型",
+  }),
   project_id_1: z.string().optional(),
   project_id_2: z.string().optional(),
 })
@@ -219,13 +219,12 @@ export default function CreateLessonPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
-      description: "",
       content: "",
       difficulty: "beginner",
       duration: 30,
-      project_type: "",
-      project_id_1: undefined,
-      project_id_2: undefined,
+      project_type: "scratch",
+      project_id_1: "none",
+      project_id_2: "none",
     },
   })
 
@@ -292,6 +291,31 @@ export default function CreateLessonPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
+  // 获取项目显示文本
+  const getProjectDisplayText = (projectId: string | undefined) => {
+    if (!projectId || projectId === "none") {
+      return "无关联项目"
+    }
+    
+    // 如果项目数据还没有加载完成，显示加载中
+    if (!projects || projects.length === 0) {
+      return "加载中..."
+    }
+    
+    const selectedProject = projects.find(p => {
+      const pId = String(p.id).trim()
+      const searchId = String(projectId).trim()
+      return pId === searchId
+    })
+    
+    if (selectedProject) {
+      const creator = users.find(user => user.id === selectedProject.user_id)?.nickname || "未知用户"
+      return `ID:${selectedProject.id} - ${selectedProject.name} (by ${creator})`
+    }
+    
+    return `项目 ${projectId}`
+  }
+
   // 提交表单
   async function onSubmit(values: FormData) {
     try {
@@ -335,11 +359,22 @@ export default function CreateLessonPage() {
       <div className="flex flex-1 flex-col gap-4">
         <div className="mx-auto w-full max-w-4xl">
           <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium">创建新课件</h3>
-              <p className="text-sm text-muted-foreground">
-                填写以下信息创建一个新的课件。您可以上传文档、视频等资源文件。
-              </p>
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-medium">创建新课件</h3>
+                <p className="text-sm text-muted-foreground">
+                  填写以下信息创建一个新的课件。您可以上传文档、视频等资源文件。
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge variant="default">新课件</Badge>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/www/admin/list_lessons")}
+              >
+                返回列表
+              </Button>
             </div>
             <Separator />
             
@@ -399,27 +434,6 @@ export default function CreateLessonPage() {
                   
                   <FormField
                     control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>课件描述</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="描述这个课件的内容、学习目标等..."
-                            className="resize-none min-h-20"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          简要描述课件内容。
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
                     name="content"
                     render={({ field }) => (
                       <FormItem>
@@ -446,7 +460,7 @@ export default function CreateLessonPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>课件难度 *</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="选择课件难度" />
@@ -494,121 +508,215 @@ export default function CreateLessonPage() {
                 
                 {/* 项目配置 */}
                 <div className="space-y-6">
-                  <h4 className="text-md font-medium">项目配置（可选）</h4>
+                  <h4 className="text-md font-medium">项目配置</h4>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="project_type"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>项目类型</FormLabel>
+                  <FormField
+                    control={form.control}
+                    name="project_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>项目类型 *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <Input placeholder="scratch" {...field} />
+                            <SelectTrigger>
+                              <SelectValue placeholder="选择项目类型" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormDescription>
-                            相关的项目类型，如 scratch。
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-
-                  </div>
+                          <SelectContent>
+                            <SelectItem value="scratch">Scratch</SelectItem>
+                            <SelectItem value="python">Python</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          选择与课件关联的项目类型。
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="project_id_1"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>关联项目 1</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="选择项目" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <div className="px-2 py-1">
-                                <input
-                                  className="w-full outline-none bg-transparent text-sm px-2 py-1 border rounded-md h-8"
-                                  placeholder="搜索项目"
-                                  value={searchKeyword1}
-                                  onChange={e => setSearchKeyword1(e.target.value)}
-                                  autoFocus
-                                />
-                              </div>
-                              <SelectItem value="none">无关联项目</SelectItem>
-                              {projects
-                                .filter(project => 
-                                  !searchKeyword1 || 
-                                  project.name?.toLowerCase().includes(searchKeyword1.toLowerCase())
-                                )
-                                .map(project => {
-                                  const creator = users.find(user => user.id === project.user_id)?.nickname || "未知用户"
-                                  return (
-                                    <SelectItem key={project.id} value={project.id}>
-                                      {project.name} (by {creator})
-                                    </SelectItem>
+                  <div className="space-y-6">
+                    {/* 关联项目 1 */}
+                    <div className="space-y-3">
+                      <FormField
+                        control={form.control}
+                        name="project_id_1"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>关联项目 1</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="选择项目">
+                                    {getProjectDisplayText(field.value)}
+                                  </SelectValue>
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <div className="px-2 py-1">
+                                  <input
+                                    className="w-full outline-none bg-transparent text-sm px-2 py-1 border rounded-md h-8"
+                                    placeholder="搜索项目"
+                                    value={searchKeyword1}
+                                    onChange={e => setSearchKeyword1(e.target.value)}
+                                    autoFocus
+                                  />
+                                </div>
+                                <SelectItem value="none">无关联项目</SelectItem>
+                                {projects
+                                  .filter(project => 
+                                    !searchKeyword1 || 
+                                    project.name?.toLowerCase().includes(searchKeyword1.toLowerCase()) ||
+                                    project.id?.toLowerCase().includes(searchKeyword1.toLowerCase())
                                   )
-                                })}
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>
-                            选择与课件关联的第一个项目。
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
+                                  .map(project => {
+                                    const creator = users.find(user => user.id === project.user_id)?.nickname || "未知用户"
+                                    return (
+                                      <SelectItem key={project.id} value={project.id}>
+                                        ID:{project.id} - {project.name} (by {creator})
+                                      </SelectItem>
+                                    )
+                                  })}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              选择与课件关联的第一个项目。
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* 当前选中的项目1显示 */}
+                      {form.watch("project_id_1") && form.watch("project_id_1") !== "none" && (
+                        <div className="border rounded-lg p-3 bg-muted/50">
+                          {(() => {
+                            const projectId = form.watch("project_id_1")
+                            const selectedProject = projects.find(p => {
+                              const pId = String(p.id).trim()
+                              const searchId = String(projectId).trim()
+                              return pId === searchId
+                            })
+                            if (!selectedProject) return null
+                            const creator = users.find(user => user.id === selectedProject.user_id)?.nickname || "未知用户"
+                            return (
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                    🎮
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium">{selectedProject.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      ID: {selectedProject.id} • 创建者: {creator}
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(`${HOST_URL}/scratch?project=${selectedProject.id}`, '_blank')}
+                                >
+                                  预览项目
+                                </Button>
+                              </div>
+                            )
+                          })()}
+                        </div>
                       )}
-                    />
+                    </div>
                     
-                    <FormField
-                      control={form.control}
-                      name="project_id_2"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>关联项目 2</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="选择项目" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <div className="px-2 py-1">
-                                <input
-                                  className="w-full outline-none bg-transparent text-sm px-2 py-1 border rounded-md h-8"
-                                  placeholder="搜索项目"
-                                  value={searchKeyword2}
-                                  onChange={e => setSearchKeyword2(e.target.value)}
-                                  autoFocus
-                                />
-                              </div>
-                              <SelectItem value="none">无关联项目</SelectItem>
-                              {projects
-                                .filter(project => 
-                                  !searchKeyword2 || 
-                                  project.name?.toLowerCase().includes(searchKeyword2.toLowerCase())
-                                )
-                                .map(project => {
-                                  const creator = users.find(user => user.id === project.user_id)?.nickname || "未知用户"
-                                  return (
-                                    <SelectItem key={project.id} value={project.id}>
-                                      {project.name} (by {creator})
-                                    </SelectItem>
+                    {/* 关联项目 2 */}
+                    <div className="space-y-3">
+                      <FormField
+                        control={form.control}
+                        name="project_id_2"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>关联项目 2</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="选择项目">
+                                    {getProjectDisplayText(field.value)}
+                                  </SelectValue>
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <div className="px-2 py-1">
+                                  <input
+                                    className="w-full outline-none bg-transparent text-sm px-2 py-1 border rounded-md h-8"
+                                    placeholder="搜索项目"
+                                    value={searchKeyword2}
+                                    onChange={e => setSearchKeyword2(e.target.value)}
+                                    autoFocus
+                                  />
+                                </div>
+                                <SelectItem value="none">无关联项目</SelectItem>
+                                {projects
+                                  .filter(project => 
+                                    !searchKeyword2 || 
+                                    project.name?.toLowerCase().includes(searchKeyword2.toLowerCase()) ||
+                                    project.id?.toLowerCase().includes(searchKeyword2.toLowerCase())
                                   )
-                                })}
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>
-                            选择与课件关联的第二个项目。
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
+                                  .map(project => {
+                                    const creator = users.find(user => user.id === project.user_id)?.nickname || "未知用户"
+                                    return (
+                                      <SelectItem key={project.id} value={project.id}>
+                                        ID:{project.id} - {project.name} (by {creator})
+                                      </SelectItem>
+                                    )
+                                  })}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              选择与课件关联的第二个项目。
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {/* 当前选中的项目2显示 */}
+                      {form.watch("project_id_2") && form.watch("project_id_2") !== "none" && (
+                        <div className="border rounded-lg p-3 bg-muted/50">
+                          {(() => {
+                            const projectId = form.watch("project_id_2")
+                            const selectedProject = projects.find(p => {
+                              const pId = String(p.id).trim()
+                              const searchId = String(projectId).trim()
+                              return pId === searchId
+                            })
+                            if (!selectedProject) return null
+                            const creator = users.find(user => user.id === selectedProject.user_id)?.nickname || "未知用户"
+                            return (
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                    🎮
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium">{selectedProject.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      ID: {selectedProject.id} • 创建者: {creator}
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(`${HOST_URL}/scratch?project=${selectedProject.id}`, '_blank')}
+                                >
+                                  预览项目
+                                </Button>
+                              </div>
+                            )
+                          })()}
+                        </div>
                       )}
-                    />
+                    </div>
                   </div>
                 </div>
                 
@@ -674,11 +782,15 @@ export default function CreateLessonPage() {
                     
                     {/* 教学视频上传 */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {['video1File', 'video2File', 'video3File'].map((fileKey, index) => (
-                        <div key={fileKey} className="space-y-2">
-                          <label className="text-sm font-medium">教学视频 {index + 1}</label>
+                      {[
+                        { key: 'video1File', index: 1 },
+                        { key: 'video2File', index: 2 },
+                        { key: 'video3File', index: 3 }
+                      ].map(({ key, index }) => (
+                        <div key={key} className="space-y-2">
+                          <label className="text-sm font-medium">教学视频 {index}</label>
                           <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4">
-                            {files[fileKey as keyof typeof files] ? (
+                            {files[key as keyof typeof files] ? (
                               <div className="space-y-2">
                                 <div className="flex items-center space-x-2">
                                   <div className="w-8 h-8 bg-red-100 rounded flex items-center justify-center text-xs">
@@ -686,10 +798,10 @@ export default function CreateLessonPage() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-medium truncate">
-                                      {files[fileKey as keyof typeof files]?.name}
+                                      {files[key as keyof typeof files]?.name}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                      {files[fileKey as keyof typeof files] && formatFileSize(files[fileKey as keyof typeof files]!.size)}
+                                      {files[key as keyof typeof files] && formatFileSize(files[key as keyof typeof files]!.size)}
                                     </p>
                                   </div>
                                 </div>
@@ -698,7 +810,7 @@ export default function CreateLessonPage() {
                                   variant="outline"
                                   size="sm"
                                   className="w-full"
-                                  onClick={() => handleFileRemove(fileKey)}
+                                  onClick={() => handleFileRemove(key)}
                                 >
                                   移除
                                 </Button>
@@ -708,18 +820,18 @@ export default function CreateLessonPage() {
                                 <Input
                                   type="file"
                                   accept=".mp4,.avi,.mov,.wmv,.flv,.mkv"
-                                  onChange={(e) => handleFileChange(fileKey, e.target.files?.[0] || null)}
+                                  onChange={(e) => handleFileChange(key, e.target.files?.[0] || null)}
                                   className="hidden"
-                                  id={`${fileKey}-upload`}
+                                  id={`${key}-upload`}
                                 />
-                                <label htmlFor={`${fileKey}-upload`} className="cursor-pointer">
+                                <label htmlFor={`${key}-upload`} className="cursor-pointer">
                                   <div className="flex flex-col items-center space-y-1">
                                     <div className="w-8 h-8 bg-muted rounded flex items-center justify-center text-xs">
                                       🎥
                                     </div>
                                     <p className="text-xs font-medium">上传视频</p>
                                     <p className="text-xs text-muted-foreground">
-                                      {index === 0 ? '主要' : '额外'}视频
+                                      {index === 1 ? '主要' : '额外'}视频
                                     </p>
                                   </div>
                                 </label>
