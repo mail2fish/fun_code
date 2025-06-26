@@ -24,6 +24,22 @@ import {
   BookOpen
 } from "lucide-react";
 
+interface MenuItemBase {
+  href: string;
+  label: string;
+  icon: any;
+}
+
+interface InternalMenuItem extends MenuItemBase {
+  external?: false;
+}
+
+interface ExternalMenuItem extends MenuItemBase {
+  external: true;
+}
+
+type MenuItem = InternalMenuItem | ExternalMenuItem;
+
 interface AdminNavbarProps {
   adminInfo?: {
     name: string;
@@ -48,41 +64,38 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
   const resourceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const shareTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const navItems = [
-    { href: "/www//admin/dashboard", label: "首页", icon: LayoutDashboard },
+  const navItems: MenuItem[] = [
+    { href: "/www/admin/dashboard", label: "首页", icon: LayoutDashboard },
   ];
 
-  const userMenuItems = [
+  const userMenuItems: MenuItem[] = [
     { href: "/www/admin/list_users", label: "用户列表", icon: UserCheck },
     { href: "/www/admin/create_user", label: "创建用户", icon: UserPlus },
-  ]
+  ];
 
-  const classMenuItems = [
+  const classMenuItems: MenuItem[] = [
     { href: "/www/admin/list_classes", label: "班级列表", icon: Users },
-    { href: "/www/admin/create_class", label: "创建班级", icon: UserPlus },
-  ]
+    { href: "/www/admin/create_class", label: "创建班级", icon: Plus },
+  ];
 
-  const courseMenuItems = [
+  const courseMenuItems: MenuItem[] = [
     { href: "/www/admin/list_courses", label: "课程列表", icon: FileText },
     { href: "/www/admin/create_course", label: "创建课程", icon: Plus },
     { href: "/www/admin/list_lessons", label: "课件列表", icon: BookOpen },
     { href: "/www/admin/create_lesson", label: "创建课件", icon: Plus },
   ];
 
-  const programMenuItems = [
-    { href: "/www/scratch/projects", label: "程序列表", icon: FileText },
-    { href: `${typeof window !== 'undefined' ? window.location.origin : ''}/projects/scratch/new`, label: "创建程序", icon: Plus, external: true },
-    { href: "/www/files/list", label: "资源列表", icon: FileText },
-    { href: "/www/admin/files/upload", label: "上传资源", icon: Upload },
-  ];
-
-  const resourceMenuItems = [
-
-  ];
-
-  const shareMenuItems = [
-    { href: "/www/shares/user", label: "我的分享", icon: User },
+  const programMenuItems: MenuItem[] = [
+    { href: "/www/admin/scratch_projects", label: "全部程序", icon: FileText },
     { href: "/www/shares/all", label: "全部分享", icon: Globe },
+    { href: "/www/files/list", label: "资源列表", icon: HardDrive },
+    { href: "/www/admin/upload_files", label: "上传资源", icon: Upload },
+  ];
+
+  const shareMenuItems: MenuItem[] = [
+    { href: `${typeof window !== 'undefined' ? window.location.origin : ''}/projects/scratch/new`, label: "创建程序", icon: Plus, external: true },
+    { href: "/www/scratch/projects", label: "我的程序", icon: FileText },
+    { href: "/www/shares/user", label: "我的分享", icon: User },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -90,7 +103,6 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
   const isClassMenuActive = classMenuItems.some(item => isActive(item.href));
   const isCourseMenuActive = courseMenuItems.some(item => isActive(item.href));
   const isProgramMenuActive = programMenuItems.some(item => isActive(item.href));
-  const isResourceMenuActive = resourceMenuItems.some(item => isActive(item.href));
   const isShareMenuActive = shareMenuItems.some(item => isActive(item.href));
 
   const handleUserMouseEnter = () => {
@@ -161,23 +173,6 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
     }, 150); // 150ms 延迟
   };
 
-  const handleResourceMouseEnter = () => {
-    if (resourceTimeoutRef.current) {
-      clearTimeout(resourceTimeoutRef.current);
-      resourceTimeoutRef.current = null;
-    }
-    setIsResourceMenuOpen(true);
-  };
-
-  const handleResourceMouseLeave = () => {
-    if (resourceTimeoutRef.current) {
-      clearTimeout(resourceTimeoutRef.current);
-    }
-    resourceTimeoutRef.current = setTimeout(() => {
-      setIsResourceMenuOpen(false);
-    }, 150); // 150ms 延迟
-  };
-
   const handleShareMouseEnter = () => {
     if (shareTimeoutRef.current) {
       clearTimeout(shareTimeoutRef.current);
@@ -209,9 +204,6 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
       }
       if (programTimeoutRef.current) {
         clearTimeout(programTimeoutRef.current);
-      }
-      if (resourceTimeoutRef.current) {
-        clearTimeout(resourceTimeoutRef.current);
       }
       if (shareTimeoutRef.current) {
         clearTimeout(shareTimeoutRef.current);
@@ -253,6 +245,61 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
                 </Link>
               );
             })}
+
+            {/* Share Management Dropdown */}
+            <div
+              className="relative"
+              onMouseEnter={handleShareMouseEnter}
+              onMouseLeave={handleShareMouseLeave}
+            >
+              <Button
+                variant="ghost"
+                className={`group flex items-center space-x-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                  isShareMenuActive || isShareMenuOpen
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                }`}
+              >
+                <Share2 className="h-4 w-4" />
+                <span>我的程序</span>
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+              
+              {/* 自定义下拉菜单 */}
+              {isShareMenuOpen && (
+                <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                  {shareMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    if (item.external) {
+                      return (
+                        <a
+                          key={item.href}
+                          href={item.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-gray-50 transition-colors duration-200 text-gray-700"
+                        >
+                          <Icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </a>
+                      );
+                    }
+                    return (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        className={`flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-gray-50 transition-colors duration-200 ${
+                          isActive(item.href) ? "bg-blue-50 text-blue-600" : "text-gray-700"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
             
             {/* Program Management Dropdown */}
             <div
@@ -292,88 +339,6 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
                         </a>
                       );
                     }
-                    return (
-                      <Link
-                        key={item.href}
-                        to={item.href}
-                        className={`flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-gray-50 transition-colors duration-200 ${
-                          isActive(item.href) ? "bg-blue-50 text-blue-600" : "text-gray-700"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Resource Management Dropdown */}
-            <div
-              className="relative"
-              onMouseEnter={handleResourceMouseEnter}
-              onMouseLeave={handleResourceMouseLeave}
-            >
-              <Button
-                variant="ghost"
-                className={`group flex items-center space-x-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
-                  isResourceMenuActive || isResourceMenuOpen
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
-                }`}
-              >
-                <HardDrive className="h-4 w-4" />
-                <span>程序资源</span>
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-              
-              {/* 自定义下拉菜单 */}
-              {isResourceMenuOpen && (
-                <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
-                  {resourceMenuItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        to={item.href}
-                        className={`flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-gray-50 transition-colors duration-200 ${
-                          isActive(item.href) ? "bg-blue-50 text-blue-600" : "text-gray-700"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Share Management Dropdown */}
-            <div
-              className="relative"
-              onMouseEnter={handleShareMouseEnter}
-              onMouseLeave={handleShareMouseLeave}
-            >
-              <Button
-                variant="ghost"
-                className={`group flex items-center space-x-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
-                  isShareMenuActive || isShareMenuOpen
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
-                }`}
-              >
-                <Share2 className="h-4 w-4" />
-                <span>分享管理</span>
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-              
-              {/* 自定义下拉菜单 */}
-              {isShareMenuOpen && (
-                <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
-                  {shareMenuItems.map((item) => {
-                    const Icon = item.icon;
                     return (
                       <Link
                         key={item.href}
@@ -621,13 +586,54 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
                 })}
               </div>
 
-              {/* Resource Management Section - Mobile */}
+              {/* Share Management Section - Mobile */}
               <div className="space-y-1">
                 <div className="flex items-center space-x-3 px-3 py-2 text-base font-medium text-gray-900 bg-gray-100 rounded-lg">
-                  <HardDrive className="h-5 w-5" />
-                  <span>程序资源</span>
+                  <Share2 className="h-5 w-5" />
+                  <span>我的程序</span>
                 </div>
-                {resourceMenuItems.map((item) => {
+                {shareMenuItems.map((item) => {
+                  const Icon = item.icon;
+                  if (item.external) {
+                    return (
+                      <a
+                        key={item.href}
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center space-x-3 rounded-lg px-6 py-2 text-sm font-medium transition-colors duration-200 text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </a>
+                    );
+                  }
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      className={`flex items-center space-x-3 rounded-lg px-6 py-2 text-sm font-medium transition-colors duration-200 ${
+                        isActive(item.href)
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                      }`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {/* Class Management Section - Mobile */}
+              <div className="space-y-1">
+                <div className="flex items-center space-x-3 px-3 py-2 text-base font-medium text-gray-900 bg-gray-100 rounded-lg">
+                  <Users className="h-5 w-5" />
+                  <span>班级管理</span>
+                </div>
+                {classMenuItems.map((item) => {
                   const Icon = item.icon;
                   return (
                     <Link
@@ -647,13 +653,13 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
                 })}
               </div>
 
-              {/* Share Management Section - Mobile */}
+              {/* Course Management Section - Mobile */}
               <div className="space-y-1">
                 <div className="flex items-center space-x-3 px-3 py-2 text-base font-medium text-gray-900 bg-gray-100 rounded-lg">
-                  <Share2 className="h-5 w-5" />
-                  <span>分享管理</span>
+                  <BookOpen className="h-5 w-5" />
+                  <span>课程管理</span>
                 </div>
-                {shareMenuItems.map((item) => {
+                {courseMenuItems.map((item) => {
                   const Icon = item.icon;
                   return (
                     <Link
