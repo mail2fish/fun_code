@@ -133,7 +133,7 @@ func (l *LessonDaoImpl) GetLessonWithPermission(lessonID, userID uint) (*model.L
 // ListLessonsByCourse 获取课程下的所有课时（按排序）
 func (l *LessonDaoImpl) ListLessonsByCourse(courseID uint) ([]model.Lesson, error) {
 	var lessons []model.Lesson
-	if err := l.db.Preload("Course.Author").Preload("Course").Where("course_id = ?", courseID).
+	if err := l.db.Preload("Course.Author").Where("course_id = ?", courseID).
 		Order("sort_order ASC, id ASC").
 		Find(&lessons).Error; err != nil {
 		return nil, err

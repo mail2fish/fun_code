@@ -27,6 +27,7 @@ interface Lesson {
   duration: number;
   difficulty: string;
   created_at: number;
+  project_id_1: number;
 }
 
 // 课程数据接口
@@ -35,16 +36,23 @@ interface Course {
   title: string;
   description: string;
   author_id: number;
-  created_at: string;
-  updated_at: string;
-  difficulty_level: string;
-  estimated_duration: number;
-  tags: string;
-  cover_image_url: string;
+  created_at: number;
+  updated_at: number;
+  difficulty: string;
+  duration: number;
+  content: string;
+  is_published: boolean;
+  sort_order: number;
+  thumbnail_path: string;
   author?: {
     id: number;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string | null;
     username: string;
+    nickname: string;
     email: string;
+    role: string;
   };
 }
 
@@ -113,22 +121,22 @@ async function getClassCourses(classId: string) {
 // 获取课程详细信息
 async function getCourseInfo(courseId: string) {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/courses/${courseId}`);
+    const response = await fetchWithAuth(`${HOST_URL}/api/student/courses/${courseId}`);
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`);
     }
     const data = await response.json();
-    return data;
+    return data.data; // 返回 data 字段中的课程信息
   } catch (error) {
     console.error("获取课程信息失败:", error);
     return null;
   }
 }
 
-// 获取课程的课件列表
+// 获取课程的课件列表（学生端API）
 async function getCourseLessons(courseId: string) {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/lessons/course/${courseId}`);
+    const response = await fetchWithAuth(`${HOST_URL}/api/student/courses/${courseId}/lessons`);
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`);
     }
@@ -289,11 +297,11 @@ export default function ClassCourses() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge variant="outline">
-                    {formatDifficulty(courseData.difficulty_level).text}
+                    {formatDifficulty(courseData.difficulty).text}
                   </Badge>
                   <span className="flex items-center text-sm text-gray-500">
                     <Clock className="w-4 h-4 mr-1" />
-                    {formatDuration(courseData.estimated_duration)}
+                    {formatDuration(courseData.duration)}
                   </span>
                 </div>
               </div>
@@ -319,7 +327,7 @@ export default function ClassCourses() {
         {!loading && !courseId && courses.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {courses.map((course) => {
-              const difficulty = formatDifficulty(course.difficulty_level);
+              const difficulty = formatDifficulty(course.difficulty);
               return (
                 <Card 
                   key={course.id} 
@@ -353,23 +361,12 @@ export default function ClassCourses() {
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center text-gray-600">
                           <Clock className="w-4 h-4 mr-1 text-green-500" />
-                          <span>{formatDuration(course.estimated_duration)}</span>
+                          <span>{formatDuration(course.duration)}</span>
                         </div>
                         <Badge className={difficulty.color}>
                           {difficulty.text}
                         </Badge>
                       </div>
-                      
-                      {/* 标签 */}
-                      {course.tags && (
-                        <div className="flex flex-wrap gap-1">
-                          {course.tags.split(',').filter(tag => tag.trim()).slice(0, 3).map((tag, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {tag.trim()}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
                     </div>
                     
                     {/* 操作按钮 */}
