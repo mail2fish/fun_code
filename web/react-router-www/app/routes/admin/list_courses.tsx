@@ -43,8 +43,8 @@ interface Course {
   duration: number
   difficulty: string
   thumbnail_path: string
-  created_at: string
-  updated_at: string
+  created_at: number  // Unix 时间戳
+  updated_at: number  // Unix 时间戳
   lessons_count?: number
   students_count?: number
 }
@@ -167,11 +167,12 @@ export default function ListCoursePage() {
   const [isButtonCooling, setIsButtonCooling] = React.useState(false)
 
   // 格式化日期
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "未知日期"
+  const formatDate = (timestamp?: number) => {
+    if (!timestamp || timestamp === 0) return "未知日期"
     
     try {
-      const date = new Date(dateString)
+      // Unix 时间戳转换为毫秒
+      const date = new Date(timestamp * 1000)
       
       if (isNaN(date.getTime())) {
         return "未知日期"
@@ -455,7 +456,7 @@ export default function ListCoursePage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handlePublishCourse(course.id.toString(), course.is_published, course.updated_at)}
+                              onClick={() => handlePublishCourse(course.id.toString(), course.is_published, course.updated_at.toString())}
                               disabled={publishingId === course.id.toString()}
                             >
                               {course.is_published ? "撤销" : "发布"}
@@ -480,7 +481,7 @@ export default function ListCoursePage() {
                                   <DialogClose asChild>
                                     <Button
                                       variant="destructive"
-                                      onClick={() => handleDeleteCourse(course.id.toString(), course.updated_at)}
+                                      onClick={() => handleDeleteCourse(course.id.toString(), course.updated_at.toString())}
                                       disabled={deletingId === course.id.toString()}
                                     >
                                       {deletingId === course.id.toString() ? "删除中..." : "确认删除"}
