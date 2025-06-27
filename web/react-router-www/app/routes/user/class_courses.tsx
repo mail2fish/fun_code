@@ -430,10 +430,10 @@ export default function ClassCourses() {
                 <TableBody>
                   {lessons
                     .sort((a, b) => a.sort_order - b.sort_order)
-                    .map((lesson) => (
+                    .map((lesson, index) => (
                     <TableRow key={lesson.id} className="hover:bg-gray-50">
                       <TableCell className="font-medium text-gray-600">
-                        {lesson.sort_order}
+                        {index + 1}
                       </TableCell>
                       <TableCell>
                         <div className="font-medium text-gray-800">{lesson.title}</div>
