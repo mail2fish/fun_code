@@ -19,16 +19,19 @@ import (
 
 // CreateScratchProjectParams 创建Scratch项目参数
 type CreateScratchProjectParams struct {
-	Title string                 `json:"title" form:"title"`
-	Data  map[string]interface{} `json:"data" binding:"required"`
+	Title string
+	Data  map[string]interface{}
 }
 
 func (p *CreateScratchProjectParams) Parse(c *gin.Context) gorails.Error {
-	if err := c.ShouldBindJSON(p); err != nil {
-		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+
+	title := c.DefaultQuery("title", "Scratch Project")
+	if title != "" {
+		p.Title = title
 	}
-	if p.Title == "" {
-		p.Title = "Scratch Project"
+
+	if err := c.ShouldBindJSON(&p.Data); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	return nil
 }
@@ -91,6 +94,10 @@ func (h *Handler) CreateScratchProjectHandler(c *gin.Context, params *CreateScra
 		ContentName: projectID,
 		Status:      "ok",
 	}, nil, nil
+}
+
+func RenderCreateScratchProjectResponse(c *gin.Context, response *CreateScratchProjectResponse, meta *gorails.ResponseMeta) {
+	c.JSON(http.StatusOK, response)
 }
 
 // SaveScratchProjectParams 保存Scratch项目参数

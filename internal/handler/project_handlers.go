@@ -134,6 +134,7 @@ func (h *Handler) GetOpenScratchProjectHandler(c *gin.Context, params *GetOpenSc
 		ProjectID      string
 		Host           string
 		ProjectTitle   string
+		HTMLTitle      string
 		CanRemix       bool
 		UserName       string
 		NickName       string
@@ -145,7 +146,8 @@ func (h *Handler) GetOpenScratchProjectHandler(c *gin.Context, params *GetOpenSc
 		CanSaveProject: canSaveProject,
 		ProjectID:      params.RawID,                // 新项目使用0作为ID
 		Host:           h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
-		ProjectTitle:   projectNickname + " - " + project.Name,
+		ProjectTitle:   project.Name,
+		HTMLTitle:      projectNickname + " - " + project.Name,
 		CanRemix:       project.UserID == loginedUserID,
 		UserName:       user.Username,
 		NickName:       user.Nickname,
@@ -268,6 +270,7 @@ func (h *Handler) GetLessonScratchProjectHandler(c *gin.Context, params *GetLess
 		ProjectID      string
 		Host           string
 		ProjectTitle   string
+		HTMLTitle      string
 		CanRemix       bool
 		UserName       string
 		NickName       string
@@ -280,7 +283,8 @@ func (h *Handler) GetLessonScratchProjectHandler(c *gin.Context, params *GetLess
 		CanRemix:       true,  // 允许基于课时项目创建新项目
 		ProjectID:      fmt.Sprintf("%d_%d_%d_%d", params.ClassID, params.CourseID, params.LessonID, params.ProjectID),
 		Host:           h.config.ScratchEditor.Host,
-		ProjectTitle:   fmt.Sprintf("Lesson %s - %s", lesson.Title, project.Name),
+		ProjectTitle:   project.Name,
+		HTMLTitle:      fmt.Sprintf("Lesson %s - %s", lesson.Title, project.Name),
 		UserName:       user.Username,
 		NickName:       user.Nickname,
 		IsPlayerOnly:   false,

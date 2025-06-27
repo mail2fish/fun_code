@@ -493,6 +493,7 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		ProjectID      string
 		Host           string
 		ProjectTitle   string
+		HTMLTitle      string
 		CanRemix       bool
 		UserName       string
 		NickName       string
@@ -501,10 +502,11 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		ProjectHost    string
 		AssetHost      string
 	}{
-		CanSaveProject: false,                                                       // 分享项目不能保存
-		ProjectID:      share.ShareToken,                                            // 使用项目ID
-		Host:           h.config.ScratchEditor.Host,                                 // 从配置中获取 ScratchEditorHost
-		ProjectTitle:   fmt.Sprintf("%s (分享) by %s", project.Name, projectNickname), // 使用项目名称
+		CanSaveProject: false,                       // 分享项目不能保存
+		ProjectID:      share.ShareToken,            // 使用项目ID
+		Host:           h.config.ScratchEditor.Host, // 从配置中获取 ScratchEditorHost
+		ProjectTitle:   project.Name,
+		HTMLTitle:      fmt.Sprintf("%s (分享) by %s", project.Name, projectNickname), // 使用项目名称
 		CanRemix:       share.AllowRemix,                                            // 根据分享设置决定是否允许Remix
 		UserName:       fmt.Sprintf("guest_%s", params.Token[:8]),                   // 访客用户名
 		NickName:       fmt.Sprintf("访客 (查看 %s 的作品)", user.Nickname),                // 访客昵称

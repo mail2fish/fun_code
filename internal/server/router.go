@@ -72,7 +72,7 @@ func (s *Server) setupRoutes() {
 
 		// Scratch 相关路由 - 已改造为 gorails.Wrap 形式
 		auth.GET("/scratch/projects/:id", gorails.Wrap(s.handler.GetScratchProjectHandler, handler.RenderScratchProject))
-		auth.POST("/scratch/projects", gorails.Wrap(s.handler.CreateScratchProjectHandler, nil))
+		auth.POST("/scratch/projects", gorails.Wrap(s.handler.CreateScratchProjectHandler, handler.RenderCreateScratchProjectResponse))
 		auth.PUT("/scratch/projects/:id", gorails.Wrap(s.handler.SaveScratchProjectHandler, handler.RenderSaveScratchProjectResponse))
 		auth.PUT("/scratch/projects/:id/thumbnail", gorails.Wrap(s.handler.UpdateProjectThumbnailHandler, nil))
 		auth.GET("/scratch/projects/:id/thumbnail", gorails.Wrap(s.handler.GetProjectThumbnailHandler, handler.RenderProjectThumbnail))
@@ -104,6 +104,7 @@ func (s *Server) setupRoutes() {
 		auth.GET("/student/courses/:course_id/lessons", gorails.Wrap(s.handler.GetMyCourseLessonsHandler, nil)) // 我的课程课时
 		auth.GET("/student/courses/:course_id", gorails.Wrap(s.handler.GetMyCourseHandler, nil))                // 我的课程详情
 		auth.GET("/student/scratch/projects/:id", gorails.Wrap(s.handler.GetStudentScratchProjectHandler, handler.RenderScratchProject))
+		auth.POST("/student/scratch/projects", gorails.Wrap(s.handler.CreateScratchProjectHandler, handler.RenderCreateScratchProjectResponse))
 
 		{
 			admin := auth.Group("/admin").Use(s.handler.RequirePermission(handler.PermissionManageAll))

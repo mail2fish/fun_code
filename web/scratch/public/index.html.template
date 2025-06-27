@@ -8,7 +8,7 @@
     <meta name="description" content="{{ .ProjectTitle }}" />
     <!-- <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" /> -->
-    <title>{{ .ProjectTitle }} 趣编程</title>
+    <title>{{ .HTMLTitle }} 趣编程</title>
     <style>
       .loading {
         position: fixed;
