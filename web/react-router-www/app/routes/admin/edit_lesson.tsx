@@ -59,10 +59,14 @@ interface User {
 // 课件类型定义
 interface Lesson {
   id: number
-  course_id: number
   title: string
   content: string
-  sort_order: number
+  courses?: {
+    id: number
+    title: string
+    description: string
+    sort_order?: number
+  }[]
 
   document_name: string
   document_path: string
@@ -76,18 +80,11 @@ interface Lesson {
   difficulty: string
   created_at: string
   updated_at: string
-  course?: {
-    id: number
-    title: string
-    description: string
-  }
 }
 
 // 表单验证 Schema
 const formSchema = z.object({
-  course_id: z.number({
-    required_error: "请选择所属课程",
-  }),
+  course_ids: z.array(z.number()).optional(),
   title: z.string().min(2, {
     message: "课件标题至少需要 2 个字符",
   }).max(200, {
@@ -209,7 +206,12 @@ async function updateLesson(id: string, lessonData: FormData, files: {
     // 添加基本字段
     Object.entries(lessonData).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
-        formData.append(key, value.toString())
+        // 特殊处理 course_ids 数组
+        if (key === 'course_ids' && Array.isArray(value)) {
+          formData.append(key, value.join(','))
+        } else {
+          formData.append(key, value.toString())
+        }
       }
     })
     
@@ -279,6 +281,7 @@ export default function EditLessonPage() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      course_ids: [],
       title: "",
       content: "",
       difficulty: "beginner",
@@ -323,7 +326,7 @@ export default function EditLessonPage() {
 
         // 设置表单默认值
         form.reset({
-          course_id: lessonInfo.course_id,
+          course_ids: lessonInfo.courses?.map((course: { id: number }) => course.id) || [],
           title: lessonInfo.title,
           content: lessonInfo.content || "",
           difficulty: lessonInfo.difficulty,
@@ -409,6 +412,7 @@ export default function EditLessonPage() {
       // 处理项目ID，将 "none" 转换为 undefined
       const processedValues = {
         ...values,
+        course_ids: values.course_ids || [], // 确保课程ID数组不为undefined
         project_id_1: values.project_id_1 === "none" ? undefined : values.project_id_1,
         project_id_2: values.project_id_2 === "none" ? undefined : values.project_id_2,
       }
@@ -562,29 +566,65 @@ export default function EditLessonPage() {
                   
                   <FormField
                     control={form.control}
-                    name="course_id"
+                    name="course_ids"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>所属课程 *</FormLabel>
-                        <Select 
-                          onValueChange={(value) => field.onChange(Number(value))} 
-                          value={field.value?.toString()}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="选择课程" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {Array.isArray(courses) && courses.map((course) => (
-                              <SelectItem key={course.id} value={course.id.toString()}>
-                                {course.title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>关联课程</FormLabel>
+                        <FormControl>
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap gap-2">
+                              {field.value && field.value.length > 0 ? (
+                                field.value.map((courseId) => {
+                                  const course = courses.find(c => c.id === courseId)
+                                  return course ? (
+                                    <Badge key={courseId} variant="default" className="flex items-center gap-1">
+                                      {course.title}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newValue = field.value?.filter(id => id !== courseId) || []
+                                          field.onChange(newValue)
+                                        }}
+                                        className="ml-1 text-xs hover:bg-white/20 rounded-full w-4 h-4 flex items-center justify-center"
+                                      >
+                                        ×
+                                      </button>
+                                    </Badge>
+                                  ) : null
+                                })
+                              ) : (
+                                <div className="text-sm text-muted-foreground italic">
+                                  暂未选择任何课程（独立课件）
+                                </div>
+                              )}
+                            </div>
+                            <Select 
+                              onValueChange={(value) => {
+                                const courseId = Number(value)
+                                const currentValue = field.value || []
+                                if (!currentValue.includes(courseId)) {
+                                  field.onChange([...currentValue, courseId])
+                                }
+                              }} 
+                              value=""
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="添加课程" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.isArray(courses) && courses
+                                  .filter(course => !field.value?.includes(course.id))
+                                  .map((course) => (
+                                    <SelectItem key={course.id} value={course.id.toString()}>
+                                      {course.title}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </FormControl>
                         <FormDescription>
-                          选择这个课件属于哪个课程。
+                          选择这个课件所属的课程。课件可以属于多个课程，或者不属于任何课程。
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -744,12 +784,12 @@ export default function EditLessonPage() {
                                   .filter(project => 
                                     !searchKeyword1 || 
                                     project.name?.toLowerCase().includes(searchKeyword1.toLowerCase()) ||
-                                    project.id?.toLowerCase().includes(searchKeyword1.toLowerCase())
+                                    String(project.id).toLowerCase().includes(searchKeyword1.toLowerCase())
                                   )
                                   .map(project => {
                                     const creator = users.find(user => user.id === project.user_id)?.nickname || "未知用户"
                                     return (
-                                      <SelectItem key={project.id} value={project.id}>
+                                      <SelectItem key={project.id} value={String(project.id)}>
                                         ID:{project.id} - {project.name} (by {creator})
                                       </SelectItem>
                                     )
@@ -835,12 +875,12 @@ export default function EditLessonPage() {
                                   .filter(project => 
                                     !searchKeyword2 || 
                                     project.name?.toLowerCase().includes(searchKeyword2.toLowerCase()) ||
-                                    project.id?.toLowerCase().includes(searchKeyword2.toLowerCase())
+                                    String(project.id).toLowerCase().includes(searchKeyword2.toLowerCase())
                                   )
                                   .map(project => {
                                     const creator = users.find(user => user.id === project.user_id)?.nickname || "未知用户"
                                     return (
-                                      <SelectItem key={project.id} value={project.id}>
+                                      <SelectItem key={project.id} value={String(project.id)}>
                                         ID:{project.id} - {project.name} (by {creator})
                                       </SelectItem>
                                     )

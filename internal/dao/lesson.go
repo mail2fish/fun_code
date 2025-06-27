@@ -39,14 +39,11 @@ func (l *LessonDaoImpl) CreateLesson(lesson *model.Lesson) error {
 
 // UpdateLesson 更新课时信息（乐观锁，基于updated_at避免并发更新）
 func (l *LessonDaoImpl) UpdateLesson(lessonID, authorID uint, expectedUpdatedAt int64, updates map[string]interface{}) error {
-	// 检查课时是否存在且用户有权限修改（通过课时关联的课程检查权限）
+	// 检查课时是否存在
 	var lesson model.Lesson
-	if err := l.db.Joins("JOIN lesson_courses lc ON lc.lesson_id = lessons.id").
-		Joins("JOIN courses c ON c.id = lc.course_id").
-		Where("lessons.id = ? AND c.author_id = ?", lessonID, authorID).
-		First(&lesson).Error; err != nil {
+	if err := l.db.Where("id = ?", lessonID).First(&lesson).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("课时不存在或您无权修改")
+			return errors.New("课时不存在")
 		}
 		return err
 	}
@@ -185,14 +182,11 @@ func (l *LessonDaoImpl) ListLessonsWithPagination(courseID uint, pageSize uint, 
 
 // DeleteLesson 删除课时（乐观锁，基于updated_at避免并发删除）
 func (l *LessonDaoImpl) DeleteLesson(lessonID, authorID uint, expectedUpdatedAt int64) error {
-	// 检查课时是否存在且用户有权限删除（通过课时关联的课程检查权限）
+	// 检查课时是否存在
 	var lesson model.Lesson
-	if err := l.db.Joins("JOIN lesson_courses lc ON lc.lesson_id = lessons.id").
-		Joins("JOIN courses c ON c.id = lc.course_id").
-		Where("lessons.id = ? AND c.author_id = ?", lessonID, authorID).
-		First(&lesson).Error; err != nil {
+	if err := l.db.Where("id = ?", lessonID).First(&lesson).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("课时不存在或您无权删除")
+			return errors.New("课时不存在")
 		}
 		return err
 	}
@@ -262,11 +256,20 @@ func (l *LessonDaoImpl) GetLessonsByProjectID(projectID uint) ([]model.Lesson, e
 	return lessons, nil
 }
 
-// CountLessonsByCourse 统计课程下的课时数量
+// CountLessonsByCourse 统计课程下的课时数量，如果courseID为0则统计所有课时
 func (l *LessonDaoImpl) CountLessonsByCourse(courseID uint) (int64, error) {
 	var count int64
-	if err := l.db.Model(&model.LessonCourse{}).Where("course_id = ?", courseID).Count(&count).Error; err != nil {
-		return 0, err
+
+	if courseID > 0 {
+		// 统计特定课程下的课时数量
+		if err := l.db.Model(&model.LessonCourse{}).Where("course_id = ?", courseID).Count(&count).Error; err != nil {
+			return 0, err
+		}
+	} else {
+		// 统计所有课时数量
+		if err := l.db.Model(&model.Lesson{}).Count(&count).Error; err != nil {
+			return 0, err
+		}
 	}
 
 	return count, nil

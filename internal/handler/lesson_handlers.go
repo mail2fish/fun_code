@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -43,6 +44,26 @@ func (p *CreateLessonParams) Parse(c *gin.Context) gorails.Error {
 	// 解析JSON字段
 	if err := c.ShouldBind(p); err != nil {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+
+	// 特殊处理 course_ids 字段（multipart form 中的数组）
+	// 检查是否存在 course_ids 字段（无论值是否为空）
+	if courseIDsStr, exists := c.GetPostForm("course_ids"); exists {
+		// 清空原有的值
+		p.CourseIDs = []uint{}
+		// 如果值不为空，解析逗号分隔的字符串
+		if courseIDsStr != "" {
+			parts := strings.Split(courseIDsStr, ",")
+			for _, part := range parts {
+				part = strings.TrimSpace(part)
+				if part != "" {
+					if courseID, err := strconv.ParseUint(part, 10, 32); err == nil {
+						p.CourseIDs = append(p.CourseIDs, uint(courseID))
+					}
+				}
+			}
+		}
+		// 如果值为空，CourseIDs 已经被设置为空数组，这是我们想要的
 	}
 
 	// 解析文件字段
@@ -310,6 +331,7 @@ func (h *Handler) cleanupUploadedFiles(filePaths []string) {
 // UpdateLessonParams 更新课时请求参数
 type UpdateLessonParams struct {
 	LessonID      uint                  `json:"lesson_id" uri:"lesson_id" binding:"required"`
+	CourseIDs     []uint                `json:"course_ids" form:"course_ids"` // 关联的课程ID列表
 	Title         string                `json:"title" form:"title"`
 	Content       string                `json:"content" form:"content"`
 	FlowChartID   *uint                 `json:"flow_chart_id" form:"flow_chart_id"`
@@ -339,6 +361,26 @@ func (p *UpdateLessonParams) Parse(c *gin.Context) gorails.Error {
 	// 解析表单字段
 	if err := c.ShouldBind(p); err != nil {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+
+	// 特殊处理 course_ids 字段（multipart form 中的数组）
+	// 检查是否存在 course_ids 字段（无论值是否为空）
+	if courseIDsStr, exists := c.GetPostForm("course_ids"); exists {
+		// 清空原有的值
+		p.CourseIDs = []uint{}
+		// 如果值不为空，解析逗号分隔的字符串
+		if courseIDsStr != "" {
+			parts := strings.Split(courseIDsStr, ",")
+			for _, part := range parts {
+				part = strings.TrimSpace(part)
+				if part != "" {
+					if courseID, err := strconv.ParseUint(part, 10, 32); err == nil {
+						p.CourseIDs = append(p.CourseIDs, uint(courseID))
+					}
+				}
+			}
+		}
+		// 如果值为空，CourseIDs 已经被设置为空数组，这是我们想要的
 	}
 
 	// 手动验证必需的字段
@@ -398,12 +440,26 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
-	// 检查用户是否有权限修改该课时（必须是其中任一关联课程的作者）
+	// 检查用户是否有权限修改该课时
+	// 1. 如果课时没有关联任何课程，只有管理员可以操作
+	// 2. 如果课时关联了课程，必须是其中任一关联课程的作者
 	hasPermission := false
-	for _, course := range courses {
-		if course.AuthorID == userID {
+
+	if len(courses) == 0 {
+		// 没有关联课程的课时，检查是否为管理员
+		userInfo, err := h.dao.UserDao.GetUserByID(userID)
+		if err != nil || userInfo.Role != "admin" {
+			hasPermission = false
+		} else {
 			hasPermission = true
-			break
+		}
+	} else {
+		// 有关联课程的课时，检查是否为任一课程的作者
+		for _, course := range courses {
+			if course.AuthorID == userID {
+				hasPermission = true
+				break
+			}
 		}
 	}
 
@@ -544,6 +600,37 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeUpdateFailed, global.ErrorMsgUpdateFailed, err)
 	}
 
+	// 检查是否需要更新课程关联（如果前端传递了course_ids字段，无论是否为空）
+	// 通过检查PostForm来确定是否明确传递了course_ids参数
+	_, courseIDsProvided := c.GetPostForm("course_ids")
+	if courseIDsProvided {
+		// 验证所有课程ID的权限
+		var validCourseIDs []uint
+		for _, courseID := range params.CourseIDs {
+			if courseID > 0 {
+				course, err := h.dao.CourseDao.GetCourse(courseID)
+				if err != nil || course.AuthorID != userID {
+					// 如果课程不存在或无权限，跳过该课程（但不返回错误）
+					continue
+				}
+				validCourseIDs = append(validCourseIDs, courseID)
+			}
+		}
+
+		// 清除现有的课程关联
+		currentCourses, err := h.dao.LessonDao.GetLessonCourses(params.LessonID)
+		if err == nil {
+			for _, course := range currentCourses {
+				h.dao.LessonDao.RemoveLessonFromCourse(params.LessonID, course.ID)
+			}
+		}
+
+		// 建立新的课程关联
+		for _, courseID := range validCourseIDs {
+			h.dao.LessonDao.AddLessonToCourse(params.LessonID, courseID, 0)
+		}
+	}
+
 	// 更新成功后，清理旧文件
 	h.cleanupUploadedFiles(filesToCleanup)
 
@@ -659,7 +746,7 @@ func (h *Handler) GetLessonHandler(c *gin.Context, params *GetLessonParams) (*Ge
 
 // ListLessonsParams 列出课时请求参数
 type ListLessonsParams struct {
-	CourseID uint `json:"course_id" form:"courseId" binding:"required"`
+	CourseID uint `json:"course_id" form:"courseId"` // 可选，不提供时列出所有课件
 	PageSize uint `json:"page_size" form:"pageSize"`
 	BeginID  uint `json:"begin_id" form:"beginID"`
 	Forward  bool `json:"forward" form:"forward"`
@@ -672,8 +759,9 @@ func (p *ListLessonsParams) Parse(c *gin.Context) gorails.Error {
 	p.BeginID = 0
 	p.Forward = true
 	p.Asc = true
+	p.CourseID = 0 // 默认为0，表示列出所有课件
 
-	// 解析必需的课程ID
+	// 解析可选的课程ID
 	if courseIDStr := c.DefaultQuery("courseId", ""); courseIDStr != "" {
 		if courseID, err := strconv.ParseUint(courseIDStr, 10, 32); err == nil {
 			p.CourseID = uint(courseID)
@@ -756,6 +844,45 @@ type DeleteLessonResponse struct {
 // DeleteLessonHandler 删除课时
 func (h *Handler) DeleteLessonHandler(c *gin.Context, params *DeleteLessonParams) (*DeleteLessonResponse, *gorails.ResponseMeta, gorails.Error) {
 	userID := h.getUserID(c)
+
+	// 获取课时信息进行权限检查
+	_, err := h.dao.LessonDao.GetLesson(params.LessonID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryNotFound, global.ErrorMsgQueryNotFound, err)
+	}
+
+	// 验证权限（通过课时关联的课程检查）
+	courses, err := h.dao.LessonDao.GetLessonCourses(params.LessonID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 检查用户是否有权限删除该课时
+	// 1. 如果课时没有关联任何课程，只有管理员可以删除
+	// 2. 如果课时关联了课程，必须是其中任一关联课程的作者
+	hasPermission := false
+
+	if len(courses) == 0 {
+		// 没有关联课程的课时，检查是否为管理员
+		userInfo, err := h.dao.UserDao.GetUserByID(userID)
+		if err != nil || userInfo.Role != "admin" {
+			hasPermission = false
+		} else {
+			hasPermission = true
+		}
+	} else {
+		// 有关联课程的课时，检查是否为任一课程的作者
+		for _, course := range courses {
+			if course.AuthorID == userID {
+				hasPermission = true
+				break
+			}
+		}
+	}
+
+	if !hasPermission {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, errors.New("无权限删除此课时"))
+	}
 
 	// 调用服务层删除课时
 	if err := h.dao.LessonDao.DeleteLesson(params.LessonID, userID, params.UpdatedAt); err != nil {
