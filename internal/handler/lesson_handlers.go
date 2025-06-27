@@ -1091,3 +1091,72 @@ func (h *Handler) AddLessonToCourseHandler(c *gin.Context, params *AddLessonToCo
 
 	return response, nil, nil
 }
+
+// RemoveLessonFromCourseParams 从课程移除课件请求参数
+type RemoveLessonFromCourseParams struct {
+	CourseID uint `json:"course_id" uri:"course_id" binding:"required"`
+	LessonID uint `json:"lesson_id" uri:"lesson_id" binding:"required"`
+}
+
+func (p *RemoveLessonFromCourseParams) Parse(c *gin.Context) gorails.Error {
+	// 手动从URL路径获取参数
+	courseIDStr := c.Param("course_id")
+	if courseIDStr == "" {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "course_id参数缺失", nil)
+	}
+
+	courseID, err := strconv.ParseUint(courseIDStr, 10, 32)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, fmt.Sprintf("course_id参数无效: %v", err), err)
+	}
+	p.CourseID = uint(courseID)
+
+	lessonIDStr := c.Param("lesson_id")
+	if lessonIDStr == "" {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "lesson_id参数缺失", nil)
+	}
+
+	lessonID, err := strconv.ParseUint(lessonIDStr, 10, 32)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, fmt.Sprintf("lesson_id参数无效: %v", err), err)
+	}
+	p.LessonID = uint(lessonID)
+
+	return nil
+}
+
+// RemoveLessonFromCourseResponse 从课程移除课件响应
+type RemoveLessonFromCourseResponse struct {
+	Message string `json:"message"`
+}
+
+// RemoveLessonFromCourseHandler 从课程中移除课件
+func (h *Handler) RemoveLessonFromCourseHandler(c *gin.Context, params *RemoveLessonFromCourseParams) (*RemoveLessonFromCourseResponse, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+
+	// 验证课程是否存在且用户有权限
+	course, err := h.dao.CourseDao.GetCourse(params.CourseID)
+	if err != nil || course.AuthorID != userID {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, errors.New("无权限操作此课程"))
+	}
+
+	// 检查课件是否在课程中
+	isInCourse, err := h.dao.LessonDao.IsLessonInCourse(params.LessonID, params.CourseID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+	if !isInCourse {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "课件不在此课程中", errors.New("课件不在此课程中"))
+	}
+
+	// 从课程中移除课件
+	if err := h.dao.LessonDao.RemoveLessonFromCourse(params.LessonID, params.CourseID); err != nil {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeDeleteFailed, global.ErrorMsgDeleteFailed, err)
+	}
+
+	response := &RemoveLessonFromCourseResponse{
+		Message: "课件已从课程中移除",
+	}
+
+	return response, nil, nil
+}

@@ -237,17 +237,38 @@ async function addLessonsToCourse(courseId: string, lessonIds: number[]) {
   }
 }
 
+// 从课程中移除课件
+async function removeLessonFromCourse(courseId: string, lessonId: number) {
+  try {
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/courses/${courseId}/lessons/${lessonId}`, {
+      method: "DELETE",
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || `API 错误: ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("从课程移除课件失败:", error)
+    throw error
+  }
+}
+
 // 可拖拽的课件项组件
 function SortableLessonItem({ 
   lesson, 
   index, 
   formatDuration,
-  onEdit 
+  onEdit,
+  onRemove
 }: {
   lesson: LessonData
   index: number
   formatDuration: (duration: number) => string
   onEdit: (lessonId: number) => void
+  onRemove: (lessonId: number) => void
 }) {
   const {
     attributes,
@@ -304,6 +325,18 @@ function SortableLessonItem({
           }}
         >
           编辑
+        </Button>
+        <Button 
+          size="sm" 
+          variant="ghost"
+          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation() // 防止触发拖拽
+            onRemove(lesson.id)
+          }}
+        >
+          移除
         </Button>
       </div>
     </div>
@@ -516,6 +549,31 @@ export default function EditCoursePage() {
   const handleEditLesson = (lessonId: number) => {
     console.log('点击编辑课件，ID:', lessonId)
     navigate(`/www/admin/edit_lesson/${lessonId}`)
+  }
+
+  // 移除课件处理函数
+  const handleRemoveLesson = async (lessonId: number) => {
+    if (!courseId) return
+    
+    // 确认对话框
+    if (!window.confirm("确定要从课程中移除这个课件吗？课件本身不会被删除，只是不再属于此课程。")) {
+      return
+    }
+
+    try {
+      await removeLessonFromCourse(courseId, lessonId)
+      
+      // 重新加载课程课件列表
+      const updatedLessons = await getCourseLessons(courseId)
+      setLessons(updatedLessons)
+      setOriginalLessons([...updatedLessons])
+      
+      toast.success("课件已从课程中移除")
+      
+    } catch (error) {
+      console.error("移除课件失败:", error)
+      toast.error("移除课件失败，请重试")
+    }
   }
 
   // 加载课程数据
@@ -1002,6 +1060,7 @@ export default function EditCoursePage() {
                                   index={index}
                                   formatDuration={formatDuration}
                                   onEdit={handleEditLesson}
+                                  onRemove={handleRemoveLesson}
                                 />
                               ))}
                             </div>
