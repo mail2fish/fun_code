@@ -174,7 +174,7 @@ export default function CreateUserPage() {
   // 处理转到用户列表
   const handleGoToList = () => {
     setShowSuccessDialog(false);
-    navigate("/www/admin/users/list");
+    navigate("/www/admin/list_users");
   };
 
   const adminInfo = userInfo ? {
