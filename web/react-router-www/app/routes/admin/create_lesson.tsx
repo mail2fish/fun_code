@@ -267,7 +267,7 @@ export default function CreateLessonPage() {
         }
         if (projectNameFromParams) {
           const decodedName = decodeURIComponent(projectNameFromParams)
-          form.setValue('title', `课件：${decodedName}`)
+          form.setValue('title', `${decodedName}`)
           form.setValue('content', `本课件将基于 Scratch 项目"${decodedName}"进行教学。
 
 学习目标：
