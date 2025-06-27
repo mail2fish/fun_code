@@ -72,6 +72,7 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 			filePath = "/index.html"
 		} else {
 			c.Redirect(http.StatusFound, "/")
+			return
 		}
 	} else {
 		// 默认 www 文件系统，路径保持不变 (e.g., /assets/...)
