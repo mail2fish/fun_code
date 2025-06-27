@@ -53,55 +53,29 @@ func calculateETag(data []byte) string {
 func (h *StaticHandler) ServeStatic(c *gin.Context) {
 	var currentFS http.FileSystem
 	filePath := c.Request.URL.Path
-	originalPath := filePath // 保存原始路径用于调试
 
 	// 根据路径选择文件系统并调整文件路径
-	if strings.HasPrefix(filePath, "/assets/scratch") {
-		// Scratch 资源文件
-		currentFS = h.scratchFS
-		filePath = strings.TrimPrefix(filePath, "/assets/scratch")
-	} else if strings.HasPrefix(filePath, "/static/scratch") {
-		// 静态 Scratch 文件
+	if strings.HasPrefix(filePath, "/static/scratch") {
 		currentFS = h.scratchFS
 		filePath = strings.TrimPrefix(filePath, "/static/scratch")
-	} else if filePath == "/scratch" || (strings.HasPrefix(filePath, "/scratch/") && !strings.HasPrefix(filePath, "/www/scratch")) {
-		// /scratch 路径及其子路径，但排除 /www/scratch 开头的路径，返回 Scratch 编辑器
+	} else if strings.HasPrefix(filePath, "/scratch") {
 		currentFS = h.scratchFS
-		filePath = "/index.html"
+		filePath = strings.TrimPrefix(filePath, "/scratch")
 	} else if filePath == "/" {
-		// 网站根路径
 		currentFS = h.wwwFS
+		// 根路径或 /www 路径都指向 index.html
 		filePath = "/index.html"
 	} else if strings.HasPrefix(filePath, "/www") {
-		// 所有 /www 开头的路径都是 React SPA 路由
-		currentFS = h.wwwFS
-		filePath = "/index.html"
-	} else if strings.HasPrefix(filePath, "/shares") {
-		// 分享页面也是 React SPA 路由
-		currentFS = h.wwwFS
-		filePath = "/index.html"
-	} else if strings.HasPrefix(filePath, "/assets/") {
-		// React 应用的静态资源文件
-		currentFS = h.wwwFS
-		// 保持原路径不变
-	} else {
-		// 其他路径，检查是否是具体文件请求
-		if strings.Contains(filepath.Base(filePath), ".") {
-			// 包含文件扩展名，尝试作为静态文件
+		if strings.HasPrefix(filePath, "/www/share") {
 			currentFS = h.wwwFS
-		} else {
-			// 无扩展名，可能是 SPA 路由，返回 index.html
-			currentFS = h.wwwFS
+			// 根路径或 /www 路径都指向 index.html
 			filePath = "/index.html"
+		} else {
+			c.Redirect(http.StatusFound, "/")
 		}
-	}
-
-	// 安全检查：确保 currentFS 不为 nil
-	if currentFS == nil {
-		// 记录日志以便调试
-		fmt.Printf("静态文件处理器错误: currentFS 为 nil, 原始路径: %s, 处理后路径: %s\n", originalPath, filePath)
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
+	} else {
+		// 默认 www 文件系统，路径保持不变 (e.g., /assets/...)
+		currentFS = h.wwwFS
 	}
 
 	// 确保文件路径是相对路径且安全
