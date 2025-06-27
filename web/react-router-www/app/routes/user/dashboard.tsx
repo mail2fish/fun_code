@@ -172,7 +172,7 @@ export default function Dashboard() {
                   <Clock className="w-6 h-6 text-purple-600" />
                   <CardTitle className="text-xl text-gray-800">最近项目</CardTitle>
                 </div>
-                <Link to="/www/scratch/projects">
+                <Link to="/www/user/scratch">
                   <Button variant="outline" size="sm" className="rounded-full">
                     查看全部
                   </Button>

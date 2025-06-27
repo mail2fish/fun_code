@@ -170,7 +170,7 @@ const getConfig = () => {
     basePath: "./",
     assetHost: "",
     host: "http://localhost:8080",
-    projectsRoute: "/www/scratch/projects",
+    projectsRoute: "/www/user/dashboard",
     projectTitle: "",
     username: "",
     nickname: "",
@@ -180,8 +180,12 @@ const getConfig = () => {
 };
 
 const onClickLogo = () => {
-  let cfg=getConfig()
-  window.location = cfg.projectsRoute;
+  let cfg = getConfig();
+  if (window.history && window.history.back) {
+    window.history.back();
+  } else {
+    window.location = cfg.projectsRoute;
+  }
 };
 
 
