@@ -46,7 +46,7 @@ func (s *Server) setupRoutes() {
 	}
 
 	// 处理 /public 路径下的所有请求
-	s.router.NoRoute(func(c *gin.Context) {
+	s.router.NoRoute(s.handler.TryAuthMiddleware(), func(c *gin.Context) {
 		staticHandler.ServeStatic(c)
 	})
 

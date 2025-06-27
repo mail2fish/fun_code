@@ -60,7 +60,7 @@
         basePath: "/scratch/",
         assetHost: "{{ .AssetHost }}",
         host: "{{ .Host }}",
-        projectsRoute: "/www/scratch/projects",
+        projectsRoute: "{{ .ProjectRoute }}",
         projectTitle: "{{ .ProjectTitle }}",
         isPlayerOnly: {{ .IsPlayerOnly }},
         isFullScreen: {{ .IsFullScreen }}

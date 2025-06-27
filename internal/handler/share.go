@@ -487,6 +487,11 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		projectNickname = projectUser.Username
 	}
 
+	scratchRoute := "/www/user/dashboard"
+	if h.hasPermission(c, PermissionManageAll) {
+		scratchRoute = "/www/admin/dashboard"
+	}
+
 	// 准备模板数据，分享项目的特殊配置
 	data := struct {
 		CanSaveProject bool
@@ -501,6 +506,7 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		IsFullScreen   bool
 		ProjectHost    string
 		AssetHost      string
+		ProjectRoute   string
 	}{
 		CanSaveProject: false,                       // 分享项目不能保存
 		ProjectID:      share.ShareToken,            // 使用项目ID
@@ -514,6 +520,7 @@ func (h *Handler) GetShareScratchProjectHandler(c *gin.Context, params *GetShare
 		IsFullScreen:   false,                                                       // 分享项目为全屏模式
 		ProjectHost:    h.config.ScratchEditor.Host + "/api/shares/scratch",
 		AssetHost:      h.config.ScratchEditor.Host + "/shares/assets/scratch/" + share.ShareToken,
+		ProjectRoute:   scratchRoute,
 	}
 
 	// 返回空响应，因为HTML已经直接写入到c.Writer

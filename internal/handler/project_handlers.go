@@ -128,6 +128,11 @@ func (h *Handler) GetOpenScratchProjectHandler(c *gin.Context, params *GetOpenSc
 		projectNickname = projectCreator.Username
 	}
 
+	scratchRoute := "/www/user/dashboard"
+	if h.hasPermission(c, PermissionManageAll) {
+		scratchRoute = "/www/admin/dashboard"
+	}
+
 	// 准备模板数据，新项目不需要项目ID
 	data := struct {
 		CanSaveProject bool
@@ -142,6 +147,7 @@ func (h *Handler) GetOpenScratchProjectHandler(c *gin.Context, params *GetOpenSc
 		IsFullScreen   bool
 		ProjectHost    string
 		AssetHost      string
+		ProjectRoute   string
 	}{
 		CanSaveProject: canSaveProject,
 		ProjectID:      params.RawID,                // 新项目使用0作为ID
@@ -155,6 +161,7 @@ func (h *Handler) GetOpenScratchProjectHandler(c *gin.Context, params *GetOpenSc
 		IsFullScreen:   false,
 		ProjectHost:    h.config.ScratchEditor.Host + "/api/scratch/projects",
 		AssetHost:      h.config.ScratchEditor.Host + "/assets/scratch",
+		ProjectRoute:   scratchRoute,
 	}
 
 	return &TemplateRenderResponse{Tmpl: tmpl, Data: data}, nil, nil
@@ -264,6 +271,11 @@ func (h *Handler) GetLessonScratchProjectHandler(c *gin.Context, params *GetLess
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
+	scratchRoute := "/www/user/dashboard"
+	if h.hasPermission(c, PermissionManageAll) {
+		scratchRoute = "/www/admin/dashboard"
+	}
+
 	// 准备模板数据
 	data := struct {
 		CanSaveProject bool
@@ -278,6 +290,7 @@ func (h *Handler) GetLessonScratchProjectHandler(c *gin.Context, params *GetLess
 		IsFullScreen   bool
 		ProjectHost    string
 		AssetHost      string
+		ProjectRoute   string
 	}{
 		CanSaveProject: false, // 课时项目通常为只读
 		CanRemix:       true,  // 允许基于课时项目创建新项目
@@ -291,6 +304,7 @@ func (h *Handler) GetLessonScratchProjectHandler(c *gin.Context, params *GetLess
 		IsFullScreen:   false,
 		ProjectHost:    h.config.ScratchEditor.Host + "/api/student/scratch/projects",
 		AssetHost:      h.config.ScratchEditor.Host + "/assets/scratch",
+		ProjectRoute:   scratchRoute,
 	}
 
 	return &TemplateRenderResponse{Tmpl: tmpl, Data: data}, nil, nil

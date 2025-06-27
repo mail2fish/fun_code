@@ -1,5 +1,4 @@
 import * as React from "react"
-import { Link } from "react-router"
 import { IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconHistory, IconRefresh, IconShare, IconBook } from "@tabler/icons-react"
 
 import { Button } from "~/components/ui/button"
@@ -13,14 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table"
+
 import { toast } from  "sonner" 
 
 import { HOST_URL } from "~/config";
@@ -29,7 +21,6 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "~
 import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
 import { Textarea } from "~/components/ui/textarea"
-import { Checkbox } from "~/components/ui/checkbox"
 import { fetchWithAuth } from "~/utils/api"
 
 export interface Project {

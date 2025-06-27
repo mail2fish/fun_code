@@ -79,7 +79,7 @@ export default function UserSharePage() {
               className="fun-button-primary"
             >
               <a 
-                href="/www/scratch/projects" 
+                href={userInfo?.role === 'admin' ? "/www/admin/my_scratch" : "/www/user/scratch"} 
                 onClick={handleNewShareClick}
                 className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
               >

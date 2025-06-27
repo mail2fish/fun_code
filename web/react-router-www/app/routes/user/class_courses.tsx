@@ -453,15 +453,15 @@ export default function ClassCourses() {
                       </TableCell>
                       <TableCell className="text-right">
                         {lesson.project_id_1 > 0 ? (
-                          <Link to={`${HOST_URL}/projects/scratch/lesson/${classId}/${courseId}/${lesson.id}/${lesson.project_id_1}`}>
+                          <a href={`${HOST_URL}/projects/scratch/lesson/${classId}/${courseId}/${lesson.id}/${lesson.project_id_1}`}>
                             <Button 
                               size="sm" 
                               className="bg-gradient-to-r from-blue-500 to-purple-600 text-white w-24"
                             >
                               <Play className="w-4 h-4 mr-1" />
-                              开始学习
+                              打开程序
                             </Button>
-                          </Link>
+                          </a>
                         ) : (
                           <Button 
                             size="sm" 

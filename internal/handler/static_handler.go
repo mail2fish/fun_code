@@ -66,13 +66,22 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 		// 根路径或 /www 路径都指向 index.html
 		filePath = "/index.html"
 	} else if strings.HasPrefix(filePath, "/www") {
+		fmt.Println("filePath www", filePath)
 		if strings.HasPrefix(filePath, "/www/share") {
 			currentFS = h.wwwFS
 			// 根路径或 /www 路径都指向 index.html
 			filePath = "/index.html"
 		} else {
-			c.Redirect(http.StatusFound, "/")
-			return
+			fmt.Println("filePath www", filePath)
+			_, exists := c.Get("userID")
+			if !exists {
+				c.Redirect(http.StatusFound, "/")
+				return
+			}
+			fmt.Println("filePath www after", filePath)
+			currentFS = h.wwwFS
+			// 根路径或 /www 路径都指向 index.html
+			filePath = "/index.html"
 		}
 	} else {
 		// 默认 www 文件系统，路径保持不变 (e.g., /assets/...)

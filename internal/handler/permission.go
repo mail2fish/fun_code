@@ -55,7 +55,6 @@ func (h *Handler) hasPermission(c *gin.Context, permission string) bool {
 	// 获取当前用户ID
 	userID := h.getUserID(c)
 	if userID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
 		return false
 	}
 
