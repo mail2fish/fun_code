@@ -333,8 +333,8 @@ export default function EditLessonPage() {
           duration: lessonInfo.duration,
           
           project_type: (lessonInfo.project_type === "python" || lessonInfo.project_type === "scratch") ? lessonInfo.project_type : "scratch",
-          project_id_1: lessonInfo.project_id_1 || "none",
-          project_id_2: lessonInfo.project_id_2 || "none",
+          project_id_1: lessonInfo.project_id_1 ? String(lessonInfo.project_id_1) : "none",
+          project_id_2: lessonInfo.project_id_2 ? String(lessonInfo.project_id_2) : "none",
           updated_at: Math.floor(new Date(lessonInfo.updated_at).getTime() / 1000),
         })
         

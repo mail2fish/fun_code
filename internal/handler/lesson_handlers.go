@@ -24,20 +24,26 @@ import (
 
 // CreateLessonParams 创建课时请求参数
 type CreateLessonParams struct {
-	CourseIDs    []uint                `json:"course_ids" form:"course_ids"` // 关联的课程ID列表（可选）
+	CourseIDs    string                `json:"course_ids" form:"course_ids"` // 改为字符串类型，在Parse中处理转换
 	Title        string                `json:"title" form:"title" binding:"required"`
 	Content      string                `json:"content" form:"content"`
 	FlowChartID  uint                  `json:"flow_chart_id" form:"flow_chart_id"`
 	ProjectType  string                `json:"project_type" form:"project_type"`
-	ProjectID1   uint                  `json:"project_id_1" form:"project_id_1"`
-	ProjectID2   uint                  `json:"project_id_2" form:"project_id_2"`
-	Duration     int                   `json:"duration" form:"duration"`
+	ProjectID1   string                `json:"project_id_1" form:"project_id_1"` // 改为字符串类型，在Parse中处理转换
+	ProjectID2   string                `json:"project_id_2" form:"project_id_2"` // 改为字符串类型，在Parse中处理转换
+	Duration     string                `json:"duration" form:"duration"`         // 改为字符串类型，在Parse中处理转换
 	Difficulty   string                `json:"difficulty" form:"difficulty"`
 	Description  string                `json:"description" form:"description"`
 	DocumentFile *multipart.FileHeader `json:"-" form:"document_file"` // 文档文件
 	Video1File   *multipart.FileHeader `json:"-" form:"video_1_file"`  // 视频1文件
 	Video2File   *multipart.FileHeader `json:"-" form:"video_2_file"`  // 视频2文件
 	Video3File   *multipart.FileHeader `json:"-" form:"video_3_file"`  // 视频3文件
+
+	// 实际使用的字段（解析后）
+	ParsedCourseIDs  []uint
+	ParsedProjectID1 uint
+	ParsedProjectID2 uint
+	ParsedDuration   int
 }
 
 func (p *CreateLessonParams) Parse(c *gin.Context) gorails.Error {
@@ -46,24 +52,41 @@ func (p *CreateLessonParams) Parse(c *gin.Context) gorails.Error {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 
-	// 特殊处理 course_ids 字段（multipart form 中的数组）
-	// 检查是否存在 course_ids 字段（无论值是否为空）
-	if courseIDsStr, exists := c.GetPostForm("course_ids"); exists {
-		// 清空原有的值
-		p.CourseIDs = []uint{}
-		// 如果值不为空，解析逗号分隔的字符串
-		if courseIDsStr != "" {
-			parts := strings.Split(courseIDsStr, ",")
-			for _, part := range parts {
-				part = strings.TrimSpace(part)
-				if part != "" {
-					if courseID, err := strconv.ParseUint(part, 10, 32); err == nil {
-						p.CourseIDs = append(p.CourseIDs, uint(courseID))
-					}
+	// 解析 course_ids 字段
+	p.ParsedCourseIDs = []uint{}
+	if p.CourseIDs != "" {
+		parts := strings.Split(p.CourseIDs, ",")
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				if courseID, err := strconv.ParseUint(part, 10, 32); err == nil {
+					p.ParsedCourseIDs = append(p.ParsedCourseIDs, uint(courseID))
 				}
 			}
 		}
-		// 如果值为空，CourseIDs 已经被设置为空数组，这是我们想要的
+	}
+
+	// 解析并转换 project_id_1
+	if p.ProjectID1 != "" && p.ProjectID1 != "none" {
+		if projectID1, err := strconv.ParseUint(p.ProjectID1, 10, 32); err == nil {
+			p.ParsedProjectID1 = uint(projectID1)
+		}
+	}
+
+	// 解析并转换 project_id_2
+	if p.ProjectID2 != "" && p.ProjectID2 != "none" {
+		if projectID2, err := strconv.ParseUint(p.ProjectID2, 10, 32); err == nil {
+			p.ParsedProjectID2 = uint(projectID2)
+		}
+	}
+
+	// 解析并转换 duration
+	if p.Duration != "" {
+		if duration, err := strconv.Atoi(p.Duration); err == nil {
+			p.ParsedDuration = duration
+		} else {
+			return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "duration 字段必须是有效的数字", err)
+		}
 	}
 
 	// 解析文件字段
@@ -123,7 +146,7 @@ func (h *Handler) CreateLessonHandler(c *gin.Context, params *CreateLessonParams
 
 	// 如果提供了课程ID，验证课程是否存在且用户有权限
 	var validCourseIDs []uint
-	for _, courseID := range params.CourseIDs {
+	for _, courseID := range params.ParsedCourseIDs {
 		if courseID > 0 {
 			course, err := h.dao.CourseDao.GetCourse(courseID)
 			if err != nil || course.AuthorID != userID {
@@ -179,12 +202,12 @@ func (h *Handler) CreateLessonHandler(c *gin.Context, params *CreateLessonParams
 		DocumentPath: documentPath,
 		FlowChartID:  params.FlowChartID,
 		ProjectType:  params.ProjectType,
-		ProjectID1:   params.ProjectID1,
-		ProjectID2:   params.ProjectID2,
+		ProjectID1:   params.ParsedProjectID1,
+		ProjectID2:   params.ParsedProjectID2,
 		Video1:       video1Path,
 		Video2:       video2Path,
 		Video3:       video3Path,
-		Duration:     params.Duration,
+		Duration:     params.ParsedDuration,
 		Difficulty:   params.Difficulty,
 		Description:  params.Description,
 	}
@@ -331,14 +354,14 @@ func (h *Handler) cleanupUploadedFiles(filePaths []string) {
 // UpdateLessonParams 更新课时请求参数
 type UpdateLessonParams struct {
 	LessonID      uint                  `json:"lesson_id" uri:"lesson_id" binding:"required"`
-	CourseIDs     []uint                `json:"course_ids" form:"course_ids"` // 关联的课程ID列表
+	CourseIDs     string                `json:"course_ids" form:"course_ids"` // 改为字符串类型，在Parse中处理转换
 	Title         string                `json:"title" form:"title"`
 	Content       string                `json:"content" form:"content"`
-	FlowChartID   *uint                 `json:"flow_chart_id" form:"flow_chart_id"`
+	FlowChartID   string                `json:"flow_chart_id" form:"flow_chart_id"`
 	ProjectType   string                `json:"project_type" form:"project_type"`
-	ProjectID1    *uint                 `json:"project_id_1" form:"project_id_1"`
-	ProjectID2    *uint                 `json:"project_id_2" form:"project_id_2"`
-	Duration      *int                  `json:"duration" form:"duration"`
+	ProjectID1    string                `json:"project_id_1" form:"project_id_1"`
+	ProjectID2    string                `json:"project_id_2" form:"project_id_2"`
+	Duration      string                `json:"duration" form:"duration"`
 	Difficulty    string                `json:"difficulty" form:"difficulty"`
 	Description   string                `json:"description" form:"description"`
 	UpdatedAt     int64                 `json:"updated_at" form:"updated_at"`         // 乐观锁
@@ -350,6 +373,13 @@ type UpdateLessonParams struct {
 	ClearVideo1   bool                  `json:"clear_video_1" form:"clear_video_1"`   // 清除视频1
 	ClearVideo2   bool                  `json:"clear_video_2" form:"clear_video_2"`   // 清除视频2
 	ClearVideo3   bool                  `json:"clear_video_3" form:"clear_video_3"`   // 清除视频3
+
+	// 实际使用的字段（解析后）
+	ParsedCourseIDs   []uint
+	ParsedFlowChartID *uint
+	ParsedProjectID1  *uint
+	ParsedProjectID2  *uint
+	ParsedDuration    *int
 }
 
 func (p *UpdateLessonParams) Parse(c *gin.Context) gorails.Error {
@@ -363,24 +393,51 @@ func (p *UpdateLessonParams) Parse(c *gin.Context) gorails.Error {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 
-	// 特殊处理 course_ids 字段（multipart form 中的数组）
-	// 检查是否存在 course_ids 字段（无论值是否为空）
-	if courseIDsStr, exists := c.GetPostForm("course_ids"); exists {
-		// 清空原有的值
-		p.CourseIDs = []uint{}
-		// 如果值不为空，解析逗号分隔的字符串
-		if courseIDsStr != "" {
-			parts := strings.Split(courseIDsStr, ",")
-			for _, part := range parts {
-				part = strings.TrimSpace(part)
-				if part != "" {
-					if courseID, err := strconv.ParseUint(part, 10, 32); err == nil {
-						p.CourseIDs = append(p.CourseIDs, uint(courseID))
-					}
+	// 解析 course_ids 字段
+	p.ParsedCourseIDs = []uint{}
+	if p.CourseIDs != "" {
+		parts := strings.Split(p.CourseIDs, ",")
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				if courseID, err := strconv.ParseUint(part, 10, 32); err == nil {
+					p.ParsedCourseIDs = append(p.ParsedCourseIDs, uint(courseID))
 				}
 			}
 		}
-		// 如果值为空，CourseIDs 已经被设置为空数组，这是我们想要的
+	}
+
+	// 解析并转换 flow_chart_id
+	if p.FlowChartID != "" && p.FlowChartID != "0" {
+		if flowChartID, err := strconv.ParseUint(p.FlowChartID, 10, 32); err == nil {
+			val := uint(flowChartID)
+			p.ParsedFlowChartID = &val
+		}
+	}
+
+	// 解析并转换 project_id_1
+	if p.ProjectID1 != "" && p.ProjectID1 != "none" && p.ProjectID1 != "0" {
+		if projectID1, err := strconv.ParseUint(p.ProjectID1, 10, 32); err == nil {
+			val := uint(projectID1)
+			p.ParsedProjectID1 = &val
+		}
+	}
+
+	// 解析并转换 project_id_2
+	if p.ProjectID2 != "" && p.ProjectID2 != "none" && p.ProjectID2 != "0" {
+		if projectID2, err := strconv.ParseUint(p.ProjectID2, 10, 32); err == nil {
+			val := uint(projectID2)
+			p.ParsedProjectID2 = &val
+		}
+	}
+
+	// 解析并转换 duration
+	if p.Duration != "" && p.Duration != "0" {
+		if duration, err := strconv.Atoi(p.Duration); err == nil {
+			p.ParsedDuration = &duration
+		} else {
+			return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "duration 字段必须是有效的数字", err)
+		}
 	}
 
 	// 手动验证必需的字段
@@ -552,20 +609,20 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 	if params.Content != "" {
 		updates["content"] = params.Content
 	}
-	if params.FlowChartID != nil {
-		updates["flow_chart_id"] = *params.FlowChartID
+	if params.ParsedFlowChartID != nil {
+		updates["flow_chart_id"] = *params.ParsedFlowChartID
 	}
 	if params.ProjectType != "" {
 		updates["project_type"] = params.ProjectType
 	}
-	if params.ProjectID1 != nil {
-		updates["ProjectID1"] = *params.ProjectID1
+	if params.ParsedProjectID1 != nil {
+		updates["ProjectID1"] = *params.ParsedProjectID1
 	}
-	if params.ProjectID2 != nil {
-		updates["ProjectID2"] = *params.ProjectID2
+	if params.ParsedProjectID2 != nil {
+		updates["ProjectID2"] = *params.ParsedProjectID2
 	}
-	if params.Duration != nil {
-		updates["duration"] = *params.Duration
+	if params.ParsedDuration != nil {
+		updates["duration"] = *params.ParsedDuration
 	}
 	if params.Difficulty != "" {
 		updates["difficulty"] = params.Difficulty
@@ -601,12 +658,11 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 	}
 
 	// 检查是否需要更新课程关联（如果前端传递了course_ids字段，无论是否为空）
-	// 通过检查PostForm来确定是否明确传递了course_ids参数
-	_, courseIDsProvided := c.GetPostForm("course_ids")
-	if courseIDsProvided {
+	// 检查CourseIDs字段是否被设置（无论是否为空）
+	if params.CourseIDs != "" || len(params.ParsedCourseIDs) >= 0 {
 		// 验证所有课程ID的权限
 		var validCourseIDs []uint
-		for _, courseID := range params.CourseIDs {
+		for _, courseID := range params.ParsedCourseIDs {
 			if courseID > 0 {
 				course, err := h.dao.CourseDao.GetCourse(courseID)
 				if err != nil || course.AuthorID != userID {
