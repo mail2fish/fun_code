@@ -610,9 +610,9 @@ func (s *ClassDaoImpl) IsLessonInClass(classID, courseID, lessonID uint) (bool, 
 		return false, err
 	}
 
-	// 检查课时是否属于该课程
-	var lesson model.Lesson
-	if err := s.db.Where("id = ? AND course_id = ?", lessonID, courseID).First(&lesson).Error; err != nil {
+	// 检查课时是否属于该课程（通过lesson_courses中间表）
+	var lessonCourse model.LessonCourse
+	if err := s.db.Where("lesson_id = ? AND course_id = ?", lessonID, courseID).First(&lessonCourse).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil
 		}
