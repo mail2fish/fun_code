@@ -224,7 +224,7 @@ export default function CreateLessonPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       course_ids: [],
-      title: projectNameFromParams ? `课件：${decodeURIComponent(projectNameFromParams)}` : "",
+      title: projectNameFromParams ? `${decodeURIComponent(projectNameFromParams)}` : "",
       content: projectNameFromParams ? `本课件将基于 Scratch 项目"${decodeURIComponent(projectNameFromParams)}"进行教学。\n\n学习目标：\n- 理解项目的基本概念\n- 掌握相关编程技能\n- 能够独立完成类似项目\n\n教学内容：\n1. 项目分析与介绍\n2. 核心功能实现\n3. 扩展与创新` : "",
       difficulty: "beginner",
       duration: 30,
