@@ -55,6 +55,19 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 
+// 导入对话框组件
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "~/components/ui/command"
+import { Checkbox } from "~/components/ui/checkbox"
+
 // API 服务
 import { HOST_URL } from "~/config"
 
@@ -173,6 +186,57 @@ async function getCourseLessons(courseId: string) {
   }
 }
 
+// 获取所有课件列表（用于选择添加到课程）
+async function getAllLessons() {
+  try {
+    const response = await fetchWithAuth(`${HOST_URL}/api/admin/lessons?pageSize=1000`)
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || `API 错误: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    return data.data as LessonData[]
+  } catch (error) {
+    console.error("获取课件列表失败:", error)
+    throw error
+  }
+}
+
+// 批量将课件添加到课程
+async function addLessonsToCourse(courseId: string, lessonIds: number[]) {
+  try {
+    console.log("addLessonsToCourse 调用:", { courseId, lessonIds })
+    const url = `${HOST_URL}/api/admin/courses/${courseId}/lessons`
+    const body = { lesson_ids: lessonIds }
+    console.log("发送请求:", { url, body })
+    
+    const response = await fetchWithAuth(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    })
+
+    console.log("响应状态:", response.status)
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error("API错误响应:", errorData)
+      throw new Error(errorData.message || `API 错误: ${response.status}`)
+    }
+
+    const result = await response.json()
+    console.log("API成功响应:", result)
+    return result
+  } catch (error) {
+    console.error("添加课件到课程失败:", error)
+    throw error
+  }
+}
+
 // 可拖拽的课件项组件
 function SortableLessonItem({ 
   lesson, 
@@ -257,6 +321,14 @@ export default function EditCoursePage() {
   const [originalLessons, setOriginalLessons] = React.useState<LessonData[]>([])
   const [hasOrderChanged, setHasOrderChanged] = React.useState(false)
   const [isSavingOrder, setIsSavingOrder] = React.useState(false)
+
+  // 添加已有课件相关状态
+  const [allLessons, setAllLessons] = React.useState<LessonData[]>([])
+  const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false)
+  const [selectedLessons, setSelectedLessons] = React.useState<number[]>([])
+  const [isLoadingAllLessons, setIsLoadingAllLessons] = React.useState(false)
+  const [isAddingLessons, setIsAddingLessons] = React.useState(false)
+  const [searchKeyword, setSearchKeyword] = React.useState("")
 
   // 初始化拖拽传感器
   const sensors = useSensors(
@@ -366,6 +438,79 @@ export default function EditCoursePage() {
     if (!courseId) return
     navigate(`/www/admin/create_lesson?courseId=${courseId}`)
   }
+
+  // 打开添加已有课件对话框
+  const handleOpenAddDialog = async () => {
+    try {
+      setIsLoadingAllLessons(true)
+      const allLessonsData = await getAllLessons()
+      
+      // 过滤掉已经在当前课程中的课件
+      const currentLessonIds = lessons.map(lesson => lesson.id)
+      const availableLessons = allLessonsData.filter(lesson => !currentLessonIds.includes(lesson.id))
+      
+      setAllLessons(availableLessons)
+      setIsAddDialogOpen(true)
+      setSelectedLessons([])
+      setSearchKeyword("")
+    } catch (error) {
+      console.error("加载课件列表失败:", error)
+      toast.error("加载课件列表失败")
+    } finally {
+      setIsLoadingAllLessons(false)
+    }
+  }
+
+  // 处理课件选择
+  const handleLessonToggle = (lessonId: number) => {
+    setSelectedLessons(prev => 
+      prev.includes(lessonId) 
+        ? prev.filter(id => id !== lessonId)
+        : [...prev, lessonId]
+    )
+  }
+
+  // 确认添加已有课件
+  const handleConfirmAddLessons = async () => {
+    console.log("handleConfirmAddLessons 调用:", { courseId, selectedLessons })
+    
+    if (!courseId || selectedLessons.length === 0) {
+      console.log("提前返回:", { courseId, selectedLessonsLength: selectedLessons.length })
+      return
+    }
+
+    try {
+      setIsAddingLessons(true)
+      
+      // 批量添加所有选中的课件
+      const result = await addLessonsToCourse(courseId, selectedLessons)
+      
+      // 重新加载课程课件列表
+      const updatedLessons = await getCourseLessons(courseId)
+      setLessons(updatedLessons)
+      setOriginalLessons([...updatedLessons])
+      
+      toast.success(result.message || `成功添加 ${selectedLessons.length} 个课件`)
+      setIsAddDialogOpen(false)
+      setSelectedLessons([])
+      
+    } catch (error) {
+      console.error("添加课件失败:", error)
+      toast.error("添加课件失败，请重试")
+    } finally {
+      setIsAddingLessons(false)
+    }
+  }
+
+  // 过滤课件
+  const filteredLessons = React.useMemo(() => {
+    if (!searchKeyword) return allLessons
+    
+    return allLessons.filter(lesson => 
+      lesson.title.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+      lesson.description.toLowerCase().includes(searchKeyword.toLowerCase())
+    )
+  }, [allLessons, searchKeyword])
 
   // 编辑课件处理函数
   const handleEditLesson = (lessonId: number) => {
@@ -694,13 +839,112 @@ export default function EditCoursePage() {
                       管理课程的课件内容和顺序，支持拖拽排序。
                     </p>
                   </div>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={handleAddLesson}
-                  >
-                    添加课件
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={handleOpenAddDialog}
+                          disabled={isLoadingAllLessons}
+                        >
+                          {isLoadingAllLessons ? "加载中..." : "添加已有课件"}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle>添加已有课件到课程</DialogTitle>
+                          <DialogDescription>
+                            选择要添加到当前课程的课件。已经在课程中的课件不会显示。
+                          </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="space-y-4">
+                          {/* 搜索框 */}
+                          <div>
+                            <Input
+                              placeholder="搜索课件标题或描述..."
+                              value={searchKeyword}
+                              onChange={(e) => setSearchKeyword(e.target.value)}
+                            />
+                          </div>
+                          
+                          {/* 课件列表 */}
+                          <div className="max-h-96 overflow-y-auto border rounded-lg">
+                            {filteredLessons.length === 0 ? (
+                              <div className="p-8 text-center text-muted-foreground">
+                                {searchKeyword ? "没有找到匹配的课件" : "没有可添加的课件"}
+                              </div>
+                            ) : (
+                              <div className="space-y-2 p-4">
+                                {filteredLessons.map((lesson) => (
+                                  <div
+                                    key={lesson.id}
+                                    className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
+                                    onClick={() => handleLessonToggle(lesson.id)}
+                                  >
+                                    <Checkbox
+                                      checked={selectedLessons.includes(lesson.id)}
+                                      onChange={() => handleLessonToggle(lesson.id)}
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium truncate">
+                                        {lesson.title}
+                                      </p>
+                                      {lesson.description && (
+                                        <p className="text-xs text-muted-foreground truncate">
+                                          {lesson.description}
+                                        </p>
+                                      )}
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-xs text-muted-foreground">
+                                          {formatDuration(lesson.duration)}
+                                        </span>
+                                        <Badge variant="outline" className="text-xs">
+                                          ID: {lesson.id}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* 选中统计 */}
+                          {selectedLessons.length > 0 && (
+                            <div className="text-sm text-muted-foreground">
+                              已选择 {selectedLessons.length} 个课件
+                            </div>
+                          )}
+                        </div>
+                        
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => setIsAddDialogOpen(false)}
+                            disabled={isAddingLessons}
+                          >
+                            取消
+                          </Button>
+                          <Button
+                            onClick={handleConfirmAddLessons}
+                            disabled={selectedLessons.length === 0 || isAddingLessons}
+                          >
+                            {isAddingLessons ? "添加中..." : `添加选中的课件 (${selectedLessons.length})`}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                    
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={handleAddLesson}
+                    >
+                      新建课件
+                    </Button>
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

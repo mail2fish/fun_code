@@ -136,6 +136,7 @@ func (s *Server) setupRoutes() {
 			admin.PUT("/courses/reorder", gorails.Wrap(s.handler.ReorderCoursesHandler, nil))
 			admin.GET("/courses/:course_id/lessons", gorails.Wrap(s.handler.GetCourseLessonsHandler, nil))
 			admin.PUT("/courses/:course_id/lessons/reorder", gorails.Wrap(s.handler.ReorderLessonsHandler, nil))
+			admin.POST("/courses/:course_id/lessons", gorails.Wrap(s.handler.AddLessonToCourseHandler, nil))
 
 			// 课时管理路由
 			admin.POST("/lessons", gorails.Wrap(s.handler.CreateLessonHandler, nil))

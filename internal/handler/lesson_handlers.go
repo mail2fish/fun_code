@@ -983,3 +983,111 @@ func (h *Handler) GetCourseLessonsHandler(c *gin.Context, params *GetCourseLesso
 	}
 	return lessons, nil, nil
 }
+
+// AddLessonToCourseParams 将课件添加到课程请求参数
+type AddLessonToCourseParams struct {
+	CourseID  uint   `json:"course_id" uri:"course_id" binding:"required"`
+	LessonIDs []uint `json:"lesson_ids" binding:"required"`
+}
+
+func (p *AddLessonToCourseParams) Parse(c *gin.Context) gorails.Error {
+	// 手动从URL路径获取course_id
+	courseIDStr := c.Param("course_id")
+	if courseIDStr == "" {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "course_id参数缺失", nil)
+	}
+
+	courseID, err := strconv.ParseUint(courseIDStr, 10, 32)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, fmt.Sprintf("course_id参数无效: %v", err), err)
+	}
+	p.CourseID = uint(courseID)
+
+	// 绑定JSON body
+	var jsonBody struct {
+		LessonIDs []uint `json:"lesson_ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&jsonBody); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, fmt.Sprintf("绑定JSON参数失败: %v", err), err)
+	}
+	p.LessonIDs = jsonBody.LessonIDs
+
+	// 验证lesson_ids不能为空
+	if len(p.LessonIDs) == 0 {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "lesson_ids不能为空", nil)
+	}
+
+	return nil
+}
+
+// AddLessonToCourseResponse 将课件添加到课程响应
+type AddLessonToCourseResponse struct {
+	Message      string `json:"message"`
+	AddedCount   int    `json:"added_count"`
+	SkippedCount int    `json:"skipped_count"`
+}
+
+// AddLessonToCourseHandler 将已有课件批量添加到课程
+func (h *Handler) AddLessonToCourseHandler(c *gin.Context, params *AddLessonToCourseParams) (*AddLessonToCourseResponse, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+
+	// 验证课程是否存在且用户有权限
+	course, err := h.dao.CourseDao.GetCourse(params.CourseID)
+	if err != nil || course.AuthorID != userID {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, errors.New("无权限操作此课程"))
+	}
+
+	var addedCount, skippedCount int
+	var failedLessons []uint
+
+	// 批量处理每个课件
+	for _, lessonID := range params.LessonIDs {
+		// 验证课件是否存在
+		_, err := h.dao.LessonDao.GetLesson(lessonID)
+		if err != nil {
+			failedLessons = append(failedLessons, lessonID)
+			continue
+		}
+
+		// 检查课件是否已经在课程中
+		isInCourse, err := h.dao.LessonDao.IsLessonInCourse(lessonID, params.CourseID)
+		if err != nil {
+			failedLessons = append(failedLessons, lessonID)
+			continue
+		}
+		if isInCourse {
+			skippedCount++
+			continue
+		}
+
+		// 将课件添加到课程
+		if err := h.dao.LessonDao.AddLessonToCourse(lessonID, params.CourseID, 0); err != nil {
+			failedLessons = append(failedLessons, lessonID)
+			continue
+		}
+
+		addedCount++
+	}
+
+	// 如果有失败的课件，返回部分成功的信息
+	if len(failedLessons) > 0 && addedCount == 0 {
+		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeCreateFailed, fmt.Sprintf("所有课件添加失败，失败的课件ID: %v", failedLessons), errors.New("添加课件失败"))
+	}
+
+	var message string
+	if len(failedLessons) > 0 {
+		message = fmt.Sprintf("成功添加 %d 个课件，跳过 %d 个已存在的课件，%d 个课件添加失败", addedCount, skippedCount, len(failedLessons))
+	} else if skippedCount > 0 {
+		message = fmt.Sprintf("成功添加 %d 个课件，跳过 %d 个已存在的课件", addedCount, skippedCount)
+	} else {
+		message = fmt.Sprintf("成功添加 %d 个课件", addedCount)
+	}
+
+	response := &AddLessonToCourseResponse{
+		Message:      message,
+		AddedCount:   addedCount,
+		SkippedCount: skippedCount,
+	}
+
+	return response, nil, nil
+}
