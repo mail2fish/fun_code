@@ -23,7 +23,7 @@ import (
 
 // CreateLessonParams 创建课时请求参数
 type CreateLessonParams struct {
-	CourseID     uint                  `json:"course_id" form:"course_id" binding:"required"`
+	CourseIDs    []uint                `json:"course_ids" form:"course_ids"` // 关联的课程ID列表（可选）
 	Title        string                `json:"title" form:"title" binding:"required"`
 	Content      string                `json:"content" form:"content"`
 	FlowChartID  uint                  `json:"flow_chart_id" form:"flow_chart_id"`
@@ -76,10 +76,9 @@ func (p *CreateLessonParams) Parse(c *gin.Context) gorails.Error {
 type CreateLessonResponse struct {
 	Message   string `json:"message"`
 	ID        uint   `json:"id"`
-	CourseID  uint   `json:"course_id"`
+	CourseIDs []uint `json:"course_ids"`
 	Title     string `json:"title"`
 	Content   string `json:"content"`
-	SortOrder int    `json:"sort_order"`
 
 	DocumentName string `json:"document_name"`
 	DocumentPath string `json:"document_path"`
@@ -101,10 +100,16 @@ type CreateLessonResponse struct {
 func (h *Handler) CreateLessonHandler(c *gin.Context, params *CreateLessonParams) (*CreateLessonResponse, *gorails.ResponseMeta, gorails.Error) {
 	userID := h.getUserID(c)
 
-	// 验证课程是否存在且用户有权限
-	course, err := h.dao.CourseDao.GetCourse(params.CourseID)
-	if err != nil || course.AuthorID != userID {
-		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, errors.New("无权限操作此课程"))
+	// 如果提供了课程ID，验证课程是否存在且用户有权限
+	var validCourseIDs []uint
+	for _, courseID := range params.CourseIDs {
+		if courseID > 0 {
+			course, err := h.dao.CourseDao.GetCourse(courseID)
+			if err != nil || course.AuthorID != userID {
+				return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, fmt.Errorf("无权限操作课程 %d", courseID))
+			}
+			validCourseIDs = append(validCourseIDs, courseID)
+		}
 	}
 
 	// 处理文件上传
@@ -147,7 +152,6 @@ func (h *Handler) CreateLessonHandler(c *gin.Context, params *CreateLessonParams
 
 	// 构建课时对象
 	lesson := &model.Lesson{
-		CourseID:     params.CourseID,
 		Title:        params.Title,
 		Content:      params.Content,
 		DocumentName: documentName,
@@ -171,13 +175,20 @@ func (h *Handler) CreateLessonHandler(c *gin.Context, params *CreateLessonParams
 		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeCreateFailed, global.ErrorMsgInsertFailed, err)
 	}
 
+	// 将课时关联到课程
+	for _, courseID := range validCourseIDs {
+		if err := h.dao.LessonDao.AddLessonToCourse(lesson.ID, courseID, 0); err != nil {
+			// 如果关联失败，记录错误但不返回失败（课时已创建成功）
+			// TODO: 可以考虑记录日志或者回滚操作
+		}
+	}
+
 	response := &CreateLessonResponse{
 		Message:   "课时创建成功",
 		ID:        lesson.ID,
-		CourseID:  lesson.CourseID,
+		CourseIDs: validCourseIDs,
 		Title:     lesson.Title,
 		Content:   lesson.Content,
-		SortOrder: lesson.SortOrder,
 
 		DocumentName: lesson.DocumentName,
 		DocumentPath: lesson.DocumentPath,
@@ -381,9 +392,22 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryNotFound, global.ErrorMsgQueryNotFound, err)
 	}
 
-	// 验证权限（通过课程检查）
-	course, err := h.dao.CourseDao.GetCourse(currentLesson.CourseID)
-	if err != nil || course.AuthorID != userID {
+	// 验证权限（通过课时关联的课程检查）
+	courses, err := h.dao.LessonDao.GetLessonCourses(params.LessonID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 检查用户是否有权限修改该课时（必须是其中任一关联课程的作者）
+	hasPermission := false
+	for _, course := range courses {
+		if course.AuthorID == userID {
+			hasPermission = true
+			break
+		}
+	}
+
+	if !hasPermission {
 		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, errors.New("无权限操作此课时"))
 	}
 
@@ -554,11 +578,15 @@ func (p *GetLessonParams) Parse(c *gin.Context) gorails.Error {
 
 // GetLessonResponse 获取课时详情响应
 type GetLessonResponse struct {
-	ID        uint   `json:"id"`
-	CourseID  uint   `json:"course_id"`
-	Title     string `json:"title"`
-	Content   string `json:"content"`
-	SortOrder int    `json:"sort_order"`
+	ID      uint   `json:"id"`
+	Title   string `json:"title"`
+	Content string `json:"content"`
+	Courses []struct {
+		ID          uint   `json:"id"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		SortOrder   int    `json:"sort_order"`
+	} `json:"courses,omitempty"`
 
 	DocumentName string `json:"document_name"`
 	DocumentPath string `json:"document_path"`
@@ -574,11 +602,6 @@ type GetLessonResponse struct {
 	Description  string `json:"description"`
 	CreatedAt    string `json:"created_at"`
 	UpdatedAt    string `json:"updated_at"`
-	Course       *struct {
-		ID          uint   `json:"id"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-	} `json:"course,omitempty"`
 }
 
 // GetLessonHandler 获取课时详情
@@ -592,11 +615,9 @@ func (h *Handler) GetLessonHandler(c *gin.Context, params *GetLessonParams) (*Ge
 	}
 
 	response := &GetLessonResponse{
-		ID:        lesson.ID,
-		CourseID:  lesson.CourseID,
-		Title:     lesson.Title,
-		Content:   lesson.Content,
-		SortOrder: lesson.SortOrder,
+		ID:      lesson.ID,
+		Title:   lesson.Title,
+		Content: lesson.Content,
 
 		DocumentName: lesson.DocumentName,
 		DocumentPath: lesson.DocumentPath,
@@ -614,16 +635,22 @@ func (h *Handler) GetLessonHandler(c *gin.Context, params *GetLessonParams) (*Ge
 		UpdatedAt:    time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339),
 	}
 
-	// 如果有关联的课程信息，也添加到响应中
-	if lesson.Course.ID > 0 {
-		response.Course = &struct {
-			ID          uint   `json:"id"`
-			Title       string `json:"title"`
-			Description string `json:"description"`
-		}{
-			ID:          lesson.Course.ID,
-			Title:       lesson.Course.Title,
-			Description: lesson.Course.Description,
+	// 获取关联的课程信息（通过多对多关系）
+	if len(lesson.Courses) > 0 {
+		for _, course := range lesson.Courses {
+			// 需要通过关联表获取排序信息，这里暂时设为0
+			// TODO: 如果需要排序信息，需要从 lesson_courses 表中获取
+			response.Courses = append(response.Courses, struct {
+				ID          uint   `json:"id"`
+				Title       string `json:"title"`
+				Description string `json:"description"`
+				SortOrder   int    `json:"sort_order"`
+			}{
+				ID:          course.ID,
+				Title:       course.Title,
+				Description: course.Description,
+				SortOrder:   0, // 暂时设为0，如果需要可以后续优化
+			})
 		}
 	}
 

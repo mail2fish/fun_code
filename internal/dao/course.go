@@ -112,7 +112,9 @@ func (c *CourseDaoImpl) GetCourseWithLessons(courseID uint) (*model.Course, erro
 	var course model.Course
 	if err := c.db.Preload("Author").
 		Preload("Lessons", func(db *gorm.DB) *gorm.DB {
-			return db.Order("sort_order ASC, id ASC")
+			return db.Joins("JOIN lesson_courses ON lesson_courses.lesson_id = lessons.id").
+				Where("lesson_courses.course_id = ?", courseID).
+				Order("lesson_courses.sort_order ASC, lessons.id ASC")
 		}).
 		First(&course, courseID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -161,9 +163,9 @@ func (c *CourseDaoImpl) DeleteCourse(courseID, authorID uint, expectedUpdatedAt 
 			return errors.New("课程已被其他用户修改，请刷新后重试")
 		}
 
-		// 删除课程下的所有课时
-		if err := tx.Where("course_id = ?", courseID).Delete(&model.Lesson{}).Error; err != nil {
-			return fmt.Errorf("删除课时失败: %w", err)
+		// 删除课程的所有课时关联
+		if err := tx.Where("course_id = ?", courseID).Delete(&model.LessonCourse{}).Error; err != nil {
+			return fmt.Errorf("删除课时关联失败: %w", err)
 		}
 
 		// 删除课程与班级的关联
@@ -277,23 +279,20 @@ func (c *CourseDaoImpl) CountCoursesByAuthor(authorID uint) (int64, error) {
 func (c *CourseDaoImpl) GetCourseStats(courseID uint) (*CourseStats, error) {
 	stats := &CourseStats{}
 
-	// 统计课时数量
-	if err := c.db.Model(&model.Lesson{}).Where("course_id = ?", courseID).Count(&stats.LessonCount).Error; err != nil {
+	// 统计课时数量（通过关联表）
+	if err := c.db.Model(&model.LessonCourse{}).Where("course_id = ?", courseID).Count(&stats.LessonCount).Error; err != nil {
 		return nil, err
 	}
 
-	// 统计已发布课时数量
-	if err := c.db.Model(&model.Lesson{}).
-		Where("course_id = ? AND is_published = ?", courseID, true).
-		Count(&stats.PublishedLessons).Error; err != nil {
-		return nil, err
-	}
+	// 统计已发布课时数量（现在移除了 is_published 字段，所以和总数相同）
+	stats.PublishedLessons = stats.LessonCount
 
-	// 统计总时长
+	// 统计总时长（通过关联表JOIN课时表）
 	var totalDuration int
-	c.db.Model(&model.Lesson{}).
-		Where("course_id = ?", courseID).
-		Select("COALESCE(SUM(duration), 0)").
+	c.db.Table("lesson_courses lc").
+		Joins("JOIN lessons l ON l.id = lc.lesson_id").
+		Where("lc.course_id = ?", courseID).
+		Select("COALESCE(SUM(l.duration), 0)").
 		Scan(&totalDuration)
 	stats.TotalDuration = totalDuration
 
@@ -314,59 +313,14 @@ func (c *CourseDaoImpl) GetCourseStats(courseID uint) (*CourseStats, error) {
 	return stats, nil
 }
 
-// AddLessonToCourse 添加课时到课程
+// AddLessonToCourse 添加课时到课程（已废弃，请使用 LessonDao.AddLessonToCourse）
 func (c *CourseDaoImpl) AddLessonToCourse(courseID, authorID uint, lesson *model.Lesson) error {
-	// 检查课程权限
-	var course model.Course
-	if err := c.db.Where("id = ? AND author_id = ?", courseID, authorID).First(&course).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("课程不存在或您无权操作")
-		}
-		return err
-	}
-
-	// 设置课程ID
-	lesson.CourseID = courseID
-
-	// 如果没有指定排序，则设置为最后一个
-	if lesson.SortOrder == 0 {
-		var maxSort int
-		c.db.Model(&model.Lesson{}).Where("course_id = ?", courseID).Select("COALESCE(MAX(sort_order), 0)").Scan(&maxSort)
-		lesson.SortOrder = maxSort + 1
-	}
-
-	if err := c.db.Create(lesson).Error; err != nil {
-		return fmt.Errorf("添加课时失败: %w", err)
-	}
-
-	return nil
+	return errors.New("此方法已废弃，请使用 LessonDao.AddLessonToCourse")
 }
 
-// RemoveLessonFromCourse 从课程移除课时（乐观锁）
+// RemoveLessonFromCourse 从课程移除课时（已废弃，请使用 LessonDao.RemoveLessonFromCourse）
 func (c *CourseDaoImpl) RemoveLessonFromCourse(courseID, lessonID, authorID uint, expectedUpdatedAt int64) error {
-	// 检查课程权限和课时是否属于该课程
-	var lesson model.Lesson
-	if err := c.db.Joins("JOIN courses ON courses.id = lessons.course_id").
-		Where("lessons.id = ? AND lessons.course_id = ? AND courses.author_id = ?", lessonID, courseID, authorID).
-		First(&lesson).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("课时不存在或您无权操作")
-		}
-		return err
-	}
-
-	// 乐观锁删除课时
-	result := c.db.Where("id = ? AND updated_at = ?", lessonID, expectedUpdatedAt).Delete(&lesson)
-
-	if result.Error != nil {
-		return fmt.Errorf("删除课时失败: %w", result.Error)
-	}
-
-	if result.RowsAffected == 0 {
-		return errors.New("课时已被其他用户修改，请刷新后重试")
-	}
-
-	return nil
+	return errors.New("此方法已废弃，请使用 LessonDao.RemoveLessonFromCourse")
 }
 
 // BatchUpdateCourses 批量更新课程（乐观锁）
@@ -462,13 +416,11 @@ func (c *CourseDaoImpl) DuplicateCourse(courseID, authorID uint) (*model.Course,
 		// 赋值给外部变量
 		newCourse = &course
 
-		// 复制课时
+		// 复制课时（先创建课时，再建立关联）
 		for i, originalLesson := range originalCourse.Lessons {
 			newLesson := model.Lesson{
 				Title:        originalLesson.Title,
 				Content:      originalLesson.Content,
-				CourseID:     course.ID,
-				SortOrder:    i + 1,
 				DocumentName: originalLesson.DocumentName,
 				DocumentPath: originalLesson.DocumentPath,
 				FlowChartID:  originalLesson.FlowChartID,
@@ -486,6 +438,20 @@ func (c *CourseDaoImpl) DuplicateCourse(courseID, authorID uint) (*model.Course,
 
 			if err := tx.Create(&newLesson).Error; err != nil {
 				return fmt.Errorf("复制课时失败: %w", err)
+			}
+
+			// 创建课时-课程关联
+			now := time.Now().Unix()
+			lessonCourse := model.LessonCourse{
+				LessonID:  newLesson.ID,
+				CourseID:  course.ID,
+				SortOrder: i + 1,
+				CreatedAt: now,
+				UpdatedAt: now,
+			}
+
+			if err := tx.Create(&lessonCourse).Error; err != nil {
+				return fmt.Errorf("创建课时关联失败: %w", err)
 			}
 		}
 

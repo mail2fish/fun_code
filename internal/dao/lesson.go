@@ -19,26 +19,10 @@ func NewLessonDao(db *gorm.DB) LessonDao {
 	return &LessonDaoImpl{db: db}
 }
 
-// CreateLesson 创建课时
+// CreateLesson 创建课时（不再直接关联课程）
 func (l *LessonDaoImpl) CreateLesson(lesson *model.Lesson) error {
 	if lesson.Title == "" {
 		return errors.New("课时标题不能为空")
-	}
-
-	// 检查课程是否存在
-	var course model.Course
-	if err := l.db.First(&course, lesson.CourseID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("课程不存在")
-		}
-		return err
-	}
-
-	// 如果没有指定排序，则设置为最后一个
-	if lesson.SortOrder == 0 {
-		var maxSort int
-		l.db.Model(&model.Lesson{}).Where("course_id = ?", lesson.CourseID).Select("COALESCE(MAX(sort_order), 0)").Scan(&maxSort)
-		lesson.SortOrder = maxSort + 1
 	}
 
 	// 设置时间戳
@@ -55,10 +39,11 @@ func (l *LessonDaoImpl) CreateLesson(lesson *model.Lesson) error {
 
 // UpdateLesson 更新课时信息（乐观锁，基于updated_at避免并发更新）
 func (l *LessonDaoImpl) UpdateLesson(lessonID, authorID uint, expectedUpdatedAt int64, updates map[string]interface{}) error {
-	// 检查课时是否存在且用户有权限修改
+	// 检查课时是否存在且用户有权限修改（通过课时关联的课程检查权限）
 	var lesson model.Lesson
-	if err := l.db.Joins("JOIN courses ON courses.id = lessons.course_id").
-		Where("lessons.id = ? AND courses.author_id = ?", lessonID, authorID).
+	if err := l.db.Joins("JOIN lesson_courses lc ON lc.lesson_id = lessons.id").
+		Joins("JOIN courses c ON c.id = lc.course_id").
+		Where("lessons.id = ? AND c.author_id = ?", lessonID, authorID).
 		First(&lesson).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("课时不存在或您无权修改")
@@ -94,7 +79,7 @@ func (l *LessonDaoImpl) UpdateLesson(lessonID, authorID uint, expectedUpdatedAt 
 // GetLesson 获取课时详情
 func (l *LessonDaoImpl) GetLesson(lessonID uint) (*model.Lesson, error) {
 	var lesson model.Lesson
-	if err := l.db.Preload("Course.Author").Preload("Course").First(&lesson, lessonID).Error; err != nil {
+	if err := l.db.Preload("Courses.Author").First(&lesson, lessonID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("课时不存在")
 		}
@@ -109,16 +94,17 @@ func (l *LessonDaoImpl) GetLessonWithPermission(lessonID, userID uint) (*model.L
 	var lesson model.Lesson
 
 	// 查询课时并检查权限（课程作者或班级成员）
-	query := l.db.Preload("Course.Author").Preload("Course").
-		Joins("JOIN courses ON courses.id = lessons.course_id").
+	query := l.db.Preload("Courses.Author").
+		Joins("JOIN lesson_courses lc ON lc.lesson_id = lessons.id").
+		Joins("JOIN courses c ON c.id = lc.course_id").
 		Where("lessons.id = ?", lessonID)
 
-	// 检查是否为课程作者
-	query = query.Where("courses.author_id = ? OR EXISTS (?)",
+	// 检查是否为课程作者或班级成员
+	query = query.Where("c.author_id = ? OR EXISTS (?)",
 		userID,
-		l.db.Select("1").Table("class_courses").
-			Joins("JOIN class_users ON class_users.class_id = class_courses.class_id").
-			Where("class_courses.course_id = courses.id AND class_users.user_id = ? AND class_users.is_active = ?", userID, true))
+		l.db.Select("1").Table("class_courses cc").
+			Joins("JOIN class_users cu ON cu.class_id = cc.class_id").
+			Where("cc.course_id = c.id AND cu.user_id = ? AND cu.is_active = ?", userID, true))
 
 	if err := query.First(&lesson).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -132,47 +118,52 @@ func (l *LessonDaoImpl) GetLessonWithPermission(lessonID, userID uint) (*model.L
 
 // ListLessonsByCourse 获取课程下的所有课时（按排序）
 func (l *LessonDaoImpl) ListLessonsByCourse(courseID uint) ([]model.Lesson, error) {
-	var lessons []model.Lesson
-	if err := l.db.Preload("Course.Author").Where("course_id = ?", courseID).
-		Order("sort_order ASC, id ASC").
-		Find(&lessons).Error; err != nil {
-		return nil, err
-	}
-
-	return lessons, nil
+	return l.ListLessonsInCourse(courseID)
 }
 
 // ListLessonsWithPagination 分页获取课时列表
 func (l *LessonDaoImpl) ListLessonsWithPagination(courseID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Lesson, bool, error) {
 	var lessons []model.Lesson
 
-	query := l.db.Preload("Course.Author").Preload("Course") // 预加载关联的课程数据和课程作者
-	// 构建查询
+	query := l.db.Preload("Courses.Author") // 预加载关联的课程数据和课程作者
+
+	// 如果指定了课程ID，则通过关联表查询
 	if courseID > 0 {
-		query = query.Where("course_id = ?", courseID)
+		query = query.Joins("JOIN lesson_courses lc ON lc.lesson_id = lessons.id").
+			Where("lc.course_id = ?", courseID)
 	}
 
 	// 分页逻辑
 	if beginID > 0 {
 		if forward {
 			if asc {
-				query = query.Where("id > ?", beginID)
+				query = query.Where("lessons.id > ?", beginID)
 			} else {
-				query = query.Where("id < ?", beginID)
+				query = query.Where("lessons.id < ?", beginID)
 			}
 		} else {
 			if asc {
-				query = query.Where("id < ?", beginID)
+				query = query.Where("lessons.id < ?", beginID)
 			} else {
-				query = query.Where("id > ?", beginID)
+				query = query.Where("lessons.id > ?", beginID)
 			}
 		}
 	}
 
 	// 排序
-	orderClause := "sort_order ASC, id ASC"
-	if !asc {
-		orderClause = "sort_order DESC, id DESC"
+	var orderClause string
+	if courseID > 0 {
+		// 如果是特定课程，按关联表中的排序
+		orderClause = "lc.sort_order ASC, lessons.id ASC"
+		if !asc {
+			orderClause = "lc.sort_order DESC, lessons.id DESC"
+		}
+	} else {
+		// 如果是全部课时，按课时ID排序
+		orderClause = "lessons.id ASC"
+		if !asc {
+			orderClause = "lessons.id DESC"
+		}
 	}
 	query = query.Order(orderClause)
 
@@ -194,10 +185,11 @@ func (l *LessonDaoImpl) ListLessonsWithPagination(courseID uint, pageSize uint, 
 
 // DeleteLesson 删除课时（乐观锁，基于updated_at避免并发删除）
 func (l *LessonDaoImpl) DeleteLesson(lessonID, authorID uint, expectedUpdatedAt int64) error {
-	// 检查课时是否存在且用户有权限删除
+	// 检查课时是否存在且用户有权限删除（通过课时关联的课程检查权限）
 	var lesson model.Lesson
-	if err := l.db.Joins("JOIN courses ON courses.id = lessons.course_id").
-		Where("lessons.id = ? AND courses.author_id = ?", lessonID, authorID).
+	if err := l.db.Joins("JOIN lesson_courses lc ON lc.lesson_id = lessons.id").
+		Joins("JOIN courses c ON c.id = lc.course_id").
+		Where("lessons.id = ? AND c.author_id = ?", lessonID, authorID).
 		First(&lesson).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("课时不存在或您无权删除")
@@ -210,43 +202,46 @@ func (l *LessonDaoImpl) DeleteLesson(lessonID, authorID uint, expectedUpdatedAt 
 		return errors.New("课时已被其他用户修改，请刷新后重试")
 	}
 
-	// 执行删除
-	result := l.db.Where("id = ? AND updated_at = ?", lessonID, expectedUpdatedAt).
-		Delete(&lesson)
-
-	if result.Error != nil {
-		return fmt.Errorf("删除课时失败: %w", result.Error)
-	}
-
-	// 检查是否真的删除了记录（如果updated_at不匹配，RowsAffected会是0）
-	if result.RowsAffected == 0 {
-		return errors.New("课时已被其他用户修改，请刷新后重试")
-	}
-
-	return nil
-}
-
-// ReorderLessons 重新排序课时
-func (l *LessonDaoImpl) ReorderLessons(courseID uint, lessonIDs []uint) error {
+	// 使用事务删除课时及其关联
 	return l.db.Transaction(func(tx *gorm.DB) error {
-		for i, lessonID := range lessonIDs {
-			if err := tx.Model(&model.Lesson{}).
-				Where("id = ? AND course_id = ?", lessonID, courseID).
-				Update("sort_order", i+1).Error; err != nil {
-				return err
-			}
+		// 先删除所有关联记录
+		if err := tx.Where("lesson_id = ?", lessonID).Delete(&model.LessonCourse{}).Error; err != nil {
+			return fmt.Errorf("删除课时关联失败: %w", err)
 		}
+
+		// 再删除课时本身
+		result := tx.Where("id = ? AND updated_at = ?", lessonID, expectedUpdatedAt).
+			Delete(&lesson)
+
+		if result.Error != nil {
+			return fmt.Errorf("删除课时失败: %w", result.Error)
+		}
+
+		// 检查是否真的删除了记录（如果updated_at不匹配，RowsAffected会是0）
+		if result.RowsAffected == 0 {
+			return errors.New("课时已被其他用户修改，请刷新后重试")
+		}
+
 		return nil
 	})
+}
+
+// ReorderLessons 重新排序课时（使用新的多对多关系）
+func (l *LessonDaoImpl) ReorderLessons(courseID uint, lessonIDs []uint) error {
+	return l.ReorderLessonsInCourse(courseID, lessonIDs)
 }
 
 // ReorderLessonsWithOrder 使用明确排序信息重新排序课时
 func (l *LessonDaoImpl) ReorderLessonsWithOrder(courseID uint, lessons []LessonOrder) error {
 	return l.db.Transaction(func(tx *gorm.DB) error {
+		now := time.Now().Unix()
 		for _, lesson := range lessons {
-			if err := tx.Model(&model.Lesson{}).
-				Where("id = ? AND course_id = ?", lesson.ID, courseID).
-				Update("sort_order", lesson.SortOrder).Error; err != nil {
+			if err := tx.Model(&model.LessonCourse{}).
+				Where("lesson_id = ? AND course_id = ?", lesson.ID, courseID).
+				Updates(map[string]interface{}{
+					"sort_order": lesson.SortOrder,
+					"updated_at": now,
+				}).Error; err != nil {
 				return err
 			}
 		}
@@ -259,7 +254,7 @@ func (l *LessonDaoImpl) GetLessonsByProjectID(projectID uint) ([]model.Lesson, e
 	var lessons []model.Lesson
 	if err := l.db.Where("project_id_1 = ? OR project_id_2 = ? OR project_id_3 = ?",
 		projectID, projectID, projectID).
-		Preload("Course.Author").Preload("Course").
+		Preload("Courses.Author").
 		Find(&lessons).Error; err != nil {
 		return nil, err
 	}
@@ -270,7 +265,7 @@ func (l *LessonDaoImpl) GetLessonsByProjectID(projectID uint) ([]model.Lesson, e
 // CountLessonsByCourse 统计课程下的课时数量
 func (l *LessonDaoImpl) CountLessonsByCourse(courseID uint) (int64, error) {
 	var count int64
-	if err := l.db.Model(&model.Lesson{}).Where("course_id = ?", courseID).Count(&count).Error; err != nil {
+	if err := l.db.Model(&model.LessonCourse{}).Where("course_id = ?", courseID).Count(&count).Error; err != nil {
 		return 0, err
 	}
 
@@ -280,8 +275,9 @@ func (l *LessonDaoImpl) CountLessonsByCourse(courseID uint) (int64, error) {
 // GetNextLesson 获取下一课时
 func (l *LessonDaoImpl) GetNextLesson(courseID uint, currentSortOrder int) (*model.Lesson, error) {
 	var lesson model.Lesson
-	if err := l.db.Where("course_id = ? AND sort_order > ?", courseID, currentSortOrder).
-		Order("sort_order ASC").
+	if err := l.db.Joins("JOIN lesson_courses lc ON lc.lesson_id = lessons.id").
+		Where("lc.course_id = ? AND lc.sort_order > ?", courseID, currentSortOrder).
+		Order("lc.sort_order ASC").
 		First(&lesson).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // 没有下一课时
@@ -295,8 +291,9 @@ func (l *LessonDaoImpl) GetNextLesson(courseID uint, currentSortOrder int) (*mod
 // GetPreviousLesson 获取上一课时
 func (l *LessonDaoImpl) GetPreviousLesson(courseID uint, currentSortOrder int) (*model.Lesson, error) {
 	var lesson model.Lesson
-	if err := l.db.Where("course_id = ? AND sort_order < ?", courseID, currentSortOrder).
-		Order("sort_order DESC").
+	if err := l.db.Joins("JOIN lesson_courses lc ON lc.lesson_id = lessons.id").
+		Where("lc.course_id = ? AND lc.sort_order < ?", courseID, currentSortOrder).
+		Order("lc.sort_order DESC").
 		First(&lesson).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil // 没有上一课时
@@ -310,14 +307,17 @@ func (l *LessonDaoImpl) GetPreviousLesson(courseID uint, currentSortOrder int) (
 // SearchLessons 搜索课时
 func (l *LessonDaoImpl) SearchLessons(keyword string, courseID uint) ([]model.Lesson, error) {
 	var lessons []model.Lesson
-	query := l.db.Where("title LIKE ? OR content LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+	query := l.db.Where("lessons.title LIKE ? OR lessons.content LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 
 	if courseID > 0 {
-		query = query.Where("course_id = ?", courseID)
+		query = query.Joins("JOIN lesson_courses lc ON lc.lesson_id = lessons.id").
+			Where("lc.course_id = ?", courseID).
+			Order("lc.sort_order ASC")
+	} else {
+		query = query.Order("lessons.id ASC")
 	}
 
-	if err := query.Preload("Course.Author").Preload("Course").
-		Order("sort_order ASC").
+	if err := query.Preload("Courses.Author").
 		Find(&lessons).Error; err != nil {
 		return nil, err
 	}
@@ -382,7 +382,6 @@ func (l *LessonDaoImpl) DuplicateLesson(lessonID, targetCourseID, authorID uint)
 	newLesson := model.Lesson{
 		Title:        originalLesson.Title + " (副本)",
 		Content:      originalLesson.Content,
-		CourseID:     targetCourseID,
 		DocumentName: originalLesson.DocumentName,
 		DocumentPath: originalLesson.DocumentPath,
 		FlowChartID:  originalLesson.FlowChartID,
@@ -402,5 +401,145 @@ func (l *LessonDaoImpl) DuplicateLesson(lessonID, targetCourseID, authorID uint)
 		return nil, err
 	}
 
+	// 将新课时添加到目标课程
+	if err := l.AddLessonToCourse(newLesson.ID, targetCourseID, 0); err != nil {
+		return nil, err
+	}
+
 	return &newLesson, nil
+}
+
+// AddLessonToCourse 将课时添加到课程中
+func (l *LessonDaoImpl) AddLessonToCourse(lessonID, courseID uint, sortOrder int) error {
+	// 检查课时是否存在
+	var lesson model.Lesson
+	if err := l.db.First(&lesson, lessonID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("课时不存在")
+		}
+		return err
+	}
+
+	// 检查课程是否存在
+	var course model.Course
+	if err := l.db.First(&course, courseID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("课程不存在")
+		}
+		return err
+	}
+
+	// 如果没有指定排序，则设置为最后一个
+	if sortOrder == 0 {
+		var maxSort int
+		l.db.Model(&model.LessonCourse{}).Where("course_id = ?", courseID).Select("COALESCE(MAX(sort_order), 0)").Scan(&maxSort)
+		sortOrder = maxSort + 1
+	}
+
+	// 创建关联记录
+	now := time.Now().Unix()
+	lessonCourse := model.LessonCourse{
+		LessonID:  lessonID,
+		CourseID:  courseID,
+		SortOrder: sortOrder,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	if err := l.db.Create(&lessonCourse).Error; err != nil {
+		return fmt.Errorf("添加课时到课程失败: %w", err)
+	}
+
+	return nil
+}
+
+// RemoveLessonFromCourse 从课程中移除课时
+func (l *LessonDaoImpl) RemoveLessonFromCourse(lessonID, courseID uint) error {
+	result := l.db.Where("lesson_id = ? AND course_id = ?", lessonID, courseID).Delete(&model.LessonCourse{})
+	if result.Error != nil {
+		return fmt.Errorf("从课程中移除课时失败: %w", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("课时与课程的关联不存在")
+	}
+
+	return nil
+}
+
+// UpdateLessonInCourse 更新课时在特定课程中的信息（排序等）
+func (l *LessonDaoImpl) UpdateLessonInCourse(lessonID, courseID uint, sortOrder int) error {
+	now := time.Now().Unix()
+	result := l.db.Model(&model.LessonCourse{}).
+		Where("lesson_id = ? AND course_id = ?", lessonID, courseID).
+		Updates(map[string]interface{}{
+			"sort_order": sortOrder,
+			"updated_at": now,
+		})
+
+	if result.Error != nil {
+		return fmt.Errorf("更新课时在课程中的信息失败: %w", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("课时与课程的关联不存在")
+	}
+
+	return nil
+}
+
+// GetLessonCourses 获取课时关联的所有课程
+func (l *LessonDaoImpl) GetLessonCourses(lessonID uint) ([]model.Course, error) {
+	var courses []model.Course
+	if err := l.db.Joins("JOIN lesson_courses ON lesson_courses.course_id = courses.id").
+		Where("lesson_courses.lesson_id = ?", lessonID).
+		Order("lesson_courses.sort_order ASC").
+		Find(&courses).Error; err != nil {
+		return nil, err
+	}
+
+	return courses, nil
+}
+
+// ListLessonsInCourse 获取课程中的所有课时（按关联表中的排序）
+func (l *LessonDaoImpl) ListLessonsInCourse(courseID uint) ([]model.Lesson, error) {
+	var lessons []model.Lesson
+	if err := l.db.Joins("JOIN lesson_courses ON lesson_courses.lesson_id = lessons.id").
+		Where("lesson_courses.course_id = ?", courseID).
+		Order("lesson_courses.sort_order ASC, lessons.id ASC").
+		Find(&lessons).Error; err != nil {
+		return nil, err
+	}
+
+	return lessons, nil
+}
+
+// ReorderLessonsInCourse 重新排序课程中的课时
+func (l *LessonDaoImpl) ReorderLessonsInCourse(courseID uint, lessonIDs []uint) error {
+	return l.db.Transaction(func(tx *gorm.DB) error {
+		now := time.Now().Unix()
+		for i, lessonID := range lessonIDs {
+			if err := tx.Model(&model.LessonCourse{}).
+				Where("lesson_id = ? AND course_id = ?", lessonID, courseID).
+				Updates(map[string]interface{}{
+					"sort_order": i + 1,
+					"updated_at": now,
+				}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// IsLessonInCourse 检查课时是否属于指定课程
+func (l *LessonDaoImpl) IsLessonInCourse(lessonID, courseID uint) (bool, error) {
+	var count int64
+	err := l.db.Model(&model.LessonCourse{}).
+		Where("lesson_id = ? AND course_id = ? AND deleted_at IS NULL", lessonID, courseID).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

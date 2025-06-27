@@ -192,8 +192,12 @@ func (h *Handler) GetLessonScratchProjectHandler(c *gin.Context, params *GetLess
 		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryNotFound, global.ErrorMsgQueryNotFound, err)
 	}
 
-	// 验证课程ID是否匹配课时
-	if lesson.CourseID != params.CourseID {
+	// 验证课程ID是否在课时的关联课程中
+	isLessonInCourse, err := h.dao.LessonDao.IsLessonInCourse(params.LessonID, params.CourseID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+	if !isLessonInCourse {
 		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, errors.New("课时不属于指定课程"))
 	}
 
@@ -232,8 +236,11 @@ func (h *Handler) GetLessonScratchProjectHandler(c *gin.Context, params *GetLess
 	}
 
 	// 3. 检查是否是课程作者
-	if !hasPermission && lesson.Course.AuthorID == loginedUserID {
-		hasPermission = true
+	if !hasPermission {
+		course, err := h.dao.CourseDao.GetCourse(params.CourseID)
+		if err == nil && course.AuthorID == loginedUserID {
+			hasPermission = true
+		}
 	}
 
 	// 4. 检查是否是班级成员（学生或教师）

@@ -40,7 +40,6 @@ import { HOST_URL } from "~/config"
 // 课时类型定义
 interface Lesson {
   id: number
-  course_id: number
   title: string
   content: string
   sort_order: number
@@ -59,19 +58,14 @@ interface Lesson {
   description: string
   created_at: number
   updated_at: number
-  course?: {
+  courses?: {
     id: number
     title: string
     description: string
-  }
+  }[]
 }
 
-// 课程类型定义
-interface Course {
-  id: number
-  title: string
-  description: string
-}
+
 
 // 课件列表数据类型
 interface LessonsData {
@@ -177,9 +171,7 @@ function LessonRow({
           )}
         </div>
       </TableCell>
-      <TableCell>
-        {(lesson.course?.title && lesson.course.title.trim() !== "") ? lesson.course.title : `课程 ${lesson.course_id}`}
-      </TableCell>
+
       <TableCell>
         <Badge variant="outline">
           {formatDifficulty(lesson.difficulty)}
@@ -230,20 +222,7 @@ function LessonRow({
   )
 }
 
-// 获取课程列表
-async function getCourses() {
-  try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/admin/courses?pageSize=100`)
-    if (!response.ok) {
-      throw new Error(`API 错误: ${response.status}`)
-    }
-    const data = await response.json()
-    return data.data || []
-  } catch (error) {
-    console.error("获取课程列表失败:", error)
-    throw error
-  }
-}
+
 
 // 获取课件列表
 async function getLessons(courseId = "", beginID = "0", pageSize = 10, forward = false, asc = false) {
@@ -305,9 +284,6 @@ export default function ListLessonsPage() {
     currentPage: 1,
     pageSize: defaultPageSize
   })
-  const [courses, setCourses] = React.useState<Course[]>([])
-  const [selectedCourse, setSelectedCourse] = React.useState("all")
-  const [courseFilter, setCourseFilter] = React.useState("all") // 新增：课程关联筛选
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
@@ -431,37 +407,12 @@ export default function ListLessonsPage() {
 
   // 初始化
   React.useEffect(() => {
-    const initData = async () => {
-      try {
-        const [coursesResponse] = await Promise.all([
-          getCourses()
-        ])
-        setCourses(coursesResponse)
-      } catch (error) {
-        console.error("初始化数据失败:", error)
-        setError("初始化数据失败")
-      }
-    }
-
-    initData()
+    fetchLessons()
   }, [])
-
-  // 当选择课程变化时重新加载数据
-  React.useEffect(() => {
-    const courseIdToFetch = selectedCourse === "all" ? "" : selectedCourse
-    fetchLessons(courseIdToFetch)
-  }, [selectedCourse])
-
-  // 课程选择变化
-  const handleCourseChange = (courseId: string) => {
-    setSelectedCourse(courseId)
-    setSelectedLessons([]) // 清空选择
-  }
 
   // 翻页处理
   const handlePageChange = (beginID: string, forward: boolean, asc: boolean) => {
-    const courseIdToFetch = selectedCourse === "all" ? "" : selectedCourse
-    fetchLessons(courseIdToFetch, beginID, forward, asc)
+    fetchLessons("", beginID, forward, asc)
   }
 
 
@@ -486,8 +437,7 @@ export default function ListLessonsPage() {
     try {
       await deleteLesson(id, updatedAt)
       toast.success("课件删除成功")
-      const courseIdToFetch = selectedCourse === "all" ? "" : selectedCourse
-      await fetchLessons(courseIdToFetch)
+      await fetchLessons()
     } catch (error) {
       console.error("删除课件失败:", error)
       toast.error("删除课件失败")
@@ -509,17 +459,8 @@ export default function ListLessonsPage() {
     }, 1000)
   }
 
-  // 根据课程关联筛选课件
-  const filteredLessons = React.useMemo(() => {
-    if (courseFilter === "all") {
-      return lessonsData.lessons
-    } else if (courseFilter === "with_course") {
-      return lessonsData.lessons.filter(lesson => lesson.course_id > 0 && lesson.course?.title)
-    } else if (courseFilter === "without_course") {
-      return lessonsData.lessons.filter(lesson => lesson.course_id === 0 || !lesson.course?.title)
-    }
-    return lessonsData.lessons
-  }, [lessonsData.lessons, courseFilter])
+  // 直接使用课件列表，不再进行课程关联筛选
+  const filteredLessons = lessonsData.lessons
 
   return (
     <AdminLayout>
@@ -529,41 +470,16 @@ export default function ListLessonsPage() {
             <IconBook className="h-6 w-6" />
             <h1 className="text-2xl font-bold">课件管理</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Select value={selectedCourse} onValueChange={handleCourseChange}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="选择课程" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">所有课程</SelectItem>
-                {courses.map((course) => (
-                  <SelectItem key={course.id} value={course.id.toString()}>
-                    {course.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={courseFilter} onValueChange={setCourseFilter}>
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="课程关联" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部</SelectItem>
-                <SelectItem value="with_course">有课程</SelectItem>
-                <SelectItem value="without_course">无课程</SelectItem>
-              </SelectContent>
-            </Select>
-            <Link 
-              to="/www/admin/create_lesson" 
-              onClick={handleNewLessonClick}
-              className={isButtonCooling ? 'pointer-events-none' : ''}
-            >
-              <Button disabled={isButtonCooling}>
-                <IconPlus className="mr-2 h-4 w-4" />
-                新建课件
-              </Button>
-            </Link>
-          </div>
+          <Link 
+            to="/www/admin/create_lesson" 
+            onClick={handleNewLessonClick}
+            className={isButtonCooling ? 'pointer-events-none' : ''}
+          >
+            <Button disabled={isButtonCooling}>
+              <IconPlus className="mr-2 h-4 w-4" />
+              新建课件
+            </Button>
+          </Link>
         </div>
 
         <div className="rounded-md border">
@@ -587,7 +503,6 @@ export default function ListLessonsPage() {
                   </TableHead>
                   <TableHead className="w-16">序号</TableHead>
                   <TableHead>课件名称</TableHead>
-                  <TableHead>所属课程</TableHead>
                   <TableHead>难度</TableHead>
                   <TableHead>时长</TableHead>
                   <TableHead>创建时间</TableHead>
@@ -597,10 +512,8 @@ export default function ListLessonsPage() {
               <TableBody>
                 {filteredLessons.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center">
-                      {courseFilter === "with_course" ? "暂无有课程关联的课件" : 
-                       courseFilter === "without_course" ? "暂无无课程关联的课件" :
-                       selectedCourse ? "该课程下暂无课件" : "暂无课件数据"}
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      暂无课件数据
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -624,11 +537,6 @@ export default function ListLessonsPage() {
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
             共 {lessonsData.total} 个课件
-            {courseFilter !== "all" && (
-              <span className="ml-2">
-                (筛选后: {filteredLessons.length} 个)
-              </span>
-            )}
             {selectedLessons.length > 0 && (
               <span className="ml-2">
                 已选择 {selectedLessons.length} 个

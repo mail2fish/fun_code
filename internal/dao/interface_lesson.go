@@ -79,4 +79,7 @@ type LessonDao interface {
 
 	// UpdateLessonInCourse 更新课时在特定课程中的信息（排序等）
 	UpdateLessonInCourse(lessonID, courseID uint, sortOrder int) error
+
+	// IsLessonInCourse 检查课时是否属于指定课程
+	IsLessonInCourse(lessonID, courseID uint) (bool, error)
 }
