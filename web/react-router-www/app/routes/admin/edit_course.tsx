@@ -1012,25 +1012,23 @@ export default function EditCoursePage() {
                       <span className="text-sm font-medium">
                         课件列表 ({lessons.length})
                       </span>
-                      {hasOrderChanged && (
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleResetOrder}
-                            disabled={isSavingOrder}
-                          >
-                            重置
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={handleSaveOrder}
-                            disabled={isSavingOrder}
-                          >
-                            {isSavingOrder ? "保存中..." : "保存排序"}
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleResetOrder}
+                          disabled={isSavingOrder || !hasOrderChanged}
+                        >
+                          重置
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveOrder}
+                          disabled={isSavingOrder || !hasOrderChanged}
+                        >
+                          {isSavingOrder ? "保存中..." : "保存排序"}
+                        </Button>
+                      </div>
                     </div>
                     
                     {lessons.length === 0 ? (
