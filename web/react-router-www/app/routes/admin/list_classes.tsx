@@ -43,6 +43,8 @@ interface Class {
   is_active: boolean
   created_at: number // Unix时间戳
   updated_at: number // Unix时间戳
+  count_of_students: number // 学生数量
+  count_of_courses: number // 课程数量
   teacher?: {
     id: number
     username: string
@@ -325,8 +327,8 @@ export default function ListClassPage() {
                       <TableCell>{classItem.code}</TableCell>
                                               <TableCell>{formatDate(classItem.start_date)}</TableCell>
                         <TableCell>{formatDate(classItem.end_date)}</TableCell>
-                        <TableCell>{classItem.students?.length || 0}</TableCell>
-                        <TableCell>{classItem.courses?.length || 0}</TableCell>
+                        <TableCell>{classItem.count_of_students || 0}</TableCell>
+                        <TableCell>{classItem.count_of_courses || 0}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
        

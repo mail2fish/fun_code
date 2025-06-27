@@ -138,8 +138,19 @@ func (p *ListClassesParams) Parse(c *gin.Context) gorails.Error {
 	return nil
 }
 
+type ClassResponse struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Code        string `json:"code"`
+	TeacherID   uint   `json:"teacher_id"`
+
+	CountOfStudents int `json:"count_of_students"`
+	CountOfCourses  int `json:"count_of_courses"`
+}
+
 // ListClassesHandler 列出班级 gorails.Wrap 形式
-func (h *Handler) ListClassesHandler(c *gin.Context, params *ListClassesParams) ([]model.Class, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) ListClassesHandler(c *gin.Context, params *ListClassesParams) ([]ClassResponse, *gorails.ResponseMeta, gorails.Error) {
 	userID := h.getUserID(c)
 
 	// 获取班级列表
@@ -147,12 +158,25 @@ func (h *Handler) ListClassesHandler(c *gin.Context, params *ListClassesParams) 
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
-	total, err := h.dao.ClassDao.CountClasses(userID)
+	total, err := h.dao.ClassDao.CountClasses(0)
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
-	return classes, &gorails.ResponseMeta{
+	responses := make([]ClassResponse, len(classes))
+	for i, class := range classes {
+		responses[i] = ClassResponse{
+			ID:              class.ID,
+			Name:            class.Name,
+			Description:     class.Description,
+			Code:            class.Code,
+			TeacherID:       class.TeacherID,
+			CountOfStudents: len(class.Students),
+			CountOfCourses:  len(class.Courses),
+		}
+	}
+
+	return responses, &gorails.ResponseMeta{
 		HasNext: hasMore,
 		Total:   int(total),
 	}, nil

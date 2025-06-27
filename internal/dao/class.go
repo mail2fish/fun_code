@@ -168,7 +168,7 @@ func (s *ClassDaoImpl) ListClassesWithPagination(userID uint, pageSize uint, beg
 	}
 
 	// 构建基础查询
-	query := s.db
+	query := s.db.Preload("Students").Preload("Courses")
 
 	// 如果指定了用户ID，则只查询该用户的班级
 	if userID > 0 {
