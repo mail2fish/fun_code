@@ -337,7 +337,7 @@ export default function CreateUserPage() {
                 <Button 
                   variant="outline" 
                   type="button"
-                  onClick={() => navigate("/www/admin/users/list")}
+                  onClick={() => navigate("/www/admin/list_users")}
                   disabled={isSubmitting}
                   className="px-6"
                 >
