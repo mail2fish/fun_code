@@ -40,6 +40,11 @@ func RunMigrations(db *gorm.DB) error {
 		return err
 	}
 
+	// 迁移课时课程关联模型
+	if err := db.AutoMigrate(&model.LessonCourse{}); err != nil {
+		return err
+	}
+
 	// 迁移文件模型 ScratchProject
 	if err := db.AutoMigrate(&model.File{}, &model.ScratchProject{}); err != nil {
 		return err

@@ -18,9 +18,8 @@ type Lesson struct {
 	Content   string `json:"content" gorm:"type:text"`          // 课时内容
 	SortOrder int    `json:"sort_order" gorm:"default:0;index"` // 排序号
 
-	// 关联关系
-	CourseID uint   `json:"course_id" gorm:"not null;index"`   // 课程ID
-	Course   Course `json:"course" gorm:"foreignKey:CourseID"` // 关联课程
+	// 关联关系 - 多对多关系
+	Courses []Course `json:"courses,omitempty" gorm:"many2many:lesson_courses"` // 关联的课程列表
 
 	// 文档相关字段
 	DocumentName string `json:"document_name" gorm:"size:255"` // 文档名称
