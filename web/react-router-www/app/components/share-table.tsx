@@ -436,7 +436,7 @@ export function ShareTable({
                     <div className={`absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium ${share.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                       {share.is_active ? '✅ 活跃' : '❌ 已停用'}
                     </div>
-                    <a href={`${window.location.origin}/share/${share.share_token}`} target="_blank" rel="noopener noreferrer">
+                    <a href={`${window.location.origin}/www/share/${share.share_token}`} target="_blank" rel="noopener noreferrer">
                       <img
                         src={`${HOST_URL}/api/scratch/projects/${share.project_id}/thumbnail`}
                         className="max-h-40 object-contain transition-transform duration-300 hover:scale-110"
@@ -450,7 +450,7 @@ export function ShareTable({
                     </div>
                     <div className="font-bold text-xl text-gray-800 line-clamp-2 leading-tight group">
                       <a 
-                        href={`${window.location.origin}/share/${share.share_token}`} 
+                        href={`${window.location.origin}/www/share/${share.share_token}`} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="hover:text-purple-600 transition-all duration-200 group-hover:drop-shadow-sm"
