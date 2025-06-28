@@ -392,7 +392,7 @@ func (h *Handler) CheckShareHandler(c *gin.Context, params *CheckShareParams) (*
 	// 存在分享，构建完整的分享URL
 	shareURL := c.Request.Header.Get("Origin")
 	if shareURL == "" {
-		shareURL = "http://localhost:3000" // 默认前端地址
+		shareURL = h.config.ScratchEditor.Host // 默认前端地址
 	}
 	shareURL += "/shares/" + share.ShareToken
 
