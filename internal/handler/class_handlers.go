@@ -144,6 +144,8 @@ type ClassResponse struct {
 	Description string `json:"description"`
 	Code        string `json:"code"`
 	TeacherID   uint   `json:"teacher_id"`
+	StartDate   string `json:"start_date"`
+	EndDate     string `json:"end_date"`
 
 	CountOfStudents int `json:"count_of_students"`
 	CountOfCourses  int `json:"count_of_courses"`
@@ -171,6 +173,8 @@ func (h *Handler) ListClassesHandler(c *gin.Context, params *ListClassesParams) 
 			Description:     class.Description,
 			Code:            class.Code,
 			TeacherID:       class.TeacherID,
+			StartDate:       class.StartDate.Format("2006-01-02"),
+			EndDate:         class.EndDate.Format("2006-01-02"),
 			CountOfStudents: len(class.Students),
 			CountOfCourses:  len(class.Courses),
 		}
