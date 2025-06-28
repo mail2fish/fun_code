@@ -269,7 +269,7 @@ export function ShareTable({
   }
 
   const handleCopyShareLink = async (shareToken: string) => {
-    const shareUrl = `${window.location.origin}/share/${shareToken}`
+    const shareUrl = `${window.location.origin}/wwww/share/${shareToken}`
     try {
       await navigator.clipboard.writeText(shareUrl)
       toast("分享链接已复制到剪贴板")
