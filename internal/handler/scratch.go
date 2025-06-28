@@ -270,6 +270,10 @@ func (h *Handler) UploadScratchAssetHandler(c *gin.Context, params *UploadScratc
 	}, nil, nil
 }
 
+func RenderUploadScratchAssetResponse(c *gin.Context, response *UploadScratchAssetResponse, meta *gorails.ResponseMeta) {
+	c.JSON(http.StatusOK, response)
+}
+
 // GetScratchProjectHistoriesParams 获取Scratch项目历史记录请求参数
 type GetScratchProjectHistoriesParams struct {
 	ID string `json:"id" uri:"id" binding:"required"`

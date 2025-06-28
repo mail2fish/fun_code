@@ -178,7 +178,7 @@ func (s *Server) setupRoutes() {
 	// 添加新的路由用于获取Scratch资源文件 - 已改造为 gorails.Wrap 形式
 	{
 		assets.GET("/scratch/:filename", gorails.Wrap(s.handler.GetLibraryAssetHandler, handler.RenderLibraryAsset))
-		assets.POST("/scratch/:asset_id", gorails.Wrap(s.handler.UploadScratchAssetHandler, nil))
+		assets.POST("/scratch/:asset_id", gorails.Wrap(s.handler.UploadScratchAssetHandler, handler.RenderUploadScratchAssetResponse))
 	}
 }
 
