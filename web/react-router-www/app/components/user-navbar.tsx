@@ -57,16 +57,16 @@ export function UserNavbar({ userInfo, onLogout }: UserNavbarProps) {
           </Link>
 
           {/* Adaptive Navigation */}
-          <div className="hidden md:flex md:items-center">
-            {/* 大屏幕：完整导航 */}
-            <div className="hidden xl:flex xl:items-center xl:space-x-1">
+          <div className="hidden sm:flex sm:items-center">
+            {/* 中大屏幕：完整导航 */}
+            <div className="hidden md:flex md:items-center md:space-x-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
                     key={item.href}
                     to={item.href}
-                    className={`group flex items-center space-x-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 hover:scale-105 ${
+                    className={`group flex items-center space-x-2 rounded-full px-3 py-2 text-sm font-medium transition-all duration-300 hover:scale-105 ${
                       isActive(item.href)
                         ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg"
                         : "text-gray-600 hover:bg-gradient-to-r hover:from-purple-100 hover:to-pink-100 hover:text-purple-600"
@@ -79,8 +79,8 @@ export function UserNavbar({ userInfo, onLogout }: UserNavbarProps) {
               })}
             </div>
 
-            {/* 中等屏幕：图标优先，hover显示标签 */}
-            <div className="hidden md:flex xl:hidden md:items-center md:space-x-1">
+            {/* 小中屏幕：图标优先，hover显示标签 */}
+            <div className="hidden sm:flex md:hidden sm:items-center sm:space-x-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -107,11 +107,11 @@ export function UserNavbar({ userInfo, onLogout }: UserNavbarProps) {
           </div>
 
           {/* User Info & Logout */}
-          <div className="hidden md:flex md:items-center">
-            {/* 大屏幕：完整用户信息 */}
-            <div className="hidden xl:flex xl:items-center xl:space-x-4">
+          <div className="hidden sm:flex sm:items-center">
+            {/* 中大屏幕：完整用户信息 */}
+            <div className="hidden md:flex md:items-center md:space-x-3">
               {userInfo && (
-                <div className="flex items-center space-x-2 rounded-full bg-gradient-to-r from-blue-100 to-green-100 px-4 py-2">
+                <div className="flex items-center space-x-2 rounded-full bg-gradient-to-r from-blue-100 to-green-100 px-3 py-2">
                   <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center text-white text-sm font-medium">
                     {userInfo.name.charAt(0)}
                   </div>
@@ -129,8 +129,8 @@ export function UserNavbar({ userInfo, onLogout }: UserNavbarProps) {
               </Button>
             </div>
 
-            {/* 中等屏幕：紧凑模式 */}
-            <div className="hidden md:flex xl:hidden md:items-center md:space-x-2">
+            {/* 小中屏幕：紧凑模式 */}
+            <div className="hidden sm:flex md:hidden sm:items-center sm:space-x-2">
               {userInfo && (
                 <div className="group relative">
                   <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center text-white font-medium cursor-pointer hover:scale-110 transition-transform duration-300">
@@ -159,7 +159,7 @@ export function UserNavbar({ userInfo, onLogout }: UserNavbarProps) {
           <Button
             variant="ghost"
             size="sm"
-            className="md:hidden rounded-full"
+            className="sm:hidden rounded-full"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? (
@@ -172,7 +172,7 @@ export function UserNavbar({ userInfo, onLogout }: UserNavbarProps) {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t bg-white/95 backdrop-blur-sm">
+          <div className="sm:hidden border-t bg-white/95 backdrop-blur-sm">
             <div className="px-2 pt-2 pb-3 space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon;

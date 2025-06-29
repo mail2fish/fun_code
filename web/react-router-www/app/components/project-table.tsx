@@ -386,7 +386,7 @@ export function ProjectTable({
           if (result.data.is_active) {
             // 分享存在且活跃，直接显示分享链接
             console.log("项目已存在活跃分享，直接显示链接")
-            setShareUrl(result.data.share_url)
+            setShareUrl(window.location.origin + result.data.share_url)
             setShareResultDialogOpen(true)
             setSharingId(null)
             setIsReactivating(false)
