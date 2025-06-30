@@ -89,7 +89,7 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
     { href: "/www/admin/all_scratch", label: "全部程序", icon: FileText },
     { href: "/www/shares/all", label: "全部分享", icon: Globe },
     { href: "/www/files/list", label: "资源列表", icon: HardDrive },
-    { href: "/www/admin/upload_files", label: "上传资源", icon: Upload },
+    { href: "/www/admin/files/upload", label: "上传资源", icon: Upload },
   ];
 
   const shareMenuItems: MenuItem[] = [
