@@ -201,6 +201,16 @@ const App = () => {
   // 获取配置
   const config = getConfig();
   
+  // 创建 app 容器的 ref
+  const appRef = React.useRef(null);
+  
+  // 在组件挂载时设置 GUI 的 app 元素
+  React.useEffect(() => {
+    if (appRef.current) {
+      GUI.setAppElement(appRef.current);
+    }
+  }, []);
+  
   // 使用带 session 的 AppStateHOC - 参考 render-gui.jsx 的方式
   const WrappedGui = compose(
     AppStateHOCWithSession,
@@ -237,7 +247,7 @@ const App = () => {
   };
   
   return (    
-    <div className="scratch-editor" style={{ height: '100vh' }}>
+    <div ref={appRef} className="scratch-editor" style={{ height: '100vh' }}>
       <WrappedGui
         canSave={config.canSave}
         canRemix={config.canRemix}
