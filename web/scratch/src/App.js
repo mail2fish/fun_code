@@ -181,10 +181,18 @@ const getConfig = () => {
 
 const onClickLogo = () => {
   let cfg = getConfig();
-  if (window.history && window.history.back) {
-    window.history.back();
+  if (window.history && window.history.length > 1) {
+    // 如果有历史记录，获取前一个页面的URL并刷新跳转
+    const referrer = document.referrer;
+    if (referrer && referrer !== window.location.href) {
+      // 使用 window.location 强制刷新跳转到来源页面
+      window.location.href = referrer;
+    } else {
+      // 如果没有有效的来源页面，跳转到默认项目页面
+      window.location.href = cfg.projectsRoute;
+    }
   } else {
-    window.location = cfg.projectsRoute;
+    window.location.href = cfg.projectsRoute;
   }
 };
 
