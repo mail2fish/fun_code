@@ -697,7 +697,7 @@ export default function CreateLessonPage() {
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => window.open(`${HOST_URL}/scratch?project=${selectedProject.id}`, '_blank')}
+                                  onClick={() => window.open(`${HOST_URL}/projects/scratch/open/${selectedProject.id}`, '_blank')}
                                 >
                                   预览项目
                                 </Button>

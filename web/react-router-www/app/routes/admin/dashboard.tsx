@@ -108,7 +108,7 @@ export default function Dashboard() {
     >
       {/* 快速操作区域 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Link to="/www/scratch/projects">
+        <Link to="/www/admin/my_scratch">
           <Card className="fun-card hover:scale-105 transition-all duration-300 cursor-pointer group border-purple-200">
             <CardContent className="p-6 text-center">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:rotate-12 transition-transform duration-300">
