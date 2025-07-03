@@ -13,7 +13,7 @@ import {
   FileText,
   ExternalLink
 } from "lucide-react";
-import { useUser, useUserInfo } from "~/hooks/use-user";
+
 import { fetchWithAuth } from "~/utils/api";
 import { HOST_URL } from "~/config";
 
@@ -85,8 +85,6 @@ async function getCourseLessons(courseId: string) {
 export default function CourseLessons() {
   const params = useParams();
   const courseId = params.courseId;
-  const { userInfo } = useUserInfo();
-  const { logout } = useUser();
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,8 +155,6 @@ export default function CourseLessons() {
 
   return (
     <UserLayout
-      userInfo={userInfo || undefined}
-      onLogout={logout}
       title={course ? `${course.title} - 课时列表` : "课时列表"}
       subtitle="学习课程中的所有课时"
     >

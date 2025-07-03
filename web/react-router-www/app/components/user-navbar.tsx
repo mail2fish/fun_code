@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router";
 import { Button } from "./ui/button";
+import { useUser } from "~/hooks/use-user";
 import { 
   Home, 
   Blocks, 
@@ -15,14 +16,20 @@ import {
 } from "lucide-react";
 
 interface UserNavbarProps {
-  userInfo?: {
-    name: string;
-    role: string;
-  };
-  onLogout?: () => void;
+  // 移除 userInfo 和 onLogout props，因为我们直接在组件内获取
 }
 
-export function UserNavbar({ userInfo, onLogout }: UserNavbarProps) {
+export function UserNavbar({}: UserNavbarProps) {
+  // 直接在组件内获取用户信息和logout函数
+  const { userInfo, logout } = useUser()
+  
+  // 格式化用户信息
+  const formattedUserInfo = userInfo ? {
+    name: userInfo.nickname || userInfo.username,
+    role: userInfo.role === 'admin' ? '管理员' : 
+          userInfo.role === 'teacher' ? '教师' : '学生'
+  } : undefined
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -110,16 +117,16 @@ export function UserNavbar({ userInfo, onLogout }: UserNavbarProps) {
           <div className="hidden sm:flex sm:items-center">
             {/* 中大屏幕：完整用户信息 */}
             <div className="hidden md:flex md:items-center md:space-x-3">
-              {userInfo && (
+              {formattedUserInfo && (
                 <div className="flex items-center space-x-2 rounded-full bg-gradient-to-r from-blue-100 to-green-100 px-3 py-2">
                   <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center text-white text-sm font-medium">
-                    {userInfo.name.charAt(0)}
+                    {formattedUserInfo.name.charAt(0)}
                   </div>
-                  <span className="text-sm font-medium text-gray-700">{userInfo.name}</span>
+                  <span className="text-sm font-medium text-gray-700">{formattedUserInfo.name}</span>
                 </div>
               )}
               <Button
-                onClick={onLogout}
+                onClick={logout}
                 variant="outline"
                 size="sm"
                 className="rounded-full hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all duration-300"
@@ -131,20 +138,20 @@ export function UserNavbar({ userInfo, onLogout }: UserNavbarProps) {
 
             {/* 小中屏幕：紧凑模式 */}
             <div className="hidden sm:flex md:hidden sm:items-center sm:space-x-2">
-              {userInfo && (
+              {formattedUserInfo && (
                 <div className="group relative">
                   <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center text-white font-medium cursor-pointer hover:scale-110 transition-transform duration-300">
-                    {userInfo.name.charAt(0)}
+                    {formattedUserInfo.name.charAt(0)}
                   </div>
                   {/* User Tooltip */}
                   <div className="absolute top-full mt-2 right-0 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                    {userInfo.name} ({userInfo.role})
+                    {formattedUserInfo.name} ({formattedUserInfo.role})
                     <div className="absolute bottom-full right-4 border-4 border-transparent border-b-gray-900"></div>
                   </div>
                 </div>
               )}
               <Button
-                onClick={onLogout}
+                onClick={logout}
                 variant="outline"
                 size="sm"
                 className="rounded-full hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all duration-300 p-2"
@@ -195,20 +202,20 @@ export function UserNavbar({ userInfo, onLogout }: UserNavbarProps) {
               
               {/* Mobile User Info & Logout */}
               <div className="border-t pt-4 mt-4">
-                {userInfo && (
+                {formattedUserInfo && (
                   <div className="flex items-center space-x-3 px-3 py-2 rounded-xl bg-gradient-to-r from-blue-100 to-green-100 mb-3">
                     <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center text-white font-medium">
-                      {userInfo.name.charAt(0)}
+                      {formattedUserInfo.name.charAt(0)}
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-gray-700">{userInfo.name}</div>
-                      <div className="text-xs text-gray-500">{userInfo.role}</div>
+                      <div className="text-sm font-medium text-gray-700">{formattedUserInfo.name}</div>
+                      <div className="text-xs text-gray-500">{formattedUserInfo.role}</div>
                     </div>
                   </div>
                 )}
                 <Button
                   onClick={() => {
-                    onLogout?.();
+                    logout();
                     setIsMobileMenuOpen(false);
                   }}
                   variant="outline"

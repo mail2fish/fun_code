@@ -3,11 +3,6 @@ import { UserNavbar } from "./user-navbar";
 
 interface UserLayoutProps {
   children: ReactNode;
-  userInfo?: {
-    name: string;
-    role: string;
-  };
-  onLogout?: () => void;
   title?: string;
   subtitle?: string;
   showBackgroundPattern?: boolean;
@@ -15,8 +10,6 @@ interface UserLayoutProps {
 
 export function UserLayout({ 
   children, 
-  userInfo, 
-  onLogout, 
   title, 
   subtitle,
   showBackgroundPattern = true 
@@ -55,7 +48,7 @@ export function UserLayout({
       )}
       
       {/* Navigation */}
-      <UserNavbar userInfo={userInfo} onLogout={onLogout} />
+      <UserNavbar />
       
       {/* Main Content */}
       <main className="relative">

@@ -11,7 +11,7 @@ import {
   Clock,
   GraduationCap
 } from "lucide-react";
-import { useUser, useUserInfo } from "~/hooks/use-user";
+
 import { fetchWithAuth } from "~/utils/api";
 import { HOST_URL } from "~/config";
 
@@ -71,8 +71,6 @@ async function getMyClasses() {
 
 
 export default function MyClasses() {
-  const { userInfo } = useUserInfo();
-  const { logout } = useUser();
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -121,8 +119,6 @@ export default function MyClasses() {
 
   return (
     <UserLayout
-      userInfo={userInfo || undefined}
-      onLogout={logout}
       title="我的班级"
       subtitle="查看和管理你加入的班级"
     >

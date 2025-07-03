@@ -25,7 +25,7 @@ export function LayoutProvider({
   showNavigation = true,
   forceLayout
 }: LayoutProviderProps) {
-  const { userInfo, logout } = useUser();
+  const { userInfo } = useUser();
 
   // 确定使用哪种布局
   const getLayoutType = () => {
@@ -49,18 +49,6 @@ export function LayoutProvider({
   };
 
   const layoutType = getLayoutType();
-
-  // 转换用户信息格式以适配布局组件
-  const getFormattedUserInfo = () => {
-    if (!userInfo) return undefined;
-    return {
-      name: userInfo.nickname || userInfo.username,
-      role: userInfo.role === 'admin' ? '管理员' : 
-            userInfo.role === 'teacher' ? '教师' : '学生'
-    };
-  };
-
-  const formattedUserInfo = getFormattedUserInfo();
 
   // 如果不显示导航栏，使用类似UserLayout的样式但不显示导航条
   if (!showNavigation) {
@@ -163,8 +151,6 @@ export function LayoutProvider({
   if (layoutType === "admin") {
     return (
       <AdminLayout
-        adminInfo={formattedUserInfo}
-        onLogout={logout}
         title={title}
         subtitle={subtitle}
         showBreadcrumb={showBreadcrumb}
@@ -178,8 +164,6 @@ export function LayoutProvider({
   // 默认使用用户布局
   return (
     <UserLayout
-      userInfo={formattedUserInfo}
-      onLogout={logout}
       title={title}
       subtitle={subtitle}
       showBackgroundPattern={showBackgroundPattern}

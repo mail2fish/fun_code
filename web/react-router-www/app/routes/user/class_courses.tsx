@@ -14,7 +14,7 @@ import {
   ChevronRight,
   GraduationCap
 } from "lucide-react";
-import { useUser, useUserInfo } from "~/hooks/use-user";
+
 import { fetchWithAuth } from "~/utils/api";
 import { HOST_URL } from "~/config";
 
@@ -166,8 +166,6 @@ export default function ClassCourses() {
   const [searchParams] = useSearchParams();
   const classId = params.classId;
   const courseId = searchParams.get('course_id');
-  const { userInfo } = useUserInfo();
-  const { logout } = useUser();
   const [classData, setClassData] = useState<ClassData | null>(null);
   const [courseData, setCourseData] = useState<Course | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -236,8 +234,6 @@ export default function ClassCourses() {
 
   return (
     <UserLayout
-      userInfo={userInfo || undefined}
-      onLogout={logout}
       title={courseId && courseData ? `${courseData.title} - 课件列表` : classData?.name ? `${classData.name} - 课程列表` : "课程列表"}
       subtitle={courseId ? "查看课程中的所有课件" : "查看班级中的所有课程"}
     >
