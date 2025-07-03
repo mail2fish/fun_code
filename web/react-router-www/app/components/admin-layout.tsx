@@ -3,11 +3,6 @@ import { AdminNavbar } from "./admin-navbar";
 
 interface AdminLayoutProps {
   children: ReactNode;
-  adminInfo?: {
-    name: string;
-    role: string;
-  };
-  onLogout?: () => void;
   title?: string;
   subtitle?: string;
   showBreadcrumb?: boolean;
@@ -15,14 +10,12 @@ interface AdminLayoutProps {
 }
 
 export function AdminLayout({ 
-  children, 
-  adminInfo, 
-  onLogout
+  children
 }: AdminLayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
-      <AdminNavbar adminInfo={adminInfo} onLogout={onLogout} />
+      <AdminNavbar />
       
       {/* Main Content */}
       <main className="flex-1">        

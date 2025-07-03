@@ -3,7 +3,6 @@ import { Link } from "react-router"
 import { IconPlus, IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconUsers } from "@tabler/icons-react"
 
 import { AdminLayout } from "~/components/admin-layout"
-import { useUser } from "~/hooks/use-user"
 import { Button } from "~/components/ui/button"
 import {
   Dialog,
@@ -106,8 +105,7 @@ async function deleteClass(id: string) {
 
 const defaultPageSize = 10 // 每页显示的班级数量
 
-export default function ListClassPage() {
-  const { userInfo, logout } = useUser();
+export default function ListClassesPage() {
   const [classesData, setClassesData] = React.useState<ClassesData>({
     classes: [],
     total: 0,
@@ -255,18 +253,8 @@ export default function ListClassPage() {
   const classes = classesData.classes
   let asc = false
 
-  // 格式化管理员信息
-  const adminInfo = userInfo ? {
-    name: userInfo.nickname || userInfo.username,
-    role: userInfo.role === 'admin' ? '管理员' : 
-          userInfo.role === 'teacher' ? '教师' : '学生'
-  } : undefined;
-
   return (
-    <AdminLayout
-      adminInfo={adminInfo}
-      onLogout={logout}
-    >
+    <AdminLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

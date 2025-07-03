@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useNavigate } from "react-router"
+import { Link, useNavigate } from "react-router"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { useForm } from "react-hook-form"
@@ -7,7 +7,6 @@ import { z } from "zod"
 import { Check, ChevronsUpDown, X } from "lucide-react"
 
 import { AdminLayout } from "~/components/admin-layout"
-import { useUser } from "~/hooks/use-user"
 import { Button } from "~/components/ui/button"
 import { Calendar } from "~/components/ui/calendar"
 import {
@@ -155,17 +154,18 @@ async function createClass(classData: z.infer<typeof formSchema>) {
 }
 
 export default function CreateClassPage() {
-  const navigate = useNavigate();
-  const { userInfo, logout } = useUser();
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [students, setStudents] = React.useState<Student[]>([]);
-  const [selectedStudents, setSelectedStudents] = React.useState<Student[]>([]);
-  const [studentDialogOpen, setStudentDialogOpen] = React.useState(false);
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [courses, setCourses] = React.useState<Course[]>([]);
-  const [selectedCourses, setSelectedCourses] = React.useState<Course[]>([]);
-  const [courseDialogOpen, setCourseDialogOpen] = React.useState(false);
-  const [courseSearchQuery, setCourseSearchQuery] = React.useState("");
+  const [loading, setLoading] = React.useState(false)
+  const [studentDialogOpen, setStudentDialogOpen] = React.useState(false)
+  const [courseDialogOpen, setCourseDialogOpen] = React.useState(false)
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const [courseSearchQuery, setCourseSearchQuery] = React.useState("")
+  const [students, setStudents] = React.useState<Student[]>([])
+  const [courses, setCourses] = React.useState<Course[]>([])
+  const [selectedStudents, setSelectedStudents] = React.useState<Student[]>([])
+  const [selectedCourses, setSelectedCourses] = React.useState<Course[]>([])
+  const [loadingStudents, setLoadingStudents] = React.useState(false)
+  const [loadingCourses, setLoadingCourses] = React.useState(false)
+  const navigate = useNavigate()
 
   // 初始化表单
   const form = useForm<z.infer<typeof formSchema>>({
@@ -253,7 +253,7 @@ export default function CreateClassPage() {
   // 提交表单
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      setIsSubmitting(true);
+      setLoading(true);
       const result = await createClass(values);
       
       toast.success("班级创建成功");
@@ -266,22 +266,12 @@ export default function CreateClassPage() {
       console.error("提交表单失败:", error);
       toast.error("创建失败：" + (error instanceof Error ? error.message : "未知错误"));
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   }
 
-  // 格式化管理员信息
-  const adminInfo = userInfo ? {
-    name: userInfo.nickname || userInfo.username,
-    role: userInfo.role === 'admin' ? '管理员' : 
-          userInfo.role === 'teacher' ? '教师' : '学生'
-  } : undefined;
-
   return (
-    <AdminLayout
-      adminInfo={adminInfo}
-      onLogout={logout}
-    >
+    <AdminLayout>
       <div className="mx-auto w-full max-w-2xl">
         <div className="space-y-6">
           <div>
@@ -600,12 +590,12 @@ export default function CreateClassPage() {
                   variant="outline" 
                   type="button"
                   onClick={() => navigate("/www/admin/list_classes")}
-                  disabled={isSubmitting}
+                  disabled={loading}
                 >
                   取消
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "创建中..." : "创建班级"}
+                <Button type="submit" disabled={loading}>
+                  {loading ? "创建中..." : "创建班级"}
                 </Button>
               </div>
             </form>

@@ -118,7 +118,7 @@ func (l *LessonDaoImpl) ListLessonsByCourse(courseID uint) ([]model.Lesson, erro
 	return l.ListLessonsInCourse(courseID)
 }
 
-// ListLessonsWithPagination 分页获取课时列表
+// ListLessonsWithPagination 分页获取课时列表，优化无限滚动支持
 func (l *LessonDaoImpl) ListLessonsWithPagination(courseID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Lesson, bool, error) {
 	var lessons []model.Lesson
 
@@ -130,42 +130,44 @@ func (l *LessonDaoImpl) ListLessonsWithPagination(courseID uint, pageSize uint, 
 			Where("lc.course_id = ?", courseID)
 	}
 
-	// 分页逻辑
-	if beginID > 0 {
-		if forward {
-			if asc {
-				query = query.Where("lessons.id > ?", beginID)
-			} else {
-				query = query.Where("lessons.id < ?", beginID)
-			}
-		} else {
-			if asc {
-				query = query.Where("lessons.id < ?", beginID)
-			} else {
-				query = query.Where("lessons.id > ?", beginID)
-			}
-		}
+	// 无限滚动分页逻辑：始终向下滚动加载更多
+	if beginID > 0 && forward {
+		// 对于无限滚动，总是获取比当前ID更小的记录（降序排列时）
+		query = query.Where("lessons.id < ?", beginID)
+	} else if beginID > 0 && !forward {
+		// 向上翻页（不常用）
+		query = query.Where("lessons.id > ?", beginID)
 	}
 
-	// 排序
+	// 简化排序逻辑：无限滚动主要使用降序
 	var orderClause string
 	if courseID > 0 {
-		// 如果是特定课程，按关联表中的排序
+		// 特定课程：按关联表排序
 		orderClause = "lc.sort_order ASC, lessons.id ASC"
 		if !asc {
 			orderClause = "lc.sort_order DESC, lessons.id DESC"
 		}
 	} else {
-		// 如果是全部课时，按课时ID排序
-		orderClause = "lessons.id ASC"
-		if !asc {
-			orderClause = "lessons.id DESC"
+		// 全部课时：无限滚动使用降序（最新的在前）
+		orderClause = "lessons.id DESC"
+		if asc {
+			orderClause = "lessons.id ASC"
+		}
+
+		// 如果是向上翻页，临时反转排序
+		if !forward && beginID > 0 {
+			if asc {
+				orderClause = "lessons.id DESC"
+			} else {
+				orderClause = "lessons.id ASC"
+			}
 		}
 	}
 	query = query.Order(orderClause)
 
-	// 查询多一条以判断是否还有更多数据
-	query = query.Limit(int(pageSize + 1))
+	// 限制查询数量（多查一条用于判断是否还有更多数据）
+	limit := int(pageSize + 1)
+	query = query.Limit(limit)
 
 	if err := query.Find(&lessons).Error; err != nil {
 		return nil, false, err
@@ -175,6 +177,14 @@ func (l *LessonDaoImpl) ListLessonsWithPagination(courseID uint, pageSize uint, 
 	hasMore := len(lessons) > int(pageSize)
 	if hasMore {
 		lessons = lessons[:pageSize]
+	}
+
+	// 如果是向上翻页，需要反转结果顺序以保持正确的显示顺序
+	if !forward && beginID > 0 && courseID == 0 {
+		// 反转切片顺序
+		for i, j := 0, len(lessons)-1; i < j; i, j = i+1, j-1 {
+			lessons[i], lessons[j] = lessons[j], lessons[i]
+		}
 	}
 
 	return lessons, hasMore, nil

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { Button } from "./ui/button";
+import { useUser } from "~/hooks/use-user";
 
 import { 
   LayoutDashboard, 
@@ -41,14 +42,20 @@ interface ExternalMenuItem extends MenuItemBase {
 type MenuItem = InternalMenuItem | ExternalMenuItem;
 
 interface AdminNavbarProps {
-  adminInfo?: {
-    name: string;
-    role: string;
-  };
-  onLogout?: () => void;
+  // 移除 adminInfo 和 onLogout props，因为我们直接在组件内获取
 }
 
-export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
+export function AdminNavbar({}: AdminNavbarProps) {
+  // 直接在组件内获取用户信息和logout函数
+  const { userInfo, logout } = useUser()
+  
+  // 格式化用户信息
+  const adminInfo = userInfo ? {
+    name: userInfo.nickname || userInfo.username,
+    role: userInfo.role === 'admin' ? '管理员' : 
+          userInfo.role === 'teacher' ? '教师' : '学生'
+  } : undefined
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isClassMenuOpen, setIsClassMenuOpen] = useState(false);
@@ -495,8 +502,8 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
             )}
             <Button
               onClick={() => {
-                console.log("Logout button clicked, onLogout:", onLogout);
-                onLogout?.();
+                console.log("Logout button clicked, onLogout:", logout);
+                logout();
               }}
               variant="outline"
               size="sm"
@@ -720,8 +727,8 @@ export function AdminNavbar({ adminInfo, onLogout }: AdminNavbarProps) {
                 )}
                 <Button
                   onClick={() => {
-                    console.log("Mobile logout button clicked, onLogout:", onLogout);
-                    onLogout?.();
+                    console.log("Mobile logout button clicked, onLogout:", logout);
+                    logout();
                     setIsMobileMenuOpen(false);
                   }}
                   variant="outline"

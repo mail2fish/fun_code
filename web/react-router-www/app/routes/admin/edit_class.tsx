@@ -7,7 +7,6 @@ import { z } from "zod"
 import { Check, ChevronsUpDown, X, Plus, Trash2 } from "lucide-react"
 
 import { AdminLayout } from "~/components/admin-layout"
-import { useUser } from "~/hooks/use-user"
 import { Button } from "~/components/ui/button"
 import { Calendar } from "~/components/ui/calendar"
 import {
@@ -215,10 +214,8 @@ async function updateClass(classId: string, classData: z.infer<typeof formSchema
 }
 
 export default function EditClassPage() {
-  const navigate = useNavigate();
-  const params = useParams<{ classId: string }>();
-  const classId = params.classId;
-  const { userInfo, logout } = useUser();
+  const { classId } = useParams<{ classId: string }>()
+  const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -401,7 +398,7 @@ export default function EditClassPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     // 检查 classId 是否存在且为有效字符串
     if (!classId || typeof classId !== 'string' || classId.trim() === '') {
-      console.error("提交时班级ID无效:", { classId, params });
+      console.error("提交时班级ID无效:", { classId });
       toast.error("班级ID无效，无法更新");
       return;
     }
@@ -424,18 +421,8 @@ export default function EditClassPage() {
     }
   }
 
-  // 格式化管理员信息
-  const adminInfo = userInfo ? {
-    name: userInfo.nickname || userInfo.username,
-    role: userInfo.role === 'admin' ? '管理员' : 
-          userInfo.role === 'teacher' ? '教师' : '学生'
-  } : undefined;
-
   return (
-    <AdminLayout
-      adminInfo={adminInfo}
-      onLogout={logout}
-    >
+    <AdminLayout>
       <div className="mx-auto w-full max-w-2xl">
         <div className="space-y-6">
           <div>

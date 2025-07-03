@@ -34,7 +34,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select"
-import { useUser } from "~/hooks/use-user"
 
 // 导入自定义的 fetch 函数
 import { fetchWithAuth } from "~/utils/api"
@@ -107,7 +106,6 @@ export default function CreateUserPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = React.useState(false);
   const [createdUsername, setCreatedUsername] = React.useState("");
-  const { userInfo, logout } = useUser();
 
   // 初始化表单
   const form = useForm<z.infer<typeof formSchema>>({
@@ -177,17 +175,8 @@ export default function CreateUserPage() {
     navigate("/www/admin/list_users");
   };
 
-  const adminInfo = userInfo ? {
-    name: userInfo.nickname || userInfo.username,
-    role: userInfo.role === 'admin' ? '管理员' : 
-          userInfo.role === 'teacher' ? '教师' : '学生'
-  } : undefined;
-
   return (
-    <AdminLayout
-      adminInfo={adminInfo}
-      onLogout={logout}
-    >
+    <AdminLayout>
       <Toaster 
         position="top-right"
         theme="light"
