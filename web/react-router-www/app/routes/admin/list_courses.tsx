@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link } from "react-router"
-import { IconPlus, IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconBook, IconUsers, IconEye, IconCopy } from "@tabler/icons-react"
+import { IconPlus, IconEdit, IconTrash, IconBook, IconUsers, IconEye, IconCopy, IconLoader, IconRefresh } from "@tabler/icons-react"
 
 import { AdminLayout } from "~/components/admin-layout"
 import { Button } from "~/components/ui/button"
@@ -24,6 +24,7 @@ import {
 } from "~/components/ui/table"
 import { Badge } from "~/components/ui/badge"
 import { Input } from "~/components/ui/input"
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "~/components/ui/select"
 import { toast } from "sonner"
 
 // 导入自定义的 fetch 函数
@@ -49,35 +50,45 @@ interface Course {
   students_count?: number
 }
 
-// 课程列表数据类型
-interface CoursesData {
-  courses: Course[]
-  total: number
-  showForward: boolean
-  showBackward: boolean
-  pageSize: number
-  currentPage: number
-}
+// 移除传统分页的数据类型定义
+// 课程数据将直接使用 Course[] 数组
 
 // 获取课程列表
-async function getCourses(beginID = "0", pageSize = 10, forward = false, asc = false, search = "") {
+async function getCourses(beginID = "0", pageSize = 20, forward = true, asc = false, search = "") {
   try {
+    console.log(`\n======== 🌐 API请求开始 ========`)
+    console.log(`📋 请求参数:`)
+    console.log(`  - beginID: "${beginID}"`)
+    console.log(`  - pageSize: ${pageSize}`)
+    console.log(`  - forward: ${forward}`)
+    console.log(`  - asc: ${asc}`)
+    console.log(`  - search: "${search}"`)
+    
     const params = new URLSearchParams()
     params.append('pageSize', pageSize.toString())
     params.append('asc', asc.toString())
     params.append('forward', forward.toString())
-    if (beginID !== "0") {
-      params.append('beginID', beginID.toString())
-    }
+    // 始终传递beginID，包括"0"值
+    params.append('beginID', beginID.toString())
     if (search.trim()) {
       params.append('search', search.trim())
     }
+    
+    console.log(`🔗 请求URL: ${HOST_URL}/api/admin/courses?${params.toString()}`)
     
     const response = await fetchWithAuth(`${HOST_URL}/api/admin/courses?${params.toString()}`)
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`)
     }
-    return await response.json()
+    
+    const result = await response.json()
+    console.log(`📦 响应详情:`)
+    console.log(`  - 数据条数: ${result.data?.length || 0}`)
+    console.log(`  - meta.total: ${result.meta?.total}`)
+    console.log(`  - meta.has_next: ${result.meta?.has_next}`)
+    console.log(`======== 🌐 API请求结束 ========\n`)
+    
+    return result
   } catch (error) {
     console.error("获取课程列表失败:", error)
     throw error
@@ -145,26 +156,33 @@ async function copyCourse(id: string) {
   }
 }
 
-const defaultPageSize = 10 // 每页显示的课程数量
+const defaultPageSize = 20 // 每页显示的课程数量
 
 export default function ListCoursePage() {
-  const [coursesData, setCoursesData] = React.useState<CoursesData>({
-    courses: [],
-    total: 0,
-    showForward: false,
-    showBackward: false,
-    currentPage: 1,
-    pageSize: defaultPageSize
-  })
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  // 基础状态
+  const [courses, setCourses] = React.useState<Course[]>([])
+  const [total, setTotal] = React.useState(0)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
   const [publishingId, setPublishingId] = React.useState<string | null>(null)
   const [copyingId, setCopyingId] = React.useState<string | null>(null)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [searchInput, setSearchInput] = React.useState("")
-  // 添加按钮冷却状态
   const [isButtonCooling, setIsButtonCooling] = React.useState(false)
+  
+  // 加载状态
+  const [initialLoading, setInitialLoading] = React.useState(true)
+  const [loadingTop, setLoadingTop] = React.useState(false)
+  const [loadingBottom, setLoadingBottom] = React.useState(false)
+  const [hasMoreTop, setHasMoreTop] = React.useState(true)
+  const [hasMoreBottom, setHasMoreBottom] = React.useState(true)
+  
+  // 排序控制
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc")
+  
+  // 防并发和节流控制
+  const [lastRequestTime, setLastRequestTime] = React.useState(0)
+  const requestInProgress = React.useRef(false)
+  const REQUEST_INTERVAL = 300 // 请求间隔300ms
 
   // 格式化日期
   const formatDate = (timestamp?: number) => {
@@ -208,74 +226,191 @@ export default function ListCoursePage() {
     return minutes > 0 ? `${hours}小时${minutes}分钟` : `${hours}小时`
   }
 
-  // 加载数据
-  const fetchCourses = async (beginID = "0", forward = false, asc = false, search = "") => {
-    try {
-      let page = coursesData.currentPage
-      if (beginID === "0") {
-        page = 0
-      }
-
-      let pageSize = defaultPageSize
-      let showForward = false
-      let showBackward = false
-
-      setIsLoading(true)
-      const response = await getCourses(beginID, pageSize, forward, asc, search)
-
-      // 如果向后翻页
-      if (forward) {        
-        page++
-        if (response.meta.has_next) {
-          showForward = true
-        }
-        if (page > 1) {
-          showBackward = true
-        }
-      // 如果向前翻页
+  // 数据请求核心函数 - 参考 list_lessons.tsx
+  const fetchData = React.useCallback(async ({ 
+    direction, 
+    reset = false, 
+    customBeginID 
+  }: { 
+    direction: "up" | "down", 
+    reset?: boolean, 
+    customBeginID?: string 
+  }) => {
+    const now = Date.now()
+    
+    console.log(`\n======== 📡 fetchData 开始 ========`)
+    console.log(`🎯 方向: ${direction}`)
+    console.log(`🔄 重置: ${reset}`)
+    console.log(`📍 自定义beginID: ${customBeginID}`)
+    
+    // 防并发检查
+    if (requestInProgress.current) {
+      console.log(`❌ 请求被阻止 - 上一个请求正在进行中`)
+      return
+    }
+    
+    // 时间间隔检查
+    if (!reset && now - lastRequestTime < REQUEST_INTERVAL) {
+      console.log(`❌ 请求被阻止 - 时间间隔不足`)
+      return
+    }
+    
+    requestInProgress.current = true
+    setLastRequestTime(now)
+    
+    const pageSize = 20
+    let beginID = "0"
+    let forward = true
+    const asc = sortOrder === "asc"
+    const currentCourses = courses
+    
+    console.log(`📊 当前数据状态:`)
+    console.log(`  - 当前课程数量: ${currentCourses.length}`)
+    console.log(`  - 排序方式: ${asc ? 'ASC' : 'DESC'}`)
+    
+    if (reset && customBeginID) {
+      beginID = customBeginID
+    } else if (!reset && currentCourses.length > 0) {
+      if (direction === "up") {
+        beginID = currentCourses[0].id.toString()
+        forward = false
       } else {
-        page--
-        if (page > 1) {
-          showBackward = true
-        }
-        // 只有在有更多数据或不是第一页时才显示向前按钮
-        showForward = response.meta.has_next || page > 0
+        beginID = currentCourses[currentCourses.length - 1].id.toString()
+        forward = true
       }
-
-      setCoursesData({
-        courses: response.data || [],
-        total: response.meta.total || 0,
-        showForward: showForward,
-        showBackward: showBackward,
-        currentPage: page,
-        pageSize: defaultPageSize
-      })
-      setError(null)
+    }
+    
+    if (direction === "up") setLoadingTop(true)
+    if (direction === "down") setLoadingBottom(true)
+    
+    try {
+      const response = await getCourses(beginID, pageSize, forward, asc, searchQuery)
+      const newCourses = response.data || []
+      const meta = response.meta || {}
+      
+      if (reset) {
+        setCourses(newCourses)
+        setTotal(meta.total || 0)
+        setHasMoreTop(true)
+        setHasMoreBottom(meta.has_next || false)
+        setInitialLoading(false)
+        return
+      }
+      
+      if (direction === "up") {
+        if (newCourses.length === 0) {
+          setHasMoreTop(false)
+        } else {
+          const container = document.querySelector('.overflow-auto') as HTMLDivElement
+          const wasAtTop = container ? container.scrollTop === 0 : false
+          
+          setCourses(prev => {
+            const prevIds = new Set(prev.map(course => course.id))
+            const uniqueNewCourses = newCourses.filter((course: Course) => !prevIds.has(course.id))
+            const merged = [...uniqueNewCourses, ...prev]
+            const trimmed = merged.slice(0, 50)
+            return trimmed
+          })
+          
+          const prevIds = new Set(courses.map(course => course.id))
+          const uniqueCount = newCourses.filter((course: Course) => !prevIds.has(course.id)).length
+          
+          if (uniqueCount === 0) {
+            setHasMoreTop(false)
+          } else {
+            setHasMoreBottom(true)
+            
+            if (wasAtTop && container && uniqueCount > 0) {
+              setTimeout(() => {
+                const rowHeight = 60
+                const newScrollTop = rowHeight * 2
+                container.scrollTop = newScrollTop
+              }, 100)
+            }
+          }
+        }
+      } else {
+        if (newCourses.length === 0) {
+          setHasMoreBottom(false)
+        } else {
+          setCourses(prev => {
+            const prevIds = new Set(prev.map(course => course.id))
+            const uniqueNewCourses = newCourses.filter((course: Course) => !prevIds.has(course.id))
+            const merged = [...prev, ...uniqueNewCourses]
+            const trimmed = merged.slice(-50)
+            return trimmed
+          })
+          
+          const prevIds = new Set(courses.map(course => course.id))
+          const uniqueCount = newCourses.filter((course: Course) => !prevIds.has(course.id)).length
+          const newHasMoreBottom = (meta.has_next || false) && uniqueCount > 0
+          
+          setHasMoreBottom(newHasMoreBottom)
+          
+          if (uniqueCount > 0) {
+            setHasMoreTop(true)
+          }
+        }
+      }
+      
     } catch (error) {
-      console.error("加载数据失败:", error)
-      setError("加载课程列表失败")
-      setCoursesData({
-        courses: [],
-        total: 0,
-        showForward: false,
-        showBackward: false,
-        currentPage: 1,
-        pageSize: defaultPageSize
-      })
+      console.error(`❌ API请求失败:`, error)
+      toast.error("加载数据失败")
     } finally {
-      setIsLoading(false)
+      if (direction === "up") setLoadingTop(false)
+      if (direction === "down") setLoadingBottom(false)
+      requestInProgress.current = false
+    }
+  }, [courses, sortOrder, searchQuery])
+
+  // 初始化数据加载
+  const initializeData = React.useCallback(async () => {
+    setInitialLoading(true)
+    await fetchData({ direction: "down", reset: true, customBeginID: "0" })
+  }, [fetchData])
+
+  // 滚动处理 - 参考 list_lessons.tsx
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    const { scrollTop, scrollHeight, clientHeight } = el
+    
+    console.log(`🖱️ SCROLL EVENT scrollTop=${scrollTop}`)
+    
+    // 简单边界检测
+    if (scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress.current) {
+      console.log(`✅ 触发向上翻页`)
+      fetchData({ direction: "up" })
+    }
+    
+    if (scrollHeight - scrollTop - clientHeight < 10 && hasMoreBottom && !loadingBottom && !requestInProgress.current) {
+      console.log(`✅ 触发向下翻页`)
+      fetchData({ direction: "down" })
     }
   }
 
-  // 初始加载
+  // 监听排序变化
   React.useEffect(() => {
-    fetchCourses("0", false, false, searchQuery)
-  }, [searchQuery])
+    if (!initialLoading) {
+      const handleSortChange = async () => {
+        setHasMoreTop(true)
+        setHasMoreBottom(true)
+        await fetchData({ direction: "down", reset: true, customBeginID: "0" })
+      }
+      handleSortChange()
+    }
+  }, [sortOrder])
 
-  // 翻页处理
-  const handlePageChange = (beginID: string, forward: boolean, asc: boolean) => {
-    fetchCourses(beginID, forward, asc, searchQuery)
-  }
+  // 初始化 - 只执行一次
+  React.useEffect(() => {
+    initializeData()
+  }, [])
+
+  // 刷新数据
+  const refreshData = React.useCallback(async () => {
+    setHasMoreTop(true)
+    setHasMoreBottom(true)
+    await fetchData({ direction: "down", reset: true, customBeginID: "0" })
+  }, [])
 
   // 删除课程
   const handleDeleteCourse = async (id: string, updatedAt: string) => {
@@ -283,8 +418,9 @@ export default function ListCoursePage() {
     try {
       await deleteCourse(id, updatedAt)
       toast.success("课程删除成功")
-      // 重新加载数据
-      await fetchCourses("0", false, false, searchQuery)
+      // 从列表中移除已删除的课程
+      setCourses(prev => prev.filter(course => course.id.toString() !== id))
+      setTotal(prev => prev - 1)
     } catch (error) {
       console.error("删除课程失败:", error)
       toast.error("删除课程失败")
@@ -299,8 +435,12 @@ export default function ListCoursePage() {
     try {
       await publishCourse(id, !isPublished, updatedAt)
       toast.success(isPublished ? "课程已撤销发布" : "课程已发布")
-      // 重新加载数据
-      await fetchCourses("0", false, false, searchQuery)
+      // 更新列表中的课程状态
+      setCourses(prev => prev.map(course => 
+        course.id.toString() === id 
+          ? { ...course, is_published: !isPublished, updated_at: Date.now() / 1000 }
+          : course
+      ))
     } catch (error) {
       console.error("发布课程失败:", error)
       toast.error("操作失败")
@@ -315,8 +455,8 @@ export default function ListCoursePage() {
     try {
       await copyCourse(id)
       toast.success("课程复制成功")
-      // 重新加载数据
-      await fetchCourses("0", false, false, searchQuery)
+      // 刷新数据以显示新复制的课程
+      await refreshData()
     } catch (error) {
       console.error("复制课程失败:", error)
       toast.error("复制课程失败")
@@ -339,9 +479,9 @@ export default function ListCoursePage() {
   }
 
   // 搜索处理
-  const handleSearch = () => {
+  const handleSearch = React.useCallback(() => {
     setSearchQuery(searchInput)
-  }
+  }, [searchInput])
 
   const handleSearchKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -349,194 +489,252 @@ export default function ListCoursePage() {
     }
   }
 
+  // 监听搜索查询变化
+  React.useEffect(() => {
+    if (!initialLoading) {
+      const handleSearchChange = async () => {
+        setHasMoreTop(true)
+        setHasMoreBottom(true)
+        await fetchData({ direction: "down", reset: true, customBeginID: "0" })
+      }
+      handleSearchChange()
+    }
+  }, [searchQuery])
+
   return (
     <AdminLayout>
       <div className="flex flex-1 flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <IconBook className="h-6 w-6" />
-              <h1 className="text-2xl font-bold">课程管理</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="搜索课程..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  onKeyPress={handleSearchKeyPress}
-                  className="w-64"
-                />
-                <Button onClick={handleSearch} variant="outline">
-                  搜索
-                </Button>
+                  <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <IconBook className="h-6 w-6" />
+            <h1 className="text-2xl font-bold">课程管理</h1>
+            <span className="text-sm text-gray-500">
+              (共{total}个, 显示{courses.length}个)
+            </span>
+            {/* 加载状态指示器 */}
+            {(initialLoading || loadingTop || loadingBottom) && (
+              <div className="flex items-center gap-1 ml-4 px-2 py-1 bg-blue-100 rounded-full">
+                <IconLoader className="h-3 w-3 animate-spin text-blue-600" />
+                <span className="text-xs text-blue-600">
+                  {initialLoading ? "初始化" : loadingTop ? "加载历史" : "加载更多"}
+                </span>
               </div>
-              <Link 
-                to="/www/admin/create_course" 
-                onClick={handleNewCourseClick}
-                className={isButtonCooling ? 'pointer-events-none' : ''}
-              >
-                <Button disabled={isButtonCooling}>
-                  <IconPlus className="mr-2 h-4 w-4" />
-                  新建课程
-                </Button>
-              </Link>
-            </div>
+            )}
           </div>
+          <div className="flex items-center gap-2">
+            {/* 排序控制 */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">📅 排序：</span>
+              <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "asc" | "desc")}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="排序" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">🆕 最新优先</SelectItem>
+                  <SelectItem value="asc">⏰ 最旧优先</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* 刷新按钮 */}
+            <Button variant="outline" size="sm" onClick={refreshData}>
+              <IconRefresh className="h-4 w-4 mr-1" />
+              刷新
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="搜索课程..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyPress={handleSearchKeyPress}
+                className="w-64"
+              />
+              <Button onClick={handleSearch} variant="outline">
+                搜索
+              </Button>
+            </div>
+            <Link 
+              to="/www/admin/create_course" 
+              onClick={handleNewCourseClick}
+              className={isButtonCooling ? 'pointer-events-none' : ''}
+            >
+              <Button disabled={isButtonCooling}>
+                <IconPlus className="mr-2 h-4 w-4" />
+                新建课程
+              </Button>
+            </Link>
+          </div>
+        </div>
 
-          <div className="rounded-md border">
-            {isLoading ? (
-              <div className="flex h-64 items-center justify-center">
-                <div className="text-sm text-muted-foreground">加载中...</div>
+          {/* 主内容区域 */}
+          {initialLoading ? (
+            <div className="flex h-96 items-center justify-center">
+              <div className="flex items-center space-x-2">
+                <IconLoader className="h-6 w-6 animate-spin" />
+                <span>加载中...</span>
               </div>
-            ) : error ? (
-              <div className="flex h-64 items-center justify-center">
-                <div className="text-sm text-red-600">{error}</div>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>课程名称</TableHead>
-                    <TableHead>描述</TableHead>
-                    <TableHead>难度</TableHead>
-                    <TableHead>时长</TableHead>
-                    <TableHead>状态</TableHead>
-                    <TableHead>课时数</TableHead>
-                    <TableHead>创建时间</TableHead>
-                    <TableHead className="text-right">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {coursesData.courses.length === 0 ? (
+            </div>
+          ) : (
+            <div className="rounded-md border flex flex-col max-h-[70vh]">
+              <div 
+                className="flex-1 overflow-auto px-1"
+                onScroll={handleScroll}
+              >
+                {/* 向上加载指示器 */}
+                {loadingTop && (
+                  <div className="flex items-center justify-center py-4 bg-blue-50 border border-blue-200 rounded-lg mx-4 my-2">
+                    <IconLoader className="h-4 w-4 animate-spin mr-2 text-blue-600" />
+                    <span className="text-blue-700 text-sm">正在加载历史数据...</span>
+                  </div>
+                )}
+                
+                {/* 顶部提示 */}
+                {!loadingTop && hasMoreTop && courses.length > 0 && (
+                  <div className="flex items-center justify-center py-3 bg-green-50 border border-green-200 rounded-lg mx-4 my-2">
+                    <span className="text-green-700 text-sm">
+                      📚 还有更多历史课程数据，向上滚动或使用按钮加载
+                    </span>
+                  </div>
+                )}
+
+                <Table>
+                  <TableHeader className="sticky top-0 bg-white z-10">
                     <TableRow>
-                      <TableCell colSpan={8} className="h-24 text-center">
-                        {searchQuery ? "没有找到匹配的课程" : "暂无课程数据"}
-                      </TableCell>
+                      <TableHead className="w-16">ID</TableHead>
+                      <TableHead>课程名称</TableHead>
+                      <TableHead>描述</TableHead>
+                      <TableHead>难度</TableHead>
+                      <TableHead>时长</TableHead>
+                      <TableHead>状态</TableHead>
+                      <TableHead>课时数</TableHead>
+                      <TableHead>创建时间</TableHead>
+                      <TableHead className="text-right">操作</TableHead>
                     </TableRow>
-                  ) : (
-                    coursesData.courses.map((course) => (
-                      <TableRow key={course.id}>
-                        <TableCell className="font-medium">{course.title}</TableCell>
-                        <TableCell className="max-w-xs truncate" title={course.description}>
-                          {course.description || "-"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {formatDifficulty(course.difficulty)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{formatDuration(course.duration)}</TableCell>
-                        <TableCell>
-                          <Badge variant={course.is_published ? "default" : "secondary"}>
-                            {course.is_published ? "已发布" : "未发布"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{course.lessons_count || 0}</TableCell>
-                        <TableCell>{formatDate(course.created_at)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Link to={`/www/admin/course_detail/${course.id}`}>
-                              <Button variant="ghost" size="sm">
-                                <IconEye className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                            <Link to={`/www/admin/edit_course/${course.id}`}>
-                              <Button variant="ghost" size="sm">
-                                <IconEdit className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleCopyCourse(course.id.toString())}
-                              disabled={copyingId === course.id.toString()}
-                            >
-                              <IconCopy className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handlePublishCourse(course.id.toString(), course.is_published, course.updated_at.toString())}
-                              disabled={publishingId === course.id.toString()}
-                            >
-                              {course.is_published ? "撤销" : "发布"}
-                            </Button>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <IconTrash className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>确认删除</DialogTitle>
-                                  <DialogDescription>
-                                    确定要删除课程 "{course.title}" 吗？此操作不可撤销。
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <DialogFooter>
-                                  <DialogClose asChild>
-                                    <Button variant="outline">取消</Button>
-                                  </DialogClose>
-                                  <DialogClose asChild>
-                                    <Button
-                                      variant="destructive"
-                                      onClick={() => handleDeleteCourse(course.id.toString(), course.updated_at.toString())}
-                                      disabled={deletingId === course.id.toString()}
-                                    >
-                                      {deletingId === course.id.toString() ? "删除中..." : "确认删除"}
-                                    </Button>
-                                  </DialogClose>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
+                  </TableHeader>
+                  <TableBody>
+                    {courses.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="h-24 text-center">
+                          <div className="empty-state">
+                            <IconBook className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                            <p className="text-gray-500">
+                              {searchQuery ? "没有找到匹配的课程" : "暂无课程数据"}
+                            </p>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            )}
-          </div>
+                    ) : (
+                      courses.map((course) => (
+                        <TableRow key={course.id}>
+                          <TableCell className="font-medium">{course.id}</TableCell>
+                          <TableCell className="font-medium">{course.title}</TableCell>
+                          <TableCell className="max-w-xs truncate" title={course.description}>
+                            {course.description || "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {formatDifficulty(course.difficulty)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{formatDuration(course.duration)}</TableCell>
+                          <TableCell>
+                            <Badge variant={course.is_published ? "default" : "secondary"}>
+                              {course.is_published ? "已发布" : "未发布"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{course.lessons_count || 0}</TableCell>
+                          <TableCell>{formatDate(course.created_at)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Link to={`/www/admin/course_detail/${course.id}`}>
+                                <Button variant="ghost" size="sm">
+                                  <IconEye className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                              <Link to={`/www/admin/edit_course/${course.id}`}>
+                                <Button variant="ghost" size="sm">
+                                  <IconEdit className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleCopyCourse(course.id.toString())}
+                                disabled={copyingId === course.id.toString()}
+                              >
+                                <IconCopy className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handlePublishCourse(course.id.toString(), course.is_published, course.updated_at.toString())}
+                                disabled={publishingId === course.id.toString()}
+                              >
+                                {course.is_published ? "撤销" : "发布"}
+                              </Button>
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <IconTrash className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>确认删除</DialogTitle>
+                                    <DialogDescription>
+                                      确定要删除课程 "{course.title}" 吗？此操作不可撤销。
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <DialogFooter>
+                                    <DialogClose asChild>
+                                      <Button variant="outline">取消</Button>
+                                    </DialogClose>
+                                    <DialogClose asChild>
+                                      <Button
+                                        variant="destructive"
+                                        onClick={() => handleDeleteCourse(course.id.toString(), course.updated_at.toString())}
+                                        disabled={deletingId === course.id.toString()}
+                                      >
+                                        {deletingId === course.id.toString() ? "删除中..." : "确认删除"}
+                                      </Button>
+                                    </DialogClose>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
 
-          {/* 分页控制 */}
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              共 {coursesData.total} 个课程
+                {/* 向下加载指示器 */}
+                {loadingBottom && (
+                  <div className="flex items-center justify-center py-4 bg-blue-50 border border-blue-200 rounded-lg mx-4 my-2">
+                    <IconLoader className="h-4 w-4 animate-spin mr-2 text-blue-600" />
+                    <span className="text-blue-700 text-sm">正在加载更多数据...</span>
+                  </div>
+                )}
+
+                {/* 数据状态提示 */}
+                {courses.length > 0 && (
+                  <div className="flex flex-col items-center justify-center py-6 text-gray-500">
+                    <span className="text-sm">
+                      当前显示 {courses.length} 条数据 / 共 {total} 条
+                    </span>
+                    <span className="text-xs mt-1">
+                      ID范围: {courses[0]?.id} ~ {courses[courses.length-1]?.id}
+                      {!hasMoreTop && !hasMoreBottom && " (已加载全部)"}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const firstCourse = coursesData.courses[0]
-                  if (firstCourse) {
-                    handlePageChange(firstCourse.id.toString(), false, false)
-                  }
-                }}
-                disabled={!coursesData.showBackward || isLoading}
-              >
-                <IconChevronLeft className="h-4 w-4" />
-                上一页
-              </Button>
-              <span className="text-sm">第 {coursesData.currentPage} 页</span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const lastCourse = coursesData.courses[coursesData.courses.length - 1]
-                  if (lastCourse) {
-                    handlePageChange(lastCourse.id.toString(), true, false)
-                  }
-                }}
-                disabled={!coursesData.showForward || isLoading}
-              >
-                下一页
-                <IconChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          )}
+
+          {/* 移除传统分页控制，现在使用无限滚动 */}
       </div>
     </AdminLayout>
   )

@@ -184,27 +184,42 @@ func (c *CourseDaoImpl) ListCoursesWithPagination(authorID uint, pageSize uint, 
 	// 构建查询
 	query := c.db.Where("author_id = ?", authorID)
 
-	// 分页逻辑
+	// 分页逻辑：根据排序方向和翻页方向确定查询条件
+	var needReverse bool = false
 	if beginID > 0 {
-		if forward {
-			if asc {
+		if asc {
+			// 升序排列时：向前翻页获取更大的ID，向后翻页获取更小的ID
+			if forward {
 				query = query.Where("id > ?", beginID)
 			} else {
 				query = query.Where("id < ?", beginID)
+				needReverse = true
 			}
 		} else {
-			if asc {
+			// 降序排列时：向前翻页获取更小的ID，向后翻页获取更大的ID
+			if forward {
 				query = query.Where("id < ?", beginID)
 			} else {
 				query = query.Where("id > ?", beginID)
+				needReverse = true
 			}
 		}
 	}
 
-	// 排序
-	orderClause := "sort_order ASC, id ASC"
-	if !asc {
-		orderClause = "sort_order DESC, id DESC"
+	// 排序逻辑：根据参数确定排序方向
+	var orderClause string
+	if asc {
+		if needReverse {
+			orderClause = "sort_order DESC, id DESC"
+		} else {
+			orderClause = "sort_order ASC, id ASC"
+		}
+	} else {
+		if needReverse {
+			orderClause = "sort_order ASC, id ASC"
+		} else {
+			orderClause = "sort_order DESC, id DESC"
+		}
 	}
 	query = query.Order(orderClause)
 
@@ -219,6 +234,13 @@ func (c *CourseDaoImpl) ListCoursesWithPagination(authorID uint, pageSize uint, 
 	hasMore := len(courses) > int(pageSize)
 	if hasMore {
 		courses = courses[:pageSize]
+	}
+
+	// 如果是向上翻页，需要反转结果以保持正确的显示顺序
+	if needReverse {
+		for i, j := 0, len(courses)-1; i < j; i, j = i+1, j-1 {
+			courses[i], courses[j] = courses[j], courses[i]
+		}
 	}
 
 	return courses, hasMore, nil
