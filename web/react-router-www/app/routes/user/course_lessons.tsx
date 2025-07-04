@@ -17,7 +17,7 @@ import {
 import { fetchWithAuth } from "~/utils/api";
 import { HOST_URL } from "~/config";
 
-// 课时数据接口
+// 课件数据接口
 interface Lesson {
   id: number;
   title: string;
@@ -67,7 +67,7 @@ async function getCourseInfo(courseId: string) {
   }
 }
 
-// 获取课程课时列表
+// 获取课程课件列表
 async function getCourseLessons(courseId: string) {
   try {
     const response = await fetchWithAuth(`${HOST_URL}/api/student/courses/${courseId}/lessons`);
@@ -77,7 +77,7 @@ async function getCourseLessons(courseId: string) {
     const data = await response.json();
     return Array.isArray(data.data) ? data.data : [];
   } catch (error) {
-    console.error("获取课程课时列表失败:", error);
+    console.error("获取课程课件列表失败:", error);
     return [];
   }
 }
@@ -89,7 +89,7 @@ export default function CourseLessons() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 获取课程信息和课时列表
+  // 获取课程信息和课件列表
   useEffect(() => {
     if (!courseId) return;
 
@@ -113,7 +113,7 @@ export default function CourseLessons() {
     fetchData();
   }, [courseId]);
 
-  // 格式化课时类型
+  // 格式化课件类型
   const formatLessonType = (type: string) => {
     const types: { [key: string]: { text: string; color: string; icon: any } } = {
       video: { text: "视频课", color: "bg-blue-100 text-blue-800", icon: Play },
@@ -155,8 +155,8 @@ export default function CourseLessons() {
 
   return (
     <UserLayout
-      title={course ? `${course.title} - 课时列表` : "课时列表"}
-      subtitle="学习课程中的所有课时"
+      title={course ? `${course.title} - 课件列表` : "课件列表"}
+      subtitle="学习课程中的所有课件"
     >
       {/* 导航面包屑 */}
       <div className="mb-6">
@@ -198,10 +198,10 @@ export default function CourseLessons() {
                       <span>总时长：{formatDuration(course.estimated_duration)}</span>
                     </div>
                     
-                    {/* 课时数量 */}
+                    {/* 课件数量 */}
                     <div className="flex items-center text-gray-600">
                       <BookOpen className="w-4 h-4 mr-1" />
-                      <span>共 {lessons.length} 个课时</span>
+                      <span>共 {lessons.length} 个课件</span>
                     </div>
                   </div>
                 </div>
@@ -214,11 +214,11 @@ export default function CourseLessons() {
         {loading && (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-            <p className="text-gray-500">加载课时列表中...</p>
+            <p className="text-gray-500">加载课件列表中...</p>
           </div>
         )}
 
-        {/* 课时列表 */}
+        {/* 课件列表 */}
         {!loading && lessons.length > 0 && (
           <div className="space-y-4">
             {lessons.map((lesson, index) => {
@@ -232,12 +232,12 @@ export default function CourseLessons() {
                 >
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
-                      {/* 课时序号 */}
+                      {/* 课件序号 */}
                       <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
                         {index + 1}
                       </div>
                       
-                      {/* 课时信息 */}
+                      {/* 课件信息 */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between mb-2">
                           <h3 className="text-lg font-bold text-gray-800 mb-1">
@@ -334,13 +334,13 @@ export default function CourseLessons() {
               <div className="w-24 h-24 bg-gradient-to-r from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Play className="w-12 h-12 text-purple-500" />
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">这个课程还没有课时</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">这个课程还没有课件</h3>
               <p className="text-gray-600 mb-6">
-                请等待老师添加课时内容，或联系老师了解更多信息。
+                请等待老师添加课件内容，或联系老师了解更多信息。
               </p>
               <div className="bg-purple-50 rounded-lg p-4 inline-block">
                 <p className="text-sm text-purple-800">
-                  💡 提示：老师添加课时后，你就可以开始学习了
+                  💡 提示：老师添加课件后，你就可以开始学习了
                 </p>
               </div>
             </CardContent>

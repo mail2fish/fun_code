@@ -30,7 +30,7 @@ import { toast } from "sonner"
 import { fetchWithAuth } from "~/utils/api"
 import { HOST_URL } from "~/config"
 
-// 课时类型定义
+// 课件类型定义
 interface Lesson {
   id: number
   title: string

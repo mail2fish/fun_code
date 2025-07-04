@@ -542,7 +542,7 @@ export default function EditLessonPage() {
                 <div className="flex items-center gap-2 mt-2">
                   <Badge variant="outline">ID: {lesson.id}</Badge>
                                   <Badge variant="default">
-                  课时
+                                          课件
                 </Badge>
                   <span className="text-xs text-muted-foreground">
                     最后更新：{formatDate(lesson.updated_at)}

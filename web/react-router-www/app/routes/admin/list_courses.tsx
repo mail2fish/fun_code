@@ -562,7 +562,7 @@ export default function ListCoursePage() {
                     <TableHead>难度</TableHead>
                     <TableHead>时长</TableHead>
                     <TableHead>状态</TableHead>
-                    <TableHead>课时数</TableHead>
+                    <TableHead>课件数</TableHead>
                     <TableHead>创建时间</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>

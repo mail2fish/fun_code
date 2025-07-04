@@ -40,7 +40,7 @@ interface CourseData {
   updated_at: string
 }
 
-// 课时数据接口
+// 课件数据接口
 interface LessonData {
   id: number
   title: string
@@ -86,7 +86,7 @@ async function getCourse(courseId: string) {
   }
 }
 
-// 获取课程的课时列表
+// 获取课程的课件列表
 async function getCourseLessons(courseId: string) {
   try {
     const response = await fetchWithAuth(`${HOST_URL}/api/admin/lessons?courseId=${courseId}`)
@@ -97,19 +97,19 @@ async function getCourseLessons(courseId: string) {
     }
     
     const data = await response.json()
-    console.log("获取到的课时列表数据:", data) // 调试信息
+    console.log("获取到的课件列表数据:", data) // 调试信息
     
     // 兼容API响应格式
     const lessons = data.data || []
     if (!Array.isArray(lessons)) {
-      console.error("课时数据不是数组:", lessons)
+      console.error("课件数据不是数组:", lessons)
       return []
     }
     
     return lessons as LessonData[]
   } catch (error) {
-    console.error("获取课时列表失败:", error)
-    // 如果获取课时失败，返回空数组而不是抛出错误
+    console.error("获取课件列表失败:", error)
+    // 如果获取课件失败，返回空数组而不是抛出错误
     return []
   }
 }
@@ -319,7 +319,7 @@ export default function CourseDetailPage() {
                     <DialogHeader>
                       <DialogTitle>确认删除课程</DialogTitle>
                       <DialogDescription>
-                        确定要删除课程 "{courseData.title}" 吗？此操作不可撤销，将同时删除所有相关的课时内容。
+                        确定要删除课程 "{courseData.title}" 吗？此操作不可撤销，将同时删除所有相关的课件内容。
                       </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
@@ -401,8 +401,8 @@ export default function CourseDetailPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-500">课时数量</label>
-                    <p className="text-lg font-semibold">{lessons.length} 个课时</p>
+                    <label className="text-sm font-medium text-gray-500">课件数量</label>
+                    <p className="text-lg font-semibold">{lessons.length} 个课件</p>
                   </div>
                   
                   <div>
@@ -416,7 +416,7 @@ export default function CourseDetailPage() {
                   </div>
                   
                   <div>
-                    <label className="text-sm font-medium text-gray-500">已发布课时</label>
+                    <label className="text-sm font-medium text-gray-500">已发布课件</label>
                     <p className="text-lg font-semibold">
                       {lessons.length}
                     </p>
@@ -430,36 +430,36 @@ export default function CourseDetailPage() {
               </Card>
             </div>
 
-            {/* 课时列表 */}
+            {/* 课件列表 */}
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <IconPlus className="h-5 w-5" />
-                    课时列表 ({lessons.length})
+                    课件列表 ({lessons.length})
                   </CardTitle>
                   <Link to={`/www/admin/edit_course/${courseId}`}>
                     <Button variant="outline" size="sm">
                       <IconPlus className="mr-2 h-4 w-4" />
-                      添加课时
+                      添加课件
                     </Button>
                   </Link>
                 </div>
                 <CardDescription>
-                  课程包含的所有课时内容
+                  课程包含的所有课件内容
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {lessons.length === 0 ? (
                   <div className="text-center py-8">
                     <IconBook className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-semibold text-gray-900">暂无课时</h3>
-                    <p className="mt-1 text-sm text-gray-500">开始创建第一个课时吧！</p>
+                    <h3 className="mt-2 text-sm font-semibold text-gray-900">暂无课件</h3>
+                    <p className="mt-1 text-sm text-gray-500">开始创建第一个课件吧！</p>
                     <div className="mt-6">
                       <Link to={`/www/admin/edit_course/${courseId}`}>
                         <Button>
                           <IconPlus className="mr-2 h-4 w-4" />
-                          添加课时
+                          添加课件
                         </Button>
                       </Link>
                     </div>
@@ -489,7 +489,7 @@ export default function CourseDetailPage() {
                         variant="default"
                         className="text-xs"
                       >
-                        课时
+                        课件
                       </Badge>
                             </div>
                           </div>
