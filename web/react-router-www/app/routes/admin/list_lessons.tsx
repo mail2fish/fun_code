@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link } from "react-router"
-import { IconPlus, IconEdit, IconTrash, IconBook, IconLoader, IconRefresh, IconArrowUp, IconArrowDown } from "@tabler/icons-react"
+import { IconPlus, IconEdit, IconTrash, IconBook, IconLoader, IconRefresh } from "@tabler/icons-react"
 
 import { AdminLayout } from "~/components/admin-layout"
 import { Button } from "~/components/ui/button"
@@ -24,6 +24,7 @@ import {
 } from "~/components/ui/table"
 import { Badge } from "~/components/ui/badge"
 import { Checkbox } from "~/components/ui/checkbox"
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "~/components/ui/select"
 import { toast } from "sonner"
 
 import { fetchWithAuth } from "~/utils/api"
@@ -253,7 +254,6 @@ function LessonTable({
         {/* 顶部提示 - 提醒用户可以获取更多历史数据 */}
         {!loadingTop && hasMoreTop && lessons.length > 0 && (
           <div className="flex items-center justify-center py-3 bg-green-50 border border-green-200 rounded-lg mx-4 my-2">
-            <IconArrowUp className="h-4 w-4 mr-2 text-green-600" />
             <span className="text-green-700 text-sm">
               📚 还有更多历史课件数据，向上滚动或使用按钮加载
             </span>
@@ -971,24 +971,18 @@ export default function ListLessonsPage() {
           </div>
           <div className="flex items-center gap-2">
             {/* 排序控制 */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
-              className="flex items-center gap-1"
-            >
-              {sortOrder === "asc" ? (
-                <>
-                  <IconArrowUp className="h-4 w-4" />
-                  时间升序
-                </>
-              ) : (
-                <>
-                  <IconArrowDown className="h-4 w-4" />
-                  时间降序
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">📅 排序：</span>
+              <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "asc" | "desc")}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="排序" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">🆕 最新优先</SelectItem>
+                  <SelectItem value="asc">⏰ 最旧优先</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             
             {/* 刷新按钮 */}
             <Button variant="outline" size="sm" onClick={refreshData}>

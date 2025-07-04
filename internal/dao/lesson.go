@@ -130,36 +130,58 @@ func (l *LessonDaoImpl) ListLessonsWithPagination(courseID uint, pageSize uint, 
 			Where("lc.course_id = ?", courseID)
 	}
 
-	// 无限滚动分页逻辑：始终向下滚动加载更多
-	if beginID > 0 && forward {
-		// 对于无限滚动，总是获取比当前ID更小的记录（降序排列时）
-		query = query.Where("lessons.id < ?", beginID)
-	} else if beginID > 0 && !forward {
-		// 向上翻页（不常用）
-		query = query.Where("lessons.id > ?", beginID)
+	// 分页逻辑：根据排序方向和翻页方向确定查询条件
+	var needReverse bool = false
+	if beginID > 0 {
+		if asc {
+			// 升序排列时：向前翻页获取更大的ID，向后翻页获取更小的ID
+			if forward {
+				query = query.Where("lessons.id > ?", beginID)
+			} else {
+				query = query.Where("lessons.id < ?", beginID)
+				needReverse = true
+			}
+		} else {
+			// 降序排列时：向前翻页获取更小的ID，向后翻页获取更大的ID
+			if forward {
+				query = query.Where("lessons.id < ?", beginID)
+			} else {
+				query = query.Where("lessons.id > ?", beginID)
+				needReverse = true
+			}
+		}
 	}
 
-	// 简化排序逻辑：无限滚动主要使用降序
+	// 排序逻辑：根据参数确定排序方向
 	var orderClause string
 	if courseID > 0 {
 		// 特定课程：按关联表排序
-		orderClause = "lc.sort_order ASC, lessons.id ASC"
-		if !asc {
-			orderClause = "lc.sort_order DESC, lessons.id DESC"
+		if asc {
+			if needReverse {
+				orderClause = "lc.sort_order DESC, lessons.id DESC"
+			} else {
+				orderClause = "lc.sort_order ASC, lessons.id ASC"
+			}
+		} else {
+			if needReverse {
+				orderClause = "lc.sort_order ASC, lessons.id ASC"
+			} else {
+				orderClause = "lc.sort_order DESC, lessons.id DESC"
+			}
 		}
 	} else {
-		// 全部课时：无限滚动使用降序（最新的在前）
-		orderClause = "lessons.id DESC"
+		// 全部课时：根据asc参数排序
 		if asc {
-			orderClause = "lessons.id ASC"
-		}
-
-		// 如果是向上翻页，临时反转排序
-		if !forward && beginID > 0 {
-			if asc {
+			if needReverse {
 				orderClause = "lessons.id DESC"
 			} else {
 				orderClause = "lessons.id ASC"
+			}
+		} else {
+			if needReverse {
+				orderClause = "lessons.id ASC"
+			} else {
+				orderClause = "lessons.id DESC"
 			}
 		}
 	}
@@ -179,9 +201,8 @@ func (l *LessonDaoImpl) ListLessonsWithPagination(courseID uint, pageSize uint, 
 		lessons = lessons[:pageSize]
 	}
 
-	// 如果是向上翻页，需要反转结果顺序以保持正确的显示顺序
-	if !forward && beginID > 0 && courseID == 0 {
-		// 反转切片顺序
+	// 如果是向上翻页，需要反转结果以保持正确的显示顺序
+	if needReverse {
 		for i, j := 0, len(lessons)-1; i < j; i, j = i+1, j-1 {
 			lessons[i], lessons[j] = lessons[j], lessons[i]
 		}
