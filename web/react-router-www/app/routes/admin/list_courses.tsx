@@ -23,7 +23,6 @@ import {
   TableRow,
 } from "~/components/ui/table"
 import { Badge } from "~/components/ui/badge"
-import { Input } from "~/components/ui/input"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "~/components/ui/select"
 import { toast } from "sonner"
 
@@ -50,11 +49,8 @@ interface Course {
   students_count?: number
 }
 
-// 移除传统分页的数据类型定义
-// 课程数据将直接使用 Course[] 数组
-
 // 获取课程列表
-async function getCourses(beginID = "0", pageSize = 20, forward = true, asc = false, search = "") {
+async function getCourses(beginID = "0", pageSize = 20, forward = true, asc = false) {
   try {
     console.log(`\n======== 🌐 API请求开始 ========`)
     console.log(`📋 请求参数:`)
@@ -62,7 +58,6 @@ async function getCourses(beginID = "0", pageSize = 20, forward = true, asc = fa
     console.log(`  - pageSize: ${pageSize}`)
     console.log(`  - forward: ${forward}`)
     console.log(`  - asc: ${asc}`)
-    console.log(`  - search: "${search}"`)
     
     const params = new URLSearchParams()
     params.append('pageSize', pageSize.toString())
@@ -70,9 +65,6 @@ async function getCourses(beginID = "0", pageSize = 20, forward = true, asc = fa
     params.append('forward', forward.toString())
     // 始终传递beginID，包括"0"值
     params.append('beginID', beginID.toString())
-    if (search.trim()) {
-      params.append('search', search.trim())
-    }
     
     console.log(`🔗 请求URL: ${HOST_URL}/api/admin/courses?${params.toString()}`)
     
@@ -104,7 +96,7 @@ async function deleteCourse(id: string, updatedAt: string) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        updated_at: updatedAt
+        updated_at: parseInt(updatedAt, 10)
       })
     })
     if (!response.ok) {
@@ -127,7 +119,7 @@ async function publishCourse(id: string, isPublished: boolean, updatedAt: string
       },
       body: JSON.stringify({
         is_published: isPublished,
-        updated_at: updatedAt
+        updated_at: parseInt(updatedAt, 10)
       })
     })
     if (!response.ok) {
@@ -165,8 +157,6 @@ export default function ListCoursePage() {
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
   const [publishingId, setPublishingId] = React.useState<string | null>(null)
   const [copyingId, setCopyingId] = React.useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = React.useState("")
-  const [searchInput, setSearchInput] = React.useState("")
   const [isButtonCooling, setIsButtonCooling] = React.useState(false)
   
   // 加载状态
@@ -284,7 +274,7 @@ export default function ListCoursePage() {
     if (direction === "down") setLoadingBottom(true)
     
     try {
-      const response = await getCourses(beginID, pageSize, forward, asc, searchQuery)
+      const response = await getCourses(beginID, pageSize, forward, asc)
       const newCourses = response.data || []
       const meta = response.meta || {}
       
@@ -361,7 +351,7 @@ export default function ListCoursePage() {
       if (direction === "down") setLoadingBottom(false)
       requestInProgress.current = false
     }
-  }, [courses, sortOrder, searchQuery])
+  }, [courses, sortOrder])
 
   // 初始化数据加载
   const initializeData = React.useCallback(async () => {
@@ -478,33 +468,10 @@ export default function ListCoursePage() {
     }, 1000)
   }
 
-  // 搜索处理
-  const handleSearch = React.useCallback(() => {
-    setSearchQuery(searchInput)
-  }, [searchInput])
-
-  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSearch()
-    }
-  }
-
-  // 监听搜索查询变化
-  React.useEffect(() => {
-    if (!initialLoading) {
-      const handleSearchChange = async () => {
-        setHasMoreTop(true)
-        setHasMoreBottom(true)
-        await fetchData({ direction: "down", reset: true, customBeginID: "0" })
-      }
-      handleSearchChange()
-    }
-  }, [searchQuery])
-
   return (
     <AdminLayout>
       <div className="flex flex-1 flex-col gap-4">
-                  <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <IconBook className="h-6 w-6" />
             <h1 className="text-2xl font-bold">课程管理</h1>
@@ -542,18 +509,6 @@ export default function ListCoursePage() {
               刷新
             </Button>
             
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="搜索课程..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyPress={handleSearchKeyPress}
-                className="w-64"
-              />
-              <Button onClick={handleSearch} variant="outline">
-                搜索
-              </Button>
-            </div>
             <Link 
               to="/www/admin/create_course" 
               onClick={handleNewCourseClick}
@@ -567,174 +522,170 @@ export default function ListCoursePage() {
           </div>
         </div>
 
-          {/* 主内容区域 */}
-          {initialLoading ? (
-            <div className="flex h-96 items-center justify-center">
-              <div className="flex items-center space-x-2">
-                <IconLoader className="h-6 w-6 animate-spin" />
-                <span>加载中...</span>
-              </div>
+        {/* 主内容区域 */}
+        {initialLoading ? (
+          <div className="flex h-96 items-center justify-center">
+            <div className="flex items-center space-x-2">
+              <IconLoader className="h-6 w-6 animate-spin" />
+              <span>加载中...</span>
             </div>
-          ) : (
-            <div className="rounded-md border flex flex-col max-h-[70vh]">
-              <div 
-                className="flex-1 overflow-auto px-1"
-                onScroll={handleScroll}
-              >
-                {/* 向上加载指示器 */}
-                {loadingTop && (
-                  <div className="flex items-center justify-center py-4 bg-blue-50 border border-blue-200 rounded-lg mx-4 my-2">
-                    <IconLoader className="h-4 w-4 animate-spin mr-2 text-blue-600" />
-                    <span className="text-blue-700 text-sm">正在加载历史数据...</span>
-                  </div>
-                )}
-                
-                {/* 顶部提示 */}
-                {!loadingTop && hasMoreTop && courses.length > 0 && (
-                  <div className="flex items-center justify-center py-3 bg-green-50 border border-green-200 rounded-lg mx-4 my-2">
-                    <span className="text-green-700 text-sm">
-                      📚 还有更多历史课程数据，向上滚动或使用按钮加载
-                    </span>
-                  </div>
-                )}
+          </div>
+        ) : (
+          <div className="rounded-md border flex flex-col max-h-[70vh]">
+            <div 
+              className="flex-1 overflow-auto px-1"
+              onScroll={handleScroll}
+            >
+              {/* 向上加载指示器 */}
+              {loadingTop && (
+                <div className="flex items-center justify-center py-4 bg-blue-50 border border-blue-200 rounded-lg mx-4 my-2">
+                  <IconLoader className="h-4 w-4 animate-spin mr-2 text-blue-600" />
+                  <span className="text-blue-700 text-sm">正在加载历史数据...</span>
+                </div>
+              )}
+              
+              {/* 顶部提示 */}
+              {!loadingTop && hasMoreTop && courses.length > 0 && (
+                <div className="flex items-center justify-center py-3 bg-green-50 border border-green-200 rounded-lg mx-4 my-2">
+                  <span className="text-green-700 text-sm">
+                    📚 还有更多历史课程数据，向上滚动或使用按钮加载
+                  </span>
+                </div>
+              )}
 
-                <Table>
-                  <TableHeader className="sticky top-0 bg-white z-10">
+              <Table>
+                <TableHeader className="sticky top-0 bg-white z-10">
+                  <TableRow>
+                    <TableHead className="w-16">ID</TableHead>
+                    <TableHead>课程名称</TableHead>
+                    <TableHead>描述</TableHead>
+                    <TableHead>难度</TableHead>
+                    <TableHead>时长</TableHead>
+                    <TableHead>状态</TableHead>
+                    <TableHead>课时数</TableHead>
+                    <TableHead>创建时间</TableHead>
+                    <TableHead className="text-right">操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {courses.length === 0 ? (
                     <TableRow>
-                      <TableHead className="w-16">ID</TableHead>
-                      <TableHead>课程名称</TableHead>
-                      <TableHead>描述</TableHead>
-                      <TableHead>难度</TableHead>
-                      <TableHead>时长</TableHead>
-                      <TableHead>状态</TableHead>
-                      <TableHead>课时数</TableHead>
-                      <TableHead>创建时间</TableHead>
-                      <TableHead className="text-right">操作</TableHead>
+                      <TableCell colSpan={9} className="h-24 text-center">
+                        <div className="empty-state">
+                          <IconBook className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                          <p className="text-gray-500">暂无课程数据</p>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {courses.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={9} className="h-24 text-center">
-                          <div className="empty-state">
-                            <IconBook className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                            <p className="text-gray-500">
-                              {searchQuery ? "没有找到匹配的课程" : "暂无课程数据"}
-                            </p>
+                  ) : (
+                    courses.map((course) => (
+                      <TableRow key={course.id}>
+                        <TableCell className="font-medium">{course.id}</TableCell>
+                        <TableCell className="font-medium">{course.title}</TableCell>
+                        <TableCell className="max-w-xs truncate" title={course.description}>
+                          {course.description || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {formatDifficulty(course.difficulty)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatDuration(course.duration)}</TableCell>
+                        <TableCell>
+                          <Badge variant={course.is_published ? "default" : "secondary"}>
+                            {course.is_published ? "已发布" : "未发布"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{course.lessons_count || 0}</TableCell>
+                        <TableCell>{formatDate(course.created_at)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Link to={`/www/admin/course_detail/${course.id}`}>
+                              <Button variant="ghost" size="sm">
+                                <IconEye className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                            <Link to={`/www/admin/edit_course/${course.id}`}>
+                              <Button variant="ghost" size="sm">
+                                <IconEdit className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleCopyCourse(course.id.toString())}
+                              disabled={copyingId === course.id.toString()}
+                            >
+                              <IconCopy className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handlePublishCourse(course.id.toString(), course.is_published, course.updated_at.toString())}
+                              disabled={publishingId === course.id.toString()}
+                            >
+                              {course.is_published ? "撤销" : "发布"}
+                            </Button>
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <IconTrash className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>确认删除</DialogTitle>
+                                  <DialogDescription>
+                                    确定要删除课程 "{course.title}" 吗？此操作不可撤销。
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter>
+                                  <DialogClose asChild>
+                                    <Button variant="outline">取消</Button>
+                                  </DialogClose>
+                                  <DialogClose asChild>
+                                    <Button
+                                      variant="destructive"
+                                      onClick={() => handleDeleteCourse(course.id.toString(), course.updated_at.toString())}
+                                      disabled={deletingId === course.id.toString()}
+                                    >
+                                      {deletingId === course.id.toString() ? "删除中..." : "确认删除"}
+                                    </Button>
+                                  </DialogClose>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ) : (
-                      courses.map((course) => (
-                        <TableRow key={course.id}>
-                          <TableCell className="font-medium">{course.id}</TableCell>
-                          <TableCell className="font-medium">{course.title}</TableCell>
-                          <TableCell className="max-w-xs truncate" title={course.description}>
-                            {course.description || "-"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">
-                              {formatDifficulty(course.difficulty)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{formatDuration(course.duration)}</TableCell>
-                          <TableCell>
-                            <Badge variant={course.is_published ? "default" : "secondary"}>
-                              {course.is_published ? "已发布" : "未发布"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{course.lessons_count || 0}</TableCell>
-                          <TableCell>{formatDate(course.created_at)}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Link to={`/www/admin/course_detail/${course.id}`}>
-                                <Button variant="ghost" size="sm">
-                                  <IconEye className="h-4 w-4" />
-                                </Button>
-                              </Link>
-                              <Link to={`/www/admin/edit_course/${course.id}`}>
-                                <Button variant="ghost" size="sm">
-                                  <IconEdit className="h-4 w-4" />
-                                </Button>
-                              </Link>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleCopyCourse(course.id.toString())}
-                                disabled={copyingId === course.id.toString()}
-                              >
-                                <IconCopy className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handlePublishCourse(course.id.toString(), course.is_published, course.updated_at.toString())}
-                                disabled={publishingId === course.id.toString()}
-                              >
-                                {course.is_published ? "撤销" : "发布"}
-                              </Button>
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button variant="ghost" size="sm">
-                                    <IconTrash className="h-4 w-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>确认删除</DialogTitle>
-                                    <DialogDescription>
-                                      确定要删除课程 "{course.title}" 吗？此操作不可撤销。
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <DialogFooter>
-                                    <DialogClose asChild>
-                                      <Button variant="outline">取消</Button>
-                                    </DialogClose>
-                                    <DialogClose asChild>
-                                      <Button
-                                        variant="destructive"
-                                        onClick={() => handleDeleteCourse(course.id.toString(), course.updated_at.toString())}
-                                        disabled={deletingId === course.id.toString()}
-                                      >
-                                        {deletingId === course.id.toString() ? "删除中..." : "确认删除"}
-                                      </Button>
-                                    </DialogClose>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
 
-                {/* 向下加载指示器 */}
-                {loadingBottom && (
-                  <div className="flex items-center justify-center py-4 bg-blue-50 border border-blue-200 rounded-lg mx-4 my-2">
-                    <IconLoader className="h-4 w-4 animate-spin mr-2 text-blue-600" />
-                    <span className="text-blue-700 text-sm">正在加载更多数据...</span>
-                  </div>
-                )}
+              {/* 向下加载指示器 */}
+              {loadingBottom && (
+                <div className="flex items-center justify-center py-4 bg-blue-50 border border-blue-200 rounded-lg mx-4 my-2">
+                  <IconLoader className="h-4 w-4 animate-spin mr-2 text-blue-600" />
+                  <span className="text-blue-700 text-sm">正在加载更多数据...</span>
+                </div>
+              )}
 
-                {/* 数据状态提示 */}
-                {courses.length > 0 && (
-                  <div className="flex flex-col items-center justify-center py-6 text-gray-500">
-                    <span className="text-sm">
-                      当前显示 {courses.length} 条数据 / 共 {total} 条
-                    </span>
-                    <span className="text-xs mt-1">
-                      ID范围: {courses[0]?.id} ~ {courses[courses.length-1]?.id}
-                      {!hasMoreTop && !hasMoreBottom && " (已加载全部)"}
-                    </span>
-                  </div>
-                )}
-              </div>
+              {/* 数据状态提示 */}
+              {courses.length > 0 && (
+                <div className="flex flex-col items-center justify-center py-6 text-gray-500">
+                  <span className="text-sm">
+                    当前显示 {courses.length} 条数据 / 共 {total} 条
+                  </span>
+                  <span className="text-xs mt-1">
+                    ID范围: {courses[0]?.id} ~ {courses[courses.length-1]?.id}
+                    {!hasMoreTop && !hasMoreBottom && " (已加载全部)"}
+                  </span>
+                </div>
+              )}
             </div>
-          )}
-
-          {/* 移除传统分页控制，现在使用无限滚动 */}
+          </div>
+        )}
       </div>
     </AdminLayout>
   )

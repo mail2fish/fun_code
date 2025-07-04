@@ -339,18 +339,29 @@ type DeleteCourseParams struct {
 }
 
 func (p *DeleteCourseParams) Parse(c *gin.Context) gorails.Error {
+	// 记录原始请求体用于调试
+	if body, err := c.GetRawData(); err == nil {
+		log.Printf("DeleteCourse Request Body: %s", string(body))
+		// 重新设置请求体以便后续读取
+		c.Request.Body = io.NopCloser(strings.NewReader(string(body)))
+	}
+
 	if err := c.ShouldBindUri(p); err != nil {
+		log.Printf("URI binding error: %v", err)
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 	if err := c.ShouldBindJSON(p); err != nil {
+		log.Printf("JSON binding error: %v", err)
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
 	}
 
 	// 手动验证必需的字段
 	if p.UpdatedAt == 0 {
+		log.Printf("UpdatedAt validation failed: value is %d", p.UpdatedAt)
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeInvalidParams, "updated_at字段为必填项", nil)
 	}
 
+	log.Printf("Parsed DeleteCourseParams: %+v", p)
 	return nil
 }
 
@@ -363,8 +374,14 @@ type DeleteCourseResponse struct {
 func (h *Handler) DeleteCourseHandler(c *gin.Context, params *DeleteCourseParams) (*DeleteCourseResponse, *gorails.ResponseMeta, gorails.Error) {
 	userID := h.getUserID(c)
 
+	log.Printf("DeleteCourse Debug:")
+	log.Printf("  Course ID: %d", params.CourseID)
+	log.Printf("  User ID: %d", userID)
+	log.Printf("  Expected UpdatedAt: %d (%s)", params.UpdatedAt, time.Unix(params.UpdatedAt, 0).Format(time.RFC3339))
+
 	// 调用服务层删除课程
 	if err := h.dao.CourseDao.DeleteCourse(params.CourseID, userID, params.UpdatedAt); err != nil {
+		log.Printf("DeleteCourse error: %v", err)
 		if err.Error() == "课程已被其他用户修改，请刷新后重试" {
 			return nil, nil, gorails.NewError(http.StatusConflict, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeUpdateConflict, "课程已被其他用户修改，请刷新后重试", err)
 		}

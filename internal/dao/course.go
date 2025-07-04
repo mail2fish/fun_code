@@ -144,10 +144,20 @@ func (c *CourseDaoImpl) DeleteCourse(courseID, authorID uint, expectedUpdatedAt 
 	var course model.Course
 	if err := c.db.Where("id = ? AND author_id = ?", courseID, authorID).First(&course).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			fmt.Printf("DeleteCourse: course not found or permission denied - courseID: %d, authorID: %d\n", courseID, authorID)
 			return errors.New("课程不存在或您无权删除")
 		}
+		fmt.Printf("DeleteCourse: database error when checking course - %v\n", err)
 		return err
 	}
+
+	// 调试：记录时间戳信息
+	fmt.Printf("DeleteCourse Debug:\n")
+	fmt.Printf("  Course ID: %d\n", courseID)
+	fmt.Printf("  Author ID: %d\n", authorID)
+	fmt.Printf("  DB UpdatedAt: %d (%s)\n", course.UpdatedAt, time.Unix(course.UpdatedAt, 0).Format(time.RFC3339))
+	fmt.Printf("  Expected UpdatedAt: %d (%s)\n", expectedUpdatedAt, time.Unix(expectedUpdatedAt, 0).Format(time.RFC3339))
+	fmt.Printf("  Time Match: %v\n", course.UpdatedAt == expectedUpdatedAt)
 
 	// 使用事务确保数据一致性
 	return c.db.Transaction(func(tx *gorm.DB) error {
@@ -156,23 +166,30 @@ func (c *CourseDaoImpl) DeleteCourse(courseID, authorID uint, expectedUpdatedAt 
 			Delete(&course)
 
 		if result.Error != nil {
+			fmt.Printf("DeleteCourse: delete operation failed - %v\n", result.Error)
 			return fmt.Errorf("删除课程失败: %w", result.Error)
 		}
 
 		if result.RowsAffected == 0 {
+			fmt.Printf("DeleteCourse: optimistic lock failed - no rows affected\n")
 			return errors.New("课程已被其他用户修改，请刷新后重试")
 		}
 
+		fmt.Printf("DeleteCourse: course deleted successfully, affected rows: %d\n", result.RowsAffected)
+
 		// 删除课程的所有课时关联
 		if err := tx.Where("course_id = ?", courseID).Delete(&model.LessonCourse{}).Error; err != nil {
+			fmt.Printf("DeleteCourse: failed to delete lesson associations - %v\n", err)
 			return fmt.Errorf("删除课时关联失败: %w", err)
 		}
 
 		// 删除课程与班级的关联
 		if err := tx.Where("course_id = ?", courseID).Delete(&model.ClassCourse{}).Error; err != nil {
+			fmt.Printf("DeleteCourse: failed to delete class associations - %v\n", err)
 			return fmt.Errorf("删除班级关联失败: %w", err)
 		}
 
+		fmt.Printf("DeleteCourse: all associations deleted successfully\n")
 		return nil
 	})
 }
