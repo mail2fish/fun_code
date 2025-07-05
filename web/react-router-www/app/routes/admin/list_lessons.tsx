@@ -397,6 +397,14 @@ export default function ListLessonsPage() {
   const requestInProgress = React.useRef(false)
   const REQUEST_INTERVAL = 300
 
+  // 保存当前课件数据的引用，避免循环依赖
+  const lessonsRef = React.useRef<Lesson[]>([])
+  
+  // 同步 lessons 状态到 ref
+  React.useEffect(() => {
+    lessonsRef.current = lessons
+  }, [lessons])
+
   // 数据请求核心函数
   const fetchData = React.useCallback(async ({ 
     direction, 
@@ -426,7 +434,7 @@ export default function ListLessonsPage() {
     let beginID = "0"
     let forward = true
     const asc = sortOrder === "asc"
-    const currentLessons = lessons
+    const currentLessons = lessonsRef.current
     
     if (reset && customBeginID) {
       beginID = customBeginID
@@ -451,7 +459,10 @@ export default function ListLessonsPage() {
       if (reset) {
         setLessons(newLessons)
         setTotal(meta.total || 0)
-        setHasMoreTop(true)
+        // 初始加载时，根据排序方向和数据情况判断是否有更多历史数据
+        // 如果是降序（最新优先），初始加载时通常没有更多历史数据
+        // 如果是升序（最旧优先），初始加载时可能有更多历史数据
+        setHasMoreTop(false)
         setHasMoreBottom(meta.has_next || false)
         setInitialLoading(false)
         return
@@ -476,7 +487,7 @@ export default function ListLessonsPage() {
           })
           
           // 检查是否有新的唯一数据
-          const prevIds = new Set(lessons.map(lesson => lesson.id))
+          const prevIds = new Set(currentLessons.map(lesson => lesson.id))
           const uniqueCount = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id)).length
           
           if (uniqueCount === 0) {
@@ -509,7 +520,7 @@ export default function ListLessonsPage() {
           })
           
           // 检查是否有新的唯一数据
-          const prevIds = new Set(lessons.map(lesson => lesson.id))
+          const prevIds = new Set(currentLessons.map(lesson => lesson.id))
           const uniqueCount = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id)).length
           
           const newHasMoreBottom = (meta.has_next || false) && uniqueCount > 0
@@ -529,13 +540,33 @@ export default function ListLessonsPage() {
       if (direction === "down") setLoadingBottom(false)
       requestInProgress.current = false
     }
-  }, [lessons, sortOrder])
+  }, [sortOrder])
 
   // 初始化数据加载
   const initializeData = React.useCallback(async () => {
     setInitialLoading(true)
-    await fetchData({ direction: "down", reset: true, customBeginID: "0" })
-  }, [fetchData])
+    
+    // 直接调用API而不是通过fetchData，避免循环依赖
+    try {
+      const pageSize = 20
+      const asc = sortOrder === "asc"
+      const response = await getLessons("", "0", pageSize, true, asc)
+      const newLessons = response.data || []
+      const meta = response.meta || {}
+
+      setLessons(newLessons)
+      setTotal(meta.total || 0)
+      setHasMoreTop(false)
+      setHasMoreBottom(meta.has_next || false)
+      setInitialLoading(false)
+    } catch (error) {
+      console.error("加载初始数据失败:", error)
+      setLessons([])
+      setTotal(0)
+      setInitialLoading(false)
+      toast.error("加载数据失败")
+    }
+  }, [sortOrder])
 
   // 滚动处理
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -557,18 +588,34 @@ export default function ListLessonsPage() {
     if (!initialLoading) {
       const handleSortChange = async () => {
         setSelectedLessons([])
-        setHasMoreTop(true)
+        setHasMoreTop(false)
         setHasMoreBottom(true)
-        await fetchData({ direction: "down", reset: true, customBeginID: "0" })
+        
+        // 直接调用API而不是通过fetchData，避免循环依赖
+        try {
+          const pageSize = 20
+          const asc = sortOrder === "asc"
+          const response = await getLessons("", "0", pageSize, true, asc)
+          const newLessons = response.data || []
+          const meta = response.meta || {}
+
+          setLessons(newLessons)
+          setTotal(meta.total || 0)
+          setHasMoreTop(false)
+          setHasMoreBottom(meta.has_next || false)
+        } catch (error) {
+          console.error("加载排序数据失败:", error)
+          toast.error("加载数据失败")
+        }
       }
       handleSortChange()
     }
-  }, [sortOrder])
+  }, [sortOrder, initialLoading])
 
   // 初始化
   React.useEffect(() => {
     initializeData()
-  }, [])
+  }, [initializeData])
 
   // 原生滚动事件绑定
   React.useEffect(() => {
@@ -611,7 +658,7 @@ export default function ListLessonsPage() {
     }
     
     return cleanup
-  }, [hasMoreTop, hasMoreBottom, loadingTop, loadingBottom])
+  }, [hasMoreTop, hasMoreBottom, loadingTop, loadingBottom, fetchData])
 
   // 顶部位置自动检测
   React.useEffect(() => {
@@ -629,15 +676,32 @@ export default function ListLessonsPage() {
     const timer = setTimeout(checkTopPosition, 500)
     
     return () => clearTimeout(timer)
-  }, [lessons.length, hasMoreTop, loadingTop])
+  }, [lessons.length, hasMoreTop, loadingTop, fetchData])
 
   // 刷新数据
   const refreshData = React.useCallback(async () => {
     setSelectedLessons([])
-    setHasMoreTop(true)
+    setHasMoreTop(false)
     setHasMoreBottom(true)
-    await fetchData({ direction: "down", reset: true, customBeginID: "0" })
-  }, [])
+    
+    // 直接调用API而不是通过fetchData，避免循环依赖
+    try {
+      const pageSize = 20
+      const asc = sortOrder === "asc"
+      const response = await getLessons("", "0", pageSize, true, asc)
+      const newLessons = response.data || []
+      const meta = response.meta || {}
+
+      setLessons(newLessons)
+      setTotal(meta.total || 0)
+      setHasMoreTop(false)
+      setHasMoreBottom(meta.has_next || false)
+      setInitialLoading(false)
+    } catch (error) {
+      console.error("刷新数据失败:", error)
+      toast.error("刷新数据失败")
+    }
+  }, [sortOrder])
 
   // 课件选择
   const handleLessonSelect = React.useCallback((lessonId: number, checked: boolean) => {

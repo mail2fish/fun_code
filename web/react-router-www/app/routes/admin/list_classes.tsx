@@ -119,6 +119,14 @@ export default function ListClassesPage() {
   const requestInProgress = React.useRef(false)
   const REQUEST_INTERVAL = 300 // 请求间隔300ms
 
+  // 保存当前班级数据的引用，避免循环依赖
+  const classesRef = React.useRef<Class[]>([])
+  
+  // 同步 classes 状态到 ref
+  React.useEffect(() => {
+    classesRef.current = classes
+  }, [classes])
+
   // 格式化日期
   const formatDate = (dateString?: string) => {
     if (!dateString) return "未知日期"
@@ -169,7 +177,7 @@ export default function ListClassesPage() {
     let beginID = "0"
     let forward = true
     const asc = sortOrder === "asc"
-    const currentClasses = classes
+    const currentClasses = classesRef.current
     
     if (reset && customBeginID) {
       beginID = customBeginID
@@ -194,7 +202,10 @@ export default function ListClassesPage() {
       if (reset) {
         setClasses(newClasses)
         setTotal(meta.total || 0)
-        setHasMoreTop(true)
+        // 初始加载时，根据排序方向和数据情况判断是否有更多历史数据
+        // 如果是降序（最新优先），初始加载时通常没有更多历史数据
+        // 如果是升序（最旧优先），初始加载时可能有更多历史数据
+        setHasMoreTop(false)
         setHasMoreBottom(meta.has_next || false)
         setInitialLoading(false)
         return
@@ -219,7 +230,7 @@ export default function ListClassesPage() {
           })
           
           // 检查是否有新的唯一数据
-          const prevIds = new Set(classes.map(classItem => classItem.id))
+          const prevIds = new Set(currentClasses.map(classItem => classItem.id))
           const uniqueCount = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id)).length
           
           if (uniqueCount === 0) {
@@ -252,7 +263,7 @@ export default function ListClassesPage() {
           })
           
           // 检查是否有新的唯一数据
-          const prevIds = new Set(classes.map(classItem => classItem.id))
+          const prevIds = new Set(currentClasses.map(classItem => classItem.id))
           const uniqueCount = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id)).length
           
           const newHasMoreBottom = (meta.has_next || false) && uniqueCount > 0
@@ -272,13 +283,33 @@ export default function ListClassesPage() {
       if (direction === "down") setLoadingBottom(false)
       requestInProgress.current = false
     }
-  }, [classes, sortOrder])
+  }, [sortOrder])
 
   // 初始化数据加载
   const initializeData = React.useCallback(async () => {
     setInitialLoading(true)
-    await fetchData({ direction: "down", reset: true, customBeginID: "0" })
-  }, [fetchData])
+    
+    // 直接调用API而不是通过fetchData，避免循环依赖
+    try {
+      const pageSize = 20
+      const asc = sortOrder === "asc"
+      const response = await getClasses("0", pageSize, true, asc)
+      const newClasses = response.data || []
+      const meta = response.meta || {}
+
+      setClasses(newClasses)
+      setTotal(meta.total || 0)
+      setHasMoreTop(false)
+      setHasMoreBottom(meta.has_next || false)
+      setInitialLoading(false)
+    } catch (error) {
+      console.error("加载初始数据失败:", error)
+      setClasses([])
+      setTotal(0)
+      setInitialLoading(false)
+      toast.error("加载数据失败")
+    }
+  }, [sortOrder])
 
   // 滚动处理
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -299,25 +330,58 @@ export default function ListClassesPage() {
   React.useEffect(() => {
     if (!initialLoading) {
       const handleSortChange = async () => {
-        setHasMoreTop(true)
+        setHasMoreTop(false)
         setHasMoreBottom(true)
-        await fetchData({ direction: "down", reset: true, customBeginID: "0" })
+        
+        // 直接调用API而不是通过fetchData，避免循环依赖
+        try {
+          const pageSize = 20
+          const asc = sortOrder === "asc"
+          const response = await getClasses("0", pageSize, true, asc)
+          const newClasses = response.data || []
+          const meta = response.meta || {}
+
+          setClasses(newClasses)
+          setTotal(meta.total || 0)
+          setHasMoreTop(false)
+          setHasMoreBottom(meta.has_next || false)
+        } catch (error) {
+          console.error("加载排序数据失败:", error)
+          toast.error("加载数据失败")
+        }
       }
       handleSortChange()
     }
-  }, [sortOrder])
+  }, [sortOrder, initialLoading])
 
   // 初始化
   React.useEffect(() => {
     initializeData()
-  }, [])
+  }, [initializeData])
 
   // 刷新数据
   const refreshData = React.useCallback(async () => {
-    setHasMoreTop(true)
+    setHasMoreTop(false)
     setHasMoreBottom(true)
-    await fetchData({ direction: "down", reset: true, customBeginID: "0" })
-  }, [])
+    
+    // 直接调用API而不是通过fetchData，避免循环依赖
+    try {
+      const pageSize = 20
+      const asc = sortOrder === "asc"
+      const response = await getClasses("0", pageSize, true, asc)
+      const newClasses = response.data || []
+      const meta = response.meta || {}
+
+      setClasses(newClasses)
+      setTotal(meta.total || 0)
+      setHasMoreTop(false)
+      setHasMoreBottom(meta.has_next || false)
+      setInitialLoading(false)
+    } catch (error) {
+      console.error("刷新数据失败:", error)
+      toast.error("刷新数据失败")
+    }
+  }, [sortOrder])
 
   // 处理删除班级
   const handleDeleteClass = async (id: string) => {
