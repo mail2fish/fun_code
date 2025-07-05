@@ -142,7 +142,10 @@ export default function ListUsersPage() {
 
       if (reset) {
         setUsers(newUsers)
-        setHasMoreTop(true)
+        // 初始加载时，根据排序方向和数据情况判断是否有更多历史数据
+        // 如果是降序（最新优先），初始加载时通常没有更多历史数据
+        // 如果是升序（最旧优先），初始加载时可能有更多历史数据
+        setHasMoreTop(false)
         setHasMoreBottom(resp.meta?.has_next || false)
         setInitialLoading(false)
         return
