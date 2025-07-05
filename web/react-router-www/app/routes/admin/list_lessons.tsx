@@ -58,8 +58,6 @@ interface Lesson {
   }[]
 }
 
-// 去除虚拟化，使用普通表格
-
 // 课件表格行组件
 function LessonRow({ 
   lesson, 
@@ -251,7 +249,7 @@ function LessonTable({
           </div>
         )}
         
-        {/* 顶部提示 - 提醒用户可以获取更多历史数据 */}
+        {/* 顶部提示 */}
         {!loadingTop && hasMoreTop && lessons.length > 0 && (
           <div className="flex items-center justify-center py-3 bg-green-50 border border-green-200 rounded-lg mx-4 my-2">
             <span className="text-green-700 text-sm">
@@ -330,61 +328,26 @@ function LessonTable({
 // 获取课件列表API
 async function getLessons(courseId = "", beginID = "0", pageSize = 20, forward = true, asc = false) {
   try {
-    console.log(`\n======== 🌐 API请求开始 ========`)
-    console.log(`📋 请求参数:`)
-    console.log(`  - courseId: "${courseId}"`)
-    console.log(`  - beginID: "${beginID}"`)
-    console.log(`  - pageSize: ${pageSize}`)
-    console.log(`  - forward: ${forward}`)
-    console.log(`  - asc: ${asc}`)
-    
     const params = new URLSearchParams()
     params.append('pageSize', pageSize.toString())
     params.append('asc', asc.toString())
     params.append('forward', forward.toString())
-    // 始终传递beginID，包括"0"值
     params.append('beginID', beginID.toString())
     if (courseId) {
       params.append('courseId', courseId)
     }
     
-    console.log(`🔧 URL参数构造:`)
-    console.log(`  - 原始beginID: "${beginID}"`)
-    console.log(`  - toString后: "${beginID.toString()}"`)
-    console.log(`  - 是否添加beginID: true (强制添加)`)
-    console.log(`  - 所有参数: ${params.toString()}`)
-    
     const url = `${HOST_URL}/api/admin/lessons?${params.toString()}`
-    console.log(`🔗 请求URL: ${url}`)
-    console.log(`⏰ 发送时间: ${new Date().toISOString()}`)
-    
     const response = await fetchWithAuth(url)
-    console.log(`📨 响应状态: ${response.status} ${response.statusText}`)
     
     if (!response.ok) {
-      console.error(`❌ API错误: ${response.status} ${response.statusText}`)
       throw new Error(`API 错误: ${response.status}`)
     }
     
     const result = await response.json()
-    console.log(`📦 响应详情:`)
-    console.log(`  - 数据条数: ${result.data?.length || 0}`)
-    console.log(`  - meta.total: ${result.meta?.total}`)
-    console.log(`  - meta.has_next: ${result.meta?.has_next}`)
-    if (result.data && result.data.length > 0) {
-      const firstItem = result.data[0]
-      const lastItem = result.data[result.data.length - 1]
-      console.log(`  - 数据ID范围: ${firstItem.id} ~ ${lastItem.id}`)
-      console.log(`  - 首条数据: ID=${firstItem.id}, title="${firstItem.title}"`)
-      console.log(`  - 末条数据: ID=${lastItem.id}, title="${lastItem.title}"`)
-    }
-    console.log(`⏰ 响应时间: ${new Date().toISOString()}`)
-    console.log(`======== 🌐 API请求结束 ========\n`)
-    
     return result
   } catch (error) {
-    console.error(`❌ API请求异常:`, error)
-    console.log(`======== 🌐 API请求异常结束 ========\n`)
+    console.error("获取课件列表失败:", error)
     throw error
   }
 }
@@ -432,13 +395,9 @@ export default function ListLessonsPage() {
   // 防并发和节流控制
   const [lastRequestTime, setLastRequestTime] = React.useState(0)
   const requestInProgress = React.useRef(false)
-  const REQUEST_INTERVAL = 300 // 请求间隔300ms，更快响应
+  const REQUEST_INTERVAL = 300
 
-  // 删除localStorage缓存逻辑
-
-  // 保留requestInProgress ref用于防并发控制
-
-  // 数据请求核心函数 - 移除循环依赖
+  // 数据请求核心函数
   const fetchData = React.useCallback(async ({ 
     direction, 
     reset = false, 
@@ -450,28 +409,13 @@ export default function ListLessonsPage() {
   }) => {
     const now = Date.now()
     
-    console.log(`\n======== 📡 fetchData 开始 ========`)
-    console.log(`🎯 方向: ${direction}`)
-    console.log(`🔄 重置: ${reset}`)
-    console.log(`📍 自定义beginID: ${customBeginID}`)
-    console.log(`⏰ 当前时间: ${now}`)
-    console.log(`⏱️ 上次请求时间: ${lastRequestTime}`)
-    console.log(`🛡️ 请求进行中: ${requestInProgress.current}`)
-    
     // 防并发检查
     if (requestInProgress.current) {
-      console.log(`❌ 请求被阻止 - 上一个请求正在进行中`)
-      console.log(`======== 📡 fetchData 结束 ========\n`)
       return
     }
     
-    // 时间间隔检查 - 但向上翻页时放宽限制
+    // 时间间隔检查
     if (!reset && now - lastRequestTime < REQUEST_INTERVAL) {
-      const waitTime = REQUEST_INTERVAL - (now - lastRequestTime)
-      console.log(`⚠️ 请求时间间隔检查: ${now - lastRequestTime}ms < ${REQUEST_INTERVAL}ms`)
-      console.log(`❌ 请求被阻止 - 时间间隔不足，还需等待 ${waitTime}ms`)
-      console.log(`🎯 方向: ${direction}, 上次请求时间: ${lastRequestTime}`)
-      console.log(`======== 📡 fetchData 结束 ========\n`)
       return
     }
     
@@ -484,109 +428,49 @@ export default function ListLessonsPage() {
     const asc = sortOrder === "asc"
     const currentLessons = lessons
     
-    console.log(`📊 当前数据状态:`)
-    console.log(`  - 当前课件数量: ${currentLessons.length}`)
-    console.log(`  - 排序方式: ${asc ? 'ASC' : 'DESC'}`)
-    console.log(`  - ID范围: ${currentLessons[0]?.id || 'N/A'} ~ ${currentLessons[currentLessons.length-1]?.id || 'N/A'}`)
-    
     if (reset && customBeginID) {
       beginID = customBeginID
-      console.log(`🎯 使用重置模式，beginID: ${beginID}`)
     } else if (!reset && currentLessons.length > 0) {
       if (direction === "up") {
         beginID = currentLessons[0].id.toString()
         forward = false
-        console.log(`⬆️ 向上翻页设置:`)
-        console.log(`  - 当前第一条ID: ${currentLessons[0].id}`)
-        console.log(`  - 当前最后一条ID: ${currentLessons[currentLessons.length - 1].id}`)
-        console.log(`  - 使用beginID: ${beginID}`)
-        console.log(`  - forward: ${forward}`)
-        console.log(`  - asc: ${asc}`)
       } else {
         beginID = currentLessons[currentLessons.length - 1].id.toString()
         forward = true
-        console.log(`⬇️ 向下翻页设置:`)
-        console.log(`  - 当前第一条ID: ${currentLessons[0].id}`)
-        console.log(`  - 当前最后一条ID: ${currentLessons[currentLessons.length - 1].id}`)
-        console.log(`  - 使用beginID: ${beginID}`)
-        console.log(`  - forward: ${forward}`)
-        console.log(`  - asc: ${asc}`)
       }
-    } else {
-      console.log(`🚀 初始加载，beginID: ${beginID}`)
     }
     
     if (direction === "up") setLoadingTop(true)
     if (direction === "down") setLoadingBottom(true)
     
     try {
-      console.log(`\n🌐 API 请求参数:`)
-      console.log(`  - beginID: "${beginID}" (类型: ${typeof beginID})`)
-      console.log(`  - pageSize: ${pageSize}`)
-      console.log(`  - forward: ${forward}`)
-      console.log(`  - asc: ${asc}`)
-      console.log(`  - 完整调用: getLessons("", "${beginID}", ${pageSize}, ${forward}, ${asc})`)
-      
       const response = await getLessons("", beginID, pageSize, forward, asc)
       const newLessons = response.data || []
       const meta = response.meta || {}
       
-      console.log(`\n📥 API 响应:`)
-      console.log(`  - 返回数据条数: ${newLessons.length}`)
-      console.log(`  - meta.total: ${meta.total}`)
-      console.log(`  - meta.has_next: ${meta.has_next}`)
-      if (newLessons.length > 0) {
-        console.log(`  - 返回数据ID范围: ${newLessons[0]?.id} ~ ${newLessons[newLessons.length-1]?.id}`)
-      }
-      
       if (reset) {
-        console.log(`\n🔄 重置模式处理:`)
         setLessons(newLessons)
         setTotal(meta.total || 0)
         setHasMoreTop(true)
         setHasMoreBottom(meta.has_next || false)
         setInitialLoading(false)
-        
-        // 重置完成，不需要缓存
-        console.log(`  - 设置lessons: ${newLessons.length}条`)
-        console.log(`  - 设置total: ${meta.total}`)
-        console.log(`  - 设置hasMoreTop: true`)
-        console.log(`  - 设置hasMoreBottom: ${meta.has_next}`)
-        console.log(`  - 设置initialLoading: false`)
-        console.log(`✅ 重置完成`)
-        console.log(`======== 📡 fetchData 结束 ========\n`)
         return
       }
       
       if (direction === "up") {
-        console.log(`\n⬆️ 向上翻页处理:`)
         if (newLessons.length === 0) {
-          console.log(`  - ❌ 向上翻页返回空数据！！！`)
-          console.log(`  - ❌ 设置hasMoreTop: false`)
           setHasMoreTop(false)
         } else {
-          // 记录当前滚动状态，用于后续调整
+          // 记录当前滚动状态
           const container = document.querySelector('.overflow-auto') as HTMLDivElement
           const wasAtTop = container ? container.scrollTop === 0 : false
-          console.log(`  - 📍 滚动状态检查: 是否在顶部=${wasAtTop}`)
           
           setLessons(prev => {
-            // 去重合并：移除重复的ID
             const prevIds = new Set(prev.map(lesson => lesson.id))
             const uniqueNewLessons = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id))
             
             const merged = [...uniqueNewLessons, ...prev]
-            // 增加窗口大小到50条，向上翻页保留历史数据
             const trimmed = merged.slice(0, 50)
-            
-            console.log(`  - 合并前: ${prev.length}条 (${prev[0]?.id}~${prev[prev.length-1]?.id})`)
-            console.log(`  - 新数据: ${newLessons.length}条 (${newLessons[0]?.id}~${newLessons[newLessons.length-1]?.id})`)
-            console.log(`  - 去重后新数据: ${uniqueNewLessons.length}条`)
-            if (uniqueNewLessons.length > 0) {
-              console.log(`  - 去重后ID范围: ${uniqueNewLessons[0]?.id}~${uniqueNewLessons[uniqueNewLessons.length-1]?.id}`)
-            }
-            console.log(`  - 合并后: ${merged.length}条 (${merged[0]?.id}~${merged[merged.length-1]?.id})`)
-            console.log(`  - 裁剪到: ${trimmed.length}条 (${trimmed[0]?.id}~${trimmed[trimmed.length-1]?.id})`)
             
             return trimmed
           })
@@ -595,57 +479,31 @@ export default function ListLessonsPage() {
           const prevIds = new Set(lessons.map(lesson => lesson.id))
           const uniqueCount = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id)).length
           
-          console.log(`  - 📊 向上翻页返回数据量: ${newLessons.length}/${pageSize}`)
-          console.log(`  - 📊 去重后唯一数据量: ${uniqueCount}`)
-          
           if (uniqueCount === 0) {
-            console.log(`  - ❌ 向上翻页没有新的唯一数据，设置hasMoreTop: false`)
             setHasMoreTop(false)
           } else {
-            console.log(`  - ✅ 向上翻页有${uniqueCount}条新数据，保持hasMoreTop: true`)
-            // 向上翻页成功且有新数据，重新启用向下翻页
-            console.log(`  - 🔄 向上翻页成功，重新启用hasMoreBottom: true`)
             setHasMoreBottom(true)
             
-            // 🔧 关键修复：如果用户在顶部加载了新数据，调整滚动位置让用户能继续向上滚动
+            // 调整滚动位置
             if (wasAtTop && container && uniqueCount > 0) {
-              console.log(`  - 🎯 检测到顶部加载，调整滚动位置以启用继续滚动`)
-              // 延迟调整滚动位置，确保DOM更新完成
               setTimeout(() => {
-                // 滚动到一个小的位置（约2行的高度），让用户能继续向上滚动
-                const rowHeight = 60 // 估算每行高度
+                const rowHeight = 60
                 const newScrollTop = rowHeight * 2
                 container.scrollTop = newScrollTop
-                console.log(`  - ✅ 已调整滚动位置从0到${newScrollTop}px，现在可以继续向上滚动`)
               }, 100)
             }
           }
-          console.log(`  - 向上加载完成`)
         }
       } else {
-        console.log(`\n⬇️ 向下翻页处理:`)
         if (newLessons.length === 0) {
-          console.log(`  - ❌ 向下翻页返回空数据！！！`)
-          console.log(`  - ❌ 设置hasMoreBottom: false`)
           setHasMoreBottom(false)
         } else {
           setLessons(prev => {
-            // 去重合并：移除重复的ID
             const prevIds = new Set(prev.map(lesson => lesson.id))
             const uniqueNewLessons = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id))
             
             const merged = [...prev, ...uniqueNewLessons]
-            // 增加窗口大小到50条，向下翻页优先保留新数据
             const trimmed = merged.slice(-50)
-            
-            console.log(`  - 合并前: ${prev.length}条 (${prev[0]?.id}~${prev[prev.length-1]?.id})`)
-            console.log(`  - 新数据: ${newLessons.length}条 (${newLessons[0]?.id}~${newLessons[newLessons.length-1]?.id})`)
-            console.log(`  - 去重后新数据: ${uniqueNewLessons.length}条`)
-            if (uniqueNewLessons.length > 0) {
-              console.log(`  - 去重后ID范围: ${uniqueNewLessons[0]?.id}~${uniqueNewLessons[uniqueNewLessons.length-1]?.id}`)
-            }
-            console.log(`  - 合并后: ${merged.length}条 (${merged[0]?.id}~${merged[merged.length-1]?.id})`)
-            console.log(`  - 裁剪到: ${trimmed.length}条 (${trimmed[0]?.id}~${trimmed[trimmed.length-1]?.id})`)
             
             return trimmed
           })
@@ -654,167 +512,98 @@ export default function ListLessonsPage() {
           const prevIds = new Set(lessons.map(lesson => lesson.id))
           const uniqueCount = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id)).length
           
-          console.log(`  - 📊 向下翻页返回数据量: ${newLessons.length}/${pageSize}`)
-          console.log(`  - 📊 去重后唯一数据量: ${uniqueCount}`)
-          console.log(`  - API meta.has_next: ${meta.has_next}`)
-          
-          // 综合判断是否还有更多数据
           const newHasMoreBottom = (meta.has_next || false) && uniqueCount > 0
-          console.log(`  - 设置hasMoreBottom: ${newHasMoreBottom}`)
-          
-          if (uniqueCount === 0) {
-            console.log(`  - ❌ 向下翻页没有新的唯一数据，设置hasMoreBottom: false`)
-          } else if (!meta.has_next) {
-            console.log(`  - ⚠️ API表示无更多数据，设置hasMoreBottom: false`)
-          } else {
-            console.log(`  - ✅ 向下翻页有${uniqueCount}条新数据且API有更多，保持hasMoreBottom: true`)
-          }
-          
           setHasMoreBottom(newHasMoreBottom)
           
-          // 向下翻页成功且有新数据，重新启用向上翻页
           if (uniqueCount > 0) {
-            console.log(`  - 🔄 向下翻页成功，重新启用hasMoreTop: true`)
             setHasMoreTop(true)
           }
-          console.log(`  - 向下加载完成`)
         }
       }
       
     } catch (error) {
-      console.error(`❌ API请求失败:`, error)
+      console.error("API请求失败:", error)
       toast.error("加载数据失败")
     } finally {
       if (direction === "up") setLoadingTop(false)
       if (direction === "down") setLoadingBottom(false)
       requestInProgress.current = false
-      console.log(`🏁 清理状态: loadingTop/Bottom=false, requestInProgress=false`)
-      console.log(`======== 📡 fetchData 结束 ========\n`)
     }
-  }, [lessons, sortOrder]) // 添加必要依赖
+  }, [lessons, sortOrder])
 
   // 初始化数据加载
   const initializeData = React.useCallback(async () => {
-    console.log(`\n======== 🚀 初始化开始 ========`)
-    console.log(`📱 设置initialLoading: true`)
     setInitialLoading(true)
-    console.log(`📞 调用fetchData进行初始化(beginID="0")...`)
     await fetchData({ direction: "down", reset: true, customBeginID: "0" })
-    console.log(`======== 🚀 初始化结束 ========\n`)
   }, [fetchData])
 
-  // 简化滚动处理 - 模仿project-table.tsx的成功模式
+  // 滚动处理
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget
     const { scrollTop, scrollHeight, clientHeight } = el
     
-    // 强制输出滚动事件 - 确认事件是否触发
-    console.log(`🖱️🖱️🖱️ SCROLL EVENT FIRED! scrollTop=${scrollTop} 🖱️🖱️🖱️`)
-    console.log(`📏 scrollHeight=${scrollHeight}, clientHeight=${clientHeight}`)
-    console.log(`🎯 检测条件: scrollTop === 0 ? ${scrollTop === 0}`)
-    console.log(`🎯 状态检查: hasMoreTop=${hasMoreTop}, loadingTop=${loadingTop}, requestInProgress=${requestInProgress.current}`)
-    
-    // 简单边界检测 - 完全模仿project-table.tsx
+    // 简单边界检测
     if (scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress.current) {
-      console.log(`✅✅✅ 触发向上翻页!!! ✅✅✅`)
       fetchData({ direction: "up" })
-    } else if (scrollTop === 0) {
-      console.log(`❌ 滚动到顶部但翻页被阻止:`)
-      console.log(`  - hasMoreTop: ${hasMoreTop}`)
-      console.log(`  - loadingTop: ${loadingTop}`)
-      console.log(`  - requestInProgress: ${requestInProgress.current}`)
     }
     
     if (scrollHeight - scrollTop - clientHeight < 10 && hasMoreBottom && !loadingBottom && !requestInProgress.current) {
-      console.log(`✅✅✅ 触发向下翻页!!! ✅✅✅`)
       fetchData({ direction: "down" })
     }
   }
 
-  // 监听排序变化 - 直接处理，避免额外的useCallback依赖
+  // 监听排序变化
   React.useEffect(() => {
-    console.log(`\n======== 🔄 排序变化useEffect ========`)
-    console.log(`🎯 当前sortOrder: ${sortOrder}`)
-    console.log(`⏳ initialLoading: ${initialLoading}`)
-    
     if (!initialLoading) {
-      console.log(`✅ 非初始化状态，开始处理排序变化`)
       const handleSortChange = async () => {
-        console.log(`\n🔄 排序变化处理开始:`)
-        console.log(`  - 清空选中项`)
         setSelectedLessons([])
-        console.log(`  - 重置hasMoreTop: true`)
         setHasMoreTop(true)
-        console.log(`  - 重置hasMoreBottom: true`)
         setHasMoreBottom(true)
-        console.log(`  - 调用fetchData重新加载数据`)
         await fetchData({ direction: "down", reset: true, customBeginID: "0" })
-        console.log(`✅ 排序变化处理完成`)
       }
       handleSortChange()
-    } else {
-      console.log(`⏸️ 初始化状态，跳过排序变化处理`)
     }
-    console.log(`======== 🔄 排序变化useEffect结束 ========\n`)
   }, [sortOrder])
 
-  // 初始化 - 只执行一次
+  // 初始化
   React.useEffect(() => {
-    console.log(`\n======== 🎬 组件挂载useEffect ========`)
-    console.log(`🚀 组件首次挂载，开始初始化`)
-    console.log(`📞 调用initializeData()`)
     initializeData()
-    console.log(`======== 🎬 组件挂载useEffect结束 ========\n`)
-  }, []) // 空依赖，只执行一次
+  }, [])
 
-  // 原生滚动事件绑定 - 作为React onScroll的备用方案
+  // 原生滚动事件绑定
   React.useEffect(() => {
-    console.log(`🔧 开始绑定原生滚动事件监听器`)
-    
     const bindScrollListener = () => {
       const container = document.querySelector('.overflow-auto') as HTMLDivElement
       if (!container) {
-        console.log(`❌ 找不到滚动容器，稍后重试`)
         return false
       }
-
-      console.log(`✅ 找到滚动容器，绑定原生滚动事件`)
       
       const nativeScrollHandler = (e: Event) => {
         const target = e.target as HTMLDivElement
         const { scrollTop, scrollHeight, clientHeight } = target
         
-        console.log(`🌟 原生滚动事件触发！scrollTop=${scrollTop}`)
-        
         // 触发向上翻页
         if (scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress.current) {
-          console.log(`🌟 原生事件触发向上翻页`)
           fetchData({ direction: "up" })
         }
         
         // 触发向下翻页  
         if (scrollHeight - scrollTop - clientHeight < 10 && hasMoreBottom && !loadingBottom && !requestInProgress.current) {
-          console.log(`🌟 原生事件触发向下翻页`)
           fetchData({ direction: "down" })
         }
       }
 
       container.addEventListener('scroll', nativeScrollHandler, { passive: true })
-      console.log(`🔧 原生滚动事件监听器已绑定`)
       
       return () => {
         container.removeEventListener('scroll', nativeScrollHandler)
-        console.log(`🔧 原生滚动事件监听器已移除`)
       }
     }
 
-    // 立即尝试绑定
     const cleanup = bindScrollListener()
     
-    // 如果失败，延迟重试
     if (!cleanup) {
       const timer = setTimeout(() => {
-        console.log(`🔄 延迟重试绑定滚动事件`)
         bindScrollListener()
       }, 1000)
       
@@ -822,88 +611,33 @@ export default function ListLessonsPage() {
     }
     
     return cleanup
-  }, [hasMoreTop, hasMoreBottom, loadingTop, loadingBottom]) // 依赖状态变化时重新绑定
+  }, [hasMoreTop, hasMoreBottom, loadingTop, loadingBottom])
 
-  // 顶部位置自动检测 - 解决滚动条在顶部时无法触发事件的问题
+  // 顶部位置自动检测
   React.useEffect(() => {
-    console.log(`🔍 开始顶部位置自动检测`)
-    
     const checkTopPosition = () => {
       const container = document.querySelector('.overflow-auto') as HTMLDivElement
       if (!container) return
       
       const { scrollTop } = container
       
-      // 如果在顶部且可以向上加载且没有正在加载
       if (scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress.current) {
-        console.log(`🎯 检测到在顶部且可以向上加载，自动触发向上翻页`)
         fetchData({ direction: "up" })
       }
     }
     
-    // 延迟检测，确保DOM渲染完成
     const timer = setTimeout(checkTopPosition, 500)
     
     return () => clearTimeout(timer)
-  }, [lessons.length, hasMoreTop, loadingTop]) // 当数据长度变化时重新检测
-
-
-
-  // 状态跟踪 - 监控关键状态变化
-  const prevHasMoreTop = React.useRef(hasMoreTop)
-  const prevHasMoreBottom = React.useRef(hasMoreBottom)
-  
-  React.useEffect(() => {
-    // 检测 hasMore 状态变化
-    if (prevHasMoreTop.current !== hasMoreTop) {
-      console.log(`🔄 hasMoreTop 状态变化: ${prevHasMoreTop.current} -> ${hasMoreTop}`)
-      if (!hasMoreTop) {
-        console.log(`⚠️ hasMoreTop被设置为false！检查调用栈...`)
-        console.trace()
-      }
-      prevHasMoreTop.current = hasMoreTop
-    }
-    
-    if (prevHasMoreBottom.current !== hasMoreBottom) {
-      console.log(`🔄 hasMoreBottom 状态变化: ${prevHasMoreBottom.current} -> ${hasMoreBottom}`)
-      if (!hasMoreBottom) {
-        console.log(`⚠️ hasMoreBottom被设置为false！检查调用栈...`)
-        console.trace()
-      }
-      prevHasMoreBottom.current = hasMoreBottom
-    }
-    
-    console.log(`\n======== 📊 状态跟踪 ========`)
-    console.log(`📈 当前状态快照:`)
-    console.log(`  - lessons.length: ${lessons.length}`)
-    console.log(`  - total: ${total}`)
-    console.log(`  - hasMoreTop: ${hasMoreTop}`)
-    console.log(`  - hasMoreBottom: ${hasMoreBottom}`)
-    console.log(`  - loadingTop: ${loadingTop}`)
-    console.log(`  - loadingBottom: ${loadingBottom}`)
-    console.log(`  - initialLoading: ${initialLoading}`)
-    console.log(`  - sortOrder: ${sortOrder}`)
-    console.log(`  - selectedLessons.length: ${selectedLessons.length}`)
-    console.log(`  - requestInProgress: ${requestInProgress.current}`)
-    if (lessons.length > 0) {
-      console.log(`  - 数据ID范围: ${lessons[0].id} ~ ${lessons[lessons.length-1].id}`)
-    }
-    console.log(`======== 📊 状态跟踪结束 ========\n`)
-  }, [lessons, total, hasMoreTop, hasMoreBottom, loadingTop, loadingBottom, initialLoading, sortOrder, selectedLessons])
+  }, [lessons.length, hasMoreTop, loadingTop])
 
   // 刷新数据
   const refreshData = React.useCallback(async () => {
-    console.log(`\n======== 🔄 手动刷新 ========`)
-    console.log(`🧹 清空选中项`)
     setSelectedLessons([])
-    console.log(`🔄 重置hasMoreTop: true`)
     setHasMoreTop(true)
-    console.log(`🔄 重置hasMoreBottom: true`)
     setHasMoreBottom(true)
-    console.log(`📞 调用fetchData重新加载`)
     await fetchData({ direction: "down", reset: true, customBeginID: "0" })
-    console.log(`======== 🔄 手动刷新完成 ========\n`)
-  }, []) // 空依赖，fetchData不会变化
+  }, [])
 
   // 课件选择
   const handleLessonSelect = React.useCallback((lessonId: number, checked: boolean) => {
@@ -966,8 +700,6 @@ export default function ListLessonsPage() {
                 </span>
               </div>
             )}
-            
-
           </div>
           <div className="flex items-center gap-2">
             {/* 排序控制 */}
@@ -989,7 +721,6 @@ export default function ListLessonsPage() {
               <IconRefresh className="h-4 w-4 mr-1" />
               刷新
             </Button>
-
             
             {/* 新建课件 */}
             <Link 

@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link } from "react-router"
-import { IconPlus, IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconUsers } from "@tabler/icons-react"
+import { IconPlus, IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconUsers, IconLoader, IconRefresh } from "@tabler/icons-react"
 
 import { AdminLayout } from "~/components/admin-layout"
 import { Button } from "~/components/ui/button"
@@ -22,6 +22,8 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table"
+import { Badge } from "~/components/ui/badge"
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "~/components/ui/select"
 import { toast } from "sonner"
 
 // 导入自定义的 fetch 函数
@@ -55,32 +57,22 @@ interface Class {
   courses?: any[] | null
 }
 
-// 班级列表数据类型
-interface ClassesData {
-  classes: Class[]
-  total: number
-  showForward: boolean
-  showBackward: boolean
-  pageSize: number
-  currentPage: number
-}
-
 // 获取班级列表
-async function getClasses(beginID = "0", pageSize = 10, forward = false, asc = false) {
+async function getClasses(beginID = "0", pageSize = 20, forward = true, asc = false) {
   try {
     const params = new URLSearchParams()
     params.append('pageSize', pageSize.toString())
     params.append('asc', asc.toString())
     params.append('forward', forward.toString())
-    if (beginID !== "0") {
-      params.append('beginID', beginID.toString())
-    }
+    params.append('beginID', beginID.toString())
     
     const response = await fetchWithAuth(`${HOST_URL}/api/admin/classes/list?${params.toString()}`)
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`)
     }
-    return await response.json()
+    
+    const result = await response.json()
+    return result
   } catch (error) {
     console.error("获取班级列表失败:", error)
     throw error
@@ -103,22 +95,29 @@ async function deleteClass(id: string) {
   }
 }
 
-const defaultPageSize = 10 // 每页显示的班级数量
+const defaultPageSize = 20 // 每页显示的班级数量
 
 export default function ListClassesPage() {
-  const [classesData, setClassesData] = React.useState<ClassesData>({
-    classes: [],
-    total: 0,
-    showForward: false,
-    showBackward: false,
-    currentPage: 1,
-    pageSize: defaultPageSize
-  })
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  // 基础状态
+  const [classes, setClasses] = React.useState<Class[]>([])
+  const [total, setTotal] = React.useState(0)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
-  // 添加按钮冷却状态
   const [isButtonCooling, setIsButtonCooling] = React.useState(false)
+  
+  // 加载状态
+  const [initialLoading, setInitialLoading] = React.useState(true)
+  const [loadingTop, setLoadingTop] = React.useState(false)
+  const [loadingBottom, setLoadingBottom] = React.useState(false)
+  const [hasMoreTop, setHasMoreTop] = React.useState(true)
+  const [hasMoreBottom, setHasMoreBottom] = React.useState(true)
+  
+  // 排序控制
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc")
+  
+  // 防并发和节流控制
+  const [lastRequestTime, setLastRequestTime] = React.useState(0)
+  const requestInProgress = React.useRef(false)
+  const REQUEST_INTERVAL = 300 // 请求间隔300ms
 
   // 格式化日期
   const formatDate = (dateString?: string) => {
@@ -141,95 +140,197 @@ export default function ListClassesPage() {
     }
   }
 
-  // 加载数据
-  const fetchClasses = async (beginID = "0", forward = false, asc = false) => {
-    try {
-      let page = classesData.currentPage
-      if (beginID === "0") {
-        page = 0
-      }
-
-      let pageSize = defaultPageSize
-      let showForward = false
-      let showBackward = false
-
-      setIsLoading(true)
-      const response = await getClasses(beginID, pageSize, forward, asc)
-
-      // 如果向后翻页
-      if (forward) {        
-        page++
-        if (response.meta?.has_next) {
-          showForward = true
-        }
-        if (page > 1) {
-          showBackward = true
-        }
-      // 如果向前翻页
+  // 数据请求核心函数
+  const fetchData = React.useCallback(async ({ 
+    direction, 
+    reset = false, 
+    customBeginID 
+  }: { 
+    direction: "up" | "down", 
+    reset?: boolean, 
+    customBeginID?: string 
+  }) => {
+    const now = Date.now()
+    
+    // 防并发检查
+    if (requestInProgress.current) {
+      return
+    }
+    
+    // 时间间隔检查
+    if (!reset && now - lastRequestTime < REQUEST_INTERVAL) {
+      return
+    }
+    
+    requestInProgress.current = true
+    setLastRequestTime(now)
+    
+    const pageSize = 20
+    let beginID = "0"
+    let forward = true
+    const asc = sortOrder === "asc"
+    const currentClasses = classes
+    
+    if (reset && customBeginID) {
+      beginID = customBeginID
+    } else if (!reset && currentClasses.length > 0) {
+      if (direction === "up") {
+        beginID = currentClasses[0].id.toString()
+        forward = false
       } else {
-        page--
-        if (page > 1) {
-          showBackward = true
-        }
-        // 只有在有更多数据或不是第一页时才显示向前按钮
-        showForward = response.meta?.has_next || page > 0
+        beginID = currentClasses[currentClasses.length - 1].id.toString()
+        forward = true
       }
-
-      setClassesData({
-        classes: response.data || [],
-        total: response.meta?.total || 0,
-        showForward: response.meta?.has_next || false,
-        showBackward: showBackward,
-        currentPage: page,
-        pageSize: defaultPageSize
-      })
-      setError(null)
+    }
+    
+    if (direction === "up") setLoadingTop(true)
+    if (direction === "down") setLoadingBottom(true)
+    
+    try {
+      const response = await getClasses(beginID, pageSize, forward, asc)
+      const newClasses = response.data || []
+      const meta = response.meta || {}
+      
+      if (reset) {
+        setClasses(newClasses)
+        setTotal(meta.total || 0)
+        setHasMoreTop(true)
+        setHasMoreBottom(meta.has_next || false)
+        setInitialLoading(false)
+        return
+      }
+      
+      if (direction === "up") {
+        if (newClasses.length === 0) {
+          setHasMoreTop(false)
+        } else {
+          // 记录当前滚动状态
+          const container = document.querySelector('.overflow-auto') as HTMLDivElement
+          const wasAtTop = container ? container.scrollTop === 0 : false
+          
+          setClasses(prev => {
+            const prevIds = new Set(prev.map(classItem => classItem.id))
+            const uniqueNewClasses = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id))
+            
+            const merged = [...uniqueNewClasses, ...prev]
+            const trimmed = merged.slice(0, 50)
+            
+            return trimmed
+          })
+          
+          // 检查是否有新的唯一数据
+          const prevIds = new Set(classes.map(classItem => classItem.id))
+          const uniqueCount = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id)).length
+          
+          if (uniqueCount === 0) {
+            setHasMoreTop(false)
+          } else {
+            setHasMoreBottom(true)
+            
+            // 调整滚动位置
+            if (wasAtTop && container && uniqueCount > 0) {
+              setTimeout(() => {
+                const rowHeight = 60
+                const newScrollTop = rowHeight * 2
+                container.scrollTop = newScrollTop
+              }, 100)
+            }
+          }
+        }
+      } else {
+        if (newClasses.length === 0) {
+          setHasMoreBottom(false)
+        } else {
+          setClasses(prev => {
+            const prevIds = new Set(prev.map(classItem => classItem.id))
+            const uniqueNewClasses = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id))
+            
+            const merged = [...prev, ...uniqueNewClasses]
+            const trimmed = merged.slice(-50)
+            
+            return trimmed
+          })
+          
+          // 检查是否有新的唯一数据
+          const prevIds = new Set(classes.map(classItem => classItem.id))
+          const uniqueCount = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id)).length
+          
+          const newHasMoreBottom = (meta.has_next || false) && uniqueCount > 0
+          setHasMoreBottom(newHasMoreBottom)
+          
+          if (uniqueCount > 0) {
+            setHasMoreTop(true)
+          }
+        }
+      }
+      
     } catch (error) {
-      console.error("加载数据失败:", error)
-      setError("加载班级列表失败")
-      setClassesData({
-        classes: [],
-        total: 0,
-        showForward: false,
-        showBackward: false,
-        currentPage: 1,
-        pageSize: defaultPageSize
-      })
+      console.error("API请求失败:", error)
+      toast.error("加载数据失败")
     } finally {
-      setIsLoading(false)
+      if (direction === "up") setLoadingTop(false)
+      if (direction === "down") setLoadingBottom(false)
+      requestInProgress.current = false
+    }
+  }, [classes, sortOrder])
+
+  // 初始化数据加载
+  const initializeData = React.useCallback(async () => {
+    setInitialLoading(true)
+    await fetchData({ direction: "down", reset: true, customBeginID: "0" })
+  }, [fetchData])
+
+  // 滚动处理
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    const { scrollTop, scrollHeight, clientHeight } = el
+    
+    // 简单边界检测
+    if (scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress.current) {
+      fetchData({ direction: "up" })
+    }
+    
+    if (scrollHeight - scrollTop - clientHeight < 10 && hasMoreBottom && !loadingBottom && !requestInProgress.current) {
+      fetchData({ direction: "down" })
     }
   }
 
-  // 初始加载
-  const isFirstRender = React.useRef(true)
-  
+  // 监听排序变化
   React.useEffect(() => {
-    if (isFirstRender.current) {
-      fetchClasses("0", true, false)
-      isFirstRender.current = false
+    if (!initialLoading) {
+      const handleSortChange = async () => {
+        setHasMoreTop(true)
+        setHasMoreBottom(true)
+        await fetchData({ direction: "down", reset: true, customBeginID: "0" })
+      }
+      handleSortChange()
     }
+  }, [sortOrder])
+
+  // 初始化
+  React.useEffect(() => {
+    initializeData()
   }, [])
 
-  // 处理页码变化
-  const handlePageChange = (beginID: string, forward: boolean, asc: boolean) => {
-    fetchClasses(beginID, forward, asc)
-  }
+  // 刷新数据
+  const refreshData = React.useCallback(async () => {
+    setHasMoreTop(true)
+    setHasMoreBottom(true)
+    await fetchData({ direction: "down", reset: true, customBeginID: "0" })
+  }, [])
 
   // 处理删除班级
   const handleDeleteClass = async (id: string) => {
     setDeletingId(id)
     try {
       await deleteClass(id)
-      toast("班级已成功删除")
-      // 删除成功后重新加载当前页
-      if (classesData.classes.length > 0) {
-        fetchClasses(classesData.classes[0].id.toString(), false, false)
-      } else {
-        fetchClasses("0", false, false)
-      }
+      toast.success("班级删除成功")
+      // 从列表中移除已删除的班级
+      setClasses(prev => prev.filter(classItem => classItem.id.toString() !== id))
+      setTotal(prev => prev - 1)
     } catch (error) {
       console.error("删除班级失败:", error)
-      toast("删除班级时出现错误")
+      toast.error("删除班级失败")
     } finally {
       setDeletingId(null)
     }
@@ -248,159 +349,206 @@ export default function ListClassesPage() {
     }, 2000) // 2秒冷却时间
   }
 
-  // 计算总页数
-  const totalPages = classesData.total > 0 ? Math.ceil(classesData.total / classesData.pageSize) : 0
-  const classes = classesData.classes
-  let asc = false
-
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="flex flex-1 flex-col gap-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-medium">班级管理</h3>
-            <p className="text-sm text-muted-foreground">
-              管理所有班级，查看学生和课程信息
-            </p>
+          <div className="flex items-center gap-2">
+            <IconUsers className="h-6 w-6" />
+            <h1 className="text-2xl font-bold">班级管理</h1>
+            <span className="text-sm text-gray-500">
+              (共{total}个, 显示{classes.length}个)
+            </span>
+            {/* 加载状态指示器 */}
+            {(initialLoading || loadingTop || loadingBottom) && (
+              <div className="flex items-center gap-1 ml-4 px-2 py-1 bg-blue-100 rounded-full">
+                <IconLoader className="h-3 w-3 animate-spin text-blue-600" />
+                <span className="text-xs text-blue-600">
+                  {initialLoading ? "初始化" : loadingTop ? "加载历史" : "加载更多"}
+                </span>
+              </div>
+            )}
           </div>
-          <Button 
-            size="sm" 
-            asChild
-            disabled={isButtonCooling}
-          >
-            <Link 
-              to="/www/admin/create_class" 
-              onClick={handleNewClassClick}
-              className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
+          <div className="flex items-center gap-2">
+            {/* 排序控制 */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">📅 排序：</span>
+              <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "asc" | "desc")}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="排序" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">🆕 最新优先</SelectItem>
+                  <SelectItem value="asc">⏰ 最旧优先</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* 刷新按钮 */}
+            <Button variant="outline" size="sm" onClick={refreshData}>
+              <IconRefresh className="h-4 w-4 mr-1" />
+              刷新
+            </Button>
+            
+            <Button 
+              size="sm" 
+              asChild
+              disabled={isButtonCooling}
             >
-              <IconPlus className="mr-2 h-4 w-4" />
-              {isButtonCooling ? "请稍候..." : "创建班级"}
-            </Link>
-          </Button>
+              <Link 
+                to="/www/admin/create_class" 
+                onClick={handleNewClassClick}
+                className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
+              >
+                <IconPlus className="mr-2 h-4 w-4" />
+                {isButtonCooling ? "请稍候..." : "创建班级"}
+              </Link>
+            </Button>
+          </div>
         </div>
 
-        {error && (
-          <div className="bg-destructive/10 text-destructive p-3 rounded-md">
-            {error}
+        {/* 主内容区域 */}
+        {initialLoading ? (
+          <div className="flex h-96 items-center justify-center">
+            <div className="flex items-center space-x-2">
+              <IconLoader className="h-6 w-6 animate-spin" />
+              <span>加载中...</span>
+            </div>
           </div>
-        )}
-        
-        <div className="flex flex-col gap-4">
-          <div className="rounded-xl overflow-hidden border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>班级名称</TableHead>
-                  <TableHead>邀请码</TableHead>
-                  <TableHead>开课日期</TableHead>
-                  <TableHead>结课日期</TableHead>
-                  <TableHead>学生数量</TableHead>
-                  <TableHead>课程数量</TableHead>
-                  <TableHead className="w-[150px]">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
+        ) : (
+          <div className="rounded-md border flex flex-col max-h-[70vh]">
+            <div 
+              className="flex-1 overflow-auto px-1"
+              onScroll={handleScroll}
+            >
+              {/* 向上加载指示器 */}
+              {loadingTop && (
+                <div className="flex items-center justify-center py-4 bg-blue-50 border border-blue-200 rounded-lg mx-4 my-2">
+                  <IconLoader className="h-4 w-4 animate-spin mr-2 text-blue-600" />
+                  <span className="text-blue-700 text-sm">正在加载历史数据...</span>
+                </div>
+              )}
+              
+              {/* 顶部提示 */}
+              {!loadingTop && hasMoreTop && classes.length > 0 && (
+                <div className="flex items-center justify-center py-3 bg-green-50 border border-green-200 rounded-lg mx-4 my-2">
+                  <span className="text-green-700 text-sm">
+                    📚 还有更多历史班级数据，向上滚动或使用按钮加载
+                  </span>
+                </div>
+              )}
+
+              <Table>
+                <TableHeader className="sticky top-0 bg-white z-10">
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      加载中...
-                    </TableCell>
+                    <TableHead className="w-16">ID</TableHead>
+                    <TableHead>班级名称</TableHead>
+                    <TableHead>邀请码</TableHead>
+                    <TableHead>开课日期</TableHead>
+                    <TableHead>结课日期</TableHead>
+                    <TableHead>状态</TableHead>
+                    <TableHead>学生数量</TableHead>
+                    <TableHead>课程数量</TableHead>
+                    <TableHead className="text-right">操作</TableHead>
                   </TableRow>
-                ) : Array.isArray(classes) && classes.length > 0 ? (
-                  classes.map((classItem) => (
-                    <TableRow key={classItem.id || Math.random()}>
-                      <TableCell className="font-medium">
-                        <Link to={`/www/admin/classes/${classItem.id}`}>{classItem.name || "未命名班级"}</Link>
-                      </TableCell>
-                      <TableCell>{classItem.code}</TableCell>
-                                              <TableCell>{formatDate(classItem.start_date)}</TableCell>
-                        <TableCell>{formatDate(classItem.end_date)}</TableCell>
-                        <TableCell>{classItem.count_of_students || 0}</TableCell>
-                        <TableCell>{classItem.count_of_courses || 0}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-       
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            title="编辑"
-                            asChild
-                          >
-                            <Link to={`/www/admin/edit_class/${classItem.id}`}>
-                              <IconEdit className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="icon" title="删除">
-                                <IconTrash className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>确认删除</DialogTitle>
-                                <DialogDescription>
-                                  您确定要删除班级 "{classItem.name}" 吗？此操作将删除所有相关的学生关联和课程安排，但不会删除学生账户和课程内容。此操作无法撤销。
-                                </DialogDescription>
-                              </DialogHeader>
-                              <DialogFooter>
-                                <DialogClose asChild>
-                                  <Button variant="outline">取消</Button>
-                                </DialogClose>
-                                <Button 
-                                  variant="destructive" 
-                                  onClick={() => handleDeleteClass(classItem.id.toString())}
-                                  disabled={deletingId === classItem.id.toString()}
-                                >
-                                  {deletingId === classItem.id.toString() ? "删除中..." : "删除"}
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
+                </TableHeader>
+                <TableBody>
+                  {classes.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="h-24 text-center">
+                        <div className="empty-state">
+                          <IconUsers className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                          <p className="text-gray-500">没有找到班级，点击右上角"创建班级"按钮创建您的第一个班级</p>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      没有找到班级，点击右上角"创建班级"按钮创建您的第一个班级
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          
-          {classesData.total > 0 && (
-            <div className="flex items-center justify-between px-2">
-              <div className="text-sm text-muted-foreground">
-                共 {classesData.total} 个班级，共 {totalPages} 页，当前第 {classesData.currentPage} 页
-              </div>
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  disabled={!classesData.showBackward}
-                  onClick={() => handlePageChange(classes[0].id.toString(), false, asc)}
-                >
-                  <IconChevronLeft className="h-4 w-4" />
-                  上一页
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  disabled={!classesData.showForward}
-                  onClick={() => handlePageChange(classes[classes.length - 1].id.toString(), true, asc)}
-                >
-                  下一页
-                  <IconChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+                  ) : (
+                    classes.map((classItem) => (
+                      <TableRow key={classItem.id}>
+                        <TableCell className="font-medium">{classItem.id}</TableCell>
+                        <TableCell className="font-medium">
+                          <Link to={`/www/admin/classes/${classItem.id}`}>{classItem.name || "未命名班级"}</Link>
+                        </TableCell>
+                        <TableCell>{classItem.code}</TableCell>
+                        <TableCell>{formatDate(classItem.start_date)}</TableCell>
+                        <TableCell>{formatDate(classItem.end_date)}</TableCell>
+                        <TableCell>
+                          <Badge variant={classItem.is_active ? "default" : "secondary"}>
+                            {classItem.is_active ? "活跃" : "停用"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{classItem.count_of_students || 0}</TableCell>
+                        <TableCell>{classItem.count_of_courses || 0}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              title="编辑"
+                              asChild
+                            >
+                              <Link to={`/www/admin/edit_class/${classItem.id}`}>
+                                <IconEdit className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="ghost" size="sm" title="删除">
+                                  <IconTrash className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>确认删除</DialogTitle>
+                                  <DialogDescription>
+                                    您确定要删除班级 "{classItem.name}" 吗？此操作将删除所有相关的学生关联和课程安排，但不会删除学生账户和课程内容。此操作无法撤销。
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter>
+                                  <DialogClose asChild>
+                                    <Button variant="outline">取消</Button>
+                                  </DialogClose>
+                                  <Button 
+                                    variant="destructive" 
+                                    onClick={() => handleDeleteClass(classItem.id.toString())}
+                                    disabled={deletingId === classItem.id.toString()}
+                                  >
+                                    {deletingId === classItem.id.toString() ? "删除中..." : "删除"}
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              {/* 向下加载指示器 */}
+              {loadingBottom && (
+                <div className="flex items-center justify-center py-4 bg-blue-50 border border-blue-200 rounded-lg mx-4 my-2">
+                  <IconLoader className="h-4 w-4 animate-spin mr-2 text-blue-600" />
+                  <span className="text-blue-700 text-sm">正在加载更多数据...</span>
+                </div>
+              )}
+
+              {/* 数据状态提示 */}
+              {classes.length > 0 && (
+                <div className="flex flex-col items-center justify-center py-6 text-gray-500">
+                  <span className="text-sm">
+                    当前显示 {classes.length} 条数据 / 共 {total} 条
+                  </span>
+                  <span className="text-xs mt-1">
+                    ID范围: {classes[0]?.id} ~ {classes[classes.length-1]?.id}
+                    {!hasMoreTop && !hasMoreBottom && " (已加载全部)"}
+                  </span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </AdminLayout>
   )

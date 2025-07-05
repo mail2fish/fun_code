@@ -160,7 +160,7 @@ func (h *Handler) ListClassesHandler(c *gin.Context, params *ListClassesParams) 
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
-	total, err := h.dao.ClassDao.CountClasses(0)
+	total, err := h.dao.ClassDao.CountClasses(userID)
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_CLASS, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}

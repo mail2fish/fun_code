@@ -52,21 +52,11 @@ interface Course {
 // 获取课程列表
 async function getCourses(beginID = "0", pageSize = 20, forward = true, asc = false) {
   try {
-    console.log(`\n======== 🌐 API请求开始 ========`)
-    console.log(`📋 请求参数:`)
-    console.log(`  - beginID: "${beginID}"`)
-    console.log(`  - pageSize: ${pageSize}`)
-    console.log(`  - forward: ${forward}`)
-    console.log(`  - asc: ${asc}`)
-    
     const params = new URLSearchParams()
     params.append('pageSize', pageSize.toString())
     params.append('asc', asc.toString())
     params.append('forward', forward.toString())
-    // 始终传递beginID，包括"0"值
     params.append('beginID', beginID.toString())
-    
-    console.log(`🔗 请求URL: ${HOST_URL}/api/admin/courses?${params.toString()}`)
     
     const response = await fetchWithAuth(`${HOST_URL}/api/admin/courses?${params.toString()}`)
     if (!response.ok) {
@@ -74,12 +64,6 @@ async function getCourses(beginID = "0", pageSize = 20, forward = true, asc = fa
     }
     
     const result = await response.json()
-    console.log(`📦 响应详情:`)
-    console.log(`  - 数据条数: ${result.data?.length || 0}`)
-    console.log(`  - meta.total: ${result.meta?.total}`)
-    console.log(`  - meta.has_next: ${result.meta?.has_next}`)
-    console.log(`======== 🌐 API请求结束 ========\n`)
-    
     return result
   } catch (error) {
     console.error("获取课程列表失败:", error)
@@ -216,7 +200,7 @@ export default function ListCoursePage() {
     return minutes > 0 ? `${hours}小时${minutes}分钟` : `${hours}小时`
   }
 
-  // 数据请求核心函数 - 参考 list_lessons.tsx
+  // 数据请求核心函数
   const fetchData = React.useCallback(async ({ 
     direction, 
     reset = false, 
@@ -228,20 +212,13 @@ export default function ListCoursePage() {
   }) => {
     const now = Date.now()
     
-    console.log(`\n======== 📡 fetchData 开始 ========`)
-    console.log(`🎯 方向: ${direction}`)
-    console.log(`🔄 重置: ${reset}`)
-    console.log(`📍 自定义beginID: ${customBeginID}`)
-    
     // 防并发检查
     if (requestInProgress.current) {
-      console.log(`❌ 请求被阻止 - 上一个请求正在进行中`)
       return
     }
     
     // 时间间隔检查
     if (!reset && now - lastRequestTime < REQUEST_INTERVAL) {
-      console.log(`❌ 请求被阻止 - 时间间隔不足`)
       return
     }
     
@@ -253,10 +230,6 @@ export default function ListCoursePage() {
     let forward = true
     const asc = sortOrder === "asc"
     const currentCourses = courses
-    
-    console.log(`📊 当前数据状态:`)
-    console.log(`  - 当前课程数量: ${currentCourses.length}`)
-    console.log(`  - 排序方式: ${asc ? 'ASC' : 'DESC'}`)
     
     if (reset && customBeginID) {
       beginID = customBeginID
@@ -344,7 +317,7 @@ export default function ListCoursePage() {
       }
       
     } catch (error) {
-      console.error(`❌ API请求失败:`, error)
+      console.error("API请求失败:", error)
       toast.error("加载数据失败")
     } finally {
       if (direction === "up") setLoadingTop(false)
@@ -359,21 +332,17 @@ export default function ListCoursePage() {
     await fetchData({ direction: "down", reset: true, customBeginID: "0" })
   }, [fetchData])
 
-  // 滚动处理 - 参考 list_lessons.tsx
+  // 滚动处理
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget
     const { scrollTop, scrollHeight, clientHeight } = el
     
-    console.log(`🖱️ SCROLL EVENT scrollTop=${scrollTop}`)
-    
     // 简单边界检测
     if (scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress.current) {
-      console.log(`✅ 触发向上翻页`)
       fetchData({ direction: "up" })
     }
     
     if (scrollHeight - scrollTop - clientHeight < 10 && hasMoreBottom && !loadingBottom && !requestInProgress.current) {
-      console.log(`✅ 触发向下翻页`)
       fetchData({ direction: "down" })
     }
   }
@@ -390,7 +359,7 @@ export default function ListCoursePage() {
     }
   }, [sortOrder])
 
-  // 初始化 - 只执行一次
+  // 初始化
   React.useEffect(() => {
     initializeData()
   }, [])
