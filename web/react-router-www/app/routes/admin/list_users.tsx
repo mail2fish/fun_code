@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link } from "react-router"
-import { IconPlus, IconEdit, IconTrash, IconRefresh } from "@tabler/icons-react"
+import { IconPlus, IconEdit, IconTrash, IconRefresh, IconLoader, IconUsers } from "@tabler/icons-react"
 
 import { AdminLayout } from "~/components/admin-layout"
 import { Button } from "~/components/ui/button"
@@ -42,147 +42,81 @@ interface User {
   updated_at: string
 }
 
-// 缓存相关常量
-const CACHE_KEY = 'userTableCacheV1';
-const CACHE_EXPIRE = 60 * 60 * 1000; // 1小时
-
 export default function ListUsersPage() {
-  const [deletingId, setDeletingId] = React.useState<number | null>(null)
-  const [searchKeyword, setSearchKeyword] = React.useState("");
-  const [searching, setSearching] = React.useState(false);
-  
-  // 先尝试从localStorage读取缓存
-  const getInitialCache = () => {
-    if (typeof window === 'undefined') return null;
-    try {
-      const raw = localStorage.getItem(CACHE_KEY);
-      if (!raw) return null;
-      const { data, ts } = JSON.parse(raw);
-      if (Date.now() - ts > CACHE_EXPIRE) return null;
-      return {
-        beginID: 0, // 缓存 beginID 会产生一些奇怪的问题，暂时先禁用
-        sortOrder: data.sortOrder,
-      };
-    } catch {
-      return null;
-    }
-  };
-  const initialCache = getInitialCache();
-  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">(initialCache?.sortOrder || "desc")
-
-  // 无限滚动相关状态
+  // 基础状态
   const [users, setUsers] = React.useState<User[]>([])
-  const [hasMoreTop, setHasMoreTop] = React.useState(true)
-  const [hasMoreBottom, setHasMoreBottom] = React.useState(true)
+  const [total, setTotal] = React.useState(0)
+  const [deletingId, setDeletingId] = React.useState<number | null>(null)
+  const [isButtonCooling, setIsButtonCooling] = React.useState(false)
+  const [searchKeyword, setSearchKeyword] = React.useState("")
+  const [searching, setSearching] = React.useState(false)
+  
+  // 加载状态
+  const [initialLoading, setInitialLoading] = React.useState(true)
   const [loadingTop, setLoadingTop] = React.useState(false)
   const [loadingBottom, setLoadingBottom] = React.useState(false)
-  const [localInitialLoading, setLocalInitialLoading] = React.useState(true)
-  const [totalUsers, setTotalUsers] = React.useState(0)
-  const scrollRef = React.useRef<HTMLDivElement>(null)
-  // 添加按钮冷却状态
-  const [isButtonCooling, setIsButtonCooling] = React.useState(false)
+  const [hasMoreTop, setHasMoreTop] = React.useState(true)
+  const [hasMoreBottom, setHasMoreBottom] = React.useState(true)
+  
+  // 排序控制
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc")
+  
+  // 防并发和节流控制
+  const [lastRequestTime, setLastRequestTime] = React.useState(0)
+  const requestInProgress = React.useRef(false)
+  const REQUEST_INTERVAL = 300
 
-  // 写入缓存
-  const saveCache = React.useCallback((beginID: string) => {
-    if (typeof window === 'undefined') return;
-
-    let bID = parseInt(beginID)
-
-    if (sortOrder === "asc" && bID > 0) {
-      bID = bID - 1
-    } else if (sortOrder === "desc" && bID > 0) {
-      bID = bID + 1
-    }
-    beginID = bID.toString()
-
-    const data = {
-      beginID,
-      sortOrder,
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
-  }, [sortOrder]);
-
-  // 用户名称搜索逻辑（带防抖）
+  // 保存当前用户数据的引用，避免循环依赖
+  const usersRef = React.useRef<User[]>([])
+  
+  // 同步 users 状态到 ref
   React.useEffect(() => {
-    if (!searchKeyword || searchKeyword.length < 1) {
-      // 关键字为空或长度小于1时恢复原有无限滚动逻辑
-      setUsers([]);
-      setHasMoreTop(true);
-      setHasMoreBottom(true);
-      setLocalInitialLoading(true);
-      fetchData({ direction: "down", reset: true, customBeginID: (initialCache?.beginID || 0).toString() });
-      return;
-    }
-    setSearching(true);
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/search?keyword=${encodeURIComponent(searchKeyword)}`);
-        const data = await res.json();
-        
-        if (Array.isArray(data.data)) {
-          setUsers(data.data);
-          setTotalUsers(data.data.length);
-        } else {
-          setUsers([]);
-          setTotalUsers(0);
-        }
-        
-        setHasMoreTop(false);
-        setHasMoreBottom(false);
-        setLocalInitialLoading(false);
-      } catch (error) {
-        console.error("搜索用户失败:", error);
-        setUsers([]);
-        setTotalUsers(0);
-        toast("搜索用户失败");
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchKeyword]);
+    usersRef.current = users
+  }, [users])
 
-  // 监听排序变化，重置缓存并加载初始数据
-  React.useEffect(() => {
-    setUsers([])
-    setHasMoreTop(true)
-    setHasMoreBottom(true)
-    setLocalInitialLoading(true)
-    saveCache((initialCache?.beginID || 0).toString());
-    fetchData({ direction: "down", reset: true, customBeginID: (initialCache?.beginID || 0).toString() })
-    // eslint-disable-next-line
-  }, [sortOrder])
-
-  // 滚动监听
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget
-    if (el.scrollTop === 0 && hasMoreTop && !loadingTop) {
-      fetchData({ direction: "up" })
+  // 数据请求核心函数
+  const fetchData = React.useCallback(async ({ 
+    direction, 
+    reset = false, 
+    customBeginID 
+  }: { 
+    direction: "up" | "down", 
+    reset?: boolean, 
+    customBeginID?: string 
+  }) => {
+    const now = Date.now()
+    
+    // 防并发检查
+    if (requestInProgress.current) {
+      return
     }
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 10 && hasMoreBottom && !loadingBottom) {
-      fetchData({ direction: "down" })
+    
+    // 时间间隔检查
+    if (!reset && now - lastRequestTime < REQUEST_INTERVAL) {
+      return
     }
-  }
-
-  // 数据请求
-  async function fetchData({ direction, reset = false, customBeginID }: { direction: "up" | "down", reset?: boolean, customBeginID?: string }) {
+    
+    requestInProgress.current = true
+    setLastRequestTime(now)
+    
     const pageSize = 20
     let beginID = "0"
     let forward = true
-    let asc = sortOrder === "asc"
-
+    const asc = sortOrder === "asc"
+    const currentUsers = usersRef.current
+    
     if (reset && customBeginID) {
-      beginID = customBeginID;
-    } else if (!reset && users.length > 0) {
+      beginID = customBeginID
+    } else if (!reset && currentUsers.length > 0) {
       if (direction === "up") {
-        beginID = users[0].id.toString()
+        beginID = currentUsers[0].id.toString()
         forward = false
       } else {
-        beginID = users[users.length - 1].id.toString()
+        beginID = currentUsers[currentUsers.length - 1].id.toString()
         forward = true
       }
     }
-
+    
     if (direction === "up") setLoadingTop(true)
     if (direction === "down") setLoadingBottom(true)
     
@@ -203,49 +137,221 @@ export default function ListUsersPage() {
 
       // 设置总数
       if (resp.meta?.total !== undefined) {
-        setTotalUsers(resp.meta.total);
+        setTotal(resp.meta.total);
       }
 
       if (reset) {
         setUsers(newUsers)
         setHasMoreTop(true)
-        setHasMoreBottom(true)
-        setLocalInitialLoading(false)
-        // 缓存第一页的beginID
-        if (newUsers.length > 0) {
-          saveCache(newUsers[0].id.toString())
-        } else {
-          saveCache("0")
-        }
+        setHasMoreBottom(resp.meta?.has_next || false)
+        setInitialLoading(false)
         return
       }
 
       if (direction === "up") {
-        if (newUsers.length === 0) setHasMoreTop(false)
-        setUsers(prev => {
-          const merged = [...newUsers, ...prev]
-          let mergedUsers = merged.slice(0, 50)
-          if (mergedUsers.length > 0) saveCache(mergedUsers[0].id.toString())
-          return mergedUsers
-        })
+        if (newUsers.length === 0) {
+          setHasMoreTop(false)
+        } else {
+          // 记录当前滚动状态
+          const container = document.querySelector('.overflow-auto') as HTMLDivElement
+          const wasAtTop = container ? container.scrollTop === 0 : false
+          
+          setUsers(prev => {
+            const prevIds = new Set(prev.map(user => user.id))
+            const uniqueNewUsers = newUsers.filter((user: User) => !prevIds.has(user.id))
+            
+            const merged = [...uniqueNewUsers, ...prev]
+            const trimmed = merged.slice(0, 50) // 滑动窗口缓存
+            
+            return trimmed
+          })
+          
+          // 检查是否有新的唯一数据
+          const prevIds = new Set(currentUsers.map(user => user.id))
+          const uniqueCount = newUsers.filter((user: User) => !prevIds.has(user.id)).length
+          
+          if (uniqueCount === 0) {
+            setHasMoreTop(false)
+          } else {
+            setHasMoreBottom(true)
+            
+            // 调整滚动位置
+            if (wasAtTop && container && uniqueCount > 0) {
+              setTimeout(() => {
+                const rowHeight = 60
+                const newScrollTop = rowHeight * 2
+                container.scrollTop = newScrollTop
+              }, 100)
+            }
+          }
+        }
       } else {
-        if (newUsers.length === 0) setHasMoreBottom(false)
-        setUsers(prev => {
-          const merged = [...prev, ...newUsers]
-          let mergedUsers = merged.slice(-50)
-          if (mergedUsers.length > 0) saveCache(mergedUsers[0].id.toString())
-          return mergedUsers
-        })
+        if (newUsers.length === 0) {
+          setHasMoreBottom(false)
+        } else {
+          setUsers(prev => {
+            const prevIds = new Set(prev.map(user => user.id))
+            const uniqueNewUsers = newUsers.filter((user: User) => !prevIds.has(user.id))
+            
+            const merged = [...prev, ...uniqueNewUsers]
+            const trimmed = merged.slice(-50) // 滑动窗口缓存
+            
+            return trimmed
+          })
+          
+          // 检查是否有新的唯一数据
+          const prevIds = new Set(currentUsers.map(user => user.id))
+          const uniqueCount = newUsers.filter((user: User) => !prevIds.has(user.id)).length
+          
+          const newHasMoreBottom = (resp.meta?.has_next || false) && uniqueCount > 0
+          setHasMoreBottom(newHasMoreBottom)
+          
+          if (uniqueCount > 0) {
+            setHasMoreTop(true)
+          }
+        }
       }
+      
     } catch (error) {
-      console.error("加载数据失败:", error)
-      toast("加载用户列表失败")
+      console.error("API请求失败:", error)
+      toast.error("加载数据失败")
     } finally {
       if (direction === "up") setLoadingTop(false)
       if (direction === "down") setLoadingBottom(false)
-      setLocalInitialLoading(false)
+      requestInProgress.current = false
     }
+  }, [sortOrder])
+
+  // 用户名称搜索逻辑（带防抖）
+  React.useEffect(() => {
+    if (!searchKeyword || searchKeyword.length < 1) {
+      // 关键字为空或长度小于1时恢复原有无限滚动逻辑
+      setUsers([]);
+      setHasMoreTop(true);
+      setHasMoreBottom(true);
+      setInitialLoading(true);
+      
+      // 直接调用API而不是通过fetchData，避免循环依赖
+      const loadInitialData = async () => {
+        try {
+          const pageSize = 20
+          const asc = sortOrder === "asc"
+          const params = new URLSearchParams()
+          params.append("pageSize", String(pageSize))
+          params.append("forward", "true")
+          params.append("asc", String(asc))
+          params.append("beginID", "0")
+          
+          const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?${params.toString()}`)
+          const resp = await res.json()
+
+          let newUsers: User[] = [];
+          if (Array.isArray(resp.data)) {
+            newUsers = resp.data;
+          }
+
+          setUsers(newUsers)
+          setTotal(resp.meta?.total || 0)
+          setHasMoreTop(true)
+          setHasMoreBottom(resp.meta?.has_next || false)
+          setInitialLoading(false)
+        } catch (error) {
+          console.error("加载初始数据失败:", error)
+          setUsers([])
+          setTotal(0)
+          setInitialLoading(false)
+          toast.error("加载数据失败")
+        }
       }
+      
+      loadInitialData()
+      return;
+    }
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/search?keyword=${encodeURIComponent(searchKeyword)}`);
+        const data = await res.json();
+        
+        if (Array.isArray(data.data)) {
+          setUsers(data.data);
+          setTotal(data.data.length);
+        } else {
+          setUsers([]);
+          setTotal(0);
+        }
+        
+        setHasMoreTop(false);
+        setHasMoreBottom(false);
+        setInitialLoading(false);
+      } catch (error) {
+        console.error("搜索用户失败:", error);
+        setUsers([]);
+        setTotal(0);
+        toast.error("搜索用户失败");
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchKeyword, sortOrder]);
+
+  // 监听排序变化
+  React.useEffect(() => {
+    if (!initialLoading && !searchKeyword) {
+      const handleSortChange = async () => {
+        setHasMoreTop(true)
+        setHasMoreBottom(true)
+        
+        // 直接调用API而不是通过fetchData，避免循环依赖
+        try {
+          const pageSize = 20
+          const asc = sortOrder === "asc"
+          const params = new URLSearchParams()
+          params.append("pageSize", String(pageSize))
+          params.append("forward", "true")
+          params.append("asc", String(asc))
+          params.append("beginID", "0")
+          
+          const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?${params.toString()}`)
+          const resp = await res.json()
+
+          let newUsers: User[] = [];
+          if (Array.isArray(resp.data)) {
+            newUsers = resp.data;
+          }
+
+          setUsers(newUsers)
+          setTotal(resp.meta?.total || 0)
+          setHasMoreBottom(resp.meta?.has_next || false)
+        } catch (error) {
+          console.error("加载排序数据失败:", error)
+          toast.error("加载数据失败")
+        }
+      }
+      handleSortChange()
+    }
+  }, [sortOrder, initialLoading, searchKeyword])
+
+  // 初始化
+  React.useEffect(() => {
+    fetchData({ direction: "down", reset: true, customBeginID: "0" })
+  }, [])
+
+  // 滚动处理
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    const { scrollTop, scrollHeight, clientHeight } = el
+    
+    // 简单边界检测
+    if (scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress.current) {
+      fetchData({ direction: "up" })
+    }
+    
+    if (scrollHeight - scrollTop - clientHeight < 10 && hasMoreBottom && !loadingBottom && !requestInProgress.current) {
+      fetchData({ direction: "down" })
+    }
+  }
   
     // 格式化日期
     const formatDate = (dateString?: string) => {
@@ -268,8 +374,41 @@ export default function ListUsersPage() {
       }
     }
   
-    // 处理删除用户
-  const handleDeleteUser = async (id: number) => {
+    // 刷新数据
+  const refreshData = React.useCallback(async () => {
+    setHasMoreTop(true)
+    setHasMoreBottom(true)
+    
+    // 直接调用API而不是通过fetchData，避免循环依赖
+    try {
+      const pageSize = 20
+      const asc = sortOrder === "asc"
+      const params = new URLSearchParams()
+      params.append("pageSize", String(pageSize))
+      params.append("forward", "true")
+      params.append("asc", String(asc))
+      params.append("beginID", "0")
+      
+      const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?${params.toString()}`)
+      const resp = await res.json()
+
+      let newUsers: User[] = [];
+      if (Array.isArray(resp.data)) {
+        newUsers = resp.data;
+      }
+
+      setUsers(newUsers)
+      setTotal(resp.meta?.total || 0)
+      setHasMoreBottom(resp.meta?.has_next || false)
+      setInitialLoading(false)
+    } catch (error) {
+      console.error("刷新数据失败:", error)
+      toast.error("刷新数据失败")
+    }
+  }, [sortOrder])
+
+  // 处理删除用户
+  const handleDeleteUser = React.useCallback(async (id: number) => {
     setDeletingId(id)
     try {
       const response = await fetchWithAuth(`${HOST_URL}/api/admin/users/${id}`, {
@@ -280,15 +419,15 @@ export default function ListUsersPage() {
       }
       
       setUsers(prev => prev.filter(u => u.id !== id))
-      setTotalUsers(prev => prev - 1)
-      toast("用户已成功删除")
+      setTotal(prev => prev - 1)
+      toast.success("用户已成功删除")
     } catch (error) {
       console.error("删除用户失败:", error)
-      toast("删除用户时出现错误")
+      toast.error("删除用户时出现错误")
     } finally {
       setDeletingId(null)
     }
-  }
+  }, [])
 
   // 处理新建用户按钮点击
   const handleNewUserClick = (e: React.MouseEvent) => {
@@ -300,14 +439,17 @@ export default function ListUsersPage() {
     setIsButtonCooling(true)
     setTimeout(() => {
       setIsButtonCooling(false)
-    }, 2000) // 2秒冷却时间
+    }, 1000) // 1秒冷却时间
   }
 
-  if (localInitialLoading) {
+  if (initialLoading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">加载中...</div>
+        <div className="flex h-96 items-center justify-center">
+          <div className="flex items-center space-x-2">
+            <IconLoader className="h-6 w-6 animate-spin" />
+            <span>加载中...</span>
+          </div>
         </div>
       </AdminLayout>
     )
@@ -315,208 +457,234 @@ export default function ListUsersPage() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* 页面标题 */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-2">用户列表</h1>
-          <p className="text-gray-600">管理系统中的所有用户账号</p>
-        </div>
-
-        {/* 操作栏 */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {/* 用户名称搜索栏 */}
+      <div className="flex flex-1 flex-col gap-4">
+        {/* 头部 */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <IconUsers className="h-6 w-6" />
+            <h1 className="text-2xl font-bold">用户管理</h1>
+            <span className="text-sm text-gray-500">
+              (共{total}个, 显示{users.length}个)
+            </span>
+            {/* 加载状态指示器 */}
+            {(initialLoading || loadingTop || loadingBottom) && (
+              <div className="flex items-center gap-1 ml-4 px-2 py-1 bg-blue-100 rounded-full">
+                <IconLoader className="h-3 w-3 animate-spin text-blue-600" />
+                <span className="text-xs text-blue-600">
+                  {initialLoading ? "初始化" : loadingTop ? "加载历史" : "加载更多"}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {/* 搜索框 */}
             <input
               className="w-48 h-10 px-3 border border-gray-300 rounded-lg bg-white text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               placeholder="搜索用户名称"
               value={searchKeyword}
               onChange={e => setSearchKeyword(e.target.value)}
             />
-            <span className="text-gray-500">或</span>
-            <Select value={sortOrder} onValueChange={v => {
-                  setSortOrder(v as "asc" | "desc")
-                  saveCache("0")
-                }}> 
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="排序" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="desc">最新优先</SelectItem>
-                    <SelectItem value="asc">最旧优先</SelectItem>
-                  </SelectContent>
-                </Select>
-
-            {/* 用户统计信息 */}
-            <div className="text-sm text-gray-600">
-              共 {totalUsers} 个用户
+            
+            {/* 排序控制 */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">📅 排序：</span>
+              <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "asc" | "desc")}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="排序" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">🆕 最新优先</SelectItem>
+                  <SelectItem value="asc">⏰ 最旧优先</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             {/* 刷新按钮 */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setUsers([])
-                setHasMoreTop(true)
-                setHasMoreBottom(true)
-                setLocalInitialLoading(true)
-                fetchData({ direction: "down", reset: true, customBeginID: "0" })
-              }}
-            >
-              <IconRefresh className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm" onClick={refreshData}>
+              <IconRefresh className="h-4 w-4 mr-1" />
               刷新
             </Button>
-          </div>
-          
-          <Button 
-            asChild
-            disabled={isButtonCooling}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
+            
+            {/* 新建用户 */}
             <Link 
               to="/www/admin/create_user" 
               onClick={handleNewUserClick}
-              className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
+              className={isButtonCooling ? 'pointer-events-none' : ''}
             >
-              <IconPlus className="mr-2 h-4 w-4" />
-              {isButtonCooling ? "请稍候..." : "创建用户"}
+              <Button disabled={isButtonCooling}>
+                <IconPlus className="mr-2 h-4 w-4" />
+                {isButtonCooling ? "请稍候..." : "创建用户"}
+              </Button>
             </Link>
-          </Button>
+          </div>
         </div>
 
-        {/* 用户表格 */}
-        <div
-          ref={scrollRef}
-          className="bg-white rounded-lg border shadow-sm overflow-hidden"
-          style={{ height: '60vh', overflow: 'auto', WebkitOverflowScrolling: 'touch' }}
-          onScroll={searchKeyword ? undefined : handleScroll}
-        >
-          {searchKeyword.length >= 1 && searching && (
-            <div className="text-center text-sm text-gray-500 py-4">搜索中...</div>
-          )}
-          {searchKeyword.length >= 1 && !searching && users.length === 0 && (
-            <div className="text-center text-sm text-gray-500 py-4">无匹配用户</div>
-          )}
-          {loadingTop && <div className="text-center text-sm text-gray-500 py-2">加载中...</div>}
-          {!hasMoreTop && <div className="text-center text-sm text-gray-500 py-2">已到顶部</div>}
-          
-          <Table>
-            <TableHeader className="sticky top-0 bg-gray-50 z-10">
-              <TableRow>
-                <TableHead className="font-semibold">用户名</TableHead>
-                <TableHead className="font-semibold">昵称</TableHead>
-                <TableHead className="font-semibold">邮箱</TableHead>
-                <TableHead className="font-semibold">角色</TableHead>
-                <TableHead className="font-semibold">创建时间</TableHead>
-                <TableHead className="font-semibold">更新时间</TableHead>
-                <TableHead className="font-semibold w-[100px]">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.length > 0 ? (
-                users.map((user) => (
-                  <TableRow key={user.id} className="hover:bg-gray-50">
-                    <TableCell className="font-medium">
-                      <Link 
-                        to={`/www/admin/users/${user.id}/edit`}
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
-                      >
-                        {user.username}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Link 
-                        to={`/www/admin/users/${user.id}/edit`}
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
-                      >
-                        {user.nickname || '-'}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Link 
-                        to={`/www/admin/users/${user.id}/edit`}
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
-                      >
-                        {user.email || '-'}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        user.role === 'admin' ? 'bg-red-100 text-red-800' :
-                        user.role === 'teacher' ? 'bg-blue-100 text-blue-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        {user.role === 'admin' ? '管理员' : 
-                         user.role === 'teacher' ? '教师' : '学生'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-gray-600">{formatDate(user.created_at)}</TableCell>
-                    <TableCell className="text-gray-600">{formatDate(user.updated_at)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          title="编辑"
-                          asChild
-                          className="h-8 w-8"
-                        >
-                          <Link to={`/www/admin/users/${user.id}/edit`}>
-                            <IconEdit className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              title="删除"
-                              className="h-8 w-8 text-red-600 hover:text-red-800 hover:bg-red-50"
-                            >
-                              <IconTrash className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>确认删除</DialogTitle>
-                              <DialogDescription>
-                                您确定要删除用户 "{user.username}" 吗？此操作将永久删除该用户及其所有数据，且无法恢复。
-                              </DialogDescription>
-                            </DialogHeader>
-                            <DialogFooter>
-                              <DialogClose asChild>
-                                <Button variant="outline">取消</Button>
-                              </DialogClose>
-                              <Button 
-                                variant="destructive" 
-                                onClick={() => handleDeleteUser(user.id)}
-                                disabled={deletingId === user.id}
-                              >
-                                {deletingId === user.id ? "删除中..." : "删除"}
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
+        {/* 主内容区域 */}
+        <div className="rounded-md border flex flex-col max-h-[70vh]">
+          <div 
+            className="flex-1 overflow-auto px-1"
+            onScroll={searchKeyword ? undefined : handleScroll}
+          >
+            {/* 向上加载指示器 */}
+            {loadingTop && (
+              <div className="flex items-center justify-center py-4 bg-blue-50 border border-blue-200 rounded-lg mx-4 my-2">
+                <IconLoader className="h-4 w-4 animate-spin mr-2 text-blue-600" />
+                <span className="text-blue-700 text-sm">正在加载历史数据...</span>
+              </div>
+            )}
+            
+            {/* 搜索状态 */}
+            {searchKeyword.length >= 1 && searching && (
+              <div className="text-center text-sm text-gray-500 py-4">搜索中...</div>
+            )}
+            {searchKeyword.length >= 1 && !searching && users.length === 0 && (
+              <div className="text-center text-sm text-gray-500 py-4">无匹配用户</div>
+            )}
+            
+            {/* 顶部提示 */}
+            {!loadingTop && hasMoreTop && users.length > 0 && !searchKeyword && (
+              <div className="flex items-center justify-center py-3 bg-green-50 border border-green-200 rounded-lg mx-4 my-2">
+                <span className="text-green-700 text-sm">
+                  👥 还有更多历史用户数据，向上滚动或使用按钮加载
+                </span>
+              </div>
+            )}
+
+            <Table>
+              <TableHeader className="sticky top-0 bg-white z-10">
+                <TableRow>
+                  <TableHead className="font-semibold">用户名</TableHead>
+                  <TableHead className="font-semibold">昵称</TableHead>
+                  <TableHead className="font-semibold">邮箱</TableHead>
+                  <TableHead className="font-semibold">角色</TableHead>
+                  <TableHead className="font-semibold">创建时间</TableHead>
+                  <TableHead className="font-semibold">更新时间</TableHead>
+                  <TableHead className="font-semibold w-[100px]">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      <div className="empty-state">
+                        <IconUsers className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                        <p className="text-gray-500">暂无用户数据</p>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center">
-                    <div className="flex flex-col items-center justify-center text-gray-500">
-                      <IconPlus className="h-12 w-12 mb-4 opacity-50" />
-                      <p className="text-lg font-medium mb-2">暂无用户数据</p>
-                      <p className="text-sm">点击右上角"创建用户"按钮开始添加用户</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-          
-          {loadingBottom && <div className="text-center text-sm text-gray-500 py-2">加载中...</div>}
-          {!hasMoreBottom && <div className="text-center text-sm text-gray-500 py-2">已到结尾</div>}
+                ) : (
+                  users.map((user) => (
+                    <TableRow key={user.id} className="hover:bg-gray-50">
+                      <TableCell className="font-medium">
+                        <Link 
+                          to={`/www/admin/edit_user/${user.id}`}
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {user.username}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <Link 
+                          to={`/www/admin/edit_user/${user.id}`}
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {user.nickname || '-'}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <Link 
+                          to={`/www/admin/edit_user/${user.id}`}
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {user.email || '-'}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          user.role === 'admin' ? 'bg-red-100 text-red-800' :
+                          user.role === 'teacher' ? 'bg-blue-100 text-blue-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {user.role === 'admin' ? '管理员' : 
+                           user.role === 'teacher' ? '教师' : '学生'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-gray-600">{formatDate(user.created_at)}</TableCell>
+                      <TableCell className="text-gray-600">{formatDate(user.updated_at)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            title="编辑"
+                            asChild
+                            className="h-8 w-8"
+                          >
+                            <Link to={`/www/admin/edit_user/${user.id}`}>
+                              <IconEdit className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                title="删除"
+                                className="h-8 w-8 text-red-600 hover:text-red-800 hover:bg-red-50"
+                              >
+                                <IconTrash className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>确认删除</DialogTitle>
+                                <DialogDescription>
+                                  您确定要删除用户 "{user.username}" 吗？此操作将永久删除该用户及其所有数据，且无法恢复。
+                                </DialogDescription>
+                              </DialogHeader>
+                              <DialogFooter>
+                                <DialogClose asChild>
+                                  <Button variant="outline">取消</Button>
+                                </DialogClose>
+                                <Button 
+                                  variant="destructive" 
+                                  onClick={() => handleDeleteUser(user.id)}
+                                  disabled={deletingId === user.id}
+                                >
+                                  {deletingId === user.id ? "删除中..." : "删除"}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+
+            {/* 向下加载指示器 */}
+            {loadingBottom && (
+              <div className="flex items-center justify-center py-4 bg-blue-50 border border-blue-200 rounded-lg mx-4 my-2">
+                <IconLoader className="h-4 w-4 animate-spin mr-2 text-blue-600" />
+                <span className="text-blue-700 text-sm">正在加载更多数据...</span>
+              </div>
+            )}
+
+            {/* 数据状态提示 */}
+            {users.length > 0 && (
+              <div className="flex flex-col items-center justify-center py-6 text-gray-500">
+                <span className="text-sm">
+                  当前显示 {users.length} 条数据 / 共 {total} 条
+                </span>
+                <span className="text-xs mt-1">
+                  ID范围: {users[0]?.id} ~ {users[users.length-1]?.id}
+                  {!hasMoreTop && !hasMoreBottom && " (已加载全部)"}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </AdminLayout>

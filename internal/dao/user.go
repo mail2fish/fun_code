@@ -73,60 +73,61 @@ func (s *UserDaoImpl) ListUsers(pageSize uint, beginID uint, forward, asc bool) 
 	// 构建基础查询
 	query := s.db
 
-	// 记录查询是否按升序排序
-	queryAsc := false
-
-	// 根据 beginID、forward 和 asc 设置查询条件和排序
+	// 分页逻辑：根据排序方向和翻页方向确定查询条件
+	var needReverse bool = false
 	if beginID > 0 {
-		if asc && forward {
-			// asc == true and forward == true
-			// id >= beginID, order 为 id asc
-			query = query.Where("id > ?", beginID).Order("id ASC")
-			queryAsc = true
-		} else if asc && !forward {
-			// asc == true and forward == false
-			// id <= beginID，order 为 id desc
-			query = query.Where("id < ?", beginID).Order("id DESC")
-			queryAsc = false
-		} else if !asc && forward {
-			// asc == false and forward == true
-			// id <= beginID，order 为 id desc
-			query = query.Where("id < ?", beginID).Order("id DESC")
-			queryAsc = false
-		} else {
-			// asc == false and forward == false
-			// id >= beginID, order 为 id asc
-			query = query.Where("id > ?", beginID).Order("id ASC")
-			queryAsc = true
-		}
-	} else {
-		// beginID 为 0 的情况
 		if asc {
-			// asc 为 true，按 id asc 排序
-			query = query.Order("id ASC")
-			queryAsc = true
+			// 升序排列时：向前翻页获取更大的ID，向后翻页获取更小的ID
+			if forward {
+				query = query.Where("id > ?", beginID)
+			} else {
+				query = query.Where("id < ?", beginID)
+				needReverse = true
+			}
 		} else {
-			// asc 为 false，按 id desc 排序
-			query = query.Order("id DESC")
-			queryAsc = false
+			// 降序排列时：向前翻页获取更小的ID，向后翻页获取更大的ID
+			if forward {
+				query = query.Where("id < ?", beginID)
+			} else {
+				query = query.Where("id > ?", beginID)
+				needReverse = true
+			}
 		}
 	}
 
-	// 执行查询，多查询一条用于判断是否有更多数据
-	if err := query.Limit(int(pageSize + 1)).Find(&users).Error; err != nil {
+	// 排序逻辑：根据参数确定排序方向
+	var orderClause string
+	if asc {
+		if needReverse {
+			orderClause = "id DESC"
+		} else {
+			orderClause = "id ASC"
+		}
+	} else {
+		if needReverse {
+			orderClause = "id ASC"
+		} else {
+			orderClause = "id DESC"
+		}
+	}
+	query = query.Order(orderClause)
+
+	// 限制查询数量（多查一条用于判断是否还有更多数据）
+	limit := int(pageSize + 1)
+	query = query.Limit(limit)
+
+	if err := query.Find(&users).Error; err != nil {
 		return nil, false, gorails.NewError(http.StatusInternalServerError, gorails.ERR_DAO, global.ERR_MODULE_USER, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
-	// 处理查询结果
-	// asc 为 true 时，返回结果数组按 id 升序排序，代表页面按升序显示
-	// asc 为 false 时，返回结果数组按 id 降序排序，代表页面按降序显示
+	// 判断是否有更多数据
 	hasMore := len(users) > int(pageSize)
 	if hasMore {
 		users = users[:pageSize]
 	}
 
-	// 检查查询结果的排序是否与 asc 参数一致，如果不一致则需要反转
-	if queryAsc != asc {
+	// 如果是向上翻页，需要反转结果以保持正确的显示顺序
+	if needReverse {
 		for i, j := 0, len(users)-1; i < j; i, j = i+1, j-1 {
 			users[i], users[j] = users[j], users[i]
 		}
