@@ -56,10 +56,6 @@ interface ProjectTableProps {
   showCreateLessonButton?: boolean
 }
 
-// 缓存相关常量
-const CACHE_KEY = 'projectTableCacheV1';
-const CACHE_EXPIRE = 60 * 60 * 1000; // 1小时
-
 export function ProjectTable({ 
   onDeleteProject,
   showUserFilter = false,
@@ -86,33 +82,8 @@ export function ProjectTable({
   const [searchResults, setSearchResults] = React.useState<User[]>([]);
   const [projectKeyword, setProjectKeyword] = React.useState("");
   const [searchingProject, setSearchingProject] = React.useState(false);
-  // 先尝试从localStorage读取缓存
-  const getInitialCache = () => {
-    if (typeof window === 'undefined') return null;
-    try {
-      const raw = localStorage.getItem(CACHE_KEY);
-      if (!raw) return null;
-      const { data, ts } = JSON.parse(raw);
-      if (Date.now() - ts > CACHE_EXPIRE) return null;
-      if (showUserFilter) {
-        // 缓存 beginID 会产生一些奇怪的问题，暂时先禁用
-        data.beginID = 0;
-        return data;
-      } else {
-        return {
-        // 缓存 beginID 会产生一些奇怪的问题，暂时先禁用
-          beginID: 0,
-          sortOrder: data.sortOrder,
-        };
-      }
-    } catch {
-      return null;
-    }
-  };
-  const initialCache = getInitialCache();
-  const [selectedUser, setSelectedUser] = React.useState<string>(initialCache?.selectedUser || "__all__")
-  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">(initialCache?.sortOrder || "desc")
-  // beginID 只用于缓存和恢复，不作为state
+  const [selectedUser, setSelectedUser] = React.useState<string>("__all__")
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc")
 
   // 无限滚动相关状态
   const [projects, setProjects] = React.useState<Project[]>([])
@@ -122,27 +93,6 @@ export function ProjectTable({
   const [loadingBottom, setLoadingBottom] = React.useState(false)
   const [localInitialLoading, setLocalInitialLoading] = React.useState(true)
   const scrollRef = React.useRef<HTMLDivElement>(null)
-
-  // 写入缓存
-  const saveCache = React.useCallback((beginID: string) => {
-    if (typeof window === 'undefined') return;
-
-    let bID=parseInt(beginID)
-
-    if (sortOrder === "asc" && bID > 0) {
-      bID = bID - 1
-    } else if (sortOrder === "desc" && bID > 0) {
-      bID = bID + 1
-    }
-    beginID = bID.toString()
-
-    const data = {
-      beginID,
-      sortOrder,
-      selectedUser,
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
-  }, [sortOrder, selectedUser]);
 
   // 获取用户列表 - 仅在需要用户筛选时才调用
   React.useEffect(() => {
@@ -185,6 +135,17 @@ export function ProjectTable({
     return () => clearTimeout(timer);
   }, [searchKeyword, showUserFilter]);
 
+  // 监听筛选用户和排序变化，重置并加载初始数据
+  React.useEffect(() => {
+    setProjects([])
+    setHasMoreTop(true)
+    setHasMoreBottom(true)
+    setLocalInitialLoading(true)
+    // 初始化、刷新、排序切换时，强制 direction='down'，beginID='0'
+    fetchData({ direction: "down", reset: true, customBeginID: "0" })
+    // eslint-disable-next-line
+  }, [selectedUser, sortOrder])
+
   // 项目名称搜索逻辑（带防抖）
   React.useEffect(() => {
     if (!projectKeyword || projectKeyword.length < 1) {
@@ -193,7 +154,8 @@ export function ProjectTable({
       setHasMoreTop(true);
       setHasMoreBottom(true);
       setLocalInitialLoading(true);
-      fetchData({ direction: "down", reset: true, customBeginID: initialCache?.beginID || "0" });
+      // 这里也强制 direction='down'，beginID='0'
+      fetchData({ direction: "down", reset: true, customBeginID: "0" });
       return;
     }
     setSearchingProject(true);
@@ -223,59 +185,113 @@ export function ProjectTable({
     return () => clearTimeout(timer);
   }, [projectKeyword, selectedUser]);
 
-  // 监听筛选用户和排序变化，重置缓存并加载初始数据
+  // ====== 以下滚动到顶自动加载机制已从 list_lessons.tsx 迁移 ======
+  // 1. 原生 scroll 事件监听，确保即使 React onScroll 未触发也能加载
+  // 2. 顶部位置自动检测，数据变化后自动判断是否需要加载更多
+  // 3. 兼容原有 handleScroll 逻辑
   React.useEffect(() => {
-    setProjects([])
-    setHasMoreTop(true)
-    setHasMoreBottom(true)
-    setLocalInitialLoading(true)
-    // beginID 设为 initialCache.beginID 或 0
-    saveCache(initialCache?.beginID || "0");
-    fetchData({ direction: "down", reset: true, customBeginID: initialCache?.beginID || "0" })
-    // eslint-disable-next-line
-  }, [selectedUser, sortOrder])
+    const container = scrollRef.current;
+    if (!container) return;
 
-  // 滚动监听
+    const nativeScrollHandler = (e: Event) => {
+      const target = e.target as HTMLDivElement;
+      console.log('[原生scroll事件]', {
+        scrollTop: target.scrollTop,
+        hasMoreTop,
+        loadingTop,
+        requestInProgress: requestInProgress?.current
+      });
+      if (target.scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress?.current) {
+        console.log('[原生scroll事件] 触发顶部加载 fetchData(up)');
+        fetchData({ direction: "up" });
+      }
+      if (target.scrollHeight - target.scrollTop - target.clientHeight < 10 && hasMoreBottom && !loadingBottom && !requestInProgress?.current) {
+        console.log('[原生scroll事件] 触发底部加载 fetchData(down)');
+        fetchData({ direction: "down" });
+      }
+    };
+    container.addEventListener('scroll', nativeScrollHandler, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', nativeScrollHandler);
+    };
+  }, [hasMoreTop, hasMoreBottom, loadingTop, loadingBottom, fetchData]);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      const container = scrollRef.current;
+      if (!container) return;
+      console.log('[顶部自动检测]', {
+        scrollTop: container.scrollTop,
+        hasMoreTop,
+        loadingTop,
+        requestInProgress: requestInProgress?.current
+      });
+      if (container.scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress?.current) {
+        console.log('[顶部自动检测] 触发顶部加载 fetchData(up)');
+        fetchData({ direction: "up" });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [projects.length, hasMoreTop, loadingTop, fetchData]);
+
+  // 兼容原有 onScroll 逻辑（如有需要）
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget
-    if (el.scrollTop === 0 && hasMoreTop && !loadingTop) {
-      fetchData({ direction: "up" })
+    const el = e.currentTarget;
+    console.log('[onScroll事件]', {
+      scrollTop: el.scrollTop,
+      hasMoreTop,
+      loadingTop,
+      requestInProgress: requestInProgress?.current
+    });
+    if (el.scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress?.current) {
+      console.log('[onScroll事件] 触发顶部加载 fetchData(up)');
+      fetchData({ direction: "up" });
     }
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 10 && hasMoreBottom && !loadingBottom) {
-      fetchData({ direction: "down" })
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 10 && hasMoreBottom && !loadingBottom && !requestInProgress?.current) {
+      console.log('[onScroll事件] 触发底部加载 fetchData(down)');
+      fetchData({ direction: "down" });
     }
-  }
+  };
+
+  // ========== requestInProgress 防并发 ========== 
+  const requestInProgress = React.useRef(false);
 
   // 数据请求
   async function fetchData({ direction, reset = false, customBeginID }: { direction: "up" | "down", reset?: boolean, customBeginID?: string }) {
-    const pageSize = 20
-    let beginID = "0"
-    let forward = true
-    let asc = sortOrder === "asc"
-    let userId = selectedUser === "__all__" ? undefined : selectedUser
+    if (requestInProgress.current) {
+      console.log('[fetchData] 请求被并发保护拦截', { direction, reset, customBeginID });
+      return;
+    }
+    requestInProgress.current = true;
+    console.log('[fetchData] 开始请求', { direction, reset, customBeginID });
+    const pageSize = 20;
+    let beginID = "0";
+    let forward = true;
+    let asc = sortOrder === "asc";
+    let userId = selectedUser === "__all__" ? undefined : selectedUser;
     if (reset && customBeginID) {
       beginID = customBeginID;
     } else if (!reset && projects.length > 0) {
       if (direction === "up") {
-        beginID = projects[0].id
-        forward = false
+        beginID = projects[0].id;
+        forward = false;
       } else {
-        beginID = projects[projects.length - 1].id
-        forward = true
+        beginID = projects[projects.length - 1].id;
+        forward = true;
       }
     }
-    if (direction === "up") setLoadingTop(true)
-    if (direction === "down") setLoadingBottom(true)
+    if (direction === "up") setLoadingTop(true);
+    if (direction === "down") setLoadingBottom(true);
     try {
-      const params = new URLSearchParams()
-      params.append("pageSize", String(pageSize))
-      params.append("forward", String(forward))
-      params.append("asc", String(asc))
-      if (beginID !== "0") params.append("beginID", beginID)
-      if (userId) params.append("userId", userId)
-      const res = await fetchWithAuth(`${projectsApiUrl}?${params.toString()}`)
-      const resp = await res.json()
-
+      const params = new URLSearchParams();
+      params.append("pageSize", String(pageSize));
+      params.append("forward", String(forward));
+      params.append("asc", String(asc));
+      if (beginID !== "0") params.append("beginID", beginID);
+      if (userId) params.append("userId", userId);
+      const res = await fetchWithAuth(`${projectsApiUrl}?${params.toString()}`);
+      const resp = await res.json();
+      console.log('[fetchData] API响应', resp);
       // 兼容不同接口返回结构
       let newProjects: Project[] = [];
       if (Array.isArray(resp.data)) {
@@ -290,37 +306,41 @@ export function ProjectTable({
         setHasMoreTop(true)
         setHasMoreBottom(true)
         setLocalInitialLoading(false)
-        // 缓存第一页的beginID
-        if (newProjects.length > 0) {
-          saveCache(newProjects[0].id)
-        } else {
-          saveCache("0")
-        }
         return
       }
       if (direction === "up") {
         if (newProjects.length === 0) setHasMoreTop(false)
         setProjects(prev => {
           const merged = [...newProjects, ...prev]
-          // 缓存最新的beginID
           let mergedProjects = merged.slice(0, 30)
-          if (mergedProjects.length > 0) saveCache(mergedProjects[0].id)
           return mergedProjects
         })
-      } else {
+        // 只在向上翻页时根据API meta.has_next设置 hasMoreTop
+        if (resp.meta && typeof resp.meta.has_next !== 'undefined') {
+          setHasMoreTop(!!resp.meta.has_next)
+        }
+        // 向上翻页后允许再次向下翻页
+        if (newProjects.length > 0) setHasMoreBottom(true)
+      } else if (direction === "down") {
         if (newProjects.length === 0) setHasMoreBottom(false)
         setProjects(prev => {
           const merged = [...prev, ...newProjects]
-          // 缓存最新的beginID
           let mergedProjects = merged.slice(-30)
-          if (mergedProjects.length > 0) saveCache(mergedProjects[0].id)
           return mergedProjects
         })
+        // 只在向下翻页时根据API meta.has_next设置 hasMoreBottom
+        if (resp.meta && typeof resp.meta.has_next !== 'undefined') {
+          setHasMoreBottom(!!resp.meta.has_next)
+        }
+        // 向下翻页后允许再次向上翻页
+        if (newProjects.length > 0) setHasMoreTop(true)
       }
     } finally {
-      if (direction === "up") setLoadingTop(false)
-      if (direction === "down") setLoadingBottom(false)
-      setLocalInitialLoading(false)
+      requestInProgress.current = false;
+      if (direction === "up") setLoadingTop(false);
+      if (direction === "down") setLoadingBottom(false);
+      setLocalInitialLoading(false);
+      console.log('[fetchData] 请求结束', { direction });
     }
   }
 
@@ -521,7 +541,6 @@ export function ProjectTable({
               <span className="text-sm font-medium text-gray-700">👤 筛选用户：</span>
               <Select value={selectedUser} onValueChange={(value) => {
                 setSelectedUser(value)
-                saveCache("0")
                 setSearchKeyword(""); // 选择后清空搜索
               }}>
                 <SelectTrigger className="w-40 rounded-xl border-2 border-purple-200 focus:border-purple-400">
@@ -570,7 +589,6 @@ export function ProjectTable({
           <span className="text-sm font-medium text-gray-700">📅 排序：</span>
           <Select value={sortOrder} onValueChange={v => {
                 setSortOrder(v as "asc" | "desc")
-                saveCache("0")
               }}> 
                 <SelectTrigger className="w-32 rounded-xl border-2 border-purple-200 focus:border-purple-400">
                   <SelectValue placeholder="排序" />
