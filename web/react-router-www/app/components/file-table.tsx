@@ -36,10 +36,6 @@ interface FileTableProps {
   showDeleteButton?: boolean
 }
 
-// 缓存相关常量
-const CACHE_KEY = 'fileTableCacheV1';
-const CACHE_EXPIRE = 60 * 60 * 1000; // 1小时
-
 // 内容类型常量
 const CONTENT_TYPE_IMAGE = 1;
 const CONTENT_TYPE_AUDIO = 3;
@@ -55,24 +51,7 @@ export function FileTable({
   const [searchKeyword, setSearchKeyword] = React.useState("");
   const [searching, setSearching] = React.useState(false);
   
-  // 先尝试从localStorage读取缓存
-  const getInitialCache = () => {
-    if (typeof window === 'undefined') return null;
-    try {
-      const raw = localStorage.getItem(CACHE_KEY);
-      if (!raw) return null;
-      const { data, ts } = JSON.parse(raw);
-      if (Date.now() - ts > CACHE_EXPIRE) return null;
-      return {
-        beginID: 0, // 缓存 beginID 会产生一些奇怪的问题，暂时先禁用
-        sortOrder: data.sortOrder,
-      };
-    } catch {
-      return null;
-    }
-  };
-  const initialCache = getInitialCache();
-  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">(initialCache?.sortOrder || "desc")
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc")
 
   // 无限滚动相关状态
   const [files, setFiles] = React.useState<FileItem[]>([])
@@ -83,26 +62,7 @@ export function FileTable({
   const [localInitialLoading, setLocalInitialLoading] = React.useState(true)
   const [totalFiles, setTotalFiles] = React.useState(0)
   const scrollRef = React.useRef<HTMLDivElement>(null)
-
-  // 写入缓存
-  const saveCache = React.useCallback((beginID: string) => {
-    if (typeof window === 'undefined') return;
-
-    let bID = parseInt(beginID)
-
-    if (sortOrder === "asc" && bID > 0) {
-      bID = bID - 1
-    } else if (sortOrder === "desc" && bID > 0) {
-      bID = bID + 1
-    }
-    beginID = bID.toString()
-
-    const data = {
-      beginID,
-      sortOrder,
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
-  }, [sortOrder]);
+  const requestInProgress = React.useRef(false);
 
   // 文件名称搜索逻辑（带防抖）
   React.useEffect(() => {
@@ -112,7 +72,7 @@ export function FileTable({
       setHasMoreTop(true);
       setHasMoreBottom(true);
       setLocalInitialLoading(true);
-      fetchData({ direction: "down", reset: true, customBeginID: (initialCache?.beginID || 0).toString() });
+      fetchData({ direction: "down", reset: true, customBeginID: "0" });
       return;
     }
     setSearching(true);
@@ -120,7 +80,6 @@ export function FileTable({
       try {
         const res = await fetchWithAuth(`${HOST_URL}/api/files/search?keyword=${encodeURIComponent(searchKeyword)}`);
         const data = await res.json();
-        
         if (Array.isArray(data.data?.files)) {
           setFiles(data.data.files);
           setTotalFiles(data.data.files.length);
@@ -128,7 +87,6 @@ export function FileTable({
           setFiles([]);
           setTotalFiles(0);
         }
-        
         setHasMoreTop(false);
         setHasMoreBottom(false);
         setLocalInitialLoading(false);
@@ -150,24 +108,26 @@ export function FileTable({
     setHasMoreTop(true)
     setHasMoreBottom(true)
     setLocalInitialLoading(true)
-    saveCache((initialCache?.beginID || 0).toString());
-    fetchData({ direction: "down", reset: true, customBeginID: (initialCache?.beginID || 0).toString() })
+    fetchData({ direction: "down", reset: true, customBeginID: "0" })
     // eslint-disable-next-line
   }, [sortOrder])
 
   // 滚动监听
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (searchKeyword) return;
     const el = e.currentTarget
-    if (el.scrollTop === 0 && hasMoreTop && !loadingTop) {
+    if (el.scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress.current) {
       fetchData({ direction: "up" })
     }
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 10 && hasMoreBottom && !loadingBottom) {
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 10 && hasMoreBottom && !loadingBottom && !requestInProgress.current) {
       fetchData({ direction: "down" })
     }
   }
 
   // 数据请求
   async function fetchData({ direction, reset = false, customBeginID }: { direction: "up" | "down", reset?: boolean, customBeginID?: string }) {
+    if (requestInProgress.current) return;
+    requestInProgress.current = true;
     const pageSize = 20
     let beginID = "0"
     let forward = true
@@ -187,59 +147,53 @@ export function FileTable({
 
     if (direction === "up") setLoadingTop(true)
     if (direction === "down") setLoadingBottom(true)
-    
     try {
       const params = new URLSearchParams()
       params.append("page_size", String(pageSize))
       params.append("forward", String(forward))
       params.append("asc", String(asc))
       if (beginID !== "0") params.append("begin_id", beginID)
-      
       const res = await fetchWithAuth(`${filesApiUrl}?${params.toString()}`)
       const resp = await res.json()
-
       let newFiles: FileItem[] = [];
       if (Array.isArray(resp.data?.files)) {
         newFiles = resp.data.files;
       }
-
-      // 设置总数
       if (resp.meta?.total !== undefined) {
         setTotalFiles(resp.meta.total);
       }
-
       if (reset) {
         setFiles(newFiles)
         setHasMoreTop(true)
         setHasMoreBottom(true)
         setLocalInitialLoading(false)
-        // 缓存第一页的beginID
-        if (newFiles.length > 0) {
-          saveCache(newFiles[0].id.toString())
-        } else {
-          saveCache("0")
-        }
         return
       }
-
       if (direction === "up") {
         if (newFiles.length === 0) setHasMoreTop(false)
         setFiles(prev => {
           const merged = [...newFiles, ...prev]
           let mergedFiles = merged.slice(0, 30)
-          if (mergedFiles.length > 0) saveCache(mergedFiles[0].id.toString())
           return mergedFiles
         })
+        if (resp.meta && typeof resp.meta.has_next !== 'undefined') {
+          setHasMoreTop(!!resp.meta.has_next)
+        }
+        if (newFiles.length > 0) setHasMoreBottom(true)
       } else {
         if (newFiles.length === 0) setHasMoreBottom(false)
         setFiles(prev => {
           const merged = [...prev, ...newFiles]
           let mergedFiles = merged.slice(-30)
-          if (mergedFiles.length > 0) saveCache(mergedFiles[0].id.toString())
           return mergedFiles
         })
+        if (resp.meta && typeof resp.meta.has_next !== 'undefined') {
+          setHasMoreBottom(!!resp.meta.has_next)
+        }
+        if (newFiles.length > 0) setHasMoreTop(true)
       }
     } finally {
+      requestInProgress.current = false;
       if (direction === "up") setLoadingTop(false)
       if (direction === "down") setLoadingBottom(false)
       setLocalInitialLoading(false)
@@ -352,7 +306,6 @@ export function FileTable({
           <span className="text-sm font-medium text-gray-700">📅 排序：</span>
           <Select value={sortOrder} onValueChange={v => {
                 setSortOrder(v as "asc" | "desc")
-                saveCache("0")
               }}> 
                 <SelectTrigger className="w-32 rounded-xl border-2 border-blue-200 focus:border-blue-400">
                   <SelectValue placeholder="排序" />
