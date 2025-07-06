@@ -49,31 +49,95 @@ chmod +x ./funcode_darwin_arm64
 
 打开浏览器，访问终端中提示的地址，即可访问服务。
 
+1. 登陆
+
 ![在浏览器中访问服务](docs/images/login.png)
 
-### 系统界面
+### 学生界面
+
+1. 学生首页
+
+![学生首页](docs/images/user_dashboard.png)
+
+2. 我的程序列表
+
+![我的程序列表](docs/images/user_program.png)
+
+3. 我的班级
+
+![我的班级](docs/images/user_class.png)
+
+4. 我的分享
+
+![学生首页](docs/images/user_share.png)
+
+5. 所有分享
+
+![学生首页](docs/images/user_all_share.png)
+
+6. 资源文件
+
+![学生首页](docs/images/user_resources.png)
+
+
+### 管理界面
 
 登录后，会进入管理后台，在管理后台中可以管理学员、项目、班级等信息。
 
-![在浏览器中访问服务](docs/images/admin.png)
+1. 创建用户
 
-### 访问 Scratch 图形化编程系统
+![用户列表](docs/images/admin_user_list.png)
 
-点击界面中的新建Scratch程序按钮，即可进入 Scratch 图形化编程系统。
-
-![在浏览器中访问服务](docs/images/scratch.png)
-
-### 创建用户界面
+2. 创建用户界面
 
 在管理后台中，点击创建用户按钮，即可打开新建用户界面。
 
-![在浏览器中访问服务](docs/images/create_user.png)
+![创建用户](docs/images/admin_create_user.png)
 
-### 资源文件管理
+3. 访问 Scratch 图形化编程系统
+
+点击界面中的新建Scratch程序按钮，即可进入 Scratch 图形化编程系统。
+
+![Scratch编辑器](docs/images/scratch.png)
+
+
+4. 资源文件管理
 
 在管理后台中，点击资源文件按钮，即可打开资源文件管理界面。
 
-![在浏览器中访问服务](docs/images/resource.png)
+![上传资源文件](docs/images/admin_upload_files.png)
+
+5. 资源文件列表
+
+![资源文件列表](docs/images/admin_list_resources.png)
+
+6. 班级列表
+
+![班级列表](docs/images/admin_list_classes.png)
+
+7. 创建班级
+
+![创建班级](docs/images/admin_create_class.png)
+
+8. 课程列表
+
+![课程列表](docs/images/admin_list_courses.png)
+
+
+9. 创建课程
+
+![课程列表](docs/images/admin_create_course.png)
+
+
+10. 课件列表
+
+![课程列表](docs/images/admin_list_lessons.png)
+
+11. 创建课件
+
+![课程列表](docs/images/admin_create_lesson.png)
+
+
 
 ## 构建指南
 
