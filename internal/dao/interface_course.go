@@ -45,6 +45,9 @@ type CourseDao interface {
 
 	// 搜索功能
 	SearchCourses(keyword string, authorID uint) ([]model.Course, error)
+
+	// 批量统计课程的课时数量
+	BatchCountLessonsForCourses(courseIDs []uint) (map[uint]int, error)
 }
 
 // CourseStats 课程统计信息

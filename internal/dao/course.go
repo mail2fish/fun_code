@@ -521,3 +521,27 @@ func (c *CourseDaoImpl) SearchCourses(keyword string, authorID uint) ([]model.Co
 
 	return courses, nil
 }
+
+// BatchCountLessonsForCourses 批量统计课程的课时数量
+func (c *CourseDaoImpl) BatchCountLessonsForCourses(courseIDs []uint) (map[uint]int, error) {
+	result := make(map[uint]int)
+	if len(courseIDs) == 0 {
+		return result, nil
+	}
+	type row struct {
+		CourseID uint
+		Count    int
+	}
+	var rows []row
+	if err := c.db.Table("lesson_courses").
+		Select("course_id, COUNT(*) as count").
+		Where("course_id IN ?", courseIDs).
+		Group("course_id").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		result[r.CourseID] = r.Count
+	}
+	return result, nil
+}

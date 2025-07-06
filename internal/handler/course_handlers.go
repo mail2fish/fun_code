@@ -17,6 +17,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// CourseListItem 用于课程列表返回，包含课时数量
+type CourseListItem struct {
+	model.Course
+	LessonsCount int `json:"lessons_count"`
+}
+
 // CreateCourseParams 创建课程请求参数
 type CreateCourseParams struct {
 	Title         string `json:"title" binding:"required"`
@@ -314,7 +320,7 @@ func (p *ListCoursesParams) Parse(c *gin.Context) gorails.Error {
 }
 
 // ListCoursesHandler 列出课程
-func (h *Handler) ListCoursesHandler(c *gin.Context, params *ListCoursesParams) ([]model.Course, *gorails.ResponseMeta, gorails.Error) {
+func (h *Handler) ListCoursesHandler(c *gin.Context, params *ListCoursesParams) ([]CourseListItem, *gorails.ResponseMeta, gorails.Error) {
 	userID := h.getUserID(c)
 
 	// 获取课程列表
@@ -323,10 +329,28 @@ func (h *Handler) ListCoursesHandler(c *gin.Context, params *ListCoursesParams) 
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
-	// 获取总数
+	// 批量统计课时数
+	courseIDs := make([]uint, 0, len(courses))
+	for _, course := range courses {
+		courseIDs = append(courseIDs, course.ID)
+	}
+	lessonsCountMap, err := h.dao.CourseDao.BatchCountLessonsForCourses(courseIDs)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_COURSE, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	items := make([]CourseListItem, 0, len(courses))
+	for _, course := range courses {
+		items = append(items, CourseListItem{
+			Course:       course,
+			LessonsCount: lessonsCountMap[course.ID],
+		})
+	}
+
+	// 获取课程总数
 	total, _ := h.dao.CourseDao.CountCoursesByAuthor(userID)
 
-	return courses, &gorails.ResponseMeta{
+	return items, &gorails.ResponseMeta{
 		Total:   int(total),
 		HasNext: hasMore,
 	}, nil

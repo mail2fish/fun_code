@@ -538,7 +538,7 @@ export default function ListCoursePage() {
                             {course.is_published ? "已发布" : "未发布"}
                           </Badge>
                         </TableCell>
-                        <TableCell>{course.lessons_count || 0}</TableCell>
+                        <TableCell>{course.lessons_count ?? 0}</TableCell>
                         <TableCell>{formatDate(course.created_at)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
