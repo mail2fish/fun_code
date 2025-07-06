@@ -405,278 +405,142 @@ export default function ListLessonsPage() {
     lessonsRef.current = lessons
   }, [lessons])
 
-  // 数据请求核心函数
-  const fetchData = React.useCallback(async ({ 
-    direction, 
-    reset = false, 
-    customBeginID 
-  }: { 
-    direction: "up" | "down", 
-    reset?: boolean, 
-    customBeginID?: string 
-  }) => {
-    const now = Date.now()
-    
-    // 防并发检查
-    if (requestInProgress.current) {
-      return
-    }
-    
-    // 时间间隔检查
-    if (!reset && now - lastRequestTime < REQUEST_INTERVAL) {
-      return
-    }
-    
-    requestInProgress.current = true
-    setLastRequestTime(now)
-    
-    const pageSize = 20
-    let beginID = "0"
-    let forward = true
-    const asc = sortOrder === "asc"
-    const currentLessons = lessonsRef.current
-    
+  // fetchData 用 useCallback 包裹，依赖 sortOrder，防止闭包陷阱
+  const fetchData = React.useCallback(async ({ direction, reset = false, customBeginID }: { direction: "up" | "down", reset?: boolean, customBeginID?: string }) => {
+    let ignore = false;
+    const pageSize = 20;
+    let beginID = "0";
+    let forward = true;
+    const asc = sortOrder === "asc";
+    const currentLessons = lessonsRef.current;
+
     if (reset && customBeginID) {
-      beginID = customBeginID
+      beginID = customBeginID;
     } else if (!reset && currentLessons.length > 0) {
       if (direction === "up") {
-        beginID = currentLessons[0].id.toString()
-        forward = false
+        beginID = currentLessons[0].id.toString();
+        forward = false;
       } else {
-        beginID = currentLessons[currentLessons.length - 1].id.toString()
-        forward = true
+        beginID = currentLessons[currentLessons.length - 1].id.toString();
+        forward = true;
       }
     }
-    
-    if (direction === "up") setLoadingTop(true)
-    if (direction === "down") setLoadingBottom(true)
-    
+
+    if (direction === "up") setLoadingTop(true);
+    if (direction === "down") setLoadingBottom(true);
+
     try {
-      const response = await getLessons("", beginID, pageSize, forward, asc)
-      const newLessons = response.data || []
-      const meta = response.meta || {}
-      
+      const response = await getLessons("", beginID, pageSize, forward, asc);
+      if (ignore) return;
+      const newLessons = response.data || [];
+      const meta = response.meta || {};
+
       if (reset) {
-        setLessons(newLessons)
-        setTotal(meta.total || 0)
-        // 初始加载时，根据排序方向和数据情况判断是否有更多历史数据
-        // 如果是降序（最新优先），初始加载时通常没有更多历史数据
-        // 如果是升序（最旧优先），初始加载时可能有更多历史数据
-        setHasMoreTop(false)
-        setHasMoreBottom(meta.has_next || false)
-        setInitialLoading(false)
-        return
+        setLessons(newLessons);
+        setTotal(meta.total || 0);
+        setHasMoreTop(false);
+        setHasMoreBottom(meta.has_next || false);
+        setInitialLoading(false);
+        return;
       }
-      
+
       if (direction === "up") {
         if (newLessons.length === 0) {
-          setHasMoreTop(false)
+          setHasMoreTop(false);
         } else {
-          // 记录当前滚动状态
-          const container = document.querySelector('.overflow-auto') as HTMLDivElement
-          const wasAtTop = container ? container.scrollTop === 0 : false
-          
           setLessons(prev => {
-            const prevIds = new Set(prev.map(lesson => lesson.id))
-            const uniqueNewLessons = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id))
-            
-            const merged = [...uniqueNewLessons, ...prev]
-            const trimmed = merged.slice(0, 50)
-            
-            return trimmed
-          })
-          
-          // 检查是否有新的唯一数据
-          const prevIds = new Set(currentLessons.map(lesson => lesson.id))
-          const uniqueCount = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id)).length
-          
+            const prevIds = new Set(prev.map(lesson => lesson.id));
+            const uniqueNewLessons = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id));
+            const merged = [...uniqueNewLessons, ...prev];
+            const trimmed = merged.slice(0, 50);
+            return trimmed;
+          });
+          const prevIds = new Set(currentLessons.map(lesson => lesson.id));
+          const uniqueCount = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id)).length;
           if (uniqueCount === 0) {
-            setHasMoreTop(false)
+            setHasMoreTop(false);
           } else {
-            setHasMoreBottom(true)
-            
-            // 调整滚动位置
-            if (wasAtTop && container && uniqueCount > 0) {
-              setTimeout(() => {
-                const rowHeight = 60
-                const newScrollTop = rowHeight * 2
-                container.scrollTop = newScrollTop
-              }, 100)
-            }
+            setHasMoreBottom(true);
           }
         }
       } else {
         if (newLessons.length === 0) {
-          setHasMoreBottom(false)
+          setHasMoreBottom(false);
         } else {
           setLessons(prev => {
-            const prevIds = new Set(prev.map(lesson => lesson.id))
-            const uniqueNewLessons = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id))
-            
-            const merged = [...prev, ...uniqueNewLessons]
-            const trimmed = merged.slice(-50)
-            
-            return trimmed
-          })
-          
-          // 检查是否有新的唯一数据
-          const prevIds = new Set(currentLessons.map(lesson => lesson.id))
-          const uniqueCount = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id)).length
-          
-          const newHasMoreBottom = (meta.has_next || false) && uniqueCount > 0
-          setHasMoreBottom(newHasMoreBottom)
-          
+            const prevIds = new Set(prev.map(lesson => lesson.id));
+            const uniqueNewLessons = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id));
+            const merged = [...prev, ...uniqueNewLessons];
+            const trimmed = merged.slice(-50);
+            return trimmed;
+          });
+          const prevIds = new Set(currentLessons.map(lesson => lesson.id));
+          const uniqueCount = newLessons.filter((lesson: Lesson) => !prevIds.has(lesson.id)).length;
+          const newHasMoreBottom = (meta.has_next || false) && uniqueCount > 0;
+          setHasMoreBottom(newHasMoreBottom);
           if (uniqueCount > 0) {
-            setHasMoreTop(true)
+            setHasMoreTop(true);
           }
         }
       }
-      
     } catch (error) {
-      console.error("API请求失败:", error)
-      toast.error("加载数据失败")
+      if (!ignore) {
+        console.error("API请求失败:", error);
+        toast.error("加载数据失败");
+      }
     } finally {
-      if (direction === "up") setLoadingTop(false)
-      if (direction === "down") setLoadingBottom(false)
-      requestInProgress.current = false
+      if (!ignore) {
+        if (direction === "up") setLoadingTop(false);
+        if (direction === "down") setLoadingBottom(false);
+      }
     }
-  }, [sortOrder])
+    return () => { ignore = true; };
+  }, [sortOrder]);
+
+  // lessonsRef 用 useCallback 依赖 lessons 替代
+  React.useEffect(() => {
+    lessonsRef.current = lessons;
+  }, [lessons]);
 
   // 初始化数据加载
-  const initializeData = React.useCallback(async () => {
-    setInitialLoading(true)
-    
-    // 直接调用API而不是通过fetchData，避免循环依赖
-    try {
-      const pageSize = 20
-      const asc = sortOrder === "asc"
-      const response = await getLessons("", "0", pageSize, true, asc)
-      const newLessons = response.data || []
-      const meta = response.meta || {}
-
-      setLessons(newLessons)
-      setTotal(meta.total || 0)
-      setHasMoreTop(false)
-      setHasMoreBottom(meta.has_next || false)
-      setInitialLoading(false)
-    } catch (error) {
-      console.error("加载初始数据失败:", error)
-      setLessons([])
-      setTotal(0)
-      setInitialLoading(false)
-      toast.error("加载数据失败")
-    }
-  }, [sortOrder])
-
-  // 滚动处理
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget
-    const { scrollTop, scrollHeight, clientHeight } = el
-    
-    // 简单边界检测
-    if (scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress.current) {
-      fetchData({ direction: "up" })
-    }
-    
-    if (scrollHeight - scrollTop - clientHeight < 10 && hasMoreBottom && !loadingBottom && !requestInProgress.current) {
-      fetchData({ direction: "down" })
-    }
-  }
+  React.useEffect(() => {
+    setInitialLoading(true);
+    fetchData({ direction: "down", reset: true, customBeginID: "0" });
+  }, [fetchData]);
 
   // 监听排序变化
   React.useEffect(() => {
     if (!initialLoading) {
-      const handleSortChange = async () => {
-        setSelectedLessons([])
-        setHasMoreTop(false)
-        setHasMoreBottom(true)
-        
-        // 直接调用API而不是通过fetchData，避免循环依赖
-        try {
-          const pageSize = 20
-          const asc = sortOrder === "asc"
-          const response = await getLessons("", "0", pageSize, true, asc)
-          const newLessons = response.data || []
-          const meta = response.meta || {}
-
-          setLessons(newLessons)
-          setTotal(meta.total || 0)
-          setHasMoreTop(false)
-          setHasMoreBottom(meta.has_next || false)
-        } catch (error) {
-          console.error("加载排序数据失败:", error)
-          toast.error("加载数据失败")
-        }
-      }
-      handleSortChange()
+      setSelectedLessons([]);
+      setHasMoreTop(false);
+      setHasMoreBottom(true);
+      fetchData({ direction: "down", reset: true, customBeginID: "0" });
     }
-  }, [sortOrder, initialLoading])
-
-  // 初始化
-  React.useEffect(() => {
-    initializeData()
-  }, [initializeData])
-
-  // 原生滚动事件绑定
-  React.useEffect(() => {
-    const bindScrollListener = () => {
-      const container = document.querySelector('.overflow-auto') as HTMLDivElement
-      if (!container) {
-        return false
-      }
-      
-      const nativeScrollHandler = (e: Event) => {
-        const target = e.target as HTMLDivElement
-        const { scrollTop, scrollHeight, clientHeight } = target
-        
-        // 触发向上翻页
-        if (scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress.current) {
-          fetchData({ direction: "up" })
-        }
-        
-        // 触发向下翻页  
-        if (scrollHeight - scrollTop - clientHeight < 10 && hasMoreBottom && !loadingBottom && !requestInProgress.current) {
-          fetchData({ direction: "down" })
-        }
-      }
-
-      container.addEventListener('scroll', nativeScrollHandler, { passive: true })
-      
-      return () => {
-        container.removeEventListener('scroll', nativeScrollHandler)
-      }
-    }
-
-    const cleanup = bindScrollListener()
-    
-    if (!cleanup) {
-      const timer = setTimeout(() => {
-        bindScrollListener()
-      }, 1000)
-      
-      return () => clearTimeout(timer)
-    }
-    
-    return cleanup
-  }, [hasMoreTop, hasMoreBottom, loadingTop, loadingBottom, fetchData])
+  }, [sortOrder, initialLoading, fetchData]);
 
   // 顶部位置自动检测
   React.useEffect(() => {
     const checkTopPosition = () => {
-      const container = document.querySelector('.overflow-auto') as HTMLDivElement
-      if (!container) return
-      
-      const { scrollTop } = container
-      
-      if (scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress.current) {
-        fetchData({ direction: "up" })
+      const container = document.querySelector('.overflow-auto') as HTMLDivElement;
+      if (!container) return;
+      if (container.scrollTop === 0 && hasMoreTop && !loadingTop) {
+        fetchData({ direction: "up" });
       }
+    };
+    const timer = setTimeout(checkTopPosition, 500);
+    return () => clearTimeout(timer);
+  }, [lessons.length, hasMoreTop, loadingTop, fetchData]);
+
+  // 滚动处理
+  const handleScroll = React.useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollTop === 0 && hasMoreTop && !loadingTop) {
+      fetchData({ direction: "up" });
     }
-    
-    const timer = setTimeout(checkTopPosition, 500)
-    
-    return () => clearTimeout(timer)
-  }, [lessons.length, hasMoreTop, loadingTop, fetchData])
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 10 && hasMoreBottom && !loadingBottom) {
+      fetchData({ direction: "down" });
+    }
+  }, [hasMoreTop, hasMoreBottom, loadingTop, loadingBottom, fetchData]);
 
   // 刷新数据
   const refreshData = React.useCallback(async () => {
