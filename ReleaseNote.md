@@ -1,3 +1,42 @@
+# v0.0.6
+
+## Feature Updates
+
+* Completely redesigned UI: student and admin interfaces are now fully separated, with a more child-friendly look for students
+* Added new management features for classes, courses, and lessons, meeting the daily needs of small training institutions
+* Introduced program sharing functionality, allowing one-click sharing of student projects
+
+## Upgrade Guide
+
+This upgrade includes a redesign of some legacy database tables. If you are upgrading from an older version, please be sure to back up your database in advance. Then, use an SQLite tool to delete the following tables before starting the new system.
+
+```sql
+drop table classes;
+drop table class_courses;
+drop table courses;
+```
+
+
+# v0.0.6
+
+## 功能更新
+
+* 全面重构UI，学生端与管理端界面彻底分离，学生界面更加童趣友好
+* 新增班级、课程、课件等管理功能，满足小型培训机构日常需求
+* 新增程序分享功能，支持作品一键分享
+
+## 升级指南
+
+本次升级对部分旧表结构进行了重新设计。若需从旧版本升级，请务必提前备份数据库，并使用 sqlite 工具删除以下表格后再启动新系统。
+
+```sql
+drop table classes;
+drop table class_courses;
+drop table courses;
+```
+
+---
+
 # v0.0.5
 
 ## Feature Updates
