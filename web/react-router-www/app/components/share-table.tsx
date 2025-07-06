@@ -395,20 +395,7 @@ export function ShareTable({
     <div className="flex flex-col gap-4 h-[90vh]">
       {/* 童趣化的搜索排序控件区域 */}
       <div className="flex flex-wrap items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200">
-        {/* 分享标题搜索栏 */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">🔍 搜索分享：</span>
-          <input
-            className="w-48 h-10 px-4 border-2 border-purple-200 rounded-2xl bg-white text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-all duration-300"
-            placeholder="输入分享标题..."
-            value={searchKeyword}
-            onChange={e => setSearchKeyword(e.target.value)}
-            style={{ boxSizing: 'border-box' }}
-          />
-        </div>
-        
-        <div className="flex items-center text-gray-400 text-sm">或</div>
-        
+                
         {/* 排序选择器 */}
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-gray-700">📅 排序：</span>
