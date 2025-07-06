@@ -148,240 +148,118 @@ export default function ListClassesPage() {
     }
   }
 
-  // 数据请求核心函数
-  const fetchData = React.useCallback(async ({ 
-    direction, 
-    reset = false, 
-    customBeginID 
-  }: { 
-    direction: "up" | "down", 
-    reset?: boolean, 
-    customBeginID?: string 
-  }) => {
-    const now = Date.now()
-    
-    // 防并发检查
-    if (requestInProgress.current) {
-      return
-    }
-    
-    // 时间间隔检查
-    if (!reset && now - lastRequestTime < REQUEST_INTERVAL) {
-      return
-    }
-    
-    requestInProgress.current = true
-    setLastRequestTime(now)
-    
-    const pageSize = 20
-    let beginID = "0"
-    let forward = true
-    const asc = sortOrder === "asc"
-    const currentClasses = classesRef.current
-    
+  // fetchData 用 useCallback 包裹，依赖 sortOrder
+  const fetchData = React.useCallback(async ({ direction, reset = false, customBeginID }: { direction: "up" | "down", reset?: boolean, customBeginID?: string }) => {
+    let ignore = false;
+    const pageSize = 20;
+    let beginID = "0";
+    let forward = true;
+    const asc = sortOrder === "asc";
+    const currentClasses = classesRef.current;
+
     if (reset && customBeginID) {
-      beginID = customBeginID
+      beginID = customBeginID;
     } else if (!reset && currentClasses.length > 0) {
       if (direction === "up") {
-        beginID = currentClasses[0].id.toString()
-        forward = false
+        beginID = currentClasses[0].id.toString();
+        forward = false;
       } else {
-        beginID = currentClasses[currentClasses.length - 1].id.toString()
-        forward = true
+        beginID = currentClasses[currentClasses.length - 1].id.toString();
+        forward = true;
       }
     }
-    
-    if (direction === "up") setLoadingTop(true)
-    if (direction === "down") setLoadingBottom(true)
-    
+
+    if (direction === "up") setLoadingTop(true);
+    if (direction === "down") setLoadingBottom(true);
+
     try {
-      const response = await getClasses(beginID, pageSize, forward, asc)
-      const newClasses = response.data || []
-      const meta = response.meta || {}
-      
+      const response = await getClasses(beginID, pageSize, forward, asc);
+      if (ignore) return;
+      const newClasses = response.data || [];
+      const meta = response.meta || {};
+
       if (reset) {
-        setClasses(newClasses)
-        setTotal(meta.total || 0)
-        // 初始加载时，根据排序方向和数据情况判断是否有更多历史数据
-        // 如果是降序（最新优先），初始加载时通常没有更多历史数据
-        // 如果是升序（最旧优先），初始加载时可能有更多历史数据
-        setHasMoreTop(false)
-        setHasMoreBottom(meta.has_next || false)
-        setInitialLoading(false)
-        return
+        setClasses(newClasses);
+        setTotal(meta.total || 0);
+        setHasMoreTop(false);
+        setHasMoreBottom(meta.has_next || false);
+        setInitialLoading(false);
+        return;
       }
-      
+
       if (direction === "up") {
         if (newClasses.length === 0) {
-          setHasMoreTop(false)
+          setHasMoreTop(false);
         } else {
-          // 记录当前滚动状态
-          const container = document.querySelector('.overflow-auto') as HTMLDivElement
-          const wasAtTop = container ? container.scrollTop === 0 : false
-          
           setClasses(prev => {
-            const prevIds = new Set(prev.map(classItem => classItem.id))
-            const uniqueNewClasses = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id))
-            
-            const merged = [...uniqueNewClasses, ...prev]
-            const trimmed = merged.slice(0, 50)
-            
-            return trimmed
-          })
-          
-          // 检查是否有新的唯一数据
-          const prevIds = new Set(currentClasses.map(classItem => classItem.id))
-          const uniqueCount = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id)).length
-          
+            const prevIds = new Set(prev.map(classItem => classItem.id));
+            const uniqueNewClasses = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id));
+            const merged = [...uniqueNewClasses, ...prev];
+            const trimmed = merged.slice(0, 50);
+            return trimmed;
+          });
+          const prevIds = new Set(currentClasses.map(classItem => classItem.id));
+          const uniqueCount = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id)).length;
           if (uniqueCount === 0) {
-            setHasMoreTop(false)
+            setHasMoreTop(false);
           } else {
-            setHasMoreBottom(true)
-            
-            // 调整滚动位置
-            if (wasAtTop && container && uniqueCount > 0) {
-              setTimeout(() => {
-                const rowHeight = 60
-                const newScrollTop = rowHeight * 2
-                container.scrollTop = newScrollTop
-              }, 100)
-            }
+            setHasMoreBottom(true);
           }
         }
       } else {
         if (newClasses.length === 0) {
-          setHasMoreBottom(false)
+          setHasMoreBottom(false);
         } else {
           setClasses(prev => {
-            const prevIds = new Set(prev.map(classItem => classItem.id))
-            const uniqueNewClasses = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id))
-            
-            const merged = [...prev, ...uniqueNewClasses]
-            const trimmed = merged.slice(-50)
-            
-            return trimmed
-          })
-          
-          // 检查是否有新的唯一数据
-          const prevIds = new Set(currentClasses.map(classItem => classItem.id))
-          const uniqueCount = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id)).length
-          
-          const newHasMoreBottom = (meta.has_next || false) && uniqueCount > 0
-          setHasMoreBottom(newHasMoreBottom)
-          
+            const prevIds = new Set(prev.map(classItem => classItem.id));
+            const uniqueNewClasses = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id));
+            const merged = [...prev, ...uniqueNewClasses];
+            const trimmed = merged.slice(-50);
+            return trimmed;
+          });
+          const prevIds = new Set(currentClasses.map(classItem => classItem.id));
+          const uniqueCount = newClasses.filter((classItem: Class) => !prevIds.has(classItem.id)).length;
+          const newHasMoreBottom = (meta.has_next || false) && uniqueCount > 0;
+          setHasMoreBottom(newHasMoreBottom);
           if (uniqueCount > 0) {
-            setHasMoreTop(true)
+            setHasMoreTop(true);
           }
         }
       }
-      
     } catch (error) {
-      console.error("API请求失败:", error)
-      toast.error("加载数据失败")
+      if (!ignore) {
+        console.error("API请求失败:", error);
+        toast.error("加载数据失败");
+      }
     } finally {
-      if (direction === "up") setLoadingTop(false)
-      if (direction === "down") setLoadingBottom(false)
-      requestInProgress.current = false
+      if (!ignore) {
+        if (direction === "up") setLoadingTop(false);
+        if (direction === "down") setLoadingBottom(false);
+      }
     }
-  }, [sortOrder])
+    return () => { ignore = true; };
+  }, [sortOrder]);
 
   // 初始化数据加载
-  const initializeData = React.useCallback(async () => {
-    setInitialLoading(true)
-    
-    // 直接调用API而不是通过fetchData，避免循环依赖
-    try {
-      const pageSize = 20
-      const asc = sortOrder === "asc"
-      const response = await getClasses("0", pageSize, true, asc)
-      const newClasses = response.data || []
-      const meta = response.meta || {}
-
-      setClasses(newClasses)
-      setTotal(meta.total || 0)
-      setHasMoreTop(false)
-      setHasMoreBottom(meta.has_next || false)
-      setInitialLoading(false)
-    } catch (error) {
-      console.error("加载初始数据失败:", error)
-      setClasses([])
-      setTotal(0)
-      setInitialLoading(false)
-      toast.error("加载数据失败")
-    }
-  }, [sortOrder])
-
-  // 滚动处理
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget
-    const { scrollTop, scrollHeight, clientHeight } = el
-    
-    // 简单边界检测
-    if (scrollTop === 0 && hasMoreTop && !loadingTop && !requestInProgress.current) {
-      fetchData({ direction: "up" })
-    }
-    
-    if (scrollHeight - scrollTop - clientHeight < 10 && hasMoreBottom && !loadingBottom && !requestInProgress.current) {
-      fetchData({ direction: "down" })
-    }
-  }
+  React.useEffect(() => {
+    setInitialLoading(true);
+    fetchData({ direction: "down", reset: true, customBeginID: "0" });
+  }, [fetchData]);
 
   // 监听排序变化
   React.useEffect(() => {
     if (!initialLoading) {
-      const handleSortChange = async () => {
-        setHasMoreTop(false)
-        setHasMoreBottom(true)
-        
-        // 直接调用API而不是通过fetchData，避免循环依赖
-        try {
-          const pageSize = 20
-          const asc = sortOrder === "asc"
-          const response = await getClasses("0", pageSize, true, asc)
-          const newClasses = response.data || []
-          const meta = response.meta || {}
-
-          setClasses(newClasses)
-          setTotal(meta.total || 0)
-          setHasMoreTop(false)
-          setHasMoreBottom(meta.has_next || false)
-        } catch (error) {
-          console.error("加载排序数据失败:", error)
-          toast.error("加载数据失败")
-        }
-      }
-      handleSortChange()
+      fetchData({ direction: "down", reset: true, customBeginID: "0" });
     }
-  }, [sortOrder, initialLoading])
-
-  // 初始化
-  React.useEffect(() => {
-    initializeData()
-  }, [initializeData])
+  }, [sortOrder, initialLoading, fetchData]);
 
   // 刷新数据
   const refreshData = React.useCallback(async () => {
-    setHasMoreTop(false)
-    setHasMoreBottom(true)
-    
-    // 直接调用API而不是通过fetchData，避免循环依赖
-    try {
-      const pageSize = 20
-      const asc = sortOrder === "asc"
-      const response = await getClasses("0", pageSize, true, asc)
-      const newClasses = response.data || []
-      const meta = response.meta || {}
-
-      setClasses(newClasses)
-      setTotal(meta.total || 0)
-      setHasMoreTop(false)
-      setHasMoreBottom(meta.has_next || false)
-      setInitialLoading(false)
-    } catch (error) {
-      console.error("刷新数据失败:", error)
-      toast.error("刷新数据失败")
-    }
-  }, [sortOrder])
+    setHasMoreTop(false);
+    setHasMoreBottom(true);
+    setInitialLoading(true);
+    fetchData({ direction: "down", reset: true, customBeginID: "0" });
+  }, [fetchData]);
 
   // 处理删除班级
   const handleDeleteClass = async (id: string) => {
@@ -412,6 +290,29 @@ export default function ListClassesPage() {
       setIsButtonCooling(false)
     }, 2000) // 2秒冷却时间
   }
+
+  // 滚动处理
+  const handleScroll = React.useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollTop === 0 && hasMoreTop && !loadingTop) {
+      fetchData({ direction: "up" });
+    }
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 10 && hasMoreBottom && !loadingBottom) {
+      fetchData({ direction: "down" });
+    }
+  }, [hasMoreTop, hasMoreBottom, loadingTop, loadingBottom, fetchData]);
+
+  // 顶部自动检测，解决向上翻页 scroll 事件未触发的问题
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      const container = document.querySelector('.overflow-auto') as HTMLDivElement;
+      if (!container) return;
+      if (container.scrollTop === 0 && hasMoreTop && !loadingTop) {
+        fetchData({ direction: "up" });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [classes.length, hasMoreTop, loadingTop, fetchData]);
 
   return (
     <AdminLayout>

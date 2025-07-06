@@ -74,156 +74,134 @@ export default function ListUsersPage() {
     usersRef.current = users
   }, [users])
 
-  // 数据请求核心函数
-  const fetchData = React.useCallback(async ({ 
-    direction, 
-    reset = false, 
-    customBeginID 
-  }: { 
-    direction: "up" | "down", 
-    reset?: boolean, 
-    customBeginID?: string 
-  }) => {
-    const now = Date.now()
-    
-    // 防并发检查
-    if (requestInProgress.current) {
-      return
-    }
-    
-    // 时间间隔检查
-    if (!reset && now - lastRequestTime < REQUEST_INTERVAL) {
-      return
-    }
-    
-    requestInProgress.current = true
-    setLastRequestTime(now)
-    
-    const pageSize = 20
-    let beginID = "0"
-    let forward = true
-    const asc = sortOrder === "asc"
-    const currentUsers = usersRef.current
-    
+  // fetchData 用 useCallback 包裹，依赖 sortOrder、searchKeyword
+  const fetchData = React.useCallback(async ({ direction, reset = false, customBeginID }: { direction: "up" | "down", reset?: boolean, customBeginID?: string }) => {
+    let ignore = false;
+    const pageSize = 20;
+    let beginID = "0";
+    let forward = true;
+    const asc = sortOrder === "asc";
+    const currentUsers = usersRef.current;
+
     if (reset && customBeginID) {
-      beginID = customBeginID
+      beginID = customBeginID;
     } else if (!reset && currentUsers.length > 0) {
       if (direction === "up") {
-        beginID = currentUsers[0].id.toString()
-        forward = false
+        beginID = currentUsers[0].id.toString();
+        forward = false;
       } else {
-        beginID = currentUsers[currentUsers.length - 1].id.toString()
-        forward = true
+        beginID = currentUsers[currentUsers.length - 1].id.toString();
+        forward = true;
       }
     }
-    
-    if (direction === "up") setLoadingTop(true)
-    if (direction === "down") setLoadingBottom(true)
-    
-    try {
-      const params = new URLSearchParams()
-      params.append("pageSize", String(pageSize))
-      params.append("forward", String(forward))
-      params.append("asc", String(asc))
-      if (beginID !== "0") params.append("beginID", beginID)
-      
-      const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?${params.toString()}`)
-      const resp = await res.json()
 
+    if (direction === "up") setLoadingTop(true);
+    if (direction === "down") setLoadingBottom(true);
+
+    try {
+      const params = new URLSearchParams();
+      params.append("pageSize", String(pageSize));
+      params.append("forward", String(forward));
+      params.append("asc", String(asc));
+      if (beginID !== "0") params.append("beginID", beginID);
+      if (searchKeyword) params.append("keyword", searchKeyword);
+      const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?${params.toString()}`);
+      const resp = await res.json();
+      if (ignore) return;
       let newUsers: User[] = [];
       if (Array.isArray(resp.data)) {
         newUsers = resp.data;
       }
-
-      // 设置总数
       if (resp.meta?.total !== undefined) {
         setTotal(resp.meta.total);
       }
-
       if (reset) {
-        setUsers(newUsers)
-        // 初始加载时，根据排序方向和数据情况判断是否有更多历史数据
-        // 如果是降序（最新优先），初始加载时通常没有更多历史数据
-        // 如果是升序（最旧优先），初始加载时可能有更多历史数据
-        setHasMoreTop(false)
-        setHasMoreBottom(resp.meta?.has_next || false)
-        setInitialLoading(false)
-        return
+        setUsers(newUsers);
+        setHasMoreTop(false);
+        setHasMoreBottom(resp.meta?.has_next || false);
+        setInitialLoading(false);
+        return;
       }
-
       if (direction === "up") {
         if (newUsers.length === 0) {
-          setHasMoreTop(false)
+          setHasMoreTop(false);
         } else {
-          // 记录当前滚动状态
-          const container = document.querySelector('.overflow-auto') as HTMLDivElement
-          const wasAtTop = container ? container.scrollTop === 0 : false
-          
           setUsers(prev => {
-            const prevIds = new Set(prev.map(user => user.id))
-            const uniqueNewUsers = newUsers.filter((user: User) => !prevIds.has(user.id))
-            
-            const merged = [...uniqueNewUsers, ...prev]
-            const trimmed = merged.slice(0, 50) // 滑动窗口缓存
-            
-            return trimmed
-          })
-          
-          // 检查是否有新的唯一数据
-          const prevIds = new Set(currentUsers.map(user => user.id))
-          const uniqueCount = newUsers.filter((user: User) => !prevIds.has(user.id)).length
-          
+            const prevIds = new Set(prev.map(user => user.id));
+            const uniqueNewUsers = newUsers.filter((user: User) => !prevIds.has(user.id));
+            const merged = [...uniqueNewUsers, ...prev];
+            const trimmed = merged.slice(0, 50);
+            return trimmed;
+          });
+          const prevIds = new Set(currentUsers.map(user => user.id));
+          const uniqueCount = newUsers.filter((user: User) => !prevIds.has(user.id)).length;
           if (uniqueCount === 0) {
-            setHasMoreTop(false)
+            setHasMoreTop(false);
           } else {
-            setHasMoreBottom(true)
-            
-            // 调整滚动位置
-            if (wasAtTop && container && uniqueCount > 0) {
-              setTimeout(() => {
-                const rowHeight = 60
-                const newScrollTop = rowHeight * 2
-                container.scrollTop = newScrollTop
-              }, 100)
-            }
+            setHasMoreBottom(true);
           }
         }
       } else {
         if (newUsers.length === 0) {
-          setHasMoreBottom(false)
+          setHasMoreBottom(false);
         } else {
           setUsers(prev => {
-            const prevIds = new Set(prev.map(user => user.id))
-            const uniqueNewUsers = newUsers.filter((user: User) => !prevIds.has(user.id))
-            
-            const merged = [...prev, ...uniqueNewUsers]
-            const trimmed = merged.slice(-50) // 滑动窗口缓存
-            
-            return trimmed
-          })
-          
-          // 检查是否有新的唯一数据
-          const prevIds = new Set(currentUsers.map(user => user.id))
-          const uniqueCount = newUsers.filter((user: User) => !prevIds.has(user.id)).length
-          
-          const newHasMoreBottom = (resp.meta?.has_next || false) && uniqueCount > 0
-          setHasMoreBottom(newHasMoreBottom)
-          
+            const prevIds = new Set(prev.map(user => user.id));
+            const uniqueNewUsers = newUsers.filter((user: User) => !prevIds.has(user.id));
+            const merged = [...prev, ...uniqueNewUsers];
+            const trimmed = merged.slice(-50);
+            return trimmed;
+          });
+          const prevIds = new Set(currentUsers.map(user => user.id));
+          const uniqueCount = newUsers.filter((user: User) => !prevIds.has(user.id)).length;
+          const newHasMoreBottom = (resp.meta?.has_next || false) && uniqueCount > 0;
+          setHasMoreBottom(newHasMoreBottom);
           if (uniqueCount > 0) {
-            setHasMoreTop(true)
+            setHasMoreTop(true);
           }
         }
       }
-      
     } catch (error) {
-      console.error("API请求失败:", error)
-      toast.error("加载数据失败")
+      if (!ignore) {
+        console.error("API请求失败:", error);
+        toast.error("加载数据失败");
+      }
     } finally {
-      if (direction === "up") setLoadingTop(false)
-      if (direction === "down") setLoadingBottom(false)
-      requestInProgress.current = false
+      if (!ignore) {
+        if (direction === "up") setLoadingTop(false);
+        if (direction === "down") setLoadingBottom(false);
+      }
     }
-  }, [sortOrder])
+    return () => { ignore = true; };
+  }, [sortOrder, searchKeyword]);
+
+  // 初始化数据加载
+  React.useEffect(() => {
+    setInitialLoading(true);
+    fetchData({ direction: "down", reset: true, customBeginID: "0" });
+  }, [fetchData]);
+
+  // 监听排序变化
+  React.useEffect(() => {
+    if (!initialLoading) {
+      fetchData({ direction: "down", reset: true, customBeginID: "0" });
+    }
+  }, [sortOrder, initialLoading, fetchData]);
+
+  // 监听搜索变化
+  React.useEffect(() => {
+    if (searchKeyword) {
+      fetchData({ direction: "down", reset: true, customBeginID: "0" });
+    }
+  }, [searchKeyword, fetchData]);
+
+  // 刷新数据
+  const refreshData = React.useCallback(async () => {
+    setHasMoreTop(false);
+    setHasMoreBottom(true);
+    setInitialLoading(true);
+    fetchData({ direction: "down", reset: true, customBeginID: "0" });
+  }, [fetchData]);
 
   // 用户名称搜索逻辑（带防抖）
   React.useEffect(() => {
@@ -299,47 +277,17 @@ export default function ListUsersPage() {
     return () => clearTimeout(timer);
   }, [searchKeyword, sortOrder]);
 
-  // 监听排序变化
+  // 顶部自动检测，解决向上翻页 scroll 事件未触发的问题
   React.useEffect(() => {
-    if (!initialLoading && !searchKeyword) {
-      const handleSortChange = async () => {
-        setHasMoreTop(true)
-        setHasMoreBottom(true)
-        
-        // 直接调用API而不是通过fetchData，避免循环依赖
-        try {
-          const pageSize = 20
-          const asc = sortOrder === "asc"
-          const params = new URLSearchParams()
-          params.append("pageSize", String(pageSize))
-          params.append("forward", "true")
-          params.append("asc", String(asc))
-          params.append("beginID", "0")
-          
-          const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?${params.toString()}`)
-          const resp = await res.json()
-
-          let newUsers: User[] = [];
-          if (Array.isArray(resp.data)) {
-            newUsers = resp.data;
-          }
-
-          setUsers(newUsers)
-          setTotal(resp.meta?.total || 0)
-          setHasMoreBottom(resp.meta?.has_next || false)
-        } catch (error) {
-          console.error("加载排序数据失败:", error)
-          toast.error("加载数据失败")
-        }
+    const timer = setTimeout(() => {
+      const container = document.querySelector('.overflow-auto') as HTMLDivElement;
+      if (!container) return;
+      if (container.scrollTop === 0 && hasMoreTop && !loadingTop) {
+        fetchData({ direction: "up" });
       }
-      handleSortChange()
-    }
-  }, [sortOrder, initialLoading, searchKeyword])
-
-  // 初始化
-  React.useEffect(() => {
-    fetchData({ direction: "down", reset: true, customBeginID: "0" })
-  }, [])
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [users.length, hasMoreTop, loadingTop, fetchData]);
 
   // 滚动处理
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -377,39 +325,6 @@ export default function ListUsersPage() {
       }
     }
   
-    // 刷新数据
-  const refreshData = React.useCallback(async () => {
-    setHasMoreTop(true)
-    setHasMoreBottom(true)
-    
-    // 直接调用API而不是通过fetchData，避免循环依赖
-    try {
-      const pageSize = 20
-      const asc = sortOrder === "asc"
-      const params = new URLSearchParams()
-      params.append("pageSize", String(pageSize))
-      params.append("forward", "true")
-      params.append("asc", String(asc))
-      params.append("beginID", "0")
-      
-      const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?${params.toString()}`)
-      const resp = await res.json()
-
-      let newUsers: User[] = [];
-      if (Array.isArray(resp.data)) {
-        newUsers = resp.data;
-      }
-
-      setUsers(newUsers)
-      setTotal(resp.meta?.total || 0)
-      setHasMoreBottom(resp.meta?.has_next || false)
-      setInitialLoading(false)
-    } catch (error) {
-      console.error("刷新数据失败:", error)
-      toast.error("刷新数据失败")
-    }
-  }, [sortOrder])
-
   // 处理删除用户
   const handleDeleteUser = React.useCallback(async (id: number) => {
     setDeletingId(id)
