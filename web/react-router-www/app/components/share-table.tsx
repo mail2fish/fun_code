@@ -93,6 +93,9 @@ export function ShareTable({
   const [localInitialLoading, setLocalInitialLoading] = React.useState(true)
   const scrollRef = React.useRef<HTMLDivElement>(null)
 
+  // ========== requestInProgress 防并发 ========== 
+  const requestInProgress = React.useRef(false);
+
   // 写入缓存
   const saveCache = React.useCallback((beginID: string) => {
     if (typeof window === 'undefined') return;
@@ -154,6 +157,18 @@ export function ShareTable({
     // eslint-disable-next-line
   }, [sortOrder])
 
+  // 顶部自动检测，解决向上翻页 scroll 事件未触发的问题
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      const container = scrollRef.current;
+      if (!container) return;
+      if (container.scrollTop === 0 && hasMoreTop && !loadingTop) {
+        fetchData({ direction: "up" });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [shares.length, hasMoreTop, loadingTop]);
+
   // 滚动监听
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget
@@ -167,6 +182,8 @@ export function ShareTable({
 
   // 数据请求
   async function fetchData({ direction, reset = false, customBeginID }: { direction: "up" | "down", reset?: boolean, customBeginID?: string }) {
+    if (requestInProgress.current) return;
+    requestInProgress.current = true;
     const pageSize = 20
     let beginID = "0"
     let forward = true
@@ -219,8 +236,8 @@ export function ShareTable({
 
       if (reset) {
         setShares(newShares)
-        setHasMoreTop(newShares.length === pageSize)
-        setHasMoreBottom(newShares.length === pageSize)
+        setHasMoreTop(true)
+        setHasMoreBottom(true)
         // 重置时清空用户选项，避免过期数据
         if (Array.isArray(resp.data?.users)) {
           const resetUsers: User[] = resp.data.users.map((user: any) => ({
@@ -231,10 +248,24 @@ export function ShareTable({
         }
       } else if (direction === "up") {
         setShares(prev => [...newShares, ...prev])
-        setHasMoreTop(newShares.length === pageSize)
+        // 优先用 meta.has_next，否则用 newShares.length === pageSize
+        if (resp.meta && typeof resp.meta.has_next !== 'undefined') {
+          setHasMoreTop(!!resp.meta.has_next)
+        } else {
+          setHasMoreTop(newShares.length === pageSize)
+        }
+        // 向上翻页后允许再次向下翻页
+        if (newShares.length > 0) setHasMoreBottom(true)
       } else {
         setShares(prev => [...prev, ...newShares])
-        setHasMoreBottom(newShares.length === pageSize)
+        // 优先用 meta.has_next，否则用 newShares.length === pageSize
+        if (resp.meta && typeof resp.meta.has_next !== 'undefined') {
+          setHasMoreBottom(!!resp.meta.has_next)
+        } else {
+          setHasMoreBottom(newShares.length === pageSize)
+        }
+        // 向下翻页后允许再次向上翻页
+        if (newShares.length > 0) setHasMoreTop(true)
       }
 
       if (newShares.length > 0) {
@@ -247,6 +278,7 @@ export function ShareTable({
       if (direction === "up") setLoadingTop(false)
       if (direction === "down") setLoadingBottom(false)
       setLocalInitialLoading(false)
+      requestInProgress.current = false;
     }
   }
 
