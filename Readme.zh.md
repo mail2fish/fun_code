@@ -84,7 +84,7 @@ chmod +x ./funcode_darwin_arm64
 
 登录后，会进入管理后台，在管理后台中可以管理学员、项目、班级等信息。
 
-1. 创建用户
+1. 用户列表
 
 ![用户列表](docs/images/admin_user_list.png)
 

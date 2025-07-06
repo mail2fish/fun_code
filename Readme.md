@@ -4,11 +4,11 @@
 
 ## Introduction
 
-FunCode Scratch Editor is an ultra-lightweight open-source graphical programming system for children that can serve as a replacement for the desktop version of the Scratch editor. Compared with other open-source Scratch systems, its main feature is extremely simple deployment: it uses an SQlite file database, requires no configuration, and users only need to download and run the program to provide a complete service including user management and Scratch graphical programming on their local computer. The system is compatible with mainstream operating systems such as Windows, Linux, and Mac, and is especially suitable for individuals or small children's programming training institutions.
+FunCode Scratch Editor is an ultra-lightweight open-source graphical programming system for children, designed as a replacement for the desktop Scratch editor. Compared to other open-source Scratch systems, its main feature is extremely simple deployment: it uses an SQlite file database, requires no configuration, and users only need to download and run the program to provide a complete service including user management and Scratch graphical programming on their local computer. The system is compatible with Windows, Linux, and Mac, and is especially suitable for individuals or small children's programming training institutions.
 
 This project is still under development. If you are interested, you are welcome to join and improve it together.
 
-Currently, there is a QQ group: 749870231 . Welcome to join and discuss.
+Currently, there is a QQ group: 749870231. Welcome to join and discuss.
 
 ## Installation and Usage Guide
 
@@ -30,18 +30,16 @@ Open the terminal, go to the directory where the funcode program is located, and
 
 <span style="color:red">Note: Please replace ./funcode_darwin_arm64 in the command with the actual downloaded program name.</span>
 
-
 ```
 chmod +x ./funcode_darwin_arm64
 ./funcode_darwin_arm64
 ```
 
-
 After the program runs normally, the interface is as shown below:
 
 ![Running on Mac](docs/images/run_in_mac.png)
 
-On the first run, an administrator account will be automatically created. The username is admin, and the password will be prompted once in the terminal. You can later check the default password in the `funcode_server/config/config.yaml` file. If you change the password in the admin panel later, the default password will become invalid.
+On the first run, an administrator account will be automatically created. The username is `admin`, and the password will be prompted once in the terminal. You can later check the default password in the `funcode_server/config/config.yaml` file. If you change the password in the admin panel later, the default password will become invalid.
 
 In addition, on the first run, the default listening port is 8080. If port 8080 is already occupied, the program will automatically increment the port number and try other available ports (such as 8081).
 
@@ -49,29 +47,94 @@ In addition, on the first run, the default listening port is 8080. If port 8080 
 
 Open your browser and visit the address shown in the terminal to access the service.
 
-![Accessing the service in browser](docs/images/login.png)
+1. Login
 
-### System Interface
+![Login in browser](docs/images/login.png)
+
+### Student Interface
+
+1. Student Dashboard
+
+![Student Dashboard](docs/images/user_dashboard.png)
+
+2. My Projects
+
+![My Projects](docs/images/user_program.png)
+
+3. My Classes
+
+![My Classes](docs/images/user_class.png)
+
+4. My Shares
+
+![My Shares](docs/images/user_share.png)
+
+5. All Shares
+
+![All Shares](docs/images/user_all_share.png)
+
+6. Resource Files
+
+![Resource Files](docs/images/user_resources.png)
+
+### Admin Interface
 
 After logging in, you will enter the admin panel, where you can manage students, projects, classes, and other information.
 
-![Admin panel](docs/images/admin.png)
+1. User List
 
-### Access the Scratch Graphical Programming System
+![User List](docs/images/admin_user_list.png)
 
-Click the "New Scratch Project" button in the interface to enter the Scratch graphical programming system.
-
-![Scratch system](docs/images/scratch.png)
-
-### Create User Interface
+2. Create User
 
 In the admin panel, click the "Create User" button to open the new user interface.
 
-![Create user](docs/images/create_user.png)
+![Create User](docs/images/admin_create_user.png)
+
+3. Access the Scratch Graphical Programming System
+
+Click the "New Scratch Project" button in the interface to enter the Scratch graphical programming system.
+
+![Scratch Editor](docs/images/scratch.png)
+
+4. Resource File Management
+
+In the admin panel, click the "Resource Files" button to open the resource file management interface.
+
+![Upload Resource Files](docs/images/admin_upload_files.png)
+
+5. Resource File List
+
+![Resource File List](docs/images/admin_list_resources.png)
+
+6. Class List
+
+![Class List](docs/images/admin_list_classes.png)
+
+7. Create Class
+
+![Create Class](docs/images/admin_create_class.png)
+
+8. Course List
+
+![Course List](docs/images/admin_list_courses.png)
+
+9. Create Course
+
+![Create Course](docs/images/admin_create_course.png)
+
+10. Lesson List
+
+![Lesson List](docs/images/admin_list_lessons.png)
+
+11. Create Lesson
+
+![Create Lesson](docs/images/admin_create_lesson.png)
 
 ## Build Guide
 
 ### Prerequisites
+
 - Go 1.24+
 - NodeJs 23.9.0+
 
@@ -84,33 +147,31 @@ make help
 ```
 
 Available make commands:
-
 ```
-  all              - 构建所有平台的项目
-  clean            - 清理构建文件
-  deps             - 安装 Go 依赖
-  frontend-deps    - 安装前端依赖
-  build-go-all     - 构建所有平台的 Go 项目
-  build-go-{os}-{arch} - 构建指定平台的 Go 项目
-  build-frontend   - 构建 React 前端
-  build-scratch    - 构建 Scratch 项目
-  dev              - 运行 Go 开发服务器
-  dev-frontend     - 运行前端开发服务器
-  dev-scratch      - 运行 Scratch 开发服务器
-  test             - 运行 Go 测试
-  test-frontend    - 运行前端测试
-  test-scratch     - 运行 Scratch 测试
-  fmt              - 格式化代码
-  lint             - 检查代码质量
-  help             - 显示帮助信息
+  all              - Build the project for all platforms
+  clean            - Clean build files
+  deps             - Install Go dependencies
+  frontend-deps    - Install frontend dependencies
+  build-go-all     - Build Go project for all platforms
+  build-go-{os}-{arch} - Build Go project for the specified platform
+  build-frontend   - Build React frontend
+  build-scratch    - Build Scratch project
+  dev              - Run Go development server
+  dev-frontend     - Run frontend development server
+  dev-scratch      - Run Scratch development server
+  test             - Run Go tests
+  test-frontend    - Run frontend tests
+  test-scratch     - Run Scratch tests
+  fmt              - Format code
+  lint             - Lint code
+  help             - Show help information
 
-支持的平台和架构组合:
-  windows-amd64    - Windows 64位
-  linux-amd64      - Linux 64位
+Supported platform and architecture combinations:
+  windows-amd64    - Windows 64-bit
+  linux-amd64      - Linux 64-bit
   darwin-amd64     - macOS Intel
   darwin-arm64     - macOS ARM
 ```
-
 The generated executable files are in the build directory.
 
 ## Development Guide
@@ -121,9 +182,9 @@ You must build the client before building the server; otherwise, even if the ser
 
 ### Client
 
-The client code is mainly in the web directory, including two parts: scratch and react-router-www.
+The client code is mainly in the `web` directory, including two parts: `scratch` and `react-router-www`.
 
-scratch is the client code for the Scratch graphical programming system, and react-router-www is the client code for the student management system.
+`scratch` is the client code for the Scratch graphical programming system, and `react-router-www` is the client code for the student management system.
 
 #### 2.1.1 Prerequisites
 
@@ -131,11 +192,11 @@ Install NodeJs
 
 #### 2.1.2 Scratch Client
 
-The code is in the web/scratch directory. This part simply wraps the Scratch GUI API to build an interface.
+The code is in the `web/scratch` directory. This part simply wraps the Scratch GUI API to build an interface.
 
 ##### 2.1.2.1 Build Scratch GUI
 
-Before building web/scratch, you need to build Scratch GUI first.
+Before building `web/scratch`, you need to build Scratch GUI first.
 
 Note: Do not use npm to install scratch-gui, because some code has been modified, so you need to build from source.
 
@@ -148,10 +209,9 @@ BUILD_MODE=dist npm run build
 npm link    
 ```
 
+`mail2fish/scratch-gui/` is a forked and customized version from https://github.com/scratchfoundation/scratch-gui. Its develop branch will be synchronized with the original repository.
 
-mail2fish/scratch-gui/ is a forked and customized version from https://github.com/scratchfoundation/scratch-gui. Its develop branch will be synchronized with the original repository.
-
-Note: Use the project's main_fun_code branch.
+Note: Use the project's `main_fun_code` branch.
 
 ##### 2.1.2.2 Build web/Scratch
 
@@ -174,18 +234,16 @@ npm start
 
 #### 2.1.3 Student Management System
 
-The code is in the web/react-router-www directory. This is a student management system developed based on ReactRouter and [shadcn](https://ui.shadcn.com/).
+The code is in the `web/react-router-www` directory. This is a student management system developed based on ReactRouter and [shadcn](https://ui.shadcn.com/).
 
 The project uses React-Router, so you need to install [React-Router](https://reactrouter.com/)
 
 Build static files
 
-
 ```
 cd web/react-router-www
 npm install
 npm run build
-
 ```
 
 Start dev environment
@@ -200,15 +258,13 @@ npm run dev
 
 The server is developed in Go, based on Gin and GORM frameworks, and uses SQLite database.
 
-The code is mainly in the internal directory.
-
+The code is mainly in the `internal` directory.
 
 ```
 go mod tidy
 go build -o ./fun_code ./cmd/fun_code/main.go
 ```
-
-You only need to run go build to build the program.
+You only need to run `go build` to build the program.
 
 After the build is complete, an executable file will be generated. Run this file to start the server.
 
@@ -222,10 +278,9 @@ Used to manage the service as a daemon process.
 
 https://github.com/ochinchina/supervisord
 
-Do not run as root. Refer to deploy/supervisord.conf for configuration.
+Do not run as root. Refer to `deploy/supervisord.conf` for configuration.
 
 #### 2.3.2 Map port 80
-
 
 ```
 sudo sysctl net.ipv4.ip_forward=1
@@ -235,11 +290,9 @@ sudo sysctl net.ipv4.ip_forward=1
 # Then run sudo sysctl -p
 ```
 
-
 ```
 sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
 ```
-
 
 If you want to forward port 80 from localhost to 8080, you also need to add an OUTPUT chain rule:
 
@@ -249,7 +302,6 @@ sudo iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 80 -j REDIRECT --to-p
 # sudo ip6tables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
 # sudo ip6tables -t nat -A OUTPUT -p tcp -d ::1 --dport 80 -j REDIRECT --to-port 8080
 ```
-
 
 ```
 sudo apt update
