@@ -484,6 +484,15 @@ func (l *LessonDaoImpl) AddLessonToCourse(lessonID, courseID uint, sortOrder int
 		return fmt.Errorf("添加课时到课程失败: %w", err)
 	}
 
+	// 课时变动后，自动重算课程总时长
+	var totalDuration int64
+	l.db.Table("lesson_courses lc").
+		Joins("JOIN lessons l ON l.id = lc.lesson_id").
+		Where("lc.course_id = ?", courseID).
+		Select("COALESCE(SUM(l.duration), 0)").
+		Scan(&totalDuration)
+	l.db.Model(&model.Course{}).Where("id = ?", courseID).Update("duration", totalDuration)
+
 	return nil
 }
 
@@ -497,6 +506,15 @@ func (l *LessonDaoImpl) RemoveLessonFromCourse(lessonID, courseID uint) error {
 	if result.RowsAffected == 0 {
 		return errors.New("课时与课程的关联不存在")
 	}
+
+	// 课时变动后，自动重算课程总时长
+	var totalDuration int64
+	l.db.Table("lesson_courses lc").
+		Joins("JOIN lessons l ON l.id = lc.lesson_id").
+		Where("lc.course_id = ?", courseID).
+		Select("COALESCE(SUM(l.duration), 0)").
+		Scan(&totalDuration)
+	l.db.Model(&model.Course{}).Where("id = ?", courseID).Update("duration", totalDuration)
 
 	return nil
 }

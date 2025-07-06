@@ -112,14 +112,6 @@ const formSchema = z.object({
   difficulty: z.enum(["beginner", "intermediate", "advanced"], {
     required_error: "请选择课程难度",
   }),
-  duration: z.coerce.number({
-    required_error: "请输入课程时长",
-    invalid_type_error: "课程时长必须是数字",
-  }).min(1, {
-    message: "课程时长至少为 1 分钟",
-  }).max(10000, {
-    message: "课程时长不能超过 10000 分钟",
-  }),
   is_published: z.boolean(),
   thumbnail_path: z.string().optional(),
 })
@@ -378,7 +370,6 @@ export default function EditCoursePage() {
       title: "",
       description: "",
       difficulty: "beginner",
-      duration: 60,
       is_published: false,
       thumbnail_path: "",
     },
@@ -601,7 +592,6 @@ export default function EditCoursePage() {
           title: course.title || "",
           description: course.description || "",
           difficulty: (course.difficulty as "beginner" | "intermediate" | "advanced") || "beginner",
-          duration: course.duration && course.duration > 0 ? course.duration : 60,
           is_published: Boolean(course.is_published),
           thumbnail_path: course.thumbnail_path || "",
         })
@@ -766,29 +756,6 @@ export default function EditCoursePage() {
                           </Select>
                           <FormDescription>
                             根据课程内容选择合适的难度等级。
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="duration"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>预计时长（分钟）</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="请输入时长，如：60"
-                              min="1"
-                              max="10000"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            当前设置：{formatDuration(form.watch("duration") || 0)}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>

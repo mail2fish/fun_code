@@ -48,11 +48,6 @@ const formSchema = z.object({
   difficulty: z.enum(["beginner", "intermediate", "advanced"], {
     required_error: "请选择课程难度",
   }),
-  duration: z.number().min(1, {
-    message: "课程时长至少为 1 分钟",
-  }).max(10000, {
-    message: "课程时长不能超过 10000 分钟",
-  }),
   is_published: z.boolean(),
   thumbnail_path: z.string().optional(),
 })
@@ -91,7 +86,6 @@ export default function CreateCoursePage() {
       title: "",
       description: "",
       difficulty: "beginner",
-      duration: 60,
       is_published: false,
       thumbnail_path: "",
     },
@@ -115,16 +109,6 @@ export default function CreateCoursePage() {
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  // 格式化时长显示
-  const formatDuration = (duration: number) => {
-    if (duration < 60) {
-      return `${duration}分钟`
-    }
-    const hours = Math.floor(duration / 60)
-    const minutes = duration % 60
-    return minutes > 0 ? `${hours}小时${minutes}分钟` : `${hours}小时`
   }
 
   return (
@@ -201,28 +185,6 @@ export default function CreateCoursePage() {
                           </Select>
                           <FormDescription>
                             根据课程内容选择合适的难度等级。
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="duration"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>预计时长（分钟）</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="60"
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            当前设置：{formatDuration(form.watch("duration"))}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
