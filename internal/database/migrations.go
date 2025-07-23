@@ -60,5 +60,10 @@ func RunMigrations(db *gorm.DB) error {
 		return err
 	}
 
+	// 迁移Excalidraw画板模型
+	if err := db.AutoMigrate(&model.ExcalidrawBoard{}); err != nil {
+		return err
+	}
+
 	return nil
 }

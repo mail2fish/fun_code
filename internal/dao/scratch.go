@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
@@ -466,4 +467,20 @@ func (s *ScratchDaoImpl) SearchProjects(userID uint, keyword string) ([]model.Sc
 	}
 
 	return projects, nil
+}
+
+// SetProjectBoard 设置Scratch项目的关联画板
+func (s *ScratchDaoImpl) SetProjectBoard(ctx context.Context, projectID, boardID uint) error {
+	return s.db.WithContext(ctx).
+		Model(&model.ScratchProject{}).
+		Where("id = ?", projectID).
+		Update("board_id", boardID).Error
+}
+
+// RemoveProjectBoard 取消Scratch项目的画板关联
+func (s *ScratchDaoImpl) RemoveProjectBoard(ctx context.Context, projectID uint) error {
+	return s.db.WithContext(ctx).
+		Model(&model.ScratchProject{}).
+		Where("id = ?", projectID).
+		Update("board_id", nil).Error
 }

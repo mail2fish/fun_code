@@ -1,6 +1,10 @@
 package dao
 
-import "github.com/jun/fun_code/internal/model"
+import (
+	"context"
+
+	"github.com/jun/fun_code/internal/model"
+)
 
 // ScratchDao 定义了Scratch项目服务的接口
 type ScratchDao interface {
@@ -30,4 +34,8 @@ type ScratchDao interface {
 	CountProjects(userID uint) (int64, error)
 
 	SearchProjects(userID uint, keyword string) ([]model.ScratchProject, error)
+
+	// 画板关联方法
+	SetProjectBoard(ctx context.Context, projectID, boardID uint) error
+	RemoveProjectBoard(ctx context.Context, projectID uint) error
 }

@@ -5,15 +5,16 @@ import (
 )
 
 type Dao struct {
-	AuthDao      AuthDao
-	UserDao      UserDao
-	FileDao      FileDao
-	ClassDao     ClassDao
-	CourseDao    CourseDao
-	LessonDao    LessonDao
-	ScratchDao   ScratchDao
-	UserAssetDao UserAssetDao
-	ShareDao     ShareDao
+	AuthDao       AuthDao
+	UserDao       UserDao
+	FileDao       FileDao
+	ClassDao      ClassDao
+	CourseDao     CourseDao
+	LessonDao     LessonDao
+	ScratchDao    ScratchDao
+	UserAssetDao  UserAssetDao
+	ShareDao      ShareDao
+	ExcalidrawDao ExcalidrawDAO
 }
 
 type AuthDao interface {
