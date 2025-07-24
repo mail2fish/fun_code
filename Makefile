@@ -42,7 +42,7 @@ build-frontend:
 # 构建 Scratch 项目
 .PHONY: build-scratch
 build-scratch: 
-	cd $(SCRATCH_DIR) && $(NPM) install
+	cd $(SCRATCH_DIR) && $(NPM) install && npm link scratch-gui
 	cd $(SCRATCH_DIR) && BUILD_MODE=dist $(NPM) run build
 
 # 构建指定平台的 Go 项目

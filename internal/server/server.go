@@ -150,7 +150,11 @@ func (s *Server) Start() error {
 	// 获取本地IP用于显示
 	host, err := getLocalIP()
 	if err != nil {
-		host = "localhost"
+		host = "0.0.0.0"
+	}
+
+	if s.config.Server.Host != "" {
+		host = s.config.Server.Host
 	}
 
 	// 兼容旧配置：如果使用了旧的Port配置，则设置为默认模式
@@ -178,8 +182,9 @@ func (s *Server) Start() error {
 // startHTTPOnly 启动模式1：只有HTTP
 func (s *Server) startHTTPOnly(host string) error {
 	fmt.Printf("Startup Mode: HTTP Only\n")
-	fmt.Printf("Service accessible at:\n- Local access: http://localhost%s\n- Network access: http://%s%s\n",
-		s.config.Server.HTTPPort, host, s.config.Server.HTTPPort)
+	fmt.Printf("Service accessible at:\n- Local access: http://%s%s\n- Network access: http://%s%s\n",
+		host, s.config.Server.HTTPPort,
+		host, s.config.Server.HTTPPort)
 
 	return s.router.Run(s.config.Server.HTTPPort)
 }
@@ -191,8 +196,9 @@ func (s *Server) startHTTPSOnly(host string) error {
 	}
 
 	fmt.Printf("Startup Mode: HTTPS Only\n")
-	fmt.Printf("Service accessible at:\n- Local access: https://localhost%s\n- Network access: https://%s%s\n",
-		s.config.Server.HTTPSPort, host, s.config.Server.HTTPSPort)
+	fmt.Printf("Service accessible at:\n- Local access: https://%s%s\n- Network access: https://%s%s\n",
+		host, s.config.Server.HTTPSPort,
+		host, s.config.Server.HTTPSPort)
 
 	return s.router.RunTLS(s.config.Server.HTTPSPort, s.config.Server.TLS.CertFile, s.config.Server.TLS.KeyFile)
 }
@@ -204,9 +210,10 @@ func (s *Server) startBoth(host string) error {
 	}
 
 	fmt.Printf("Startup Mode: HTTP and HTTPS Both\n")
-	fmt.Printf("Service accessible at:\n- HTTP Local access: http://localhost%s\n- HTTP Network access: http://%s%s\n- HTTPS Local access: https://localhost%s\n- HTTPS Network access: https://%s%s\n",
-		s.config.Server.HTTPPort, host, s.config.Server.HTTPPort,
-		s.config.Server.HTTPSPort, host, s.config.Server.HTTPSPort)
+	fmt.Printf("Service accessible at:\n- HTTP Local access: http://%s%s\n- HTTP Network access: http://%s%s\n- HTTPS Local access: https://%s%s\n- HTTPS Network access: https://%s%s\n",
+		host, s.config.Server.HTTPPort,
+		host, s.config.Server.HTTPPort,
+		host, s.config.Server.HTTPSPort)
 
 	// 启动HTTP服务（在goroutine中）
 	go func() {
@@ -226,8 +233,9 @@ func (s *Server) startHTTPSRedirect(host string) error {
 	}
 
 	fmt.Printf("Startup Mode: HTTPS Redirect (HTTP redirects to HTTPS)\n")
-	fmt.Printf("Service accessible at:\n- HTTPS Local access: https://localhost%s\n- HTTPS Network access: https://%s%s\n- HTTP requests will be redirected to HTTPS\n",
-		s.config.Server.HTTPSPort, host, s.config.Server.HTTPSPort)
+	fmt.Printf("Service accessible at:\n- HTTPS Local access: https://%s%s\n- HTTPS Network access: https://%s%s\n- HTTP requests will be redirected to HTTPS\n",
+		host, s.config.Server.HTTPSPort,
+		host, s.config.Server.HTTPSPort)
 
 	// 创建HTTP重定向服务器
 	redirectServer := &http.Server{
@@ -262,8 +270,9 @@ func (s *Server) startHTTPSRedirect(host string) error {
 // startDefault 启动模式5：默认启动（只有HTTP）
 func (s *Server) startDefault(host string) error {
 	fmt.Printf("Startup Mode: Default (HTTP Only)\n")
-	fmt.Printf("Service accessible at:\n- Local access: http://localhost%s\n- Network access: http://%s%s\n",
-		s.config.Server.HTTPPort, host, s.config.Server.HTTPPort)
+	fmt.Printf("Service accessible at:\n- Local access: http://%s%s\n- Network access: http://%s%s\n",
+		host, s.config.Server.HTTPPort,
+		host, s.config.Server.HTTPPort)
 
 	return s.router.Run(s.config.Server.HTTPPort)
 }
@@ -300,7 +309,7 @@ func (s *Server) validateTLSConfig() error {
 func getLocalIP() (string, error) {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		return "localhost", err
+		return "0.0.0.0", err
 	}
 
 	for _, addr := range addrs {
@@ -308,10 +317,11 @@ func getLocalIP() (string, error) {
 			if ipv4 := ipnet.IP.To4(); ipv4 != nil {
 				// 跳过169.254.x.x的APIPA地址
 				if !ipv4.IsLinkLocalUnicast() {
+					fmt.Println("ipv4", ipv4.String())
 					return ipv4.String(), nil
 				}
 			}
 		}
 	}
-	return "localhost", nil
+	return "0.0.0.0", nil
 }

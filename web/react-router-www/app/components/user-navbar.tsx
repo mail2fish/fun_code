@@ -49,7 +49,7 @@ export function UserNavbar({}: UserNavbarProps) {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/www/dashboard" className="flex items-center space-x-2 group">
+          <Link to="/www/user/dashboard" className="flex items-center space-x-2 group">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white group-hover:scale-110 transition-transform duration-300">
               <Sparkles className="h-6 w-6 group-hover:rotate-12 transition-transform duration-300" />
             </div>

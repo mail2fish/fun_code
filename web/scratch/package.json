@@ -9,8 +9,7 @@
     "react-intl": "^2.9.0",
     "react-redux": "5.0.7",
     "redux": "3.7.2",
-    "redux-thunk": "2.3.0",
-    "scratch-gui": "^5.1.50"
+    "redux-thunk": "2.3.0"
   },
   "scripts": {
     "build": "npm run clean && NODE_ENV=production webpack --config webpack.config.js",

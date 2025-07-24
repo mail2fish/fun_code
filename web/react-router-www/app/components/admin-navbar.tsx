@@ -220,21 +220,21 @@ export function AdminNavbar({}: AdminNavbarProps) {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-white shadow-sm admin-scrollbar">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-4">
           {/* Logo */}
-          <Link to="/www/dashboard" className="flex items-center space-x-3 group">
+          <Link to="/www/admin/dashboard" className="flex items-center space-x-3 group shrink-0">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white group-hover:bg-blue-700 transition-colors duration-200">
               <Shield className="h-6 w-6" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-lg font-bold text-gray-900">趣编程</span>
-              <span className="text-xs text-blue-600 font-medium">管理后台</span>
+            <div className="hidden sm:flex sm:flex-col">
+              <span className="text-lg font-bold text-gray-900 whitespace-nowrap">趣编程</span>
+              <span className="text-xs text-blue-600 font-medium whitespace-nowrap">管理后台</span>
             </div>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex lg:items-center lg:space-x-1">
+          <div className="hidden lg:flex lg:items-center lg:space-x-1 flex-1 justify-center">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -488,7 +488,7 @@ export function AdminNavbar({}: AdminNavbarProps) {
           </div>
 
           {/* User Info & Logout */}
-          <div className="hidden md:flex md:items-center md:space-x-3">
+          <div className="hidden md:flex md:items-center md:space-x-3 shrink-0">
             {adminInfo && (
               <div className="flex items-center space-x-3 rounded-lg bg-gray-50 px-3 py-2">
                 <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-sm font-medium">

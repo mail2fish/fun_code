@@ -59,6 +59,7 @@ type ServerConfig struct {
 
 	// 兼容旧配置
 	Port string `yaml:"port"`
+	Host string `yaml:"host"`
 }
 
 type ScratchEditorConfig struct {

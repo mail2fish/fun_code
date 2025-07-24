@@ -38,6 +38,7 @@ func (d *ExcalidrawDAOImpl) GetByID(ctx context.Context, id uint) (*model.Excali
 
 // Update 更新画板
 func (d *ExcalidrawDAOImpl) Update(ctx context.Context, board *model.ExcalidrawBoard) error {
+	board.UpdatedAt = time.Now().Unix()
 	return d.db.WithContext(ctx).
 		Where("id = ? AND deleted_at IS NULL", board.ID).
 		Updates(board).Error
@@ -95,15 +96,15 @@ func (d *ExcalidrawDAOImpl) GetAllBoardsWithPagination(ctx context.Context, user
 	var orderClause string
 	if asc {
 		if needReverse {
-			orderClause = "created_at DESC, id DESC"
+			orderClause = "id DESC"
 		} else {
-			orderClause = "created_at ASC, id ASC"
+			orderClause = "id ASC"
 		}
 	} else {
 		if needReverse {
-			orderClause = "created_at ASC, id ASC"
+			orderClause = "id ASC"
 		} else {
-			orderClause = "created_at DESC, id DESC"
+			orderClause = "id DESC"
 		}
 	}
 	query = query.Order(orderClause)
