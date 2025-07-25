@@ -36,7 +36,7 @@ frontend-deps:
 # 构建前端项目
 .PHONY: build-frontend
 build-frontend: 
-	cd $(FRONTEND_DIR) && $(NPM) install
+	cd $(FRONTEND_DIR) && $(NPM) install  --legacy-peer-deps
 	cd $(FRONTEND_DIR) && $(NPM) run build
 
 # 构建 Scratch 项目

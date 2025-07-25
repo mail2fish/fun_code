@@ -80,6 +80,9 @@ func (s *Server) setupRoutes() {
 		auth.GET("/scratch/projects", gorails.Wrap(s.handler.ListScratchProjectsHandler, nil))
 		auth.GET("/scratch/projects/search", gorails.Wrap(s.handler.SearchScratchHandler, nil))
 
+		// Excalidraw 画板路由
+		auth.POST("/excalidraw/boards", gorails.Wrap(s.handler.CreateExcalidrawBoardHandler, nil))
+
 		// ShareRoute 注册分享相关的路由
 		auth.POST("/shares", gorails.Wrap(s.handler.CreateShareHandler, nil))
 		auth.GET("/shares/check", gorails.Wrap(s.handler.CheckShareHandler, nil))
