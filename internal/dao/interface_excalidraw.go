@@ -27,4 +27,10 @@ type ExcalidrawDAO interface {
 
 	// 批量操作
 	BatchDelete(ctx context.Context, ids []uint) error
+
+	// 文件保存操作
+	// SaveExcalidrawFile 保存Excalidraw文件
+	// boardID: 画板ID，如果是0表示新建，否则表示更新
+	// existingFilePath: 现有的文件路径，用于更新时保持目录不变
+	SaveExcalidrawFile(userID uint, boardID uint, existingFilePath string, content []byte) (string, string, error)
 }

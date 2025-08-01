@@ -30,7 +30,7 @@ func (s *Server) setupRoutes() {
 	// 添加新的CORS中间件
 	if s.config.Env != "production" {
 		s.router.Use(cors.New(cors.Config{
-			AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:8601", "http://172.30.55.152:5173"},
+			AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:8601", "http://172.30.55.152:5173", "http://172.30.55.152:5180"},
 			AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 			AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Content-Length"},
 			AllowCredentials: true,
@@ -82,6 +82,7 @@ func (s *Server) setupRoutes() {
 
 		// Excalidraw 画板路由
 		auth.POST("/excalidraw/boards", gorails.Wrap(s.handler.CreateExcalidrawBoardHandler, nil))
+		auth.PUT("/excalidraw/boards/:id", gorails.Wrap(s.handler.UpdateExcalidrawBoardHandler, nil))
 
 		// ShareRoute 注册分享相关的路由
 		auth.POST("/shares", gorails.Wrap(s.handler.CreateShareHandler, nil))

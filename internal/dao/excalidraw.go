@@ -2,20 +2,42 @@ package dao
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
+	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/model"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
+)
+
+const (
+	// ExcalidrawHistoryFileLimit 保留的历史文件数量
+	ExcalidrawHistoryFileLimit = 10
 )
 
 // ExcalidrawDAOImpl 画板数据访问实现
 type ExcalidrawDAOImpl struct {
-	db *gorm.DB
+	db       *gorm.DB
+	basePath string // 文件存储的基础路径
+	cfg      *config.Config
+	logger   *zap.Logger
 }
 
 // NewExcalidrawDAO 创建画板DAO实例
-func NewExcalidrawDAO(db *gorm.DB) ExcalidrawDAO {
-	return &ExcalidrawDAOImpl{db: db}
+func NewExcalidrawDAO(db *gorm.DB, basePath string, cfg *config.Config, logger *zap.Logger) ExcalidrawDAO {
+	return &ExcalidrawDAOImpl{
+		db:       db,
+		basePath: basePath,
+		cfg:      cfg,
+		logger:   logger,
+	}
 }
 
 // Create 创建新画板
@@ -150,4 +172,107 @@ func (d *ExcalidrawDAOImpl) BatchDelete(ctx context.Context, ids []uint) error {
 		Model(&model.ExcalidrawBoard{}).
 		Where("id IN ? AND deleted_at IS NULL", ids).
 		Update("deleted_at", now).Error
+}
+
+// SaveExcalidrawFile 保存Excalidraw文件，参考 SaveProject 的逻辑
+// 文件保存路径基于第一次创建时的日期，根据当前年月日分成多级目录
+// boardID: 画板ID，如果是0表示新建，否则表示更新
+// existingFilePath: 现有的文件路径，用于更新时保持目录不变
+func (d *ExcalidrawDAOImpl) SaveExcalidrawFile(userID uint, boardID uint, existingFilePath string, content []byte) (string, string, error) {
+	// 计算MD5
+	hash := md5.Sum(content)
+	md5Hash := hex.EncodeToString(hash[:])
+
+	var dirPath, relativePath string
+
+	if len(existingFilePath) == 0 {
+		// 新建画板：基于当前日期创建目录
+		now := time.Now()
+		year := now.Format("2006")
+		month := now.Format("01")
+		day := now.Format("02")
+
+		// 相对路径目录：excalidraw/年/月/日/用户ID
+		relativeDir := filepath.Join(year, month, day, fmt.Sprintf("%d", userID))
+		baseDir := d.basePath
+		dirPath = filepath.Join(baseDir, relativeDir)
+
+		// 创建目录
+		if err := os.MkdirAll(dirPath, 0755); err != nil {
+			return "", "", fmt.Errorf("创建目录失败: %w", err)
+		}
+
+		relativePath = relativeDir
+	} else {
+		// 更新画板：使用现有的文件路径目录
+		if existingFilePath == "" {
+			return "", "", fmt.Errorf("现有文件路径不能为空")
+		}
+
+		baseDir := d.basePath
+		dirPath = filepath.Join(baseDir, existingFilePath)
+		relativePath = existingFilePath
+	}
+
+	// 使用画板ID和MD5生成文件名
+	fileName := fmt.Sprintf("%d_%s.json", boardID, md5Hash)
+	fullFilePath := filepath.Join(dirPath, fileName)
+
+	// 如果文件不存在，则写入
+	if _, err := os.Stat(fullFilePath); err != nil {
+		// 写入文件
+		if err := os.WriteFile(fullFilePath, content, 0644); err != nil {
+			d.logger.Error("写入文件失败", zap.Error(err))
+			return "", "", fmt.Errorf("写入文件失败: %w", err)
+		}
+	}
+
+	// 如果是更新操作，清理历史文件
+	if boardID > 0 {
+		go d.deleteExcalidrawHistoryFiles(boardID, dirPath)
+	}
+
+	return relativePath, md5Hash, nil
+}
+
+// deleteExcalidrawHistoryFiles 删除超出配置限制的历史文件
+func (d *ExcalidrawDAOImpl) deleteExcalidrawHistoryFiles(boardID uint, dirPath string) {
+	// 查找所有属于该画板的文件
+	files, err := os.ReadDir(dirPath)
+	if err != nil {
+		fmt.Printf("读取目录失败: %v\n", err)
+		return
+	}
+
+	// 过滤出属于该画板的文件
+	var boardFiles []os.DirEntry
+	boardIDStr := fmt.Sprintf("%d_", boardID)
+	for _, file := range files {
+		if !file.IsDir() && strings.HasPrefix(file.Name(), boardIDStr) && strings.HasSuffix(file.Name(), ".json") {
+			boardFiles = append(boardFiles, file)
+		}
+	}
+
+	// 如果文件数量不超过限制，不需要删除
+	if len(boardFiles) <= ExcalidrawHistoryFileLimit {
+		return
+	}
+
+	// 按文件修改时间排序（最新的在前）
+	sort.Slice(boardFiles, func(i, j int) bool {
+		infoI, errI := boardFiles[i].Info()
+		infoJ, errJ := boardFiles[j].Info()
+		if errI != nil || errJ != nil {
+			return false
+		}
+		return infoI.ModTime().After(infoJ.ModTime())
+	})
+
+	// 删除超出限制的文件
+	for i := ExcalidrawHistoryFileLimit; i < len(boardFiles); i++ {
+		filePath := filepath.Join(dirPath, boardFiles[i].Name())
+		if err := os.Remove(filePath); err != nil {
+			fmt.Printf("删除历史文件失败: %v\n", err)
+		}
+	}
 }

@@ -80,16 +80,20 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 
 	isDemo := cfg.Env == "demo"
 
+	// 先创建 ScratchDao，因为 ExcalidrawDao 需要依赖它
+	scratchDao := dao.NewScratchDao(db, filepath.Join(cfg.Storage.BasePath, "scratch"), cfg, logger)
+
 	fDao := &dao.Dao{
-		AuthDao:      dao.NewAuthDao(db, []byte(cfg.JWT.SecretKey), sessionCache, isDemo),
-		FileDao:      dao.NewFileDao(db),
-		ScratchDao:   dao.NewScratchDao(db, filepath.Join(cfg.Storage.BasePath, "scratch"), cfg, logger),
-		ClassDao:     dao.NewClassDao(db),
-		UserDao:      dao.NewUserDao(db),
-		UserAssetDao: dao.NewUserAssetDao(db),
-		ShareDao:     dao.NewShareDao(db, cfg, logger),
-		CourseDao:    dao.NewCourseDao(db),
-		LessonDao:    dao.NewLessonDao(db),
+		AuthDao:       dao.NewAuthDao(db, []byte(cfg.JWT.SecretKey), sessionCache, isDemo),
+		FileDao:       dao.NewFileDao(db),
+		ScratchDao:    scratchDao,
+		ClassDao:      dao.NewClassDao(db),
+		UserDao:       dao.NewUserDao(db),
+		UserAssetDao:  dao.NewUserAssetDao(db),
+		ShareDao:      dao.NewShareDao(db, cfg, logger),
+		CourseDao:     dao.NewCourseDao(db),
+		LessonDao:     dao.NewLessonDao(db),
+		ExcalidrawDao: dao.NewExcalidrawDAO(db, filepath.Join(cfg.Storage.BasePath, "excalidraw"), cfg, logger),
 	}
 
 	// 如果admin 用户不存在，则创建新用户
