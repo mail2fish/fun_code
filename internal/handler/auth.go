@@ -146,6 +146,8 @@ func (h *Handler) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := getToken(c)
 		if token == "" {
+			// 在重定向前设置 response header 为未登录
+			c.Header("Unauthorized", "true")
 			// 重定向到首页
 			c.Redirect(http.StatusFound, "/")
 			c.Abort()
@@ -154,6 +156,8 @@ func (h *Handler) AuthMiddleware() gin.HandlerFunc {
 
 		claims, err := h.dao.AuthDao.ValidateToken(token)
 		if err != nil {
+			// 在重定向前设置 response header 为未登录
+			c.Header("Unauthorized", "true")
 			// 重定向到首页
 			c.Redirect(http.StatusFound, "/")
 			c.Abort()

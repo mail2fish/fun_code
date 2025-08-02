@@ -83,6 +83,7 @@ func (s *Server) setupRoutes() {
 		// Excalidraw 画板路由
 		auth.POST("/excalidraw/boards", gorails.Wrap(s.handler.CreateExcalidrawBoardHandler, nil))
 		auth.PUT("/excalidraw/boards/:id", gorails.Wrap(s.handler.UpdateExcalidrawBoardHandler, nil))
+		auth.GET("/excalidraw/boards/:id", gorails.Wrap(s.handler.GetExcalidrawBoardHandler, nil))
 
 		// ShareRoute 注册分享相关的路由
 		auth.POST("/shares", gorails.Wrap(s.handler.CreateShareHandler, nil))

@@ -167,6 +167,8 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 			contentType = "text/html; charset=utf-8"
 		}
 	}
+
+	c.Header("Static-File", "true")
 	// 如果不是 index.html 文件，则设置 Cache-Control 头
 	if !strings.HasSuffix(filePath, "index.html") {
 		c.Header("Cache-Control", "public, max-age=31536000") // 设置为最长缓存时间 1 年

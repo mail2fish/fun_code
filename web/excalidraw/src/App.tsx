@@ -2,12 +2,15 @@ import { Excalidraw } from "@excalidraw/excalidraw";
 import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
 import './App.css'
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { HOST_URL } from "./config"
 
 // 保存状态类型
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+// 加载状态类型
+type LoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 function App() {
   const { boardId } = useParams<{ boardId: string }>();
@@ -15,6 +18,7 @@ function App() {
   const location = useLocation();
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>('idle');
   
   // 检测是否是新建模式
   const isNewBoard = location.pathname === '/excalidraw/new';
@@ -148,6 +152,76 @@ function App() {
     }
   }, [excalidrawAPI]);
 
+  // 加载现有画板
+  const loadBoard = useCallback(async (boardId: string) => {
+    try {
+      setLoadStatus('loading');
+      
+      const response = await fetch(`${HOST_URL}/api/excalidraw/boards/${boardId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('加载失败');
+      }
+
+      const result = await response.json();
+      const boardData = result.data;
+      
+      // 解析board_json
+      let sceneData;
+      try {
+        sceneData = JSON.parse(boardData.board_json);
+      } catch (e) {
+        throw new Error('画板数据格式错误');
+      }
+
+      // 使用excalidrawAPI加载场景数据
+      if (excalidrawAPI && sceneData) {
+        // 更新场景元素和应用状态
+        excalidrawAPI.updateScene({
+          elements: sceneData.elements || [],
+          appState: {
+            ...sceneData.appState,
+            // 保持一些默认状态
+            isLoading: false,
+          },
+        });
+        
+        // 如果有文件数据，单独设置文件
+        if (sceneData.files) {
+          excalidrawAPI.addFiles(Object.values(sceneData.files));
+        }
+      }
+
+      setLoadStatus('loaded');
+      
+      // 显示加载成功提示
+      if (excalidrawAPI) {
+        excalidrawAPI.setToast({
+          message: "画板已加载",
+          duration: 2000,
+          closable: true
+        });
+      }
+      
+    } catch (error) {
+      console.error('加载画板失败:', error);
+      setLoadStatus('error');
+      
+      if (excalidrawAPI) {
+        excalidrawAPI.setToast({
+          message: "加载失败，请重试",
+          duration: 3000,
+          closable: true
+        });
+      }
+    }
+  }, [excalidrawAPI]);
+
   // 处理变化事件（含节流）
   const handleChange = useCallback((elements: readonly any[], appState: AppState, files: BinaryFiles) => {
     // 清除之前的定时器
@@ -192,13 +266,30 @@ function App() {
     }
   }, [excalidrawAPI, isNewBoard, boardId, createBoard, updateBoard]);
 
-  // 获取保存状态显示文本
-  const getSaveStatusText = () => {
+  // 在组件挂载和boardId变化时加载画板数据
+  useEffect(() => {
+    // 只有当excalidrawAPI可用、有boardId、不是新建模式时才加载
+    if (excalidrawAPI && boardId && !isNewBoard && parseInt(boardId) > 0) {
+      loadBoard(boardId);
+    }
+  }, [excalidrawAPI, boardId, isNewBoard, loadBoard]);
+
+  // 获取状态显示文本和颜色
+  const getStatusDisplay = () => {
+    // 优先显示加载状态
+    if (loadStatus === 'loading') {
+      return { text: '加载中...', color: '#2196F3' };
+    }
+    if (loadStatus === 'error') {
+      return { text: '加载失败', color: '#f44336' };
+    }
+    
+    // 然后显示保存状态
     switch (saveStatus) {
-      case 'saving': return '保存中...';
-      case 'saved': return '已保存';
-      case 'error': return '保存失败';
-      default: return '';
+      case 'saving': return { text: '保存中...', color: '#FF9800' };
+      case 'saved': return { text: '已保存', color: '#4CAF50' };
+      case 'error': return { text: '保存失败', color: '#f44336' };
+      default: return { text: '', color: 'transparent' };
     }
   };
 
@@ -219,9 +310,11 @@ function App() {
     );
   }
 
+  const statusDisplay = getStatusDisplay();
+
   return (
     <div className="excalidraw-container" style={{ height: "100vh", width: "100vw", position: "relative" }}>
-      {/* 保存状态指示器 */}
+      {/* 状态指示器 */}
       <div style={{
         position: 'absolute',
         top: '10px',
@@ -230,12 +323,10 @@ function App() {
         padding: '8px 12px',
         borderRadius: '4px',
         fontSize: '14px',
-        backgroundColor: saveStatus === 'saved' ? '#4CAF50' : 
-                        saveStatus === 'saving' ? '#FF9800' : 
-                        saveStatus === 'error' ? '#f44336' : 'transparent',
-        color: saveStatus !== 'idle' ? 'white' : 'transparent'
+        backgroundColor: statusDisplay.color,
+        color: statusDisplay.text ? 'white' : 'transparent'
       }}>
-        {getSaveStatusText()}
+        {statusDisplay.text}
       </div>
 
       {/* 手动保存按钮 */}
@@ -254,9 +345,11 @@ function App() {
           cursor: 'pointer',
           fontSize: '14px'
         }}
-        disabled={saveStatus === 'saving'}
+        disabled={saveStatus === 'saving' || loadStatus === 'loading'}
       >
-        {saveStatus === 'saving' ? (isNewBoard ? '创建中...' : '保存中...') : (isNewBoard ? '创建' : '保存')}
+        {loadStatus === 'loading' ? '加载中...' : 
+         saveStatus === 'saving' ? (isNewBoard ? '创建中...' : '保存中...') : 
+         (isNewBoard ? '创建' : '保存')}
       </button>
 
       <Excalidraw

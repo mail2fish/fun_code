@@ -4,8 +4,12 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/global"
@@ -47,11 +51,21 @@ func (h *Handler) CreateExcalidrawBoardHandler(c *gin.Context, params *CreateExc
 	hash := md5.Sum(contentBytes)
 	md5Hash := hex.EncodeToString(hash[:])
 
+	// 新建画板：基于当前日期创建目录
+	now := time.Now()
+	year := now.Format("2006")
+	month := now.Format("01")
+	day := now.Format("02")
+
+	// 相对路径目录：excalidraw/年/月/日/用户ID
+	relativeDir := filepath.Join(year, month, day, fmt.Sprintf("%d", userID))
+
 	// 创建画板记录（先创建以获取ID）
 	board := &model.ExcalidrawBoard{
-		Name:   params.Name,
-		UserID: userID,
-		MD5:    md5Hash,
+		Name:     params.Name,
+		UserID:   userID,
+		MD5:      md5Hash,
+		FilePath: relativeDir,
 	}
 
 	if err := h.dao.ExcalidrawDao.Create(c.Request.Context(), board); err != nil {
@@ -59,15 +73,12 @@ func (h *Handler) CreateExcalidrawBoardHandler(c *gin.Context, params *CreateExc
 	}
 
 	// 使用生成的ID保存文件
-	filePath, _, err := h.dao.ExcalidrawDao.SaveExcalidrawFile(userID, board.ID, board.FilePath, contentBytes)
+	_, err = h.dao.ExcalidrawDao.SaveExcalidrawFile(userID, board.ID, board.FilePath, contentBytes)
 	if err != nil {
 		// 如果保存文件失败，删除数据库记录
 		h.dao.ExcalidrawDao.Delete(c.Request.Context(), board.ID)
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeCreateFailed, "文件保存失败", err)
 	}
-
-	// 更新FilePath（虽然应该相同，但确保一致性）
-	board.FilePath = filePath
 
 	return board, nil, nil
 }
@@ -110,7 +121,7 @@ func (h *Handler) UpdateExcalidrawBoardHandler(c *gin.Context, params *UpdateExc
 	}
 
 	// 查找画板
-	board, err := h.dao.ExcalidrawDao.GetByID(c.Request.Context(), uint(params.ID))
+	board, _, err := h.dao.ExcalidrawDao.GetByID(c.Request.Context(), uint(params.ID))
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryNotFound, "画板不存在", err)
 	}
@@ -127,7 +138,7 @@ func (h *Handler) UpdateExcalidrawBoardHandler(c *gin.Context, params *UpdateExc
 	}
 
 	// 保存新文件并获取哈希（使用现有的FilePath）
-	_, md5Hash, err := h.dao.ExcalidrawDao.SaveExcalidrawFile(userID, board.ID, board.FilePath, contentBytes)
+	md5Hash, err := h.dao.ExcalidrawDao.SaveExcalidrawFile(userID, board.ID, board.FilePath, contentBytes)
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeUpdateFailed, "文件保存失败", err)
 	}
@@ -140,4 +151,44 @@ func (h *Handler) UpdateExcalidrawBoardHandler(c *gin.Context, params *UpdateExc
 	}
 
 	return board, nil, nil
+}
+
+// GetExcalidrawBoardHandler 获取Excalidraw画板
+func (h *Handler) GetExcalidrawBoardHandler(c *gin.Context, params *GetExcalidrawBoardParams) (*GetExcalidrawBoardResponse, *gorails.ResponseMeta, gorails.Error) {
+	board, boardJson, err := h.dao.ExcalidrawDao.GetByID(c.Request.Context(), params.ID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	loginedUserID := h.getUserID(c)
+	if board.UserID != loginedUserID {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, errors.New("您没有权限访问该项目"))
+	}
+
+	return &GetExcalidrawBoardResponse{
+		ID:        board.ID,
+		BoardJson: boardJson,
+		CreatedAt: board.CreatedAt,
+		UpdatedAt: board.UpdatedAt,
+	}, nil, nil
+}
+
+type GetExcalidrawBoardParams struct {
+	ID uint `json:"id" uri:"id" binding:"required"`
+}
+
+func (p *GetExcalidrawBoardParams) Parse(c *gin.Context) gorails.Error {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	p.ID = uint(id)
+	return nil
+}
+
+type GetExcalidrawBoardResponse struct {
+	ID        uint   `json:"id"`
+	BoardJson string `json:"board_json"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
 }

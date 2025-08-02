@@ -10,7 +10,8 @@ import (
 type ExcalidrawDAO interface {
 	// 基础CRUD操作
 	Create(ctx context.Context, board *model.ExcalidrawBoard) error
-	GetByID(ctx context.Context, id uint) (*model.ExcalidrawBoard, error)
+	GetByID(ctx context.Context, id uint) (*model.ExcalidrawBoard, string, error)
+	ReadBoard(ctx context.Context, board *model.ExcalidrawBoard) (string, error)
 	Update(ctx context.Context, board *model.ExcalidrawBoard) error
 	Delete(ctx context.Context, id uint) error // 软删除
 
@@ -32,5 +33,5 @@ type ExcalidrawDAO interface {
 	// SaveExcalidrawFile 保存Excalidraw文件
 	// boardID: 画板ID，如果是0表示新建，否则表示更新
 	// existingFilePath: 现有的文件路径，用于更新时保持目录不变
-	SaveExcalidrawFile(userID uint, boardID uint, existingFilePath string, content []byte) (string, string, error)
+	SaveExcalidrawFile(userID uint, boardID uint, existingFilePath string, content []byte) (string, error)
 }
