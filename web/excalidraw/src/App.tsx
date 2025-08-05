@@ -34,14 +34,34 @@ function App() {
     }
 
     try {
-      // 生成缩略图 blob
-      const blob = await exportToBlob({
-        elements: excalidrawAPI.getSceneElements(),
-        appState: excalidrawAPI.getAppState(),
-        files: excalidrawAPI.getFiles(),
+      const elements = excalidrawAPI.getSceneElements();
+      const appState = excalidrawAPI.getAppState();
+      const files = excalidrawAPI.getFiles();
+      
+      // 如果没有元素，跳过缩略图生成
+      if (elements.length === 0) {
+        console.log('没有元素，跳过缩略图生成');
+        return;
+      }
+
+      // 方法1：先生成一个临时的大图，包含所有内容
+      const tempBlob = await exportToBlob({
+        elements,
+        appState: {
+          ...appState,
+          exportBackground: true,
+          viewBackgroundColor: '#ffffff',
+          exportWithDarkMode: false,
+        },
+        files,
         mimeType: "image/png",
-        getDimensions: () => ({ width: 300, height: 200 }) // 设置缩略图尺寸
+        exportPadding: 50, // 添加充足的内边距
       });
+
+      // 方法2：直接创建固定尺寸的缩略图
+      const blob = tempBlob; // 暂时使用临时生成的图片
+      
+      console.log('缩略图生成完成，blob大小：', blob.size);
 
       // 创建 FormData
       const formData = new FormData();

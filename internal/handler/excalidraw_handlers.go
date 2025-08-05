@@ -16,6 +16,7 @@ import (
 	"github.com/jun/fun_code/internal/global"
 	"github.com/jun/fun_code/internal/model"
 	"github.com/mail2fish/gorails/gorails"
+	"go.uber.org/zap"
 )
 
 // ======================== 画板处理函数 ========================
@@ -144,12 +145,20 @@ func (h *Handler) UpdateExcalidrawBoardHandler(c *gin.Context, params *UpdateExc
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeUpdateFailed, "文件保存失败", err)
 	}
 
-	// 更新画板记录（只更新MD5，FilePath保持不变）
+	// 记录旧的和新的 MD5 值
+	oldMD5 := board.MD5
 	board.MD5 = md5Hash
+	h.logger.Info("更新画板MD5",
+		zap.Uint("boardID", board.ID),
+		zap.String("oldMD5", oldMD5),
+		zap.String("newMD5", md5Hash))
 
 	if err := h.dao.ExcalidrawDao.Update(c.Request.Context(), board); err != nil {
+		h.logger.Error("更新画板失败", zap.Error(err), zap.Uint("boardID", board.ID))
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeUpdateFailed, "更新画板失败", err)
 	}
+
+	h.logger.Info("画板更新成功", zap.Uint("boardID", board.ID), zap.String("finalMD5", board.MD5))
 
 	return board, nil, nil
 }

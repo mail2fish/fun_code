@@ -76,9 +76,12 @@ func (d *ExcalidrawDAOImpl) ReadBoard(ctx context.Context, board *model.Excalidr
 
 // Update 更新画板
 func (d *ExcalidrawDAOImpl) Update(ctx context.Context, board *model.ExcalidrawBoard) error {
-	board.UpdatedAt = time.Now().Unix()
+	// 不需要手动设置 UpdatedAt，BeforeUpdate 钩子会自动处理
+	// 使用 Select 明确指定要更新的字段，确保 MD5 能被正确更新
 	return d.db.WithContext(ctx).
+		Model(board).
 		Where("id = ? AND deleted_at IS NULL", board.ID).
+		Select("md5", "name", "updated_at").
 		Updates(board).Error
 }
 
