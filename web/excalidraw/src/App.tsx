@@ -1,4 +1,4 @@
-import { Excalidraw } from "@excalidraw/excalidraw";
+import { Excalidraw, exportToBlob } from "@excalidraw/excalidraw";
 import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
 import './App.css'
@@ -25,6 +25,48 @@ function App() {
   
   // 节流保存的引用
   const saveTimeoutRef = useRef<number | null>(null);
+
+  // 保存缩略图
+  const saveThumbnail = useCallback(async (boardId: string) => {
+    if (!excalidrawAPI) {
+      console.log('excalidrawAPI 不可用，跳过缩略图保存');
+      return;
+    }
+
+    try {
+      // 生成缩略图 blob
+      const blob = await exportToBlob({
+        elements: excalidrawAPI.getSceneElements(),
+        appState: excalidrawAPI.getAppState(),
+        files: excalidrawAPI.getFiles(),
+        mimeType: "image/png",
+        getDimensions: () => ({ width: 300, height: 200 }) // 设置缩略图尺寸
+      });
+
+      // 创建 FormData
+      const formData = new FormData();
+      formData.append('thumbnail', blob, 'thumbnail.png');
+
+      // 上传缩略图
+      const response = await fetch(`${HOST_URL}/api/excalidraw/boards/${boardId}/thumbnail`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('缩略图保存失败');
+      }
+
+      console.log('缩略图保存成功');
+      
+    } catch (error) {
+      console.error('保存缩略图失败:', error);
+      // 不显示错误提示，因为缩略图保存失败不应该影响主要功能
+    }
+  }, [excalidrawAPI]);
 
   // 创建新画板
   const createBoard = useCallback(async (elements: any[], appState: AppState, files: BinaryFiles) => {
@@ -77,6 +119,9 @@ function App() {
         });
       }
       
+      // 保存缩略图
+      saveThumbnail(newBoardId.toString());
+      
       return newBoardId;
       
     } catch (error) {
@@ -92,7 +137,7 @@ function App() {
       }
       throw error;
     }
-  }, [navigate, excalidrawAPI]);
+  }, [navigate, excalidrawAPI, saveThumbnail]);
 
   // 更新现有画板
   const updateBoard = useCallback(async (boardId: string, elements: any[], appState: AppState, files: BinaryFiles) => {
@@ -138,6 +183,9 @@ function App() {
         });
       }
       
+      // 保存缩略图
+      saveThumbnail(boardId);
+      
     } catch (error) {
       console.error('更新画板失败:', error);
       setSaveStatus('error');
@@ -150,7 +198,7 @@ function App() {
         });
       }
     }
-  }, [excalidrawAPI]);
+  }, [excalidrawAPI, saveThumbnail]);
 
   // 加载现有画板
   const loadBoard = useCallback(async (boardId: string) => {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -191,4 +192,142 @@ type GetExcalidrawBoardResponse struct {
 	BoardJson string `json:"board_json"`
 	CreatedAt int64  `json:"created_at"`
 	UpdatedAt int64  `json:"updated_at"`
+}
+
+// ======================== 缩略图处理函数 ========================
+
+// ======================== 保存缩略图 ========================
+
+// SaveExcalidrawThumbParams 保存缩略图参数
+type SaveExcalidrawThumbParams struct {
+	ID      uint   `json:"id" uri:"id" binding:"required"`
+	Content []byte // 文件内容
+}
+
+func (p *SaveExcalidrawThumbParams) Parse(c *gin.Context) gorails.Error {
+	// 获取画板ID
+	boardIDStr := c.Param("id")
+	if boardIDStr == "" {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, "画板ID不能为空", nil)
+	}
+
+	// 将字符串ID转换为uint
+	boardID, err := strconv.ParseUint(boardIDStr, 10, 32)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, "画板ID格式错误", err)
+	}
+
+	p.ID = uint(boardID)
+
+	// 获取上传的文件
+	file, err := c.FormFile("thumbnail")
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, "缩略图文件不能为空", err)
+	}
+
+	// 检查文件类型
+	if file.Header.Get("Content-Type") != "image/png" {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, "缩略图文件必须是PNG格式", nil)
+	}
+
+	// 读取文件内容
+	src, err := file.Open()
+	if err != nil {
+		return gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeCreateFailed, "打开文件失败", err)
+	}
+	defer src.Close()
+
+	content, err := io.ReadAll(src)
+	if err != nil {
+		return gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeCreateFailed, "读取文件失败", err)
+	}
+
+	p.Content = content
+	return nil
+}
+
+func (h *Handler) SaveExcalidrawThumbHandler(c *gin.Context, params *SaveExcalidrawThumbParams) (*SaveExcalidrawThumbResponse, *gorails.ResponseMeta, gorails.Error) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeUnauthorized, global.ErrorMsgUnauthorized, nil)
+	}
+
+	// 查找画板
+	board, _, err := h.dao.ExcalidrawDao.GetByID(c.Request.Context(), params.ID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryNotFound, "画板不存在", err)
+	}
+
+	// 检查权限
+	if board.UserID != userID {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, "无权限操作", nil)
+	}
+
+	// 保存缩略图文件（使用 params 中已经处理好的文件内容）
+	if err := h.dao.ExcalidrawDao.SaveExcalidrawThumb(userID, board.ID, board.FilePath, params.Content); err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeCreateFailed, "保存缩略图失败", err)
+	}
+
+	return &SaveExcalidrawThumbResponse{
+		ID:      board.ID,
+		Message: "缩略图保存成功",
+	}, nil, nil
+}
+
+type SaveExcalidrawThumbResponse struct {
+	ID      uint   `json:"id"`
+	Message string `json:"message"`
+}
+
+// ======================== 获取缩略图 ========================
+
+// GetExcalidrawThumbParams 获取缩略图参数
+type GetExcalidrawThumbParams struct {
+	ID uint `json:"id" uri:"id" binding:"required"`
+}
+
+func (p *GetExcalidrawThumbParams) Parse(c *gin.Context) gorails.Error {
+	// 获取画板ID
+	boardIDStr := c.Param("id")
+	if boardIDStr == "" {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, "画板ID不能为空", nil)
+	}
+
+	// 将字符串ID转换为uint
+	boardID, err := strconv.ParseUint(boardIDStr, 10, 32)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, "画板ID格式错误", err)
+	}
+
+	p.ID = uint(boardID)
+	return nil
+}
+
+func (h *Handler) GetExcalidrawThumbHandler(c *gin.Context, params *GetExcalidrawThumbParams) ([]byte, *gorails.ResponseMeta, gorails.Error) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeUnauthorized, global.ErrorMsgUnauthorized, nil)
+	}
+
+	// 查找画板
+	board, _, err := h.dao.ExcalidrawDao.GetByID(c.Request.Context(), params.ID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryNotFound, "画板不存在", err)
+	}
+
+	// 检查权限
+	if board.UserID != userID {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, "无权限访问", nil)
+	}
+
+	// 获取缩略图文件
+	content, err := h.dao.ExcalidrawDao.GetExcalidrawThumb(board.ID, board.FilePath)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryNotFound, "缩略图不存在", err)
+	}
+
+	// 返回图片数据，缓存设置将在RenderProjectThumbnail中处理
+	return content, nil, nil
 }

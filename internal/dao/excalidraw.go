@@ -199,9 +199,7 @@ func (d *ExcalidrawDAOImpl) SaveExcalidrawFile(userID uint, boardID uint, relati
 	hash := md5.Sum(content)
 	md5Hash := hex.EncodeToString(hash[:])
 
-	var dirPath string
-
-	dirPath = filepath.Join(d.basePath, relativeFilePath)
+	dirPath := filepath.Join(d.basePath, relativeFilePath)
 
 	// 判断目录是否存在
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
@@ -230,6 +228,56 @@ func (d *ExcalidrawDAOImpl) SaveExcalidrawFile(userID uint, boardID uint, relati
 	}
 
 	return md5Hash, nil
+}
+
+// SaveExcalidrawThumb 保存Excalidraw缩略图文件，参考 SaveExcalidrawFile 的逻辑
+// boardID: 画板ID
+// relativeFilePath: 相对文件路径
+// content: PNG文件内容
+func (d *ExcalidrawDAOImpl) SaveExcalidrawThumb(userID uint, boardID uint, relativeFilePath string, content []byte) error {
+	dirPath := filepath.Join(d.basePath, relativeFilePath)
+
+	// 判断目录是否存在
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		// 创建目录
+		if err := os.MkdirAll(dirPath, 0755); err != nil {
+			return fmt.Errorf("创建目录失败: %w", err)
+		}
+	}
+
+	// 使用画板ID生成固定的缩略图文件名
+	fileName := fmt.Sprintf("%d_thumbnail.png", boardID)
+	fullFilePath := filepath.Join(dirPath, fileName)
+
+	// 写入文件（允许覆盖现有文件）
+	if err := os.WriteFile(fullFilePath, content, 0644); err != nil {
+		d.logger.Error("写入缩略图文件失败", zap.Error(err))
+		return fmt.Errorf("写入缩略图文件失败: %w", err)
+	}
+
+	return nil
+}
+
+// GetExcalidrawThumb 获取Excalidraw缩略图文件（PNG格式）
+// boardID: 画板ID
+// relativeFilePath: 相对文件路径
+func (d *ExcalidrawDAOImpl) GetExcalidrawThumb(boardID uint, relativeFilePath string) ([]byte, error) {
+	dirPath := filepath.Join(d.basePath, relativeFilePath)
+
+	// 生成缩略图文件名
+	fileName := fmt.Sprintf("%d_thumbnail.png", boardID)
+	fullFilePath := filepath.Join(dirPath, fileName)
+
+	// 读取文件内容
+	content, err := os.ReadFile(fullFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("缩略图文件不存在: %w", err)
+		}
+		return nil, fmt.Errorf("读取缩略图文件失败: %w", err)
+	}
+
+	return content, nil
 }
 
 // deleteExcalidrawHistoryFiles 删除超出配置限制的历史文件

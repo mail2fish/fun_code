@@ -34,4 +34,16 @@ type ExcalidrawDAO interface {
 	// boardID: 画板ID，如果是0表示新建，否则表示更新
 	// existingFilePath: 现有的文件路径，用于更新时保持目录不变
 	SaveExcalidrawFile(userID uint, boardID uint, existingFilePath string, content []byte) (string, error)
+
+	// SaveExcalidrawThumb 保存Excalidraw缩略图文件（PNG格式）
+	// boardID: 画板ID
+	// relativeFilePath: 相对文件路径
+	// content: PNG文件内容
+	SaveExcalidrawThumb(userID uint, boardID uint, relativeFilePath string, content []byte) error
+
+	// GetExcalidrawThumb 获取Excalidraw缩略图文件（PNG格式）
+	// boardID: 画板ID
+	// relativeFilePath: 相对文件路径
+	// 返回: PNG文件内容和错误信息
+	GetExcalidrawThumb(boardID uint, relativeFilePath string) ([]byte, error)
 }
