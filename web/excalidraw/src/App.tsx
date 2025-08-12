@@ -1,8 +1,8 @@
-import { Excalidraw, exportToBlob } from "@excalidraw/excalidraw";
+import { Excalidraw, exportToBlob, MainMenu } from "@excalidraw/excalidraw";
 import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
 import './App.css'
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { HOST_URL } from "./config"
 
@@ -12,6 +12,49 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 // 加载状态类型
 type LoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
+// Excalidraw 语言代码（常用）
+type ExcalidrawLangCode = 'en' | 'zh-CN' | 'zh-TW';
+
+// 菜单图标（描边风格，跟默认菜单更一致）
+const IconNew = () => (
+  <svg
+    width="1.25em"
+    height="1.25em"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+    focusable="false"
+  >
+    <path d="M12 5v14" />
+    <path d="M5 12h14" />
+  </svg>
+);
+
+const IconSave = () => (
+  <svg
+    width="1.25em"
+    height="1.25em"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+    focusable="false"
+  >
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="M7 10l5 5 5-5" />
+    <path d="M12 15V3" />
+  </svg>
+);
+
 function App() {
   const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
@@ -19,9 +62,20 @@ function App() {
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('idle');
+  const [langCode, setLangCode] = useState<ExcalidrawLangCode>('en');
+  const menuLabels = useMemo(() => {
+    switch (langCode) {
+      case 'en':
+        return { newLabel: 'New', saveLabel: 'Save' };
+      case 'zh-TW':
+        return { newLabel: '新建', saveLabel: '保存' };
+      default:
+        return { newLabel: '新建', saveLabel: '保存' };
+    }
+  }, [langCode]);
   
   // 检测是否是新建模式
-  const isNewBoard = location.pathname === '/excalidraw/new';
+  const isNewBoard = location.pathname === '/www/excalidraw/new';
   
   // 节流保存的引用
   const saveTimeoutRef = useRef<number | null>(null);
@@ -88,6 +142,78 @@ function App() {
     }
   }, [excalidrawAPI]);
 
+  // 新建空白画板，并跳转到新建路由
+  const handleNewBoard = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    if (excalidrawAPI) {
+      const currentAppState = excalidrawAPI.getAppState();
+      excalidrawAPI.updateScene({
+        elements: [],
+        appState: {
+          ...currentAppState,
+          openMenu: null,
+          isLoading: false,
+        },
+      });
+      excalidrawAPI.setToast({ message: menuLabels.newLabel === 'New' ? 'New canvas created' : '已新建空白画板', duration: 2000, closable: true });
+    }
+
+    setSaveStatus('idle');
+    setLoadStatus('idle');
+    navigate('/www/excalidraw/new');
+  }, [excalidrawAPI, navigate, menuLabels.newLabel]);
+
+  // 将浏览器语言映射为 Excalidraw 支持的语言
+  const mapBrowserLanguageToExcalidraw = useCallback((lang: string | null | undefined): ExcalidrawLangCode => {
+    const lower = (lang || '').toLowerCase();
+    if (lower.startsWith('zh')) {
+      // 简体优先（包含 zh, zh-cn, zh-hans 等）
+      if (lower.includes('hans') || lower === 'zh' || lower.startsWith('zh-cn') || lower.startsWith('zh-sg')) {
+        return 'zh-CN';
+      }
+      // 繁体（台湾/香港/澳门）
+      if (lower.startsWith('zh-tw') || lower.startsWith('zh-hk') || lower.startsWith('zh-mo') || lower.includes('hant')) {
+        return 'zh-TW';
+      }
+      return 'zh-CN';
+    }
+    return 'en';
+  }, []);
+
+  // 初始化并根据浏览器语言/URL/localStorage 自动设置语言
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const fromQuery = params.get('lang');
+    const fromStorage = localStorage.getItem('excalidraw.lang');
+
+    let nextLang: ExcalidrawLangCode;
+    if (fromQuery) {
+      nextLang = mapBrowserLanguageToExcalidraw(fromQuery);
+      localStorage.setItem('excalidraw.lang', nextLang);
+    } else if (fromStorage) {
+      nextLang = mapBrowserLanguageToExcalidraw(fromStorage);
+    } else if (navigator.languages && navigator.languages.length > 0) {
+      nextLang = mapBrowserLanguageToExcalidraw(navigator.languages[0]);
+    } else {
+      nextLang = mapBrowserLanguageToExcalidraw(navigator.language);
+    }
+
+    setLangCode(nextLang);
+  }, [location.search, mapBrowserLanguageToExcalidraw]);
+
+  // 监听系统语言变化，动态切换
+  useEffect(() => {
+    const onLanguageChange = () => {
+      const next = mapBrowserLanguageToExcalidraw(navigator.language);
+      setLangCode(next);
+    };
+    window.addEventListener('languagechange', onLanguageChange);
+    return () => window.removeEventListener('languagechange', onLanguageChange);
+  }, [mapBrowserLanguageToExcalidraw]);
+
   // 创建新画板
   const createBoard = useCallback(async (elements: any[], appState: AppState, files: BinaryFiles) => {
     try {
@@ -126,7 +252,7 @@ function App() {
       const newBoardId = result.data.id;
 
       // 替换浏览器路径
-      navigate(`/excalidraw/${newBoardId}`, { replace: true });
+      navigate(`/www/excalidraw/${newBoardId}`, { replace: true });
 
       setSaveStatus('saved');
       
@@ -397,35 +523,32 @@ function App() {
         {statusDisplay.text}
       </div>
 
-      {/* 手动保存按钮 */}
-      <button
-        onClick={handleManualSave}
-        style={{
-          position: 'absolute',
-          top: '10px',
-          left: '10px',
-          zIndex: 999,
-          padding: '8px 16px',
-          borderRadius: '4px',
-          border: 'none',
-          backgroundColor: '#007bff',
-          color: 'white',
-          cursor: 'pointer',
-          fontSize: '14px'
-        }}
-        disabled={saveStatus === 'saving' || loadStatus === 'loading'}
-      >
-        {loadStatus === 'loading' ? '加载中...' : 
-         saveStatus === 'saving' ? (isNewBoard ? '创建中...' : '保存中...') : 
-         (isNewBoard ? '创建' : '保存')}
-      </button>
-
       <Excalidraw
         excalidrawAPI={setExcalidrawAPI}
         onChange={handleChange}
         // 可以添加其他props，比如主题等
         theme="light"
-      />
+        langCode={langCode}
+      >
+        <MainMenu>
+          <MainMenu.DefaultItems.LoadScene />
+          <MainMenu.DefaultItems.Export />
+          <MainMenu.DefaultItems.ClearCanvas />
+          <MainMenu.Separator />
+          <MainMenu.Item onSelect={handleNewBoard}>
+            <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+              <IconNew />
+              {menuLabels.newLabel}
+            </span>
+          </MainMenu.Item>
+          <MainMenu.Item onSelect={handleManualSave} disabled={saveStatus === 'saving' || loadStatus === 'loading'}>
+            <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+              <IconSave />
+              {menuLabels.saveLabel}
+            </span>
+          </MainMenu.Item>
+        </MainMenu>
+      </Excalidraw>
     </div>
   );
 }

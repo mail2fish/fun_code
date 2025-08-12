@@ -30,7 +30,7 @@ func (s *Server) setupRoutes() {
 	// 添加新的CORS中间件
 	if s.config.Env != "production" {
 		s.router.Use(cors.New(cors.Config{
-			AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:8601", "http://172.30.55.152:5173", "http://172.30.55.152:5180"},
+			AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:8601", "http://localhost:5180", "http://172.30.55.152:5173", "http://172.30.55.152:5180"},
 			AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 			AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Content-Length"},
 			AllowCredentials: true,
