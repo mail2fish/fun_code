@@ -55,6 +55,25 @@ const IconSave = () => (
   </svg>
 );
 
+const IconBack = () => (
+  <svg
+    width="1.25em"
+    height="1.25em"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+    focusable="false"
+  >
+    <path d="M19 12H5" />
+    <path d="M12 19l-7-7 7-7" />
+  </svg>
+);
+
 function App() {
   const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
@@ -66,11 +85,11 @@ function App() {
   const menuLabels = useMemo(() => {
     switch (langCode) {
       case 'en':
-        return { newLabel: 'New', saveLabel: 'Save' };
+        return { newLabel: 'New', saveLabel: 'Save', backLabel: 'Back' };
       case 'zh-TW':
-        return { newLabel: '新建', saveLabel: '保存' };
+        return { newLabel: '新建', saveLabel: '保存', backLabel: '返回' };
       default:
-        return { newLabel: '新建', saveLabel: '保存' };
+        return { newLabel: '新建', saveLabel: '保存', backLabel: '返回' };
     }
   }, [langCode]);
   
@@ -141,6 +160,17 @@ function App() {
       // 不显示错误提示，因为缩略图保存失败不应该影响主要功能
     }
   }, [excalidrawAPI]);
+
+  // 返回处理函数
+  const handleBack = useCallback(() => {
+    // 首先尝试使用浏览器历史记录返回
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      // 如果没有历史记录，返回根路径
+      navigate('/');
+    }
+  }, [navigate]);
 
   // 新建空白画板，并跳转到新建路由
   const handleNewBoard = useCallback(() => {
@@ -508,6 +538,45 @@ function App() {
 
   return (
     <div className="excalidraw-container" style={{ height: "100vh", width: "100vw", position: "relative" }}>
+      {/* 返回按钮 - 独立在菜单外 */}
+      <button
+        onClick={handleBack}
+        style={{
+          position: 'absolute',
+          top: '12px',
+          left: '12px',
+          zIndex: 1001, // 确保在 Excalidraw 之上
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '8px 12px',
+          backgroundColor: '#ffffff',
+          border: '1px solid #e0e0e0',
+          borderRadius: '8px',
+          fontSize: '14px',
+          color: '#333',
+          cursor: 'pointer',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+          transition: 'all 0.2s ease',
+          height: '40px', // 与 Excalidraw 顶部菜单按钮高度对齐
+          fontWeight: '400',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = '#f8f9fa';
+          e.currentTarget.style.borderColor = '#d0d7de';
+          e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.15)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = '#ffffff';
+          e.currentTarget.style.borderColor = '#e0e0e0';
+          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+        }}
+        title={menuLabels.backLabel}
+      >
+        <IconBack />
+        {menuLabels.backLabel}
+      </button>
+
       {/* 状态指示器 */}
       <div style={{
         position: 'absolute',
@@ -523,18 +592,19 @@ function App() {
         {statusDisplay.text}
       </div>
 
-      <Excalidraw
+      {/* Excalidraw 容器，左侧留出合适空间 */}
+      <div style={{ 
+        paddingLeft: '85px', // 减少左侧边距，让按钮与菜单更紧密
+        height: '100%', 
+        width: '100%' 
+      }}>
+        <Excalidraw
         excalidrawAPI={setExcalidrawAPI}
         onChange={handleChange}
-        // 可以添加其他props，比如主题等
         theme="light"
         langCode={langCode}
       >
         <MainMenu>
-          <MainMenu.DefaultItems.LoadScene />
-          <MainMenu.DefaultItems.Export />
-          <MainMenu.DefaultItems.ClearCanvas />
-          <MainMenu.Separator />
           <MainMenu.Item onSelect={handleNewBoard}>
             <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
               <IconNew />
@@ -547,8 +617,13 @@ function App() {
               {menuLabels.saveLabel}
             </span>
           </MainMenu.Item>
+          <MainMenu.Separator />
+          <MainMenu.DefaultItems.LoadScene />
+          <MainMenu.DefaultItems.Export />
+          <MainMenu.DefaultItems.ClearCanvas />
         </MainMenu>
-      </Excalidraw>
+        </Excalidraw>
+      </div>
     </div>
   );
 }

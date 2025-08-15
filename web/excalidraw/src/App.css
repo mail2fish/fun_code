@@ -29,3 +29,17 @@ body {
   display: flex;
   gap: 0.5rem;
 }
+
+/* --- Align top-left menu with external back button --- */
+/* Move the built-in hamburger menu slightly to the right so it lines up nicely
+   with the external back button sitting at left: 12px in App.tsx. */
+.excalidraw .App-menu_top {
+  left: 104px !important; /* 调整右移距离，使与40px高的返回按钮垂直居中对齐 */
+  top: 12px !important;  /* 与返回按钮同一基线 */
+}
+
+/* Some builds add a transition class; keep the same offsets */
+.excalidraw .zen-mode-transition.App-menu_top {
+  left: 104px !important;
+  top: 12px !important;
+}
