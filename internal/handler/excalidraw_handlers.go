@@ -37,6 +37,11 @@ func (p *CreateExcalidrawBoardParams) Parse(c *gin.Context) gorails.Error {
 }
 
 func (h *Handler) CreateExcalidrawBoardHandler(c *gin.Context, params *CreateExcalidrawBoardParams) (*model.ExcalidrawBoard, *gorails.ResponseMeta, gorails.Error) {
+	// 添加调试日志
+	h.logger.Info("创建画板参数",
+		zap.String("name", params.Name),
+		zap.Any("fileContent", params.FileContent))
+
 	// 获取当前用户ID
 	userID := h.getUserID(c)
 	if userID == 0 {
@@ -70,6 +75,13 @@ func (h *Handler) CreateExcalidrawBoardHandler(c *gin.Context, params *CreateExc
 		FilePath: relativeDir,
 	}
 
+	// 添加调试日志
+	h.logger.Info("准备创建画板记录",
+		zap.String("name", board.Name),
+		zap.Uint("userID", board.UserID),
+		zap.String("md5", board.MD5),
+		zap.String("filePath", board.FilePath))
+
 	if err := h.dao.ExcalidrawDao.Create(c.Request.Context(), board); err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeCreateFailed, global.ErrorMsgCreateFailed, err)
 	}
@@ -90,6 +102,7 @@ func (h *Handler) CreateExcalidrawBoardHandler(c *gin.Context, params *CreateExc
 // UpdateExcalidrawBoardParams 更新画板参数
 type UpdateExcalidrawBoardParams struct {
 	ID          uint
+	Name        string                 `json:"name,omitempty"`
 	FileContent map[string]interface{} `json:"file_content" binding:"required"`
 }
 
@@ -115,6 +128,11 @@ func (p *UpdateExcalidrawBoardParams) Parse(c *gin.Context) gorails.Error {
 }
 
 func (h *Handler) UpdateExcalidrawBoardHandler(c *gin.Context, params *UpdateExcalidrawBoardParams) (*model.ExcalidrawBoard, *gorails.ResponseMeta, gorails.Error) {
+	// 添加调试日志
+	h.logger.Info("更新画板参数",
+		zap.Uint("id", params.ID),
+		zap.String("name", params.Name),
+		zap.Any("fileContent", params.FileContent))
 
 	// 获取当前用户ID
 	userID := h.getUserID(c)
@@ -143,6 +161,14 @@ func (h *Handler) UpdateExcalidrawBoardHandler(c *gin.Context, params *UpdateExc
 	md5Hash, err := h.dao.ExcalidrawDao.SaveExcalidrawFile(userID, board.ID, board.FilePath, contentBytes)
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeUpdateFailed, "文件保存失败", err)
+	}
+
+	// 更新画板名称（如果提供）
+	if params.Name != "" {
+		board.Name = params.Name
+		h.logger.Info("更新画板名称",
+			zap.Uint("boardID", board.ID),
+			zap.String("newName", board.Name))
 	}
 
 	// 记录旧的和新的 MD5 值
@@ -177,6 +203,7 @@ func (h *Handler) GetExcalidrawBoardHandler(c *gin.Context, params *GetExcalidra
 
 	return &GetExcalidrawBoardResponse{
 		ID:        board.ID,
+		Name:      board.Name,
 		BoardJson: boardJson,
 		CreatedAt: board.CreatedAt,
 		UpdatedAt: board.UpdatedAt,
@@ -198,6 +225,7 @@ func (p *GetExcalidrawBoardParams) Parse(c *gin.Context) gorails.Error {
 
 type GetExcalidrawBoardResponse struct {
 	ID        uint   `json:"id"`
+	Name      string `json:"name"`
 	BoardJson string `json:"board_json"`
 	CreatedAt int64  `json:"created_at"`
 	UpdatedAt int64  `json:"updated_at"`
@@ -339,4 +367,136 @@ func (h *Handler) GetExcalidrawThumbHandler(c *gin.Context, params *GetExcalidra
 
 	// 返回图片数据，缓存设置将在RenderProjectThumbnail中处理
 	return content, nil, nil
+}
+
+// ======================== 列出画板 ========================
+
+// ListExcalidrawBoardsParams 列出Excalidraw画板参数
+type ListExcalidrawBoardsParams struct {
+	PageSize uint `json:"page_size" form:"pageSize"`
+	BeginID  uint `json:"begin_id" form:"beginID"`
+	Forward  bool `json:"forward" form:"forward"`
+	Asc      bool `json:"asc" form:"asc"`
+}
+
+func (p *ListExcalidrawBoardsParams) Parse(c *gin.Context) gorails.Error {
+	// 设置默认值
+	p.PageSize = 20
+	p.BeginID = 0
+	p.Forward = true
+	p.Asc = true
+
+	// 解析页面大小
+	if pageSizeStr := c.DefaultQuery("pageSize", "20"); pageSizeStr != "" {
+		if pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32); err == nil {
+			if pageSize > 0 && pageSize <= 100 {
+				p.PageSize = uint(pageSize)
+			}
+		}
+	}
+
+	// 解析起始ID
+	if beginIDStr := c.DefaultQuery("beginID", "0"); beginIDStr != "" {
+		if beginID, err := strconv.ParseUint(beginIDStr, 10, 32); err == nil {
+			p.BeginID = uint(beginID)
+		}
+	}
+
+	// 解析翻页方向
+	if forwardStr := c.DefaultQuery("forward", "true"); forwardStr != "" {
+		p.Forward = forwardStr != "false"
+	}
+
+	// 解析排序方向
+	if ascStr := c.DefaultQuery("asc", "true"); ascStr != "" {
+		p.Asc = ascStr != "false"
+	}
+	return nil
+}
+
+// BoardInfo 画板信息
+type BoardInfo struct {
+	ID        uint      `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	UserID    uint      `json:"user_id"`
+}
+
+func (h *Handler) ListExcalidrawBoardsHandler(c *gin.Context, params *ListExcalidrawBoardsParams) ([]*model.ExcalidrawBoard, *gorails.ResponseMeta, gorails.Error) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeUnauthorized, global.ErrorMsgUnauthorized, nil)
+	}
+
+	// 获取所有画板列表
+	boards, hasMore, err := h.dao.ExcalidrawDao.GetAllBoardsWithPagination(c.Request.Context(), userID, params.PageSize, params.BeginID, params.Forward, params.Asc)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 获取总数
+	total, err := h.dao.ExcalidrawDao.GetUserBoardCount(c.Request.Context(), userID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	return boards, &gorails.ResponseMeta{
+		Total:   int(total),
+		HasNext: hasMore,
+	}, nil
+}
+
+// ======================== 删除画板 ========================
+
+// DeleteExcalidrawBoardParams 删除画板参数
+type DeleteExcalidrawBoardParams struct {
+	ID uint `json:"id" uri:"id" binding:"required"`
+}
+
+func (p *DeleteExcalidrawBoardParams) Parse(c *gin.Context) gorails.Error {
+	// 获取画板ID
+	boardIDStr := c.Param("id")
+	if boardIDStr == "" {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, "画板ID不能为空", nil)
+	}
+
+	// 将字符串ID转换为uint
+	boardID, err := strconv.ParseUint(boardIDStr, 10, 32)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, "画板ID格式错误", err)
+	}
+
+	p.ID = uint(boardID)
+	return nil
+}
+
+func (h *Handler) DeleteExcalidrawBoardHandler(c *gin.Context, params *DeleteExcalidrawBoardParams) (*gorails.ResponseEmpty, *gorails.ResponseMeta, gorails.Error) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeUnauthorized, global.ErrorMsgUnauthorized, nil)
+	}
+
+	// 查找画板
+	board, _, err := h.dao.ExcalidrawDao.GetByID(c.Request.Context(), params.ID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryNotFound, "画板不存在", err)
+	}
+
+	// 检查权限
+	if board.UserID != userID {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, "无权限操作", nil)
+	}
+
+	// 删除画板（软删除）
+	if err := h.dao.ExcalidrawDao.Delete(c.Request.Context(), board.ID); err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeDeleteFailed, "删除画板失败", err)
+	}
+
+	return &gorails.ResponseEmpty{}, &gorails.ResponseMeta{
+		Total:   1,
+		HasNext: false,
+	}, nil
 }

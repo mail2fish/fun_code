@@ -9,6 +9,7 @@ export default [
     route("/www/user/class_courses/:classId", "routes/user/class_courses.tsx"),
     route("/www/user/course_lessons/:courseId", "routes/user/course_lessons.tsx"),
     route("/www/user/scratch", "routes/user/user_scratch.tsx"),
+    route("/www/user/excalidraw", "routes/user/user_excalidraw.tsx"),
     route("/www/scratch/project/:projectId/histories", "routes/scratch_project_histories.tsx"),
     route("/www/files/list", "routes/list_files.tsx"),
     route("/www/shares/user", "routes/user_share.tsx"),
