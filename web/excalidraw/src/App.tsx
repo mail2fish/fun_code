@@ -74,6 +74,45 @@ const IconBack = () => (
   </svg>
 );
 
+const IconSaveTitle = () => (
+  <svg
+    width="1.1em"
+    height="1.1em"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+    focusable="false"
+  >
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+    <polyline points="17,21 17,13 7,13 7,21" />
+    <polyline points="7,3 7,8 15,8" />
+  </svg>
+);
+
+const IconRename = () => (
+  <svg
+    width="1.25em"
+    height="1.25em"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+    focusable="false"
+  >
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+);
+
 function App() {
   const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
@@ -82,14 +121,17 @@ function App() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('idle');
   const [langCode, setLangCode] = useState<ExcalidrawLangCode>('en');
+  const [boardTitle, setBoardTitle] = useState<string>('');
+  const [isRenameOpen, setIsRenameOpen] = useState<boolean>(false);
+  const [renameValue, setRenameValue] = useState<string>('');
   const menuLabels = useMemo(() => {
     switch (langCode) {
       case 'en':
-        return { newLabel: 'New', saveLabel: 'Save', backLabel: 'Back' };
+        return { newLabel: 'New', saveLabel: 'Save', backLabel: 'Back', renameLabel: 'Rename' };
       case 'zh-TW':
-        return { newLabel: '新建', saveLabel: '保存', backLabel: '返回' };
+        return { newLabel: '新建', saveLabel: '保存', backLabel: '返回', renameLabel: '重命名' };
       default:
-        return { newLabel: '新建', saveLabel: '保存', backLabel: '返回' };
+        return { newLabel: '新建', saveLabel: '保存', backLabel: '返回', renameLabel: '重命名' };
     }
   }, [langCode]);
   
@@ -245,12 +287,12 @@ function App() {
   }, [mapBrowserLanguageToExcalidraw]);
 
   // 创建新画板
-  const createBoard = useCallback(async (elements: any[], appState: AppState, files: BinaryFiles) => {
+  const createBoard = useCallback(async (elements: any[], appState: AppState, files: BinaryFiles, title?: string) => {
     try {
       setSaveStatus('saving');
       
       const boardData = {
-        name: `画板 ${new Date().toLocaleString()}`, // 默认名称
+        name: title || boardTitle || `画板 ${new Date().toLocaleString()}`, // 使用标题或默认名称
         file_content: {
           type: "excalidraw",
           version: 2,
@@ -316,11 +358,12 @@ function App() {
   }, [navigate, excalidrawAPI, saveThumbnail]);
 
   // 更新现有画板
-  const updateBoard = useCallback(async (boardId: string, elements: any[], appState: AppState, files: BinaryFiles) => {
+  const updateBoard = useCallback(async (boardId: string, elements: any[], appState: AppState, files: BinaryFiles, title?: string) => {
     try {
       setSaveStatus('saving');
       
       const boardData = {
+        ...(title !== undefined && { name: title }), // 只有提供了标题才更新名称
         file_content: {
           type: "excalidraw",
           version: 2,
@@ -394,6 +437,13 @@ function App() {
 
       const result = await response.json();
       const boardData = result.data;
+      
+      // 设置标题
+      if (boardData.name) {
+        setBoardTitle(boardData.name);
+        // 同步更新页面标题
+        document.title = boardData.name;
+      }
       
       // 解析board_json
       let sceneData;
@@ -490,11 +540,37 @@ function App() {
     }
   }, [excalidrawAPI, isNewBoard, boardId, createBoard, updateBoard]);
 
+  // 带标题的手动保存
+  const handleSaveWithTitle = useCallback(() => {
+    if (!excalidrawAPI) return;
+    
+    const elements = excalidrawAPI.getSceneElements();
+    const appState = excalidrawAPI.getAppState();
+    const files = excalidrawAPI.getFiles();
+    
+    if (isNewBoard) {
+      // 新建模式：调用创建画板API
+      createBoard([...elements], appState, files, boardTitle);
+    } else if (boardId) {
+      // 更新模式：调用更新画板API
+      updateBoard(boardId, [...elements], appState, files, boardTitle);
+    }
+    
+    // 更新页面标题
+    if (boardTitle) {
+      document.title = boardTitle;
+    }
+  }, [excalidrawAPI, isNewBoard, boardId, createBoard, updateBoard, boardTitle]);
+
   // 在组件挂载和boardId变化时加载画板数据
   useEffect(() => {
     // 只有当excalidrawAPI可用、有boardId、不是新建模式时才加载
     if (excalidrawAPI && boardId && !isNewBoard && parseInt(boardId) > 0) {
       loadBoard(boardId);
+    } else if (isNewBoard) {
+      // 新建模式时清空标题并重置页面标题
+      setBoardTitle('');
+      document.title = '画板';
     }
   }, [excalidrawAPI, boardId, isNewBoard, loadBoard]);
 
@@ -538,44 +614,7 @@ function App() {
 
   return (
     <div className="excalidraw-container" style={{ height: "100vh", width: "100vw", position: "relative" }}>
-      {/* 返回按钮 - 独立在菜单外 */}
-      <button
-        onClick={handleBack}
-        style={{
-          position: 'absolute',
-          top: '12px',
-          left: '12px',
-          zIndex: 1001, // 确保在 Excalidraw 之上
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '8px 12px',
-          backgroundColor: '#ffffff',
-          border: '1px solid #e0e0e0',
-          borderRadius: '8px',
-          fontSize: '14px',
-          color: '#333',
-          cursor: 'pointer',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          transition: 'all 0.2s ease',
-          height: '40px', // 与 Excalidraw 顶部菜单按钮高度对齐
-          fontWeight: '400',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#f8f9fa';
-          e.currentTarget.style.borderColor = '#d0d7de';
-          e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.15)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = '#ffffff';
-          e.currentTarget.style.borderColor = '#e0e0e0';
-          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-        }}
-        title={menuLabels.backLabel}
-      >
-        <IconBack />
-        {menuLabels.backLabel}
-      </button>
+
 
       {/* 状态指示器 */}
       <div style={{
@@ -594,7 +633,7 @@ function App() {
 
       {/* Excalidraw 容器，左侧留出合适空间 */}
       <div style={{ 
-        paddingLeft: '85px', // 减少左侧边距，让按钮与菜单更紧密
+        paddingLeft: '0px', // 菜单现在在最左边，不需要左边距
         height: '100%', 
         width: '100%' 
       }}>
@@ -617,12 +656,116 @@ function App() {
               {menuLabels.saveLabel}
             </span>
           </MainMenu.Item>
+          <MainMenu.Item onSelect={() => { setRenameValue(boardTitle); setIsRenameOpen(true); }}>
+            <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+              <IconRename />
+              {menuLabels.renameLabel}
+            </span>
+          </MainMenu.Item>
           <MainMenu.Separator />
           <MainMenu.DefaultItems.LoadScene />
           <MainMenu.DefaultItems.Export />
           <MainMenu.DefaultItems.ClearCanvas />
+          <MainMenu.Separator />
+
+          <MainMenu.Item onSelect={handleBack}>
+            <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+              <IconBack />
+              {menuLabels.backLabel}
+            </span>
+          </MainMenu.Item>
         </MainMenu>
         </Excalidraw>
+        {isRenameOpen && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+          }}>
+            <div style={{
+              background: '#ffffff',
+              width: 'min(520px, 92vw)',
+              borderRadius: 8,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+              padding: 20,
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+                {menuLabels.renameLabel}
+              </div>
+              <input
+                autoFocus
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                placeholder={langCode === 'en' ? 'Enter a new title' : '请输入新标题'}
+                style={{
+                  width: '100%',
+                  height: 40,
+                  padding: '8px 12px',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: 6,
+                  fontSize: 14,
+                  outline: 'none',
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const btn = document.getElementById('rename-confirm-btn') as HTMLButtonElement | null;
+                    btn?.click();
+                  }
+                }}
+              />
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                <button
+                  onClick={() => setIsRenameOpen(false)}
+                  style={{
+                    height: 36,
+                    padding: '6px 12px',
+                    background: '#fff',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {langCode === 'en' ? 'Cancel' : '取消'}
+                </button>
+                <button
+                  id="rename-confirm-btn"
+                  onClick={() => {
+                    const nextTitle = renameValue.trim();
+                    if (!nextTitle) { setIsRenameOpen(false); return; }
+                    setBoardTitle(nextTitle);
+                    document.title = nextTitle;
+                    if (excalidrawAPI) {
+                      const elements = excalidrawAPI.getSceneElements();
+                      const appState = excalidrawAPI.getAppState();
+                      const files = excalidrawAPI.getFiles();
+                      if (isNewBoard) {
+                        createBoard([...elements], appState, files, nextTitle);
+                      } else if (boardId) {
+                        updateBoard(boardId, [...elements], appState, files, nextTitle);
+                      }
+                    }
+                    setIsRenameOpen(false);
+                  }}
+                  style={{
+                    height: 36,
+                    padding: '6px 14px',
+                    background: '#111827',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {langCode === 'en' ? 'Save' : '保存'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
