@@ -74,25 +74,7 @@ const IconBack = () => (
   </svg>
 );
 
-const IconSaveTitle = () => (
-  <svg
-    width="1.1em"
-    height="1.1em"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-    focusable="false"
-  >
-    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-    <polyline points="17,21 17,13 7,13 7,21" />
-    <polyline points="7,3 7,8 15,8" />
-  </svg>
-);
+
 
 const IconRename = () => (
   <svg
@@ -540,27 +522,7 @@ function App() {
     }
   }, [excalidrawAPI, isNewBoard, boardId, createBoard, updateBoard]);
 
-  // 带标题的手动保存
-  const handleSaveWithTitle = useCallback(() => {
-    if (!excalidrawAPI) return;
-    
-    const elements = excalidrawAPI.getSceneElements();
-    const appState = excalidrawAPI.getAppState();
-    const files = excalidrawAPI.getFiles();
-    
-    if (isNewBoard) {
-      // 新建模式：调用创建画板API
-      createBoard([...elements], appState, files, boardTitle);
-    } else if (boardId) {
-      // 更新模式：调用更新画板API
-      updateBoard(boardId, [...elements], appState, files, boardTitle);
-    }
-    
-    // 更新页面标题
-    if (boardTitle) {
-      document.title = boardTitle;
-    }
-  }, [excalidrawAPI, isNewBoard, boardId, createBoard, updateBoard, boardTitle]);
+
 
   // 在组件挂载和boardId变化时加载画板数据
   useEffect(() => {
