@@ -118,7 +118,7 @@ function App() {
   }, [langCode]);
   
   // 检测是否是新建模式
-  const isNewBoard = location.pathname === '/www/excalidraw/new';
+  const isNewBoard = location.pathname === '/excalidraw/new';
   
   // 节流保存的引用
   const saveTimeoutRef = useRef<number | null>(null);

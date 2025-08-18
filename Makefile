@@ -4,6 +4,7 @@ NPM=npm
 BINARY_NAME=funcode
 FRONTEND_DIR=web/react-router-www
 SCRATCH_DIR=web/scratch
+EXCALIDRAW_DIR=web/excalidraw
 BUILD_DIR=build
 DIST_DIR=dist
 BUILD_FRONTEND ?= false
@@ -36,7 +37,7 @@ frontend-deps:
 # 构建前端项目
 .PHONY: build-frontend
 build-frontend: 
-	cd $(FRONTEND_DIR) && $(NPM) install  --legacy-peer-deps
+	cd $(FRONTEND_DIR) && $(NPM) install 
 	cd $(FRONTEND_DIR) && $(NPM) run build
 
 # 构建 Scratch 项目
@@ -45,11 +46,17 @@ build-scratch:
 	cd $(SCRATCH_DIR) && $(NPM) install && npm link scratch-gui
 	cd $(SCRATCH_DIR) && BUILD_MODE=dist $(NPM) run build
 
+# 构建 Excalidraw 项目
+.PHONY: build-excalidraw
+build-excalidraw: 
+	cd $(EXCALIDRAW_DIR) && $(NPM) install 
+	cd $(EXCALIDRAW_DIR) && $(NPM) run build	
+
 # 构建指定平台的 Go 项目
 .PHONY: build-go-%
 build-go-%: deps
 	@if [ "$(BUILD_FRONTEND)" = "true" ]; then \
-		$(MAKE) build-frontend build-scratch; \
+		$(MAKE) build-frontend build-scratch build-excalidraw; \
 	fi
 	@echo "Building for $*"
 	$(eval GOOS = $(word 1,$(subst -, ,$*)))
@@ -125,6 +132,7 @@ help:
 	@echo "  build-go-{os}-{arch} - 构建指定平台的 Go 项目（纯 Go 模式，无 CGO）"
 	@echo "  build-frontend   - 构建 React 前端"
 	@echo "  build-scratch    - 构建 Scratch 项目"
+	@echo "  build-excalidraw - 构建 Excalidraw 项目"
 	@echo "  dev              - 运行 Go 开发服务器"
 	@echo "  dev-frontend     - 运行前端开发服务器"
 	@echo "  dev-scratch      - 运行 Scratch 开发服务器"
