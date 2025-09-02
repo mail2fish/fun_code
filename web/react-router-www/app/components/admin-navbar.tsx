@@ -22,7 +22,8 @@ import {
   HardDrive,
   User,
   Globe,
-  BookOpen
+  BookOpen,
+  Palette
 } from "lucide-react";
 
 interface MenuItemBase {
@@ -97,12 +98,14 @@ export function AdminNavbar({}: AdminNavbarProps) {
     { href: "/www/shares/all", label: "全部分享", icon: Globe },
     { href: "/www/files/list", label: "资源列表", icon: HardDrive },
     { href: "/www/admin/files/upload", label: "上传资源", icon: Upload },
+    { href: "/www/admin/excalidraw", label: "全部流程图", icon: Palette},
   ];
 
   const shareMenuItems: MenuItem[] = [
     { href: `${typeof window !== 'undefined' ? window.location.origin : ''}/projects/scratch/new`, label: "创建程序", icon: Plus, external: true },
     { href: "/www/admin/my_scratch", label: "我的程序", icon: FileText },
     { href: "/www/shares/user", label: "我的分享", icon: User },
+    { href: "/www/user/excalidraw", label: "我的流程图", icon: Palette},
   ];
 
   const isActive = (path: string) => location.pathname === path;

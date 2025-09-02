@@ -146,8 +146,8 @@ func (h *Handler) UpdateExcalidrawBoardHandler(c *gin.Context, params *UpdateExc
 		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryNotFound, "画板不存在", err)
 	}
 
-	// 检查权限
-	if board.UserID != userID {
+	// 检查权限（所有者或管理员）
+	if board.UserID != userID && !h.hasPermission(c, PermissionManageAll) {
 		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, "无权限操作", nil)
 	}
 
@@ -197,7 +197,8 @@ func (h *Handler) GetExcalidrawBoardHandler(c *gin.Context, params *GetExcalidra
 	}
 
 	loginedUserID := h.getUserID(c)
-	if board.UserID != loginedUserID {
+	// 检查权限（所有者或管理员）
+	if board.UserID != loginedUserID && !h.hasPermission(c, PermissionManageAll) {
 		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, errors.New("您没有权限访问该项目"))
 	}
 
@@ -296,8 +297,8 @@ func (h *Handler) SaveExcalidrawThumbHandler(c *gin.Context, params *SaveExcalid
 		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryNotFound, "画板不存在", err)
 	}
 
-	// 检查权限
-	if board.UserID != userID {
+	// 检查权限（所有者或管理员）
+	if board.UserID != userID && !h.hasPermission(c, PermissionManageAll) {
 		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, "无权限操作", nil)
 	}
 
@@ -354,8 +355,8 @@ func (h *Handler) GetExcalidrawThumbHandler(c *gin.Context, params *GetExcalidra
 		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryNotFound, "画板不存在", err)
 	}
 
-	// 检查权限
-	if board.UserID != userID {
+	// 检查权限（所有者或管理员）
+	if board.UserID != userID && !h.hasPermission(c, PermissionManageAll) {
 		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, "无权限访问", nil)
 	}
 
@@ -485,8 +486,8 @@ func (h *Handler) DeleteExcalidrawBoardHandler(c *gin.Context, params *DeleteExc
 		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryNotFound, "画板不存在", err)
 	}
 
-	// 检查权限
-	if board.UserID != userID {
+	// 检查权限（所有者或管理员）
+	if board.UserID != userID && !h.hasPermission(c, PermissionManageAll) {
 		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, "无权限操作", nil)
 	}
 

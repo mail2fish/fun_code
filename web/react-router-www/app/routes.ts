@@ -27,6 +27,7 @@ export default [
     route("/www/admin/edit_class/:classId", "routes/admin/edit_class.tsx"),
     route("/www/admin/all_scratch", "routes/admin/all_scratch.tsx"),
     route("/www/admin/my_scratch", "routes/admin/my_scratch.tsx"),
+    route("/www/admin/excalidraw", "routes/admin/excalidraw.tsx"),
     
     // course management
     route("/www/admin/list_courses", "routes/admin/list_courses.tsx"),
