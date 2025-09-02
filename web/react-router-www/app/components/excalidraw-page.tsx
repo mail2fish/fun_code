@@ -16,9 +16,9 @@ import { HOST_URL } from "~/config";
 // 导入用户信息管理
 import { useUserInfo, useUser } from "~/hooks/use-user";
 
-// 删除 Excalidraw 画板
+// 删除 Excalidraw 流程图
 async function deleteExcalidrawBoard(id: string) {
-  console.log("删除画板", id);
+  console.log("删除流程图", id);
   try {
     const response = await fetchWithAuth(`${HOST_URL}/api/excalidraw/boards/${id}`, {
       method: "DELETE",
@@ -28,7 +28,7 @@ async function deleteExcalidrawBoard(id: string) {
     }
     return await response.json();
   } catch (error) {
-    console.error("删除画板失败:", error);
+    console.error("删除流程图失败:", error);
     throw error;
   }
 }
@@ -49,14 +49,14 @@ export function ExcalidrawPage({
   const { userInfo } = useUserInfo();
   const { logout } = useUser();
 
-  // 处理删除画板
+  // 处理删除流程图
   const handleDeleteBoard = async (id: string) => {
     try {
       await deleteExcalidrawBoard(id);
       // 删除成功后重新加载当前页
       console.log("删除成功后重新加载当前页");
     } catch (error) {
-      setError("删除画板失败");
+      setError("删除流程图失败");
       throw error;
     }
   };
@@ -106,7 +106,7 @@ export function ExcalidrawPage({
               className="fun-button-primary"
             >
               <a 
-                href={`${HOST_URL}/excalidraw`} 
+                href={`${HOST_URL}/excalidraw/new`} 
                 onClick={handleNewBoardClick}
                 className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
               >
