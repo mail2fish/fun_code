@@ -36,11 +36,13 @@ async function deleteExcalidrawBoard(id: string) {
 interface ExcalidrawPageProps {
   title: string;
   subtitle: string;
+  isAdminPage?: boolean;
 }
 
 export function ExcalidrawPage({ 
   title, 
-  subtitle
+  subtitle,
+  isAdminPage = false
 }: ExcalidrawPageProps) {
   const [error, setError] = React.useState<string | null>(null);
   const [isButtonCooling, setIsButtonCooling] = React.useState(false);
@@ -119,6 +121,7 @@ export function ExcalidrawPage({
         <CardContent>
           <ExcalidrawTable 
             onDeleteBoard={handleDeleteBoard}
+            isAdminPage={isAdminPage}
           />
         </CardContent>
       </Card>

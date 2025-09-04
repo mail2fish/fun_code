@@ -17,6 +17,7 @@ import { toast } from  "sonner"
 
 import { HOST_URL } from "~/config";
 import { Card, CardContent, CardFooter } from "~/components/ui/card"
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "~/components/ui/select"
 import { fetchWithAuth } from "~/utils/api"
 
 // Excalidraw 画板接口
@@ -26,6 +27,12 @@ export interface ExcalidrawBoard {
   user_id: string
   created_at?: string
   updated_at?: string
+}
+
+// 用户接口
+export interface User {
+  id: string
+  nickname: string
 }
 
 // 画板数据接口
@@ -38,12 +45,22 @@ export interface ExcalidrawBoardsData {
 
 interface ExcalidrawTableProps {
   onDeleteBoard: (id: string) => Promise<void>
+  isAdminPage?: boolean
 }
 
 export function ExcalidrawTable({ 
-  onDeleteBoard
+  onDeleteBoard,
+  isAdminPage = false
 }: ExcalidrawTableProps) {
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
+  
+  // 用户筛选相关状态
+  const [userOptions, setUserOptions] = React.useState<User[]>([])
+  const [searchKeyword, setSearchKeyword] = React.useState("");
+  const [searching, setSearching] = React.useState(false);
+  const [searchResults, setSearchResults] = React.useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = React.useState<string>("__all__")
+  const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc")
   
   // 无限滚动相关状态
   const [boards, setBoards] = React.useState<ExcalidrawBoard[]>([])
@@ -57,6 +74,58 @@ export function ExcalidrawTable({
   // ========== requestInProgress 防并发 ========== 
   const requestInProgress = React.useRef(false);
 
+  // 获取用户列表 - 仅在管理页面且需要用户筛选时才调用
+  React.useEffect(() => {
+    if (!isAdminPage) return;
+    
+    async function fetchUsers() {
+      try {
+        const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?pageSize=100`);
+        const data = await res.json();
+        if (Array.isArray(data.data)) {
+          setUserOptions(data.data)
+        }
+      } catch (e) {}
+    }
+    fetchUsers()
+  }, [isAdminPage])
+
+  // 搜索用户（带防抖）- 仅在管理页面且需要用户筛选时才调用
+  React.useEffect(() => {
+    if (!isAdminPage || !searchKeyword) {
+      setSearchResults([]);
+      return;
+    }
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/search?keyword=${encodeURIComponent(searchKeyword)}&user_id=${selectedUser}`);
+        const data = await res.json();
+        if (Array.isArray(data.data)) {
+          setSearchResults(data.data);
+        } else {
+          setSearchResults([]);
+        }
+      } catch (e) {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchKeyword, isAdminPage]);
+
+  // 监听筛选用户和排序变化，重置并加载初始数据
+  React.useEffect(() => {
+    setBoards([])
+    setHasMoreTop(true)
+    setHasMoreBottom(true)
+    setLocalInitialLoading(true)
+    // 初始化、刷新、排序切换时，强制 direction='down'，beginID='0'
+    fetchData({ direction: "down", reset: true, customBeginID: "0" })
+    // eslint-disable-next-line
+  }, [selectedUser, sortOrder])
+
   // 数据请求
   const fetchData = React.useCallback(async ({ direction, reset = false, customBeginID }: { direction: "up" | "down", reset?: boolean, customBeginID?: string }) => {
     if (requestInProgress.current) {
@@ -69,7 +138,8 @@ export function ExcalidrawTable({
     const pageSize = 20;
     let beginID = "0";
     let forward = true;
-    let asc = false; // 默认降序，显示最新的
+    let asc = sortOrder === "asc";
+    let userId = selectedUser === "__all__" ? undefined : selectedUser;
     
     if (reset && customBeginID) {
       beginID = customBeginID;
@@ -92,8 +162,14 @@ export function ExcalidrawTable({
       params.append("forward", String(forward));
       params.append("asc", String(asc));
       if (beginID !== "0") params.append("beginID", beginID);
+      if (userId) params.append("userID", userId);
       
-      const res = await fetchWithAuth(`${HOST_URL}/api/excalidraw/boards?${params.toString()}`);
+      // 根据是否为管理页面选择不同的API
+      const apiUrl = isAdminPage 
+        ? `${HOST_URL}/api/excalidraw/boards/all?${params.toString()}`
+        : `${HOST_URL}/api/excalidraw/boards?${params.toString()}`;
+      
+      const res = await fetchWithAuth(apiUrl);
       const resp = await res.json();
       console.log('[fetchData] API响应', resp);
       
@@ -148,7 +224,7 @@ export function ExcalidrawTable({
       setLocalInitialLoading(false);
       console.log('[fetchData] 请求结束', { direction });
     }
-  }, [boards]);
+  }, [boards, isAdminPage, selectedUser, sortOrder]);
 
   // 初始化数据
   React.useEffect(() => {
@@ -216,31 +292,56 @@ export function ExcalidrawTable({
     <div className="flex flex-col gap-4 h-[90vh]">
       {/* 童趣化的搜索排序控件区域 */}
       <div className="flex flex-wrap items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-teal-50 rounded-2xl border-2 border-blue-200">
-        {/* 项目名称搜索栏 */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">🔍 搜索流程图：</span>
-          <input
-            className="w-48 h-10 px-4 border-2 border-blue-200 rounded-2xl bg-white text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all duration-300"
-            placeholder="输入流程图名称..."
-            // value={boardKeyword}
-            // onChange={e => setBoardKeyword(e.target.value)}
-            style={{ boxSizing: 'border-box' }}
-          />
-        </div>
-        
-        <div className="flex items-center text-gray-400 text-sm">或</div>
+        {/* 用户筛选和排序 */}
+        {isAdminPage && userOptions.length > 0 && (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">👤 筛选用户：</span>
+              <Select value={selectedUser} onValueChange={(value) => {
+                setSelectedUser(value)
+                setSearchKeyword(""); // 选择后清空搜索
+              }}>
+                <SelectTrigger className="w-40 rounded-xl border-2 border-blue-200 focus:border-blue-400">
+                  <SelectValue placeholder="全部用户" />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="px-2 py-1">
+                    <input
+                      className="w-full outline-none bg-transparent text-sm px-2 py-1 border rounded-md h-8"
+                      placeholder="搜索用户"
+                      value={searchKeyword}
+                      onChange={e => setSearchKeyword(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                  <SelectItem value="__all__">全部用户</SelectItem>
+                  {(searchKeyword ? searchResults : userOptions).map(u => (
+                    <SelectItem key={u.id} value={u.id}>{u.nickname}</SelectItem>
+                  ))}
+                  {searching && <div className="px-2 py-1 text-xs text-muted-foreground">搜索中...</div>}
+                  {searchKeyword && !searching && searchResults.length === 0 && (
+                    <div className="px-2 py-1 text-xs text-muted-foreground">无匹配用户</div>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
         
         {/* 排序选择器 */}
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-gray-700">📅 排序：</span>
-          <select 
-            className="w-32 h-10 px-3 border-2 border-blue-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400"
-            // value={sortOrder} 
-            // onChange={e => setSortOrder(e.target.value as "asc" | "desc")}
-          >
-            <option value="desc">🆕 最新优先</option>
-            <option value="asc">⏰ 最旧优先</option>
-          </select>
+          <Select value={sortOrder} onValueChange={v => {
+                setSortOrder(v as "asc" | "desc")
+              }}> 
+                <SelectTrigger className="w-32 rounded-xl border-2 border-blue-200 focus:border-blue-400">
+                  <SelectValue placeholder="排序" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">🆕 最新优先</SelectItem>
+                  <SelectItem value="asc">⏰ 最旧优先</SelectItem>
+                </SelectContent>
+              </Select>
         </div>
         
         {/* 刷新按钮 */}
@@ -274,7 +375,9 @@ export function ExcalidrawTable({
             
             <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {boards.length > 0 ? (
-                boards.map((board) => (
+                boards.map((board) => {
+                  const creator = userOptions.find(user => user.id === board.user_id)?.nickname || "未知";
+                  return (
                   <Card key={board.id} className="flex flex-col h-full rounded-2xl shadow-md border-2 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:border-blue-400 hover:shadow-blue-200/50 hover:bg-gradient-to-br hover:from-blue-50 hover:to-teal-50 bg-white border-blue-200">
                     {/* 缩略图区域 */}
                     <div className="w-full h-48 flex items-center justify-center rounded-t-2xl bg-gradient-to-br from-blue-50 to-teal-50 relative overflow-hidden transition-all duration-300 hover:from-blue-100 hover:to-teal-100">
@@ -314,6 +417,13 @@ export function ExcalidrawTable({
                           {board.name || "未命名流程图"}
                         </a>
                       </div>
+                      {isAdminPage && userOptions.length > 0 && (
+                        <div className="text-sm text-gray-600 flex items-center gap-1">
+                          <span className="text-green-500">👤</span>
+                          <span className="font-medium">创建者：</span>
+                          <span>{creator}</span>
+                        </div>
+                      )}
                       <div className="text-sm text-gray-500 flex items-center gap-1">
                         <span className="text-blue-500">⏰</span>
                         <span className="font-medium">创建：</span>
@@ -406,7 +516,8 @@ export function ExcalidrawTable({
                       </div>
                     </CardFooter>
                   </Card>
-                ))
+                  )
+                })
               ) : (
                 <div className="col-span-full text-center text-muted-foreground py-12">没有找到流程图</div>
               )}

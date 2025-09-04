@@ -83,6 +83,8 @@ func (s *Server) setupRoutes() {
 		// Excalidraw 画板路由
 		auth.POST("/excalidraw/boards", gorails.Wrap(s.handler.CreateExcalidrawBoardHandler, nil))
 		auth.GET("/excalidraw/boards", gorails.Wrap(s.handler.ListExcalidrawBoardsHandler, nil))
+		// 管理员：列出所有（可按用户过滤）
+		auth.GET("/excalidraw/boards/all", s.handler.RequirePermission(handler.PermissionManageAll), gorails.Wrap(s.handler.ListAllExcalidrawBoardsHandler, nil))
 		auth.PUT("/excalidraw/boards/:id", gorails.Wrap(s.handler.UpdateExcalidrawBoardHandler, nil))
 		auth.GET("/excalidraw/boards/:id", gorails.Wrap(s.handler.GetExcalidrawBoardHandler, nil))
 		auth.DELETE("/excalidraw/boards/:id", gorails.Wrap(s.handler.DeleteExcalidrawBoardHandler, nil))

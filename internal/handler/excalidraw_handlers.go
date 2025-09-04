@@ -449,6 +449,84 @@ func (h *Handler) ListExcalidrawBoardsHandler(c *gin.Context, params *ListExcali
 	}, nil
 }
 
+// ======================== 管理员列出画板（可按用户过滤） ========================
+
+// ListAllExcalidrawBoardsParams 管理员列出所有画板参数（可选 user 过滤）
+type ListAllExcalidrawBoardsParams struct {
+	PageSize uint `json:"page_size" form:"pageSize"`
+	BeginID  uint `json:"begin_id" form:"beginID"`
+	Forward  bool `json:"forward" form:"forward"`
+	Asc      bool `json:"asc" form:"asc"`
+	UserID   uint `json:"user_id" form:"userID"`
+}
+
+func (p *ListAllExcalidrawBoardsParams) Parse(c *gin.Context) gorails.Error {
+	// 默认值
+	p.PageSize = 20
+	p.BeginID = 0
+	p.Forward = true
+	p.Asc = true
+
+	// 解析页面大小
+	if pageSizeStr := c.DefaultQuery("pageSize", "20"); pageSizeStr != "" {
+		if pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32); err == nil {
+			if pageSize > 0 && pageSize <= 100 {
+				p.PageSize = uint(pageSize)
+			}
+		}
+	}
+
+	// 解析起始ID
+	if beginIDStr := c.DefaultQuery("beginID", "0"); beginIDStr != "" {
+		if beginID, err := strconv.ParseUint(beginIDStr, 10, 32); err == nil {
+			p.BeginID = uint(beginID)
+		}
+	}
+
+	// 解析翻页方向
+	if forwardStr := c.DefaultQuery("forward", "true"); forwardStr != "" {
+		p.Forward = forwardStr != "false"
+	}
+
+	// 解析排序方向
+	if ascStr := c.DefaultQuery("asc", "true"); ascStr != "" {
+		p.Asc = ascStr != "false"
+	}
+
+	// 解析用户ID（可选）
+	if userIDStr := c.DefaultQuery("userID", "0"); userIDStr != "" {
+		if uid, err := strconv.ParseUint(userIDStr, 10, 32); err == nil {
+			p.UserID = uint(uid)
+		}
+	}
+	return nil
+}
+
+// 仅管理员可访问：列出所有（或指定用户）画板
+func (h *Handler) ListAllExcalidrawBoardsHandler(c *gin.Context, params *ListAllExcalidrawBoardsParams) ([]*model.ExcalidrawBoard, *gorails.ResponseMeta, gorails.Error) {
+	// 权限：仅管理员
+	if !h.hasPermission(c, PermissionManageAll) {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, "仅管理员可访问", nil)
+	}
+
+	// 查询
+	boards, hasMore, err := h.dao.ExcalidrawDao.GetAllBoardsWithPagination(c.Request.Context(), params.UserID, params.PageSize, params.BeginID, params.Forward, params.Asc)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 统计
+	total, err := h.dao.ExcalidrawDao.GetUserBoardCount(c.Request.Context(), params.UserID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	return boards, &gorails.ResponseMeta{
+		Total:   int(total),
+		HasNext: hasMore,
+	}, nil
+}
+
 // ======================== 删除画板 ========================
 
 // DeleteExcalidrawBoardParams 删除画板参数
