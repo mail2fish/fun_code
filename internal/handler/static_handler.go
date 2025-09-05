@@ -71,7 +71,7 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 		filePath = strings.TrimPrefix(filePath, "/scratch")
 	} else if strings.HasPrefix(filePath, "/excalidraw") {
 		currentFS = h.excalidrawFS
-		if filePath == "/new" || strings.HasPrefix(filePath, "/excalidraw/open") {
+		if filePath == "/excalidraw/new" || strings.HasPrefix(filePath, "/excalidraw/open") {
 			filePath = "/index.html"
 		} else {
 			filePath = strings.TrimPrefix(filePath, "/excalidraw")

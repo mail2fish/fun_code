@@ -218,7 +218,7 @@ function App() {
 
     setSaveStatus('idle');
     setLoadStatus('idle');
-    navigate('/www/excalidraw/new');
+    navigate('/excalidraw/new');
   }, [excalidrawAPI, navigate, menuLabels.newLabel]);
 
   // 将浏览器语言映射为 Excalidraw 支持的语言
@@ -307,7 +307,7 @@ function App() {
       const newBoardId = result.data.id;
 
       // 替换浏览器路径
-      navigate(`/www/excalidraw/${newBoardId}`, { replace: true });
+      navigate(`/excalidraw/open/${newBoardId}`, { replace: true });
 
       setSaveStatus('saved');
       
