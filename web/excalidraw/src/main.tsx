@@ -9,7 +9,7 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <Routes>
         <Route path="/excalidraw/new" element={<App />} />
-        <Route path="/excalidraw/:boardId" element={<App />} />
+        <Route path="/excalidraw/open/:boardId" element={<App />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

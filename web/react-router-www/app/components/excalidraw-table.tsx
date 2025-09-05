@@ -511,7 +511,7 @@ export function ExcalidrawTable({
                             asChild
                             className="flex-1 h-9 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 hover:scale-105 hover:shadow-md transition-all duration-200 font-medium text-sm group"
                           >
-                            <a href={`${HOST_URL}/excalidraw/${board.id}`}>
+                            <a href={`${HOST_URL}/excalidraw/open/${board.id}`}>
                               <IconEdit className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
                               编辑流程图
                             </a>

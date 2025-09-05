@@ -71,7 +71,11 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 		filePath = strings.TrimPrefix(filePath, "/scratch")
 	} else if strings.HasPrefix(filePath, "/excalidraw") {
 		currentFS = h.excalidrawFS
-		filePath = "/index.html"
+		if filePath == "/new" || strings.HasPrefix(filePath, "/excalidraw/open") {
+			filePath = "/index.html"
+		} else {
+			filePath = strings.TrimPrefix(filePath, "/excalidraw")
+		}
 	} else if filePath == "/" {
 		currentFS = h.wwwFS
 		// 根路径或 /www 路径都指向 index.html
