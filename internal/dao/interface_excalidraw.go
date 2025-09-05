@@ -26,6 +26,12 @@ type ExcalidrawDAO interface {
 	// userID=0时返回所有用户的画板数量，userID>0时返回指定用户的画板数量
 	GetUserBoardCount(ctx context.Context, userID uint) (int64, error)
 
+	// 搜索画板（按名称）
+	// userID=0时搜索所有用户的画板，userID>0时搜索指定用户的画板
+	// keyword为搜索关键词，进行名称模糊搜索
+	// 返回值：画板列表、错误
+	SearchBoardsByName(ctx context.Context, userID uint, keyword string) ([]*model.ExcalidrawBoard, error)
+
 	// 批量操作
 	BatchDelete(ctx context.Context, ids []uint) error
 

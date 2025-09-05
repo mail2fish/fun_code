@@ -122,6 +122,9 @@ function App() {
   
   // 节流保存的引用
   const saveTimeoutRef = useRef<number | null>(null);
+  
+  // 上次保存的内容，用于检测是否有变化
+  const lastSavedContentRef = useRef<string | null>(null);
 
   // 保存缩略图
   const saveThumbnail = useCallback(async (boardId: string) => {

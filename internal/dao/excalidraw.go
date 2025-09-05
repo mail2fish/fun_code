@@ -184,6 +184,31 @@ func (d *ExcalidrawDAOImpl) GetUserBoardCount(ctx context.Context, userID uint) 
 	return count, err
 }
 
+// SearchBoardsByName 搜索画板（按名称）
+func (d *ExcalidrawDAOImpl) SearchBoardsByName(ctx context.Context, userID uint, keyword string) ([]*model.ExcalidrawBoard, error) {
+	var boards []*model.ExcalidrawBoard
+
+	// 构建基础查询
+	query := d.db.WithContext(ctx).Where("deleted_at IS NULL")
+
+	// 如果指定了用户ID，则只查询该用户的画板
+	if userID > 0 {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	// 按名称模糊搜索
+	query = query.Where("name LIKE ?", "%"+keyword+"%")
+
+	// 查询数据
+	if err := query.Preload("User").
+		Order("id DESC").
+		Find(&boards).Error; err != nil {
+		return nil, err
+	}
+
+	return boards, nil
+}
+
 // BatchDelete 批量删除画板
 func (d *ExcalidrawDAOImpl) BatchDelete(ctx context.Context, ids []uint) error {
 	now := time.Now().Unix()

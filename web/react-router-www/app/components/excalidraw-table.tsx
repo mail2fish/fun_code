@@ -61,6 +61,8 @@ export function ExcalidrawTable({
   const [searchResults, setSearchResults] = React.useState<User[]>([]);
   const [selectedUser, setSelectedUser] = React.useState<string>("__all__")
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc")
+  const [boardKeyword, setBoardKeyword] = React.useState("")
+  const [searchingBoard, setSearchingBoard] = React.useState(false)
   
   // 无限滚动相关状态
   const [boards, setBoards] = React.useState<ExcalidrawBoard[]>([])
@@ -125,6 +127,45 @@ export function ExcalidrawTable({
     fetchData({ direction: "down", reset: true, customBeginID: "0" })
     // eslint-disable-next-line
   }, [selectedUser, sortOrder])
+
+  // 画板名称搜索逻辑（带防抖）
+  React.useEffect(() => {
+    if (!boardKeyword || boardKeyword.length < 1) {
+      // 关键字为空或长度小于1时恢复原有无限滚动逻辑
+      setBoards([]);
+      setHasMoreTop(true);
+      setHasMoreBottom(true);
+      setLocalInitialLoading(true);
+      // 这里也强制 direction='down'，beginID='0'
+      fetchData({ direction: "down", reset: true, customBeginID: "0" });
+      return;
+    }
+    setSearchingBoard(true);
+    const timer = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams();
+        params.append("keyword", boardKeyword);
+        if (selectedUser && selectedUser !== "__all__") params.append("userID", selectedUser);
+        
+        // 使用新的搜索API
+        const res = await fetchWithAuth(`${HOST_URL}/api/excalidraw/boards/search?${params.toString()}`);
+        const data = await res.json();
+        let newBoards: ExcalidrawBoard[] = [];
+        if (Array.isArray(data.data)) {
+          newBoards = data.data;
+        }
+        setBoards(newBoards);
+        setHasMoreTop(false);
+        setHasMoreBottom(false);
+        setLocalInitialLoading(false);
+      } catch (e) {
+        setBoards([]);
+      } finally {
+        setSearchingBoard(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [boardKeyword, selectedUser]);
 
   // 数据请求
   const fetchData = React.useCallback(async ({ direction, reset = false, customBeginID }: { direction: "up" | "down", reset?: boolean, customBeginID?: string }) => {
@@ -281,6 +322,7 @@ export function ExcalidrawTable({
 
   // 刷新数据
   const handleRefresh = () => {
+    setBoardKeyword("") // 清空搜索
     setBoards([])
     setHasMoreTop(true)
     setHasMoreBottom(true)
@@ -328,6 +370,20 @@ export function ExcalidrawTable({
           </>
         )}
         
+        {/* 画板名称搜索栏 */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">🔍 搜索流程图：</span>
+          <input
+            className="w-48 h-10 px-4 border-2 border-blue-200 rounded-2xl bg-white text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all duration-300"
+            placeholder="输入流程图名称..."
+            value={boardKeyword}
+            onChange={e => setBoardKeyword(e.target.value)}
+            style={{ boxSizing: 'border-box' }}
+          />
+        </div>
+        
+        <div className="flex items-center text-gray-400 text-sm">或</div>
+        
         {/* 排序选择器 */}
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-gray-700">📅 排序：</span>
@@ -362,8 +418,14 @@ export function ExcalidrawTable({
         ref={scrollRef}
         className="flex-1 overflow-auto px-1"
         style={{ WebkitOverflowScrolling: 'touch' }}
-        onScroll={handleScroll}
+        onScroll={boardKeyword ? undefined : handleScroll}
       >
+        {boardKeyword.length >= 1 && searchingBoard && (
+          <div className="text-center text-xs text-muted-foreground py-2">搜索中...</div>
+        )}
+        {boardKeyword.length >= 1 && !searchingBoard && boards.length === 0 && (
+          <div className="text-center text-xs text-muted-foreground py-2">无匹配流程图</div>
+        )}
         {localInitialLoading ? (
           <div className="text-center py-12">
             <div className="text-gray-500">加载中...</div>

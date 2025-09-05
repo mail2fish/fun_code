@@ -449,6 +449,64 @@ func (h *Handler) ListExcalidrawBoardsHandler(c *gin.Context, params *ListExcali
 	}, nil
 }
 
+// ======================== 搜索画板 ========================
+
+// SearchExcalidrawBoardsParams 搜索画板参数
+type SearchExcalidrawBoardsParams struct {
+	Keyword string `json:"keyword" form:"keyword" binding:"required"`
+	UserID  uint   `json:"user_id" form:"userID"`
+}
+
+func (p *SearchExcalidrawBoardsParams) Parse(c *gin.Context) gorails.Error {
+	// 解析搜索关键词
+	p.Keyword = c.Query("keyword")
+	if p.Keyword == "" {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, "搜索关键词不能为空", nil)
+	}
+
+	// 默认值
+	p.UserID = 0
+
+	// 解析用户ID（可选）
+	if userIDStr := c.DefaultQuery("userID", "0"); userIDStr != "" {
+		if uid, err := strconv.ParseUint(userIDStr, 10, 32); err == nil {
+			p.UserID = uint(uid)
+		}
+	}
+
+	return nil
+}
+
+// 搜索画板处理器
+func (h *Handler) SearchExcalidrawBoardsHandler(c *gin.Context, params *SearchExcalidrawBoardsParams) ([]*model.ExcalidrawBoard, *gorails.ResponseMeta, gorails.Error) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeUnauthorized, global.ErrorMsgUnauthorized, nil)
+	}
+
+	// 如果不是管理员，只能搜索自己的画板
+	searchUserID := userID
+	if h.hasPermission(c, PermissionManageAll) {
+		if params.UserID > 0 {
+			searchUserID = params.UserID
+		} else {
+			searchUserID = 0
+		}
+	}
+
+	// 搜索画板
+	boards, err := h.dao.ExcalidrawDao.SearchBoardsByName(c.Request.Context(), searchUserID, params.Keyword)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	return boards, &gorails.ResponseMeta{
+		Total:   len(boards),
+		HasNext: false,
+	}, nil
+}
+
 // ======================== 管理员列出画板（可按用户过滤） ========================
 
 // ListAllExcalidrawBoardsParams 管理员列出所有画板参数（可选 user 过滤）
