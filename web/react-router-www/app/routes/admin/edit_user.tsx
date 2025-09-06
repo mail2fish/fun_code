@@ -74,6 +74,7 @@ async function getUser(userId: string) {
 
 async function updateUser(userId: string, userData: z.infer<typeof formSchema>) {
   try {
+    console.log("发送到后端的用户数据:", userData); // 调试信息
     const response = await fetchWithAuth(`${HOST_URL}/api/admin/users/${userId}`, {
       method: "PUT",
       headers: {
@@ -121,6 +122,7 @@ export default function EditUserPage() {
         form.reset({
           nickname: userData.nickname || "",
           email: userData.email || "",
+          password: "",
           role: userData.role,
         });
       } catch (error) {
@@ -138,6 +140,7 @@ export default function EditUserPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setIsSubmitting(true);
+      console.log("提交的用户数据:", values); // 调试信息
       await updateUser(userId!, values);
       setShowSuccessDialog(true);
       toast.success("用户更新成功", {

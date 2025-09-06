@@ -183,6 +183,7 @@ type UpdateUserParams struct {
 	Username string `json:"username"`
 	Nickname string `json:"nickname"`
 	Email    string `json:"email"`
+	Password string `json:"password"`
 	Role     string `json:"role"`
 }
 
@@ -219,6 +220,9 @@ func (h *Handler) UpdateUserHandler(c *gin.Context, params *UpdateUserParams) (*
 	}
 	if params.Email != "" {
 		updates["email"] = params.Email
+	}
+	if params.Password != "" {
+		updates["password"] = params.Password
 	}
 	if params.Role != "" {
 		updates["role"] = params.Role
