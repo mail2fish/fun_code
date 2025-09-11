@@ -24,6 +24,7 @@ export default [
     route("/www/admin/files/upload", "routes/admin/upload_files.tsx"),
     route("/www/admin/create_class", "routes/admin/create_class.tsx"),
     route("/www/admin/list_classes", "routes/admin/list_classes.tsx"),
+    route("/www/admin/class_detail/:classId", "routes/admin/class_detail.tsx"),
     route("/www/admin/edit_class/:classId", "routes/admin/edit_class.tsx"),
     route("/www/admin/all_scratch", "routes/admin/all_scratch.tsx"),
     route("/www/admin/my_scratch", "routes/admin/my_scratch.tsx"),

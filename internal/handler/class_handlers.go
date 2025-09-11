@@ -219,6 +219,7 @@ type GetClassResponse struct {
 		ID       uint   `json:"id"`
 		Username string `json:"username"`
 		Email    string `json:"email"`
+		Nickname string `json:"nickname"`
 	} `json:"students,omitempty"`
 	StudentsCount int `json:"students_count"`
 	Courses       []struct {
@@ -273,16 +274,19 @@ func (h *Handler) GetClassHandler(c *gin.Context, params *GetClassParams) (*GetC
 			ID       uint   `json:"id"`
 			Username string `json:"username"`
 			Email    string `json:"email"`
+			Nickname string `json:"nickname"`
 		}, len(class.Students))
 		for i, student := range class.Students {
 			response.Students[i] = struct {
 				ID       uint   `json:"id"`
 				Username string `json:"username"`
 				Email    string `json:"email"`
+				Nickname string `json:"nickname"`
 			}{
 				ID:       student.ID,
 				Username: student.Username,
 				Email:    student.Email,
+				Nickname: student.Nickname,
 			}
 		}
 		response.StudentsCount = len(class.Students)
@@ -926,16 +930,19 @@ func (h *Handler) GetMyClassHandler(c *gin.Context, params *GetMyClassParams) (*
 			ID       uint   `json:"id"`
 			Username string `json:"username"`
 			Email    string `json:"email"`
+			Nickname string `json:"nickname"`
 		}, len(class.Students))
 		for i, student := range class.Students {
 			response.Students[i] = struct {
 				ID       uint   `json:"id"`
 				Username string `json:"username"`
 				Email    string `json:"email"`
+				Nickname string `json:"nickname"`
 			}{
 				ID:       student.ID,
 				Username: student.Username,
 				Email:    student.Email,
+				Nickname: student.Nickname,
 			}
 		}
 		response.StudentsCount = len(class.Students)

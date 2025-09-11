@@ -432,7 +432,7 @@ export default function ListClassesPage() {
                       <TableRow key={classItem.id}>
                         <TableCell className="font-medium">{classItem.id}</TableCell>
                         <TableCell className="font-medium">
-                          <Link to={`/www/admin/classes/${classItem.id}`}>{classItem.name || "未命名班级"}</Link>
+                          <Link to={`/www/admin/class_detail/${classItem.id}`}>{classItem.name || "未命名班级"}</Link>
                         </TableCell>
                         <TableCell>{classItem.code}</TableCell>
                         <TableCell>{formatDate(classItem.start_date)}</TableCell>
