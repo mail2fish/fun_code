@@ -4,7 +4,9 @@
 
 ## Introduction
 
-FunCode Scratch Editor is an ultra-lightweight open-source graphical programming system for children, designed as a replacement for the desktop Scratch editor. Compared to other open-source Scratch systems, its main feature is extremely simple deployment: it uses an SQlite file database, requires no configuration, and users only need to download and run the program to provide a complete service including user management and Scratch graphical programming on their local computer. The system is compatible with Windows, Linux, and Mac, and is especially suitable for individuals or small children's programming training institutions.
+The Fun Coding Scratch Editor is an ultra-lightweight, open-source visual programming system for children that serves as an alternative to the desktop Scratch editor. It not only includes Scratch but also supports drawing flowcharts with Excalidraw.
+
+Compared with other open-source Scratch systems, it features extremely simple deployment: it uses an SQLite file database and requires no configuration—just download and run—to provide a complete local service that includes user management and Scratch visual programming. The system is compatible with Windows, Linux, and macOS, making it especially suitable for individuals and small children's programming training institutions.
 
 This project is still under development. If you are interested, you are welcome to join and improve it together.
 
@@ -130,6 +132,10 @@ In the admin panel, click the "Resource Files" button to open the resource file 
 11. Create Lesson
 
 ![Create Lesson](docs/images/admin_create_lesson.png)
+
+12. Flow Chart
+
+![Flowchart](docs/images/excalidraw.png)
 
 ## Build Guide
 
