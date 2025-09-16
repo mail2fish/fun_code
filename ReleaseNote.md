@@ -1,3 +1,17 @@
+# v0.0.7
+
+## Feature Updates
+
+- Support for Excalidraw flowcharts
+
+# v0.0.7 
+
+## 功能更新
+
+* 支持 excalidraw 流程图
+
+---
+
 # v0.0.6
 
 ## Feature Updates
