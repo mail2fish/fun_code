@@ -444,7 +444,7 @@ export function ShareTable({
         )}
         {loadingTop && <div className="text-center text-xs text-muted-foreground py-2">加载中...</div>}
         {!hasMoreTop && <div className="text-center text-xs text-muted-foreground py-2">已到顶部</div>}
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4">
           {shares.length > 0 ? (
             shares.map((share) => {
               const author = userOptions.find(user => user.id === share.user_id?.toString())?.nickname || "未知作者";
