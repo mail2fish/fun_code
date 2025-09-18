@@ -36,6 +36,9 @@ export default [
     route("/www/admin/edit_course/:courseId", "routes/admin/edit_course.tsx"),
     route("/www/admin/course_detail/:courseId", "routes/admin/course_detail.tsx"),
     
+    // editor playground
+    route("/www/editor/monaco", "routes/editor/monaco.tsx"),
+    
     // lesson management
     route("/www/admin/list_lessons", "routes/admin/list_lessons.tsx"),
     route("/www/admin/create_lesson", "routes/admin/create_lesson.tsx"),
