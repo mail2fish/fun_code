@@ -1,4 +1,5 @@
 import * as React from "react"
+import { fetchWithAuth } from "~/utils/api"
 
 export default function MonacoEditorPage() {
   const [Editor, setEditor] = React.useState<any>(null)
@@ -24,6 +25,9 @@ export default function MonacoEditorPage() {
   const [outputText, setOutputText] = React.useState<string>("")
   const [outputImage, setOutputImage] = React.useState<string>("")
   const [running, setRunning] = React.useState(false)
+  const [menuOpen, setMenuOpen] = React.useState(false)
+  const [programName, setProgramName] = React.useState<string>("未命名程序")
+  const programType = "python"
   const editorRef = React.useRef<any>(null)
   const monacoRef = React.useRef<any>(null)
 
@@ -109,6 +113,49 @@ export default function MonacoEditorPage() {
     setOutputImage("")
   }
 
+  const handleSave = React.useCallback(async () => {
+    try {
+      // 若用户未命名，弹出一次命名对话框
+      let nameToUse = programName
+      if (!nameToUse || nameToUse.trim() === "" || nameToUse === "未命名程序") {
+        const input = window.prompt("请输入程序名称", programName || "未命名程序")
+        if (input == null) {
+          return
+        }
+        nameToUse = input.trim() || "未命名程序"
+        setProgramName(nameToUse)
+      }
+
+      const resp = await fetchWithAuth("/api/programs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: nameToUse,
+          type: programType,
+          program: code,
+        }),
+      })
+
+      if (resp.ok) {
+        setMenuOpen(false)
+        // 简单提示
+        console.log("保存成功")
+        ;(window as any).toast?.success?.("保存成功")
+      } else {
+        const txt = await resp.text()
+        console.error("保存失败", txt)
+        ;(window as any).toast?.error?.("保存失败")
+        alert("保存失败")
+      }
+    } catch (e) {
+      console.error(e)
+      ;(window as any).toast?.error?.("保存失败")
+      alert("保存失败")
+    }
+  }, [code, programName])
+
   // 在编辑器挂载时注册 Shift+Enter 运行快捷键
   const handleEditorMount = React.useCallback(
     (editor: any, monaco: any) => {
@@ -139,7 +186,27 @@ export default function MonacoEditorPage() {
     <div className="h-screen w-screen overflow-hidden bg-gray-900 text-gray-100">
       {/* 顶部工具栏 */}
       <div className="h-12 px-4 flex items-center justify-between border-b border-gray-800 bg-gray-900/90">
-        <div className="font-medium">Monaco + Pyodide</div>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700"
+            >
+              菜单 ▾
+            </button>
+            {menuOpen ? (
+              <div className="absolute mt-1 min-w-[160px] rounded-md border border-gray-800 bg-gray-900 shadow-lg z-10">
+                <button
+                  className="w-full text-left px-3 py-2 hover:bg-slate-800"
+                  onClick={handleSave}
+                >
+                  保存
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <div className="font-medium">Monaco + Pyodide</div>
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleRun}

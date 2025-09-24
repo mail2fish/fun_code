@@ -11,3 +11,4 @@ const ERR_MODULE_AUTH gorails.ErrorModule = 6
 const ERR_MODULE_CLASS gorails.ErrorModule = 7
 const ERR_MODULE_COURSE gorails.ErrorModule = 8
 const ERR_MODULE_LESSON gorails.ErrorModule = 9
+const ERR_MODULE_PROGRAM gorails.ErrorModule = 10
