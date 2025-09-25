@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"mime/multipart"
 	"net/http"
@@ -207,6 +208,16 @@ func (m *MockFileService) UpdateFile(fileID uint, updates map[string]interface{}
 // MockScratchDao 是 ScratchService 的模拟实现
 type MockScratchDao struct {
 	mock.Mock
+}
+
+func (m *MockScratchDao) RemoveProjectBoard(ctx context.Context, projectID uint) error {
+	args := m.Called(ctx, projectID)
+	return args.Error(0)
+}
+
+func (m *MockScratchDao) SetProjectBoard(ctx context.Context, projectID, boardID uint) error {
+	args := m.Called(ctx, projectID, boardID)
+	return args.Error(0)
 }
 
 func (m *MockScratchDao) SearchProjects(userID uint, keyword string) ([]model.ScratchProject, error) {
@@ -493,6 +504,11 @@ func (m *MockClassDao) GetUserClasses(userID uint) ([]model.Class, error) {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]model.Class), args.Error(1)
+}
+
+func (m *MockClassDao) IsLessonInClass(classID, courseID, lessonID uint) (bool, error) {
+	args := m.Called(classID, courseID, lessonID)
+	return args.Bool(0), args.Error(1)
 }
 
 type MockDao struct {

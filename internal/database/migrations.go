@@ -46,7 +46,7 @@ func RunMigrations(db *gorm.DB) error {
 	}
 
 	// 迁移文件模型 ScratchProject
-	if err := db.AutoMigrate(&model.File{}, &model.ScratchProject{}); err != nil {
+	if err := db.AutoMigrate(&model.File{}, &model.ScratchProject{}, &model.Program{}); err != nil {
 		return err
 	}
 

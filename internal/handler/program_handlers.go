@@ -6,33 +6,51 @@ import (
 	"github.com/mail2fish/gorails/gorails"
 )
 
-// CreateProgramParams 接收前端提交的程序内容
-type CreateProgramParams struct {
+// SaveProgramParams 接收前端提交的程序内容
+type SaveProgramParams struct {
+	ID      uint   `json:"id"`
 	Name    string `json:"name" binding:"required"`
 	Type    string `json:"type" binding:"required"`
 	Program string `json:"program" binding:"required"`
 }
 
-func (p *CreateProgramParams) Parse(c *gin.Context) gorails.Error {
+func (p *SaveProgramParams) Parse(c *gin.Context) gorails.Error {
 	if err := c.ShouldBindJSON(p); err != nil {
 		return gorails.NewError(400, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, 40001, "无效的请求参数", err)
 	}
 	return nil
 }
 
-// CreateProgramResponse 响应
-type CreateProgramResponse struct {
+// SaveProgramResponse 响应
+type SaveProgramResponse struct {
+	ID      uint   `json:"id"`
 	Message string `json:"message"`
-	Name    string `json:"name"`
-	Type    string `json:"type"`
 }
 
-// CreateProgramHandler 简单接收并回显，后续可接入持久化
-func (h *Handler) CreateProgramHandler(c *gin.Context, params *CreateProgramParams) (*CreateProgramResponse, *gorails.ResponseMeta, gorails.Error) {
-	// 这里暂不做持久化，仅返回成功信息
-	return &CreateProgramResponse{
-		Message: "created",
-		Name:    params.Name,
-		Type:    params.Type,
-	}, nil, nil
+// SaveProgramHandler 简单接收并回显，后续可接入持久化
+func (h *Handler) SaveProgramHandler(c *gin.Context, params *SaveProgramParams) (*SaveProgramResponse, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+	ext := mapProgramTypeToExt(params.Type)
+	id, err := h.dao.ProgramDao.Save(userID, params.ID, params.Name, ext, []byte(params.Program))
+	if err != nil {
+		return nil, nil, gorails.NewError(500, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeInsertFailed, "保存程序失败", err)
+	}
+	return &SaveProgramResponse{ID: id, Message: "created"}, nil, nil
+}
+
+func mapProgramTypeToExt(t string) int {
+	switch t {
+	case "python", "py":
+		return 1
+	case "javascript", "js":
+		return 2
+	case "typescript", "ts":
+		return 3
+	case "go", "golang":
+		return 4
+	case "java":
+		return 5
+	default:
+		return 0
+	}
 }

@@ -94,6 +94,7 @@ func NewServer(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 		CourseDao:     dao.NewCourseDao(db),
 		LessonDao:     dao.NewLessonDao(db),
 		ExcalidrawDao: dao.NewExcalidrawDAO(db, filepath.Join(cfg.Storage.BasePath, "excalidraw"), cfg, logger),
+		ProgramDao:    dao.NewProgramDao(db, filepath.Join(cfg.Storage.BasePath, "programs"), cfg, logger),
 	}
 
 	// 如果admin 用户不存在，则创建新用户

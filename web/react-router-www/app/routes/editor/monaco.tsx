@@ -1,5 +1,6 @@
 import * as React from "react"
 import { fetchWithAuth } from "~/utils/api"
+import { HOST_URL } from "~/config"
 
 export default function MonacoEditorPage() {
   const [Editor, setEditor] = React.useState<any>(null)
@@ -27,6 +28,7 @@ export default function MonacoEditorPage() {
   const [running, setRunning] = React.useState(false)
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [programName, setProgramName] = React.useState<string>("未命名程序")
+  const [programId, setProgramId] = React.useState<number | null>(null)
   const programType = "python"
   const editorRef = React.useRef<any>(null)
   const monacoRef = React.useRef<any>(null)
@@ -126,12 +128,13 @@ export default function MonacoEditorPage() {
         setProgramName(nameToUse)
       }
 
-      const resp = await fetchWithAuth("/api/programs", {
+      const resp = await fetchWithAuth(`${HOST_URL}/api/programs`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          id: programId ?? 0,
           name: nameToUse,
           type: programType,
           program: code,
@@ -139,6 +142,13 @@ export default function MonacoEditorPage() {
       })
 
       if (resp.ok) {
+        try {
+          const data = await resp.json()
+          if (data && (data.id != null || (data.data && data.data.id != null))) {
+            const returnedId = data.id ?? data.data.id
+            if (typeof returnedId === "number") setProgramId(returnedId)
+          }
+        } catch (_) {}
         setMenuOpen(false)
         // 简单提示
         console.log("保存成功")
@@ -154,7 +164,7 @@ export default function MonacoEditorPage() {
       ;(window as any).toast?.error?.("保存失败")
       alert("保存失败")
     }
-  }, [code, programName])
+  }, [code, programName, programId])
 
   // 在编辑器挂载时注册 Shift+Enter 运行快捷键
   const handleEditorMount = React.useCallback(
