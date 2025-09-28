@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -59,7 +58,6 @@ type LoginResponse struct {
 // LoginHandler 用户登录 gorails.Wrap 形式
 func (h *Handler) LoginHandler(c *gin.Context, params *LoginParams) (*LoginResponse, *gorails.ResponseMeta, gorails.Error) {
 
-	fmt.Println("LoginHandler", params.Username, params.Password)
 	loginResponse, err := h.dao.AuthDao.Login(params.Username, params.Password)
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_AUTH, global.ErrorCodeLoginFailed, global.ErrorMsgLoginFailed, err)

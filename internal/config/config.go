@@ -44,6 +44,8 @@ const (
 	ModeHTTPSRedirect ServerMode = "https_redirect"
 	// ModeDefault 默认模式（只有HTTP）
 	ModeDefault ServerMode = "default"
+
+	ModeAPIGateway ServerMode = "api_gateway"
 )
 
 type TLSConfig struct {
@@ -58,8 +60,9 @@ type ServerConfig struct {
 	TLS       TLSConfig  `yaml:"tls"`        // TLS证书配置
 
 	// 兼容旧配置
-	Port string `yaml:"port"`
-	Host string `yaml:"host"`
+	Port          string `yaml:"port"`
+	Host          string `yaml:"host"`
+	APIGatewayURL string `yaml:"api_gateway_url"` // API 网关地址
 }
 
 type ScratchEditorConfig struct {

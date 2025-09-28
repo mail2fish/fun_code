@@ -42,3 +42,4 @@ Tasks
 fun_code
 funcode_server
 scripts/*
+api_gateway/

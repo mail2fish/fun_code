@@ -34,6 +34,7 @@ server:
   # - "https_only": 仅启动HTTPS服务 
   # - "both": HTTP和HTTPS服务都启动
   # - "https_redirect": HTTP服务启动但重定向到HTTPS
+  # - "api_gateway" API 网关模式
   mode: "{{ .Server.Mode }}"
   # HTTP服务监听端口
   http_port: "{{ .Server.HTTPPort }}"
