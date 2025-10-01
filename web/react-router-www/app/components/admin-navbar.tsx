@@ -24,6 +24,8 @@ import {
   Globe,
   BookOpen,
   Palette
+ ,
+  Code2
 } from "lucide-react";
 
 interface MenuItemBase {
@@ -102,10 +104,11 @@ export function AdminNavbar({}: AdminNavbarProps) {
   ];
 
   const shareMenuItems: MenuItem[] = [
-    { href: `${typeof window !== 'undefined' ? window.location.origin : ''}/projects/scratch/new`, label: "创建程序", icon: Plus, external: true },
+    { href: `${typeof window !== 'undefined' ? window.location.origin : ''}/projects/scratch/new`, label: "创建Scratch程序", icon: Plus, external: true },
     { href: "/www/admin/my_scratch", label: "我的程序", icon: FileText },
     { href: "/www/shares/user", label: "我的分享", icon: User },
     { href: "/www/user/excalidraw", label: "我的流程图", icon: Palette},
+    { href: "/www/user/programs/new", label: "创建Python程序", icon: Code2 },
   ];
 
   const isActive = (path: string) => location.pathname === path;

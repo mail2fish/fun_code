@@ -80,6 +80,7 @@ func (s *Server) setupRoutes() {
 			auth.GET("/menu/list", gorails.Wrap(s.handler.GetMenuListHandler, nil))
 			// 通用程序接口
 			auth.POST("/programs", gorails.Wrap(s.handler.SaveProgramHandler, nil))
+			auth.GET("/programs/:id", gorails.Wrap(s.handler.GetProgramHandler, nil))
 
 			// Scratch 相关路由 - 已改造为 gorails.Wrap 形式
 			auth.GET("/scratch/projects/:id", gorails.Wrap(s.handler.GetScratchProjectHandler, handler.RenderScratchProject))

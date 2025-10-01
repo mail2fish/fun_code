@@ -1,8 +1,11 @@
 import * as React from "react"
 import { fetchWithAuth } from "~/utils/api"
 import { HOST_URL } from "~/config"
+import { useParams, useNavigate } from "react-router"
 
 export default function MonacoEditorPage() {
+  const { programId: routeProgramId } = useParams()
+  const navigate = useNavigate()
   const [Editor, setEditor] = React.useState<any>(null)
   const [code, setCode] = React.useState<string>(
     [
@@ -128,13 +131,16 @@ export default function MonacoEditorPage() {
         setProgramName(nameToUse)
       }
 
+      const idFromRoute = routeProgramId ? Number(routeProgramId) : 0
+      const idToSave = typeof programId === "number" && !isNaN(programId) ? programId : (isNaN(idFromRoute) ? 0 : idFromRoute)
+
       const resp = await fetchWithAuth(`${HOST_URL}/api/programs`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          id: programId ?? 0,
+          id: idToSave,
           name: nameToUse,
           type: programType,
           program: code,
@@ -147,6 +153,10 @@ export default function MonacoEditorPage() {
           if (data && (data.id != null || (data.data && data.data.id != null))) {
             const returnedId = data.id ?? data.data.id
             if (typeof returnedId === "number") setProgramId(returnedId)
+            // 保存成功后跳转到打开页面
+            if (typeof returnedId === "number") {
+              navigate(`/www/user/programs/open/${returnedId}`, { replace: true })
+            }
           }
         } catch (_) {}
         setMenuOpen(false)
@@ -165,6 +175,32 @@ export default function MonacoEditorPage() {
       alert("保存失败")
     }
   }, [code, programName, programId])
+
+  // 若带有 programId，加载程序内容并填充
+  React.useEffect(() => {
+    let mounted = true
+    // 优先用路由参数初始化 programId，避免保存时为 0
+    if (routeProgramId) {
+      const n = Number(routeProgramId)
+      if (!isNaN(n)) setProgramId(n)
+    }
+    async function loadIfNeeded() {
+      if (!routeProgramId) return
+      try {
+        const resp = await fetchWithAuth(`${HOST_URL}/api/programs/${routeProgramId}`)
+        if (!resp.ok) return
+        const data = await resp.json()
+        if (!mounted || !data) return
+        if (typeof data.name === "string") setProgramName(data.name)
+        if (typeof data.program === "string") setCode(data.program)
+        if (typeof data.id === "number") setProgramId(data.id)
+      } catch (_) {}
+    }
+    loadIfNeeded()
+    return () => {
+      mounted = false
+    }
+  }, [routeProgramId])
 
   // 在编辑器挂载时注册 Shift+Enter 运行快捷键
   const handleEditorMount = React.useCallback(

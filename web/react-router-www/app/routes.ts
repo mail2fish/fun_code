@@ -15,6 +15,8 @@ export default [
     route("/www/shares/user", "routes/user_share.tsx"),
     route("/www/shares/all", "routes/all_share.tsx"),
     route("/www/share/:shareId", "routes/share.tsx"),
+    route("/www/user/programs/new", "routes/editor/monaco_new.tsx"),
+    route("/www/user/programs/open/:programId", "routes/editor/monaco_open.tsx"),
 
     // admin
     route("/www/admin/dashboard", "routes/admin/dashboard.tsx"),
@@ -36,9 +38,8 @@ export default [
     route("/www/admin/edit_course/:courseId", "routes/admin/edit_course.tsx"),
     route("/www/admin/course_detail/:courseId", "routes/admin/course_detail.tsx"),
     
-    // editor playground
-    route("/www/editor/monaco", "routes/editor/monaco.tsx"),
-    
+
+
     // lesson management
     route("/www/admin/list_lessons", "routes/admin/list_lessons.tsx"),
     route("/www/admin/create_lesson", "routes/admin/create_lesson.tsx"),
