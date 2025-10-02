@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jun/fun_code/internal/config"
 	"github.com/jun/fun_code/internal/global"
 	"github.com/mail2fish/gorails/gorails"
 )
@@ -130,6 +131,9 @@ func (h *Handler) TryAuthMiddleware() gin.HandlerFunc {
 
 		claims, err := h.dao.AuthDao.ValidateToken(token)
 		if err != nil {
+			if h.config.Server.Mode == config.ModeAPIGateway {
+				c.Set("userID", 0)
+			}
 			c.Next()
 			return
 		}
