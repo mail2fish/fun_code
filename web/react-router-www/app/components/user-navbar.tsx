@@ -15,7 +15,8 @@ import {
   Sparkles,
   Palette,
   Code2,
-  ChevronDown
+  ChevronDown,
+  Plus
 } from "lucide-react";
 
 interface UserNavbarProps {
@@ -50,6 +51,8 @@ export function UserNavbar({}: UserNavbarProps) {
   const programMenuItems = [
     { href: "/www/user/scratch", label: "我的Scratch", icon: Blocks },
     { href: "/www/user/my_python", label: "我的Python", icon: Code2 },
+    { href: `${typeof window !== 'undefined' ? window.location.origin : ''}/projects/scratch/new`, label: "新建Scratch", icon: Plus, external: true },
+    { href: "/www/user/programs/new", label: "新建Python", icon: Plus },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -141,6 +144,20 @@ export function UserNavbar({}: UserNavbarProps) {
                   <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
                     {programMenuItems.map((item) => {
                       const Icon = item.icon;
+                      if (item.external) {
+                        return (
+                          <a
+                            key={item.href}
+                            href={item.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-gray-50 transition-colors duration-200 text-gray-700"
+                          >
+                            <Icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                          </a>
+                        );
+                      }
                       return (
                         <Link
                           key={item.href}
@@ -226,6 +243,20 @@ export function UserNavbar({}: UserNavbarProps) {
                   <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
                     {programMenuItems.map((item) => {
                       const Icon = item.icon;
+                      if (item.external) {
+                        return (
+                          <a
+                            key={item.href}
+                            href={item.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center space-x-2 w-full px-3 py-2 text-sm hover:bg-gray-50 transition-colors duration-200 text-gray-700"
+                          >
+                            <Icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                          </a>
+                        );
+                      }
                       return (
                         <Link
                           key={item.href}
@@ -359,6 +390,21 @@ export function UserNavbar({}: UserNavbarProps) {
                 </div>
                 {programMenuItems.map((item) => {
                   const Icon = item.icon;
+                  if (item.external) {
+                    return (
+                      <a
+                        key={item.href}
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center space-x-3 rounded-xl px-6 py-2 text-sm font-medium transition-all duration-300 text-gray-600 hover:bg-gradient-to-r hover:from-purple-100 hover:to-pink-100 hover:text-purple-600"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </a>
+                    );
+                  }
                   return (
                     <Link
                       key={item.href}
