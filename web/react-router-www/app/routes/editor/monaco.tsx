@@ -287,6 +287,28 @@ export default function MonacoEditorPage() {
     console.log("programName 状态变化:", programName)
   }, [programName])
 
+  // 点击外部区域关闭菜单
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuOpen) {
+        const target = event.target as Element
+        // 检查点击的元素是否在菜单内部
+        const menuElement = document.querySelector('[data-menu="file-menu"]')
+        if (menuElement && !menuElement.contains(target)) {
+          setMenuOpen(false)
+        }
+      }
+    }
+
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [menuOpen])
+
   // 在编辑器挂载时注册 Shift+Enter 运行快捷键
   const handleEditorMount = React.useCallback(
     (editor: any, monaco: any) => {
@@ -318,7 +340,7 @@ export default function MonacoEditorPage() {
       {/* 顶部工具栏 */}
       <div className="h-12 px-4 flex items-center justify-between border-b border-gray-800 bg-gray-900/90">
         <div className="flex items-center gap-3">
-          <div className="relative">
+          <div className="relative" data-menu="file-menu">
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700"
