@@ -118,11 +118,58 @@ export default function MonacoEditorPage() {
     setOutputImage("")
   }
 
+  const handleRename = async () => {
+    const input = window.prompt("请输入新的程序名称", programName)
+    if (input != null && input.trim() !== "") {
+      const newName = input.trim()
+      setProgramName(newName)
+      
+      // 重命名后自动保存文件
+      try {
+        const idFromRoute = routeProgramId ? Number(routeProgramId) : 0
+        const idToSave = typeof programId === "number" && !isNaN(programId) ? programId : (isNaN(idFromRoute) ? 0 : idFromRoute)
+
+        const resp = await fetchWithAuth(`${HOST_URL}/api/programs`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: idToSave,
+            name: newName,
+            type: programType,
+            program: code,
+          }),
+        })
+
+        if (resp.ok) {
+          try {
+            const data = await resp.json()
+            if (data && (data.id != null || (data.data && data.data.id != null))) {
+              const returnedId = data.id ?? data.data.id
+              if (typeof returnedId === "number") setProgramId(returnedId)
+            }
+          } catch (_) {}
+          console.log("重命名并保存成功")
+          ;(window as any).toast?.success?.("重命名并保存成功")
+        } else {
+          const txt = await resp.text()
+          console.error("重命名保存失败", txt)
+          ;(window as any).toast?.error?.("重命名保存失败")
+        }
+      } catch (e) {
+        console.error("重命名保存失败", e)
+        ;(window as any).toast?.error?.("重命名保存失败")
+      }
+    }
+  }
+
   const handleSave = React.useCallback(async () => {
     try {
       // 若用户未命名，弹出一次命名对话框
       let nameToUse = programName
-      if (!nameToUse || nameToUse.trim() === "" || nameToUse === "未命名程序") {
+      // 只有在程序名称为空、空白字符串或者是默认的"未命名程序"时才弹出命名对话框
+      if (!nameToUse || nameToUse.trim() === "" || (nameToUse === "未命名程序" && !routeProgramId)) {
         const input = window.prompt("请输入程序名称", programName || "未命名程序")
         if (input == null) {
           return
@@ -153,6 +200,10 @@ export default function MonacoEditorPage() {
           if (data && (data.id != null || (data.data && data.data.id != null))) {
             const returnedId = data.id ?? data.data.id
             if (typeof returnedId === "number") setProgramId(returnedId)
+            // 只有在新建程序时才更新程序名称，避免覆盖已加载的程序名称
+            if (!routeProgramId) {
+              setProgramName(nameToUse)
+            }
             // 保存成功后跳转到打开页面
             if (typeof returnedId === "number") {
               navigate(`/www/user/programs/open/${returnedId}`, { replace: true })
@@ -191,16 +242,50 @@ export default function MonacoEditorPage() {
         if (!resp.ok) return
         const data = await resp.json()
         if (!mounted || !data) return
-        if (typeof data.name === "string") setProgramName(data.name)
-        if (typeof data.program === "string") setCode(data.program)
-        if (typeof data.id === "number") setProgramId(data.id)
-      } catch (_) {}
+        
+        console.log("加载程序数据:", data) // 调试信息
+        console.log("数据类型:", typeof data)
+        console.log("data.name:", data.name)
+        console.log("data.data:", data.data)
+        
+        // gorails框架将响应包装在data字段中
+        const programData = data.data || data
+        
+        console.log("程序数据:", programData)
+        
+        // 加载程序名称
+        if (programData && typeof programData.name === "string" && programData.name.trim() !== "") {
+          console.log("设置程序名称:", programData.name)
+          setProgramName(programData.name)
+        } else {
+          console.log("程序名称为空或无效:", programData?.name)
+        }
+        
+        // 加载程序代码
+        if (programData && typeof programData.program === "string") {
+          console.log("设置程序代码，长度:", programData.program.length)
+          setCode(programData.program)
+        }
+        
+        // 加载程序ID
+        if (programData && typeof programData.id === "number") {
+          console.log("设置程序ID:", programData.id)
+          setProgramId(programData.id)
+        }
+      } catch (e) {
+        console.error("加载程序失败:", e)
+      }
     }
     loadIfNeeded()
     return () => {
       mounted = false
     }
   }, [routeProgramId])
+
+  // 调试：监听 programName 变化
+  React.useEffect(() => {
+    console.log("programName 状态变化:", programName)
+  }, [programName])
 
   // 在编辑器挂载时注册 Shift+Enter 运行快捷键
   const handleEditorMount = React.useCallback(
@@ -238,10 +323,16 @@ export default function MonacoEditorPage() {
               onClick={() => setMenuOpen((v) => !v)}
               className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700"
             >
-              菜单 ▾
+            文件 ▾
             </button>
             {menuOpen ? (
               <div className="absolute mt-1 min-w-[160px] rounded-md border border-gray-800 bg-gray-900 shadow-lg z-10">
+                <button
+                  className="w-full text-left px-3 py-2 hover:bg-slate-800"
+                  onClick={handleRename}
+                >
+                  重命名
+                </button>
                 <button
                   className="w-full text-left px-3 py-2 hover:bg-slate-800"
                   onClick={handleSave}
@@ -251,7 +342,9 @@ export default function MonacoEditorPage() {
               </div>
             ) : null}
           </div>
-          <div className="font-medium">Monaco + Pyodide</div>
+          <div className="font-medium">
+            {programName || "未命名程序"} - Monaco + Pyodide
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button

@@ -56,6 +56,21 @@ export default function AdminMyPythonProgramsPage() {
     loadPrograms()
   }, [loadPrograms])
 
+  // 监听页面可见性变化，当页面重新获得焦点时刷新程序列表
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadPrograms()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [loadPrograms])
+
   const getExtName = (ext: number) => {
     switch (ext) {
       case 1: return "Python"

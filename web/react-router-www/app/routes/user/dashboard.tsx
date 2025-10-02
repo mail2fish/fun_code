@@ -108,6 +108,57 @@ export default function Dashboard() {
     fetchPythonPrograms();
   }, []);
 
+  // 监听页面可见性变化，当页面重新获得焦点时刷新数据
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // 刷新Python程序列表
+        const fetchPythonPrograms = async () => {
+          try {
+            const res = await fetchWithAuth(`${HOST_URL}/api/programs?pageSize=4`);
+            const resp = await res.json();
+            setRecentPythonPrograms(resp.data || []);
+          } catch (error) {
+            console.error("刷新Python程序失败:", error);
+          }
+        };
+
+        // 刷新Scratch项目列表
+        const fetchScratchProjects = async () => {
+          try {
+            const params = new URLSearchParams();
+            params.append("pageSize", "4");
+            params.append("forward", "true");
+            params.append("asc", "false");
+            
+            const res = await fetchWithAuth(`${HOST_URL}/api/scratch/projects?${params.toString()}`);
+            const resp = await res.json();
+            
+            let projects: Project[] = [];
+            if (Array.isArray(resp.data)) {
+              projects = resp.data;
+            } else if (Array.isArray(resp.data?.projects)) {
+              projects = resp.data.projects;
+            }
+            
+            setRecentScratchProjects(projects.slice(0, 4));
+          } catch (error) {
+            console.error("刷新Scratch项目失败:", error);
+          }
+        };
+
+        fetchPythonPrograms();
+        fetchScratchProjects();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   // 格式化日期函数
   const formatDate = (dateString?: string) => {
     if (!dateString) return "未知时间";
