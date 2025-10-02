@@ -144,3 +144,89 @@ func (d *ProgramDaoImpl) GetContent(id uint, md5Str string) ([]byte, error) {
 	}
 	return data, nil
 }
+
+func (d *ProgramDaoImpl) ListProgramsWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Program, bool, error) {
+	var programs []model.Program
+
+	// 处理 pageSize 为 0 的情况，使用默认值 20
+	if pageSize == 0 {
+		pageSize = 20
+	}
+
+	// 构建基础查询
+	query := d.db.Where("user_id = ?", userID)
+
+	// 记录查询是否按升序排序
+	queryAsc := false
+
+	// 根据 beginID、forward 和 asc 设置查询条件和排序
+	if beginID > 0 {
+		if asc && forward {
+			// asc == true and forward == true
+			// id >= beginID, order 为 id asc
+			query = query.Where("id > ?", beginID).Order("id ASC")
+			queryAsc = true
+		} else if asc && !forward {
+			// asc == true and forward == false
+			// id <= beginID，order 为 id desc
+			query = query.Where("id < ?", beginID).Order("id DESC")
+			queryAsc = false
+		} else if !asc && forward {
+			// asc == false and forward == true
+			// id <= beginID，order 为 id desc
+			query = query.Where("id < ?", beginID).Order("id DESC")
+			queryAsc = false
+		} else {
+			// asc == false and forward == false
+			// id >= beginID, order 为 id asc
+			query = query.Where("id > ?", beginID).Order("id ASC")
+			queryAsc = true
+		}
+	} else {
+		// beginID 为 0 的情况
+		if asc {
+			// asc 为 true，按 id asc 排序
+			query = query.Order("id ASC")
+			queryAsc = true
+		} else {
+			// asc 为 false，按 id desc 排序
+			query = query.Order("id DESC")
+			queryAsc = false
+		}
+	}
+
+	// 执行查询，多查询一条用于判断是否有更多数据
+	if err := query.Limit(int(pageSize + 1)).Find(&programs).Error; err != nil {
+		return nil, false, err
+	}
+
+	// 处理查询结果
+	// asc 为 true 时，返回结果数组按 id 升序排序，代表页面按升序显示
+	// asc 为 false 时，返回结果数组按 id 降序排序，代表页面按降序显示
+	// 检查查询结果的排序是否与 asc 参数一致，如果不一致则需要反转
+	if queryAsc != asc {
+		// 反转结果数组
+		for i, j := 0, len(programs)-1; i < j; i, j = i+1, j-1 {
+			programs[i], programs[j] = programs[j], programs[i]
+		}
+	}
+
+	// 判断是否有更多数据
+	hasMore := false
+	if len(programs) > int(pageSize) {
+		hasMore = true
+		if queryAsc != asc {
+			programs = programs[1:]
+		} else {
+			programs = programs[:int(pageSize)]
+		}
+	}
+
+	return programs, hasMore, nil
+}
+
+func (d *ProgramDaoImpl) CountPrograms(userID uint) (int64, error) {
+	var count int64
+	err := d.db.Model(&model.Program{}).Where("user_id = ?", userID).Count(&count).Error
+	return count, err
+}

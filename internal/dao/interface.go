@@ -36,4 +36,8 @@ type ProgramDao interface {
 	Get(id uint) (*model.Program, error)
 	// GetContent 读取当前版本内容（若 md5 为空则读取最新 md5）
 	GetContent(id uint, md5 string) ([]byte, error)
+	// ListProgramsWithPagination 分页获取用户程序列表
+	ListProgramsWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Program, bool, error)
+	// CountPrograms 获取用户程序总数
+	CountPrograms(userID uint) (int64, error)
 }

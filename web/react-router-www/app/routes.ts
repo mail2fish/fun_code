@@ -17,6 +17,8 @@ export default [
     route("/www/share/:shareId", "routes/share.tsx"),
     route("/www/user/programs/new", "routes/editor/monaco_new.tsx"),
     route("/www/user/programs/open/:programId", "routes/editor/monaco_open.tsx"),
+    route("/www/user/my_python", "routes/user/my_python.tsx"),
+    route("/www/admin/my_python", "routes/admin/my_python.tsx"),
 
     // admin
     route("/www/admin/dashboard", "routes/admin/dashboard.tsx"),

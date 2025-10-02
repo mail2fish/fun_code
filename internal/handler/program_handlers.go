@@ -2,9 +2,12 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jun/fun_code/internal/global"
+	"github.com/jun/fun_code/internal/model"
 	"github.com/mail2fish/gorails/gorails"
 )
 
@@ -105,4 +108,81 @@ func (h *Handler) GetProgramHandler(c *gin.Context, params *GetProgramParams) (*
 
 	resp := &GetProgramResponse{ID: prog.ID, Name: prog.Name, Ext: prog.Ext, Program: string(content)}
 	return resp, nil, nil
+}
+
+// ListProgramsParams 列出程序参数
+type ListProgramsParams struct {
+	PageSize uint `json:"page_size" form:"pageSize"`
+	BeginID  uint `json:"begin_id" form:"beginID"`
+	Forward  bool `json:"forward" form:"forward"`
+	Asc      bool `json:"asc" form:"asc"`
+}
+
+func (p *ListProgramsParams) Parse(c *gin.Context) gorails.Error {
+	// 设置默认值
+	p.PageSize = 20
+	p.BeginID = 0
+	p.Forward = true
+	p.Asc = true
+
+	// 解析页面大小
+	if pageSizeStr := c.DefaultQuery("pageSize", "20"); pageSizeStr != "" {
+		if pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32); err == nil {
+			if pageSize > 0 && pageSize <= 100 {
+				p.PageSize = uint(pageSize)
+			}
+		}
+	}
+
+	// 解析起始ID
+	if beginIDStr := c.DefaultQuery("beginID", "0"); beginIDStr != "" {
+		if beginID, err := strconv.ParseUint(beginIDStr, 10, 32); err == nil {
+			p.BeginID = uint(beginID)
+		}
+	}
+
+	// 解析翻页方向
+	if forwardStr := c.DefaultQuery("forward", "true"); forwardStr != "" {
+		p.Forward = forwardStr != "false"
+	}
+
+	// 解析排序方向
+	if ascStr := c.DefaultQuery("asc", "true"); ascStr != "" {
+		p.Asc = ascStr != "false"
+	}
+	return nil
+}
+
+type ProgramInfo struct {
+	ID        uint      `json:"id"`
+	Name      string    `json:"name"`
+	Ext       int       `json:"ext"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	UserID    uint      `json:"user_id"`
+}
+
+func (h *Handler) ListProgramsHandler(c *gin.Context, params *ListProgramsParams) ([]model.Program, *gorails.ResponseMeta, gorails.Error) {
+	// 获取当前用户ID
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeUnauthorized, global.ErrorMsgUnauthorized, nil)
+	}
+
+	// 获取程序列表
+	programs, hasMore, err := h.dao.ProgramDao.ListProgramsWithPagination(userID, params.PageSize, params.BeginID, params.Forward, params.Asc)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 获取总数
+	total, err := h.dao.ProgramDao.CountPrograms(userID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	return programs, &gorails.ResponseMeta{
+		Total:   int(total),
+		HasNext: hasMore,
+	}, nil
 }
