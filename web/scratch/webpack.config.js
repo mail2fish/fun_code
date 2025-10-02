@@ -1,6 +1,7 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const CompressionPlugin = require('compression-webpack-plugin');
 
 module.exports = {
   mode: 'development',
@@ -75,7 +76,16 @@ module.exports = {
                 to: 'static/[name][ext]'  // 使用模板语法替代 flatten
             }
         ]
-    })]),
+    }),
+    new CompressionPlugin({
+      filename: '[path][base].gz',
+      algorithm: 'gzip',
+      test: /\.js$/i,
+      threshold: 10 * 1024,
+      minRatio: 0.8,
+      deleteOriginalAssets: true,
+    })
+  ]),
   devServer: {
     static: {
         directory: path.join(__dirname, 'dist'),

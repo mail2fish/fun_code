@@ -115,13 +115,46 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 		return
 	}
 
-	// 打开文件
-	file, err := currentFS.Open(filePath)
+	// 处理预压缩资源: 根据 Accept-Encoding 优先返回 .br 或 .gz
+	requestedPath := filePath // 保留原始请求路径用于计算 Content-Type
+	servedPath := filePath
+	contentEncoding := ""
+
+	acceptEncoding := c.GetHeader("Accept-Encoding")
+	supports := func(enc string) bool {
+		enc = strings.ToLower(enc)
+		// 简单包含判断即可，浏览器通常发送形如: "gzip, deflate, br"
+		return strings.Contains(strings.ToLower(acceptEncoding), enc)
+	}
+
+	// 优先 br, 其次 gzip
+	if supports("br") {
+		if f, err := currentFS.Open(filePath + ".br"); err == nil {
+			// 找到 .br 文件
+			f.Close()
+			servedPath = filePath + ".br"
+			contentEncoding = "br"
+		}
+	}
+	if contentEncoding == "" && supports("gzip") {
+		if f, err := currentFS.Open(filePath + ".gz"); err == nil {
+			// 找到 .gz 文件
+			f.Close()
+			servedPath = filePath + ".gz"
+			contentEncoding = "gzip"
+		}
+	}
+
+	// 打开文件（可能是原始文件或预压缩文件）
+	file, err := currentFS.Open(servedPath)
 	if err != nil {
 		// 如果文件不存在，尝试返回 www 的 index.html (适用于 SPA 路由)
 		if errors.Is(err, fs.ErrNotExist) && currentFS == h.wwwFS && filepath.Ext(filePath) == "" {
 			filePath = "index.html"
-			file, err = currentFS.Open(filePath)
+			requestedPath = filePath
+			servedPath = filePath
+			contentEncoding = ""
+			file, err = currentFS.Open(servedPath)
 		}
 
 		// 如果仍然错误（例如 index.html 也不存在或权限问题）
@@ -132,8 +165,8 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// 先从缓存获取Etag
-	if cachedETag, found := h.cache.GetETag(filePath); found {
+	// 先从缓存获取Etag（按实际返回路径缓存，以区分压缩与非压缩版本）
+	if cachedETag, found := h.cache.GetETag(servedPath); found {
 		ifnonematch := c.GetHeader("If-None-Match")
 		if ifnonematch != "" {
 			// 弱 ETag 比较 (W/"...") 暂不处理，这里只处理强 ETag
@@ -156,8 +189,8 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 	// 计算 ETag
 	etag := calculateETag(fileContent)
 
-	// 将 ETag 存储到缓存
-	h.cache.SetETag(filePath, etag)
+	// 将 ETag 存储到缓存（与实际返回文件路径绑定）
+	h.cache.SetETag(servedPath, etag)
 
 	// 检查 If-None-Match 请求头
 	ifnonematch := c.GetHeader("If-None-Match")
@@ -171,21 +204,26 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 
 	// 设置响应头
 	c.Header("ETag", etag)
+	// 内容协商: 标注可变体
+	c.Header("Vary", "Accept-Encoding")
+	if contentEncoding != "" {
+		c.Header("Content-Encoding", contentEncoding)
+	}
 
-	// 获取 Content-Type
-	contentType := mime.TypeByExtension(filepath.Ext(filePath))
+	// 获取 Content-Type（按原始请求路径的扩展名判断，而非 .gz/.br 扩展）
+	contentType := mime.TypeByExtension(filepath.Ext(requestedPath))
 	if contentType == "" {
 		// 默认类型，或者可以进行更复杂的类型检测
 		contentType = "application/octet-stream"
 		// 对于 index.html，强制设为 text/html
-		if strings.HasSuffix(filePath, ".html") {
+		if strings.HasSuffix(requestedPath, ".html") {
 			contentType = "text/html; charset=utf-8"
 		}
 	}
 
 	c.Header("Static-File", "true")
 	// 如果不是 index.html 文件，则设置 Cache-Control 头
-	if !strings.HasSuffix(filePath, "index.html") {
+	if !strings.HasSuffix(requestedPath, "index.html") {
 		c.Header("Cache-Control", "public, max-age=31536000") // 设置为最长缓存时间 1 年
 		// 设置 Expires 头
 		expiredTime := time.Now().Add(31536000 * time.Second) // 1 年后过期
