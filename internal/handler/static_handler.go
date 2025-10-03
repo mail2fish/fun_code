@@ -20,10 +20,9 @@ import (
 )
 
 type StaticHandler struct {
-	wwwFS        http.FileSystem
-	scratchFS    http.FileSystem
-	excalidrawFS http.FileSystem
-	cache        cache.ETagCache
+	wwwFS     http.FileSystem
+	scratchFS http.FileSystem
+	cache     cache.ETagCache
 }
 
 func NewStaticHandler(cache cache.ETagCache) (*StaticHandler, error) {
@@ -39,17 +38,10 @@ func NewStaticHandler(cache cache.ETagCache) (*StaticHandler, error) {
 		return nil, err
 	}
 
-	// 获取 excalidraw 子文件系统
-	excalidrawSubFS, err := fs.Sub(web.ExcalidrawStaticFiles, "excalidraw/dist")
-	if err != nil {
-		return nil, err
-	}
-
 	return &StaticHandler{
-		wwwFS:        http.FS(wwwSubFS),
-		scratchFS:    http.FS(scratchSubFS),
-		excalidrawFS: http.FS(excalidrawSubFS),
-		cache:        cache,
+		wwwFS:     http.FS(wwwSubFS),
+		scratchFS: http.FS(scratchSubFS),
+		cache:     cache,
 	}, nil
 }
 
@@ -69,13 +61,6 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 	} else if strings.HasPrefix(filePath, "/scratch") {
 		currentFS = h.scratchFS
 		filePath = strings.TrimPrefix(filePath, "/scratch")
-	} else if strings.HasPrefix(filePath, "/excalidraw") {
-		currentFS = h.excalidrawFS
-		if filePath == "/excalidraw/new" || strings.HasPrefix(filePath, "/excalidraw/open") {
-			filePath = "/index.html"
-		} else {
-			filePath = strings.TrimPrefix(filePath, "/excalidraw")
-		}
 	} else if filePath == "/" {
 		currentFS = h.wwwFS
 		// 根路径或 /www 路径都指向 index.html
