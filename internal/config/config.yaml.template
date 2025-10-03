@@ -69,3 +69,20 @@ logger:
   directory: '{{ .Logger.Directory }}'
   # "stdout" 表示输出到控制台，其他值将被视为日志文件名
   output: '{{ .Logger.Output }}'
+
+# Pyodide 本地资源配置
+pyodide:
+  # 可选：本地 Pyodide 资源根目录。配置后，/pyodide/* 将优先从本地目录提供，
+  # 未配置或目录不存在时将回退到内置 embed 资源。
+  #
+  # 目录结构示例（full_path 指向包含这些内容的目录）：
+  #   /your/path/pyodide/
+  #     ├── pyodide.js
+  #     ├── pyodide_py.tar
+  #     ├── packages.json
+  #     └── ...
+  #
+  # macOS 示例：'/Users/you/projects/assets/pyodide'
+  # Windows 示例：'C:\\data\\pyodide'
+  # Linux 示例：'/opt/assets/pyodide'
+  full_path: ''

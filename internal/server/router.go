@@ -44,8 +44,8 @@ func (s *Server) setupRoutes() {
 		}))
 	}
 
-	// 添加静态文件服务
-	staticHandler, err := handler.NewStaticHandler(s.etagCache)
+	// 添加静态文件服务（传入配置的 Pyodide 完整路径以覆盖 embed）
+	staticHandler, err := handler.NewStaticHandler(s.etagCache, s.config.Pyodide.FullPath)
 	if err != nil {
 		log.Printf("无法初始化静态文件处理器: %v", err)
 		return

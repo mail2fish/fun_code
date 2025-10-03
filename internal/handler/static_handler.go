@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -20,15 +21,23 @@ import (
 )
 
 type StaticHandler struct {
-	wwwFS     http.FileSystem
-	scratchFS http.FileSystem
-	pyodideFS http.FileSystem
-	cache     cache.ETagCache
+	wwwFS         http.FileSystem
+	wwwPublicFS   http.FileSystem
+	scratchFS     http.FileSystem
+	pyodideFS     http.FileSystem
+	pyodideFullFS http.FileSystem
+	cache         cache.ETagCache
 }
 
-func NewStaticHandler(cache cache.ETagCache) (*StaticHandler, error) {
+func NewStaticHandler(cache cache.ETagCache, pyodideFullPath string) (*StaticHandler, error) {
 	// 获取 www 子文件系统
 	wwwSubFS, err := fs.Sub(web.WWWStaticFiles, "react-router-www/build/client")
+	if err != nil {
+		return nil, err
+	}
+
+	// 获取 www public 子文件系统（包含 monaco 等公共静态资源）
+	wwwPublicSubFS, err := fs.Sub(web.WWWPublicStaticFiles, "react-router-www/public")
 	if err != nil {
 		return nil, err
 	}
@@ -45,11 +54,29 @@ func NewStaticHandler(cache cache.ETagCache) (*StaticHandler, error) {
 		return nil, err
 	}
 
+	// 获取 pyodide 完整文件系统：优先使用配置的本地目录
+	var pyodideFull http.FileSystem
+	if pyodideFullPath != "" {
+		if info, err := os.Stat(pyodideFullPath); err == nil && info.IsDir() {
+			pyodideFull = http.FS(os.DirFS(pyodideFullPath))
+		}
+	}
+	// 回退到内置的 embed 版本
+	if pyodideFull == nil {
+		if sub, err := fs.Sub(web.PyodideStaticFiles, "pyodide"); err == nil {
+			pyodideFull = http.FS(sub)
+		} else {
+			return nil, err
+		}
+	}
+
 	return &StaticHandler{
-		wwwFS:     http.FS(wwwSubFS),
-		scratchFS: http.FS(scratchSubFS),
-		pyodideFS: http.FS(pyodideSubFS),
-		cache:     cache,
+		wwwFS:         http.FS(wwwSubFS),
+		wwwPublicFS:   http.FS(wwwPublicSubFS),
+		scratchFS:     http.FS(scratchSubFS),
+		pyodideFS:     http.FS(pyodideSubFS),
+		pyodideFullFS: pyodideFull,
+		cache:         cache,
 	}, nil
 }
 
@@ -59,26 +86,35 @@ func calculateETag(data []byte) string {
 }
 
 func (h *StaticHandler) ServeStatic(c *gin.Context) {
-	var currentFS http.FileSystem
+	var coreFS http.FileSystem
 	filePath := c.Request.URL.Path
 
 	// 根据路径选择文件系统并调整文件路径
-	if strings.HasPrefix(filePath, "/pyodide") {
-		currentFS = h.pyodideFS
+	if strings.HasPrefix(filePath, "/monaco/") {
+		// 从 public 目录提供 monaco 静态资源
+		coreFS = h.wwwPublicFS
+		fmt.Println("filePath", filePath)
+	} else if strings.HasPrefix(filePath, "/pyodide") {
+		// 优先使用配置的完整 Pyodide 文件系统
+		if h.pyodideFullFS != nil {
+			coreFS = h.pyodideFullFS
+		} else {
+			coreFS = h.pyodideFS
+		}
 		filePath = strings.TrimPrefix(filePath, "/pyodide")
 	} else if strings.HasPrefix(filePath, "/static/scratch") {
-		currentFS = h.scratchFS
+		coreFS = h.scratchFS
 		filePath = strings.TrimPrefix(filePath, "/static/scratch")
 	} else if strings.HasPrefix(filePath, "/scratch") {
-		currentFS = h.scratchFS
+		coreFS = h.scratchFS
 		filePath = strings.TrimPrefix(filePath, "/scratch")
 	} else if filePath == "/" {
-		currentFS = h.wwwFS
+		coreFS = h.wwwFS
 		// 根路径或 /www 路径都指向 index.html
 		filePath = "/index.html"
 	} else if strings.HasPrefix(filePath, "/www") {
 		if strings.HasPrefix(filePath, "/www/share") {
-			currentFS = h.wwwFS
+			coreFS = h.wwwFS
 			// 根路径或 /www 路径都指向 index.html
 			filePath = "/index.html"
 		} else {
@@ -87,13 +123,13 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 				c.Redirect(http.StatusFound, "/")
 				return
 			}
-			currentFS = h.wwwFS
+			coreFS = h.wwwFS
 			// 根路径或 /www 路径都指向 index.html
 			filePath = "/index.html"
 		}
 	} else {
 		// 默认 www 文件系统，路径保持不变 (e.g., /assets/...)
-		currentFS = h.wwwFS
+		coreFS = h.wwwFS
 	}
 
 	// 确保文件路径是相对路径且安全
@@ -122,7 +158,7 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 
 	// 优先 br, 其次 gzip
 	if supports("br") {
-		if f, err := currentFS.Open(filePath + ".br"); err == nil {
+		if f, err := coreFS.Open(filePath + ".br"); err == nil {
 			// 找到 .br 文件
 			f.Close()
 			servedPath = filePath + ".br"
@@ -130,7 +166,7 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 		}
 	}
 	if contentEncoding == "" && supports("gzip") {
-		if f, err := currentFS.Open(filePath + ".gz"); err == nil {
+		if f, err := coreFS.Open(filePath + ".gz"); err == nil {
 			// 找到 .gz 文件
 			f.Close()
 			servedPath = filePath + ".gz"
@@ -139,15 +175,15 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 	}
 
 	// 打开文件（可能是原始文件或预压缩文件）
-	file, err := currentFS.Open(servedPath)
+	file, err := coreFS.Open(servedPath)
 	if err != nil {
 		// 如果文件不存在，尝试返回 www 的 index.html (适用于 SPA 路由)
-		if errors.Is(err, fs.ErrNotExist) && currentFS == h.wwwFS && filepath.Ext(filePath) == "" {
+		if errors.Is(err, fs.ErrNotExist) && coreFS == h.wwwFS && filepath.Ext(filePath) == "" {
 			filePath = "index.html"
 			requestedPath = filePath
 			servedPath = filePath
 			contentEncoding = ""
-			file, err = currentFS.Open(servedPath)
+			file, err = coreFS.Open(servedPath)
 		}
 
 		// 如果仍然错误（例如 index.html 也不存在或权限问题）

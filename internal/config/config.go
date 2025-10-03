@@ -89,6 +89,10 @@ type LoggerConfig struct {
 	Output    string `yaml:"output"`    // 日志输出方式，可选值为 "stdout" 和 "file"
 }
 
+type PyodideConfig struct {
+	FullPath string `yaml:"full_path"`
+}
+
 // Config 应用配置
 type Config struct {
 	Version       int                 `yaml:"version"`
@@ -102,6 +106,7 @@ type Config struct {
 	ScratchEditor ScratchEditorConfig `yaml:"scratch_editor"`
 	I18n          I18nConfig          `yaml:"i18n"`
 	Logger        LoggerConfig        `yaml:"logger"` // 新增 Logger 配置
+	Pyodide       PyodideConfig       `yaml:"pyodide"`
 }
 
 func LoadConfig(path string) (*Config, error) {
