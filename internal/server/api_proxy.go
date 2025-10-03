@@ -79,6 +79,19 @@ func APIGatewayHandler(cfg *config.Config) gin.HandlerFunc {
 		fmt.Printf("API 网关请求: %s %s -> %s\n", req.Method, req.URL.Path, req.URL.String())
 	}
 
+	// 去除上游的 CORS 相关响应头，避免与本服务的 CORS 中间件重复
+	proxy.ModifyResponse = func(r *http.Response) error {
+		if r != nil && r.Header != nil {
+			h := r.Header
+			h.Del("Access-Control-Allow-Origin")
+			h.Del("Access-Control-Allow-Credentials")
+			h.Del("Access-Control-Allow-Headers")
+			h.Del("Access-Control-Allow-Methods")
+			h.Del("Access-Control-Expose-Headers")
+		}
+		return nil
+	}
+
 	// 自定义错误处理
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		fmt.Printf("API 网关错误: %v\n", err)

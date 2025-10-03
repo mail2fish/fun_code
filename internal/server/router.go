@@ -2,6 +2,7 @@ package server
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -31,9 +32,13 @@ func (s *Server) setupRoutes() {
 	// 添加新的CORS中间件
 	if s.config.Env != "production" {
 		s.router.Use(cors.New(cors.Config{
-			AllowOrigins:     []string{"*"},
+			// 带凭证时不能使用 *，按前端开发常见本机端口放行
+			AllowOriginFunc: func(origin string) bool {
+				return strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:")
+			},
 			AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-			AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Content-Length"},
+			AllowHeaders:     []string{"Authorization", "Content-Type", "Accept", "Range", "If-None-Match", "If-Modified-Since", "X-Requested-With"},
+			ExposeHeaders:    []string{"Content-Length", "Content-Range", "Accept-Ranges", "ETag", "Content-Encoding", "Vary"},
 			AllowCredentials: true,
 			MaxAge:           12 * time.Hour,
 		}))

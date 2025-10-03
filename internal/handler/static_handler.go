@@ -22,6 +22,7 @@ import (
 type StaticHandler struct {
 	wwwFS     http.FileSystem
 	scratchFS http.FileSystem
+	pyodideFS http.FileSystem
 	cache     cache.ETagCache
 }
 
@@ -38,9 +39,16 @@ func NewStaticHandler(cache cache.ETagCache) (*StaticHandler, error) {
 		return nil, err
 	}
 
+	// 获取 pyodide 子文件系统
+	pyodideSubFS, err := fs.Sub(web.PyodideStaticFiles, "pyodide")
+	if err != nil {
+		return nil, err
+	}
+
 	return &StaticHandler{
 		wwwFS:     http.FS(wwwSubFS),
 		scratchFS: http.FS(scratchSubFS),
+		pyodideFS: http.FS(pyodideSubFS),
 		cache:     cache,
 	}, nil
 }
@@ -55,7 +63,10 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 	filePath := c.Request.URL.Path
 
 	// 根据路径选择文件系统并调整文件路径
-	if strings.HasPrefix(filePath, "/static/scratch") {
+	if strings.HasPrefix(filePath, "/pyodide") {
+		currentFS = h.pyodideFS
+		filePath = strings.TrimPrefix(filePath, "/pyodide")
+	} else if strings.HasPrefix(filePath, "/static/scratch") {
 		currentFS = h.scratchFS
 		filePath = strings.TrimPrefix(filePath, "/static/scratch")
 	} else if strings.HasPrefix(filePath, "/scratch") {
@@ -66,19 +77,16 @@ func (h *StaticHandler) ServeStatic(c *gin.Context) {
 		// 根路径或 /www 路径都指向 index.html
 		filePath = "/index.html"
 	} else if strings.HasPrefix(filePath, "/www") {
-		fmt.Println("filePath www", filePath)
 		if strings.HasPrefix(filePath, "/www/share") {
 			currentFS = h.wwwFS
 			// 根路径或 /www 路径都指向 index.html
 			filePath = "/index.html"
 		} else {
-			fmt.Println("filePath www", filePath)
 			_, exists := c.Get("userID")
 			if !exists {
 				c.Redirect(http.StatusFound, "/")
 				return
 			}
-			fmt.Println("filePath www after", filePath)
 			currentFS = h.wwwFS
 			// 根路径或 /www 路径都指向 index.html
 			filePath = "/index.html"

@@ -49,13 +49,13 @@ export default function MonacoEditorPage() {
     }
   }, [])
 
-  // 动态加载 Pyodide（仅客户端）
+  // 动态加载本地 Pyodide（仅客户端）
   React.useEffect(() => {
     let mounted = true
     async function loadPyodideOnce() {
       if ((window as any).loadPyodide && mounted) {
         const py = await (window as any).loadPyodide({
-          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/",
+          indexURL: `${HOST_URL}/pyodide/`,
         })
         // 预加载绘图与科学计算常用包
         try {
@@ -65,12 +65,12 @@ export default function MonacoEditorPage() {
         return
       }
       const script = document.createElement("script")
-      script.src = "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"
+      script.src = `${HOST_URL}/pyodide/pyodide.js`
       script.async = true
       script.onload = async () => {
         try {
           const py = await (window as any).loadPyodide({
-            indexURL: "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/",
+            indexURL: `${HOST_URL}/pyodide/`,
           })
           try {
             await py.loadPackage(["matplotlib", "numpy"]) 
