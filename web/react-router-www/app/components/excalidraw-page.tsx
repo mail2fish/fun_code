@@ -108,7 +108,7 @@ export function ExcalidrawPage({
               className="fun-button-primary"
             >
               <a 
-                href={`/excalidraw/new`} 
+                href={`/www/excalidraw/new`} 
                 onClick={handleNewBoardClick}
                 className={isButtonCooling ? "pointer-events-none opacity-70" : ""}
               >

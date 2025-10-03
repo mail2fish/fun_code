@@ -443,7 +443,7 @@ export function ExcalidrawTable({
                   <Card key={board.id} className="flex flex-col h-full rounded-2xl shadow-md border-2 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:border-blue-400 hover:shadow-blue-200/50 hover:bg-gradient-to-br hover:from-blue-50 hover:to-teal-50 bg-white border-blue-200">
                     {/* 缩略图区域 */}
                     <div className="w-full h-48 flex items-center justify-center rounded-t-2xl bg-gradient-to-br from-blue-50 to-teal-50 relative overflow-hidden transition-all duration-300 hover:from-blue-100 hover:to-teal-100">
-                      <a href={`/excalidraw/open/${board.id}`}>
+                      <a href={`/www/excalidraw/open/${board.id}`}>
                         <img
                           src={`${HOST_URL}/api/excalidraw/boards/${board.id}/thumbnail`}
                           className="max-h-40 object-contain transition-transform duration-300 hover:scale-110"
@@ -473,7 +473,7 @@ export function ExcalidrawTable({
                       </div>
                       <div className="font-bold text-xl text-gray-800 line-clamp-2 leading-tight group">
                         <a 
-                          href={`/excalidraw/open/${board.id}`}
+                          href={`/www/excalidraw/open/${board.id}`}
                           className="hover:text-blue-600 transition-all duration-200 group-hover:drop-shadow-sm"
                         >
                           {board.name || "未命名流程图"}
@@ -511,7 +511,7 @@ export function ExcalidrawTable({
                             asChild
                             className="flex-1 h-9 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 hover:scale-105 hover:shadow-md transition-all duration-200 font-medium text-sm group"
                           >
-                            <a href={`/excalidraw/open/${board.id}`}>
+                            <a href={`/www/excalidraw/open/${board.id}`}>
                               <IconEdit className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
                               编辑流程图
                             </a>
