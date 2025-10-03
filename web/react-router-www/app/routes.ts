@@ -47,4 +47,8 @@ export default [
     route("/www/admin/create_lesson", "routes/admin/create_lesson.tsx"),
     route("/www/admin/edit_lesson/:lessonId", "routes/admin/edit_lesson.tsx"),  
 
+    // excalidraw editor routes
+    route("/excalidraw/new", "routes/excalidraw.new.tsx"),
+    route("/excalidraw/open/:boardId", "routes/excalidraw.open.boardId.tsx"),
+
 ] satisfies RouteConfig;
