@@ -1,5 +1,4 @@
 import * as React from "react"
-import loader from "@monaco-editor/loader"
 import { fetchWithAuth } from "~/utils/api"
 import { HOST_URL } from "~/config"
 import { useParams, useNavigate } from "react-router"
@@ -10,6 +9,18 @@ export default function MonacoEditorPage() {
   const [Editor, setEditor] = React.useState<any>(null)
   const [code, setCode] = React.useState<string>(
     [
+      "# 绘制一个正弦函数图像",
+      "import numpy as np",
+      "import matplotlib.pyplot as plt",
+      "",
+      "x = np.linspace(0, 2*np.pi, 400)",
+      "y = np.sin(x)",
+      "",
+      "plt.figure(figsize=(6, 3))",
+      "plt.plot(x, y)",
+      "plt.title('y = sin(x)')",
+      "plt.grid(True)",
+      "",
       "# 运行后右侧会显示图像，也可以在下方看到标准输出",
       "print('绘图完成')",
     ].join("\n")
@@ -25,14 +36,10 @@ export default function MonacoEditorPage() {
   const editorRef = React.useRef<any>(null)
   const monacoRef = React.useRef<any>(null)
 
-  // 动态加载 Monaco 编辑器（仅客户端，改为从本地路径加载静态资源）
+  // 动态加载 Monaco 编辑器（仅客户端）
   React.useEffect(() => {
     let active = true
     if (typeof window !== "undefined") {
-      // 确保在首次使用前配置本地 vs 目录
-      try {
-        loader.config({ paths: { vs: `${HOST_URL}/monaco/vs` } })
-      } catch (_) {}
       import("@monaco-editor/react")
         .then((mod) => active && setEditor(() => mod.default))
         .catch(() => setEditor(null))
