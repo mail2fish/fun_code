@@ -2,11 +2,12 @@ import * as React from "react"
 import { fetchWithAuth } from "~/utils/api"
 import { HOST_URL } from "~/config"
 import { useParams, useNavigate } from "react-router"
+import Editor, { loader } from "@monaco-editor/react"
 
 export default function MonacoEditorPage() {
   const { programId: routeProgramId } = useParams()
   const navigate = useNavigate()
-  const [Editor, setEditor] = React.useState<any>(null)
+  const [monacoConfig, setMonacoConfig] = React.useState<'local' | 'bundle' | 'cdn' | 'loading'>('loading')
   const [code, setCode] = React.useState<string>(
     [
       "# 绘制一个正弦函数图像",
@@ -36,16 +37,62 @@ export default function MonacoEditorPage() {
   const editorRef = React.useRef<any>(null)
   const monacoRef = React.useRef<any>(null)
 
-  // 动态加载 Monaco 编辑器（仅客户端）
+  // Monaco Editor 本地化配置（客户端）
   React.useEffect(() => {
-    let active = true
     if (typeof window !== "undefined") {
-      import("@monaco-editor/react")
-        .then((mod) => active && setEditor(() => mod.default))
-        .catch(() => setEditor(null))
-    }
-    return () => {
-      active = false
+      async function configureMonacoLocal() {
+        try {
+          // 配置 MonacoEnvironment 以消除 Worker 警告
+          (window as any).MonacoEnvironment = {
+            getWorkerUrl: function (moduleId: string, label: string) {
+              // 提供一个最小的内联 Worker，避免外部依赖
+              if (label === 'json') {
+                return 'data:text/javascript;charset=utf-8,' + encodeURIComponent(`
+                  self.onmessage = function() {};
+                `);
+              }
+              if (label === 'css' || label === 'scss' || label === 'less') {
+                return 'data:text/javascript;charset=utf-8,' + encodeURIComponent(`
+                  self.onmessage = function() {};
+                `);
+              }
+              if (label === 'html' || label === 'handlebars' || label === 'razor') {
+                return 'data:text/javascript;charset=utf-8,' + encodeURIComponent(`
+                  self.onmessage = function() {};
+                `);
+              }
+              if (label === 'typescript' || label === 'javascript') {
+                return 'data:text/javascript;charset=utf-8,' + encodeURIComponent(`
+                  self.onmessage = function() {};
+                `);
+              }
+              // 默认 editor worker
+              return 'data:text/javascript;charset=utf-8,' + encodeURIComponent(`
+                self.onmessage = function() {};
+              `);
+            }
+          };
+
+          // 导入本机包 Monaco Editor
+          const monaco = await import('monaco-editor')
+          
+          // 在导入后立即禁用 Worker 功能 (TypeScript 安全)
+          ;(monaco.editor as any).setWorkerOptions = function() {
+            // 空实现，禁用 Worker
+          };
+          
+          loader.config({ monaco })
+          console.log("✅ Monaco Editor 已配置为本机包加载（完全离线）")
+          setMonacoConfig('bundle')
+        } catch (bundleError: any) {
+          console.warn("本机包配置失败:", bundleError.message)                      
+          // 回退到 CDN 配置
+          console.log("🔄 回退到默认 CDN 配置")
+          setMonacoConfig('cdn')
+        }
+      }
+      
+      configureMonacoLocal()
     }
   }, [])
 
@@ -366,6 +413,12 @@ export default function MonacoEditorPage() {
           </div>
           <div className="font-medium">
             {programName || "未命名程序"} - Monaco + Pyodide
+            <span className="ml-2 text-xs text-gray-400">
+              {monacoConfig === 'local' && "🌐"}
+              {monacoConfig === 'bundle' && "📦"}
+              {monacoConfig === 'cdn' && "☁️"}
+              {monacoConfig === 'loading' && "⏳"}
+            </span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -388,7 +441,7 @@ export default function MonacoEditorPage() {
       {/* 主体两栏布局 */}
       <div className="flex h-[calc(100vh-3rem)]">
         <div className="w-1/2 md:w-3/5 h-full border-r border-gray-800">
-          {Editor ? (
+          {typeof window !== "undefined" && monacoConfig !== 'loading' ? (
             <Editor
               height="100%"
               defaultLanguage="python"
@@ -401,11 +454,25 @@ export default function MonacoEditorPage() {
                 minimap: { enabled: false },
                 automaticLayout: true,
                 wordWrap: "on",
+                tabSize: 4,
+                insertSpaces: true,
               }}
+              loading={
+                <div className="h-full flex flex-col items-center justify-center text-sm text-gray-400">
+                  <div>🔄 Monaco Editor 加载中...</div>
+                  <div className="text-xs mt-2 capitalize">
+                    {monacoConfig === 'local' && "🌐 本地服务器版本"}
+                    {monacoConfig === 'bundle' && "📦 本机包版本（离线）"}
+                    {monacoConfig === 'cdn' && "☁️ CDN 版本"}
+                  </div>
+                </div>
+              }
             />
           ) : (
             <div className="h-full flex items-center justify-center text-sm text-gray-400">
-              正在加载编辑器...
+              {monacoConfig === 'loading' 
+                ? "⏳ 初始化 Monaco Editor..." 
+                : "⌨️ 编辑器需要客户端环境"}
             </div>
           )}
         </div>

@@ -30,5 +30,15 @@ export default defineConfig({
         secure: false,
       }
     }
+  },
+  // 为 Monaco Editor 添加静态资源配置
+  optimizeDeps: {
+    include: ['monaco-editor', '@monaco-editor/react']
+  },
+  build: {
+    // 确保 Monaco Editor 文件被正确复制
+    rollupOptions: {
+      external: []
+    }
   }
 });
