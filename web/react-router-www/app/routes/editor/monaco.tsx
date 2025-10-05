@@ -149,11 +149,13 @@ export default function MonacoEditorPage() {
     setOutputText("")
     setOutputImage("")
     try {
-      const wrapped = `\nimport sys, io, traceback, base64\n_buffer = io.StringIO()\n_sys_stdout = sys.stdout\n_sys_stderr = sys.stderr\nsys.stdout = _buffer\nsys.stderr = _buffer\nns = {}\nimg_b64 = ""\ntry:\n    exec(${JSON.stringify(code)}, ns)\n    try:\n        import matplotlib.pyplot as plt\n        if plt.get_fignums():\n            bio = io.BytesIO()\n            plt.savefig(bio, format='png', dpi=150, bbox_inches='tight')\n            bio.seek(0)\n            img_b64 = 'data:image/png;base64,' + base64.b64encode(bio.read()).decode('ascii')\n            plt.close('all')\n    except Exception:\n        pass\nexcept Exception as e:\n    traceback.print_exc()\nfinally:\n    sys.stdout = _sys_stdout\n    sys.stderr = _sys_stderr\nres = {'stdout': _buffer.getvalue(), 'stderr': _buffer.getvalue(), 'image': img_b64}\nimport json\njson.dumps(res)\n`
+      const wrapped = `\nimport sys, io, traceback, base64\nout_buffer = io.StringIO()\nerr_buffer = io.StringIO()\n_sys_stdout = sys.stdout\n_sys_stderr = sys.stderr\nsys.stdout = out_buffer\nsys.stderr = err_buffer\nns = {}\nimg_b64 = ""\ntry:\n    exec(${JSON.stringify(code)}, ns)\n    try:\n        import matplotlib.pyplot as plt\n        if plt.get_fignums():\n            bio = io.BytesIO()\n            plt.savefig(bio, format='png', dpi=150, bbox_inches='tight')\n            bio.seek(0)\n            img_b64 = 'data:image/png;base64,' + base64.b64encode(bio.read()).decode('ascii')\n            plt.close('all')\n    except Exception:\n        pass\nexcept Exception as e:\n    traceback.print_exc()\nfinally:\n    sys.stdout = _sys_stdout\n    sys.stderr = _sys_stderr\nres = {'stdout': out_buffer.getvalue(), 'stderr': err_buffer.getvalue(), 'image': img_b64}\nimport json\njson.dumps(res)\n`
       const json = await pyodide.runPythonAsync(wrapped)
       try {
         const parsed = JSON.parse(String(json))
-        const outCombined = String([parsed.stdout, parsed.stderr].filter(Boolean).join("\n"))
+        const s = String(parsed.stdout || "")
+        const e = String(parsed.stderr || "")
+        const outCombined = e ? (s ? (s + "\n" + e) : e) : s
         setOutputText(outCombined)
         setOutputImage(String(parsed.image || ""))
         // 尝试从标准输出/标准错误中解析语法或运行错误
