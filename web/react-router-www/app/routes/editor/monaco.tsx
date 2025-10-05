@@ -39,6 +39,28 @@ export default function MonacoEditorPage() {
   const programType = "python"
   const editorRef = React.useRef<any>(null)
   const monacoRef = React.useRef<any>(null)
+  // 调试相关
+  const [debugging, setDebugging] = React.useState(false)
+  const [pausedLine, setPausedLine] = React.useState<number | null>(null)
+  const [localsView, setLocalsView] = React.useState<string>("")
+  const [breakpoints, setBreakpoints] = React.useState<Set<number>>(new Set())
+  const [bpDecorations, setBpDecorations] = React.useState<string[]>([])
+
+  // 调试样式注入（断点小红点）
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return
+    const id = 'monaco-debugger-style'
+    if (document.getElementById(id)) return
+    const style = document.createElement('style')
+    style.id = id
+    style.innerHTML = `
+      .bp-glyph { width: 14px !important; height: 14px !important; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 2px #fee2e2; }
+      .bp-line { background: rgba(239, 68, 68, 0.08); }
+      .paused-line { background: rgba(59, 130, 246, 0.15) !important; }
+      .current-glyph { position: relative; width: 0 !important; height: 0 !important; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 10px solid #3b82f6; margin-left: 2px; }
+    `
+    document.head.appendChild(style)
+  }, [])
 
   // Monaco Editor 本地化配置（客户端）
   React.useEffect(() => {
@@ -486,6 +508,22 @@ export default function MonacoEditorPage() {
           handleRun()
         })
       } catch (_) {}
+
+      // 点击行号/边距切换断点
+      try {
+        editor.onMouseDown((e: any) => {
+          if (e.target?.type === monaco.editor.MouseTargetType.GUTTER_LINE_DECORATIONS ||
+              e.target?.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN ||
+              e.target?.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS) {
+            const line = e.target.position?.lineNumber
+            if (!line) return
+            const next = new Set(breakpoints)
+            if (next.has(line)) next.delete(line); else next.add(line)
+            setBreakpoints(next)
+            refreshBreakpointDecorations(editor, monaco, next)
+          }
+        })
+      } catch (_) {}
     },
     [handleRun]
   )
@@ -501,6 +539,101 @@ export default function MonacoEditorPage() {
       })
     } catch (_) {}
   }, [pyodide, handleRun])
+
+  // 断点装饰刷新与暂停标记
+  function refreshBreakpointDecorations(editor: any, monaco: any, bps: Set<number>) {
+    try {
+      const decos = Array.from(bps).map((line) => ({
+        range: new monaco.Range(line, 1, line, 1),
+        options: {
+          isWholeLine: true,
+          className: 'bp-line',
+          glyphMarginClassName: 'bp-glyph',
+          glyphMarginHoverMessage: { value: `断点: 行 ${line}` },
+        },
+      }))
+      const applied = editor.deltaDecorations(bpDecorations, decos)
+      setBpDecorations(applied)
+    } catch (_) {}
+  }
+
+  function markPaused(editor: any, monaco: any, line?: number | null) {
+    try {
+      const ranges = [] as any[]
+      if (line) {
+        ranges.push({
+          range: new monaco.Range(line, 1, line, 1),
+          options: { isWholeLine: true, className: 'paused-line', glyphMarginClassName: 'current-glyph' },
+        })
+      }
+      const applied = editor.deltaDecorations(bpDecorations, ranges)
+      setBpDecorations(applied)
+    } catch (_) {}
+  }
+
+  async function debugStart() {
+    setDebugging(true)
+    setPausedLine(null)
+    setLocalsView("")
+    // 若存在断点，则运行到第一个断点；否则直接结束（不自动在行1暂停）
+    const hasBp = breakpoints.size > 0
+    if (hasBp) {
+      await debugContinue()
+    } else {
+      const editor = editorRef.current, monaco = monacoRef.current
+      if (editor && monaco) markPaused(editor, monaco, null)
+      setDebugging(true)
+      setPausedLine(null)
+      setLocalsView('未设置断点。点击左侧添加断点，然后使用“继续/单步”。')
+    }
+  }
+
+  function debugStop() {
+    setDebugging(false)
+    setPausedLine(null)
+    setLocalsView("")
+    const editor = editorRef.current, monaco = monacoRef.current
+    if (editor && monaco) markPaused(editor, monaco, null)
+  }
+
+  async function debugContinue(stepOnce = false) {
+    if (!pyodide) return
+    const editor = editorRef.current, monaco = monacoRef.current
+    if (!editor || !monaco) return
+
+    const bpList = JSON.stringify(Array.from(breakpoints))
+    const src = code
+    const py = `\nimport sys, io, json, linecache, base64\n_breakpoints = set(json.loads(${JSON.stringify(bpList)}))\n_src = ${JSON.stringify(src)}\n_prev_line = ${pausedLine ?? 0}\n_step_once = ${stepOnce ? 'True' : 'False'}\nlinecache.cache['<string>'] = (len(_src), None, [l+'\\n' for l in _src.split('\\n')], '<string>')\n\nclass _DbgPause(Exception):\n    pass\n\n_buffer = io.StringIO()\n_sys_stdout = sys.stdout\nsys.stdout = _buffer\n_state = {'paused': False, 'line': None, 'locals': {}}\n_img_b64 = ''\n_DEF_REPR_MAX = 200\n\ndef _safe_repr(v):\n    try:\n        s = repr(v)\n        if len(s) > _DEF_REPR_MAX:\n            s = s[:_DEF_REPR_MAX] + '…'\n        return s\n    except Exception:\n        return '<unrepr>'\n\ndef _snapshot_plot():\n    global _img_b64\n    try:\n        import matplotlib.pyplot as _plt\n        if _plt.get_fignums():\n            bio = io.BytesIO()\n            _plt.savefig(bio, format='png', dpi=150, bbox_inches='tight')\n            bio.seek(0)\n            _img_b64 = 'data:image/png;base64,' + base64.b64encode(bio.read()).decode('ascii')\n            _plt.close('all')\n    except Exception:\n        pass\n\ndef _trace(frame, event, arg):\n    if frame.f_code.co_filename != '<string>':\n        return _trace\n    if event == 'line':\n        ln = frame.f_lineno\n        should_pause = False\n        if _step_once and ln > _prev_line:\n            should_pause = True\n        if ln in _breakpoints and ln > _prev_line:\n            should_pause = True\n        if should_pause:\n            _state['paused'] = True\n            _state['line'] = ln\n            try:\n                _state['locals'] = {k: _safe_repr(v) for k, v in frame.f_locals.items() if k != '__builtins__' and not k.startswith('__')}\n            except Exception:\n                _state['locals'] = {}\n            _snapshot_plot()\n            raise _DbgPause()\n    return _trace\n\nsys.settrace(_trace)\ntry:\n    g = {'__name__': '__main__'}\n    exec(compile(_src, '<string>', 'exec'), g, g)\nexcept _DbgPause:\n    pass\nfinally:\n    sys.settrace(None)\n    if not _state['paused']:\n        _snapshot_plot()\n\nres = {'stdout': _buffer.getvalue(), 'state': _state, 'image': _img_b64}\nimport json\njson.dumps(res)\n`
+
+    const raw = await pyodide.runPythonAsync(py)
+    const resp = JSON.parse(String(raw || '{}'))
+    const st = resp.state || {}
+    setOutputText(String(resp.stdout || ""))
+    setOutputImage(String(resp.image || ""))
+    if (st.paused) {
+      setPausedLine(st.line || null)
+      // 过滤 __builtins__ 和双下划线变量，并限制每个值长度
+      const rawLocals = (st.locals || {}) as Record<string, unknown>
+      const filteredEntries = Object.entries(rawLocals)
+        .filter(([k]) => k !== '__builtins__' && !k.startsWith('__'))
+        .map(([k, v]) => {
+          const s = String(v ?? '')
+          return [k, s.length > 200 ? s.slice(0, 200) + '…' : s]
+        })
+      const filtered = Object.fromEntries(filteredEntries)
+      setLocalsView(JSON.stringify(filtered, null, 2))
+      markPaused(editor, monaco, st.line || null)
+    } else {
+      setPausedLine(null)
+      setLocalsView("")
+      markPaused(editor, monaco, null)
+    }
+  }
+
+  async function debugStep() {
+    if (!debugging) return
+    await debugContinue(true)
+  }
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-gray-50">
@@ -602,6 +735,7 @@ export default function MonacoEditorPage() {
                 smoothScrolling: true,
                 cursorBlinking: "smooth",
                 cursorSmoothCaretAnimation: "on",
+                glyphMargin: true,
               }}
               loading={
                 <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
@@ -642,8 +776,38 @@ export default function MonacoEditorPage() {
               <span className="text-lg">📊</span>
               <span className="font-bold text-gray-900">运行结果</span>
               <span className="text-sm text-gray-500">/ Result</span>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => (debugging ? debugStop() : debugStart())}
+                  className={`px-3 py-1.5 rounded-lg border-2 text-sm ${debugging ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' : 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100'}`}
+                >
+                  {debugging ? '停止调试' : '开始调试'}
+                </button>
+                <button
+                  onClick={() => debugStep()}
+                  disabled={!debugging}
+                  className="px-3 py-1.5 rounded-lg border-2 border-gray-200 text-gray-700 disabled:opacity-50 text-sm hover:bg-gray-100"
+                >
+                  单步
+                </button>
+                <button
+                  onClick={() => debugContinue()}
+                  disabled={!debugging}
+                  className="px-3 py-1.5 rounded-lg border-2 border-gray-200 text-gray-700 disabled:opacity-50 text-sm hover:bg-gray-100"
+                >
+                  继续
+                </button>
+              </div>
             </div>
           </div>
+          {debugging && (
+            <div className="px-4 pt-3">
+              <div className="rounded-xl border-2 border-blue-200 bg-blue-50 text-blue-900 px-4 py-3 shadow-sm">
+                <div className="text-sm font-semibold">调试状态 {pausedLine ? `(行 ${pausedLine})` : ''}</div>
+                <pre className="text-xs whitespace-pre-wrap mt-1">{localsView || '无变量'}</pre>
+              </div>
+            </div>
+          )}
           {syntaxError ? (
             <div className="mx-4 mt-3 rounded-xl border-2 border-red-200 bg-red-50 text-red-800 px-4 py-3 shadow-sm">
               <div className="flex items-start justify-between gap-3">
