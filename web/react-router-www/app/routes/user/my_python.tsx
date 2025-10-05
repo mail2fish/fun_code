@@ -1,21 +1,24 @@
 import * as React from "react"
-import { Plus, Code2, Calendar, User } from "lucide-react"
+import { Plus, Code2 } from "lucide-react"
 import { Toaster } from "sonner"
 import { Link } from "react-router"
 
 import { LayoutProvider } from "~/components/layout-provider"
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
-import { fetchWithAuth, formatDate } from "~/utils/api"
+import { ProgramTable } from "~/components/program-table"
+import { fetchWithAuth } from "~/utils/api"
 import { HOST_URL } from "~/config"
 
 interface Program {
-  id: number
+  id: string
   name: string
-  ext: number
-  created_at: string
-  updated_at: string
-  user_id: number
+  user_id: string
+  created_at?: string
+  createdAt?: string
+  updated_at?: string
+  updatedAt?: string
+  ext?: number
 }
 
 interface ProgramsResponse {
@@ -31,6 +34,25 @@ export default function MyPythonProgramsPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [total, setTotal] = React.useState(0)
+
+  // 删除程序的处理函数
+  const handleDeleteProgram = React.useCallback(async (id: string) => {
+    try {
+      const response = await fetchWithAuth(`${HOST_URL}/api/programs/${id}`, {
+        method: "DELETE",
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "删除失败")
+      }
+      
+      // 删除成功后，从本地状态中移除
+      setPrograms(prev => prev.filter(p => p.id !== id))
+    } catch (err: any) {
+      throw new Error(err.message || "删除程序时出现错误")
+    }
+  }, [])
 
   const loadPrograms = React.useCallback(async () => {
     try {
@@ -71,26 +93,38 @@ export default function MyPythonProgramsPage() {
     }
   }, [loadPrograms])
 
-  const getExtName = (ext: number) => {
-    switch (ext) {
-      case 1: return "Python"
-      case 2: return "JavaScript"
-      case 3: return "TypeScript"
-      case 4: return "Go"
-      case 5: return "Java"
-      default: return "未知"
-    }
+  // 转换程序数据格式以适配 ProgramTable
+  const transformedPrograms = React.useMemo(() => {
+    return programs.map(program => ({
+      id: program.id,
+      name: program.name,
+      user_id: program.user_id,
+      created_at: program.created_at || program.createdAt,
+      createdAt: program.created_at || program.createdAt,
+      updated_at: program.updated_at || program.updatedAt,
+      updatedAt: program.updated_at || program.updatedAt,
+      ext: program.ext,
+    }))
+  }, [programs])
+
+  if (loading) {
+    return (
+      <LayoutProvider>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-gray-500">加载中...</div>
+        </div>
+      </LayoutProvider>
+    )
   }
 
-  const getExtColor = (ext: number) => {
-    switch (ext) {
-      case 1: return "bg-green-100 text-green-800"
-      case 2: return "bg-yellow-100 text-yellow-800"
-      case 3: return "bg-blue-100 text-blue-800"
-      case 4: return "bg-cyan-100 text-cyan-800"
-      case 5: return "bg-orange-100 text-orange-800"
-      default: return "bg-gray-100 text-gray-800"
-    }
+  if (error) {
+    return (
+      <LayoutProvider>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-red-500">{error}</div>
+        </div>
+      </LayoutProvider>
+    )
   }
 
   return (
@@ -128,77 +162,22 @@ export default function MyPythonProgramsPage() {
             </Card>
           </div>
 
-          {/* 程序列表 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>程序列表</CardTitle>
-              <CardDescription>
-                点击程序名称可以打开编辑
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-gray-500">加载中...</div>
-                </div>
-              ) : error ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-red-500">{error}</div>
-                </div>
-              ) : programs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Code2 className="h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">还没有程序</h3>
-                  <p className="text-gray-500 mb-4">创建你的第一个程序开始编程之旅</p>
-                  <Link to="/www/user/programs/new">
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      创建程序
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {programs.map((program) => (
-                    <div
-                      key={program.id}
-                      className="flex items-center justify-between rounded-lg border p-4 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="flex-shrink-0">
-                          <Code2 className="h-8 w-8 text-gray-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <Link
-                            to={`/www/user/programs/open/${program.id}`}
-                            className="text-lg font-medium text-gray-900 hover:text-blue-600 transition-colors"
-                          >
-                            {program.name}
-                          </Link>
-                          <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getExtColor(program.ext)}`}>
-                              {getExtName(program.ext)}
-                            </span>
-                            <span className="flex items-center">
-                              <Calendar className="h-3 w-3 mr-1" />
-                              {formatDate(program.updated_at)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Link to={`/www/user/programs/open/${program.id}`}>
-                          <Button variant="outline" size="sm">
-                            打开
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* 使用 ProgramTable 组件 */}
+          <ProgramTable
+            programsData={{
+              programs: transformedPrograms,
+              users: [],
+              total: transformedPrograms.length,
+              showForward: false,
+              showBackward: false,
+              pageSize: 50,
+              currentPage: 1,
+            }}
+            isLoading={loading}
+            onDeleteProgram={handleDeleteProgram}
+            showUserFilter={false}
+            programsApiUrl={`${HOST_URL}/api/programs`}
+          />
         </div>
       </div>
       <Toaster />
