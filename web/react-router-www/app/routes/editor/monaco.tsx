@@ -33,6 +33,9 @@ export default function MonacoEditorPage() {
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [programName, setProgramName] = React.useState<string>("未命名程序")
   const [programId, setProgramId] = React.useState<number | null>(null)
+  const [syntaxError, setSyntaxError] = React.useState<{ message: string; line?: number } | null>(null)
+  const [runError, setRunError] = React.useState<{ message: string; line?: number } | null>(null)
+  const outputRef = React.useRef<HTMLDivElement>(null)
   const programType = "python"
   const editorRef = React.useRef<any>(null)
   const monacoRef = React.useRef<any>(null)
@@ -141,20 +144,67 @@ export default function MonacoEditorPage() {
       return
     }
     setRunning(true)
+    setSyntaxError(null)
+    setRunError(null)
     setOutputText("")
     setOutputImage("")
     try {
-      const wrapped = `\nimport sys, io, traceback, base64\n_buffer = io.StringIO()\n_sys_stdout = sys.stdout\nsys.stdout = _buffer\nns = {}\nimg_b64 = ""\ntry:\n    exec(${JSON.stringify(code)}, ns)\n    try:\n        import matplotlib.pyplot as plt\n        if plt.get_fignums():\n            bio = io.BytesIO()\n            plt.savefig(bio, format='png', dpi=150, bbox_inches='tight')\n            bio.seek(0)\n            img_b64 = 'data:image/png;base64,' + base64.b64encode(bio.read()).decode('ascii')\n            plt.close('all')\n    except Exception:\n        pass\nexcept Exception as e:\n    traceback.print_exc()\nfinally:\n    sys.stdout = _sys_stdout\nres = {'stdout': _buffer.getvalue(), 'image': img_b64}\nimport json\njson.dumps(res)\n`
+      const wrapped = `\nimport sys, io, traceback, base64\n_buffer = io.StringIO()\n_sys_stdout = sys.stdout\n_sys_stderr = sys.stderr\nsys.stdout = _buffer\nsys.stderr = _buffer\nns = {}\nimg_b64 = ""\ntry:\n    exec(${JSON.stringify(code)}, ns)\n    try:\n        import matplotlib.pyplot as plt\n        if plt.get_fignums():\n            bio = io.BytesIO()\n            plt.savefig(bio, format='png', dpi=150, bbox_inches='tight')\n            bio.seek(0)\n            img_b64 = 'data:image/png;base64,' + base64.b64encode(bio.read()).decode('ascii')\n            plt.close('all')\n    except Exception:\n        pass\nexcept Exception as e:\n    traceback.print_exc()\nfinally:\n    sys.stdout = _sys_stdout\n    sys.stderr = _sys_stderr\nres = {'stdout': _buffer.getvalue(), 'stderr': _buffer.getvalue(), 'image': img_b64}\nimport json\njson.dumps(res)\n`
       const json = await pyodide.runPythonAsync(wrapped)
       try {
         const parsed = JSON.parse(String(json))
-        setOutputText(String(parsed.stdout || ""))
+        const outCombined = String([parsed.stdout, parsed.stderr].filter(Boolean).join("\n"))
+        setOutputText(outCombined)
         setOutputImage(String(parsed.image || ""))
+        // 尝试从标准输出/标准错误中解析语法或运行错误
+        const out = outCombined
+        if (out.includes("SyntaxError")) {
+          const se = parseSyntaxError(out, code.split('\n').length)
+          setSyntaxError(se)
+          setRunError(se)
+          // 确保错误可见
+          requestAnimationFrame(() => {
+            outputRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+          })
+        } else if (out.includes("Traceback")) {
+          const se = parseSyntaxError(out, code.split('\n').length)
+          setRunError(se)
+          requestAnimationFrame(() => {
+            outputRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+          })
+        }
       } catch (e) {
         setOutputText(String(json || ""))
+        const out = String(json || "")
+        if (out.includes("SyntaxError")) {
+          const se = parseSyntaxError(out, code.split('\n').length)
+          setSyntaxError(se)
+          setRunError(se)
+          requestAnimationFrame(() => {
+            outputRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+          })
+        } else if (out.includes("Traceback")) {
+          const se = parseSyntaxError(out, code.split('\n').length)
+          setRunError(se)
+          requestAnimationFrame(() => {
+            outputRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+          })
+        }
       }
     } catch (e: any) {
       setOutputText(String(e?.message || e || "运行出错"))
+      const msg = String(e?.message || e || "")
+      if (msg.includes("SyntaxError")) {
+        const se = parseSyntaxError(msg)
+        setSyntaxError(se)
+        setRunError(se)
+      } else if (msg) {
+        const generic = parseSyntaxError(msg)
+        setRunError({ message: generic.message, line: generic.line })
+      }
+      requestAnimationFrame(() => {
+        outputRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+      })
     } finally {
       setRunning(false)
     }
@@ -163,7 +213,75 @@ export default function MonacoEditorPage() {
   const handleClear = () => {
     setOutputText("")
     setOutputImage("")
+    setSyntaxError(null)
+    setRunError(null)
   }
+
+  const handleNew = () => {
+    // 重置所有状态
+    setCode([
+      "# 新建 Python 程序",
+      "import numpy as np",
+      "import matplotlib.pyplot as plt",
+      "",
+      "# 在这里编写你的代码",
+      "print('Hello, World!')",
+    ].join("\n"))
+    setProgramName("未命名程序")
+    setProgramId(null)
+    setOutputText("")
+    setOutputImage("")
+    setSyntaxError(null)
+    setRunError(null)
+    setMenuOpen(false)
+    
+    // 更新浏览器 URL 到新建页面
+    navigate("/www/user/programs/new", { replace: true })
+  }
+
+  // 解析 Python 语法错误的辅助函数
+  function parseSyntaxError(text: string, totalLines?: number): { message: string; line?: number } {
+    // Python traceback 通常包含: File "<string>", line N, ... SyntaxError: message
+    let line: number | undefined = undefined
+    // 优先匹配 <string> 的行号（即用户代码行号）
+    let lineMatch = text.match(/File\s+"<string>",\s+line\s+(\d+)/i)
+    if (!lineMatch) {
+      // 退化到任意 line N
+      lineMatch = text.match(/line\s+(\d+)/i)
+    }
+    if (lineMatch) {
+      const n = parseInt(lineMatch[1], 10)
+      if (!isNaN(n)) line = n
+    }
+    const lines = text.split('\n')
+    // 优先 SyntaxError 行
+    let msgLine = (lines.find(l => l.toLowerCase().includes('syntaxerror')) || '').trim()
+    // 其次取 Traceback 的最后一行（一般是 Exception: msg）
+    if (!msgLine) {
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const l = lines[i].trim()
+        if (!l) continue
+        if (/\w+Error:/.test(l) || /\w+Exception:/.test(l)) { msgLine = l; break }
+      }
+    }
+    const message = msgLine || '运行错误'
+    // 将行号约束在有效范围内
+    if (typeof line === 'number' && typeof totalLines === 'number' && totalLines > 0) {
+      if (line < 1) line = 1
+      if (line > totalLines) line = totalLines
+    }
+    return { message, line }
+  }
+
+  // 跳转到指定行
+  const focusLine = React.useCallback((line?: number) => {
+    if (!line || !editorRef.current) return
+    try {
+      editorRef.current.setPosition({ lineNumber: line, column: 1 })
+      editorRef.current.revealLineInCenter(line)
+      editorRef.current.focus()
+    } catch (_) {}
+  }, [])
 
   const handleRename = async () => {
     const input = window.prompt("请输入新的程序名称", programName)
@@ -383,71 +501,90 @@ export default function MonacoEditorPage() {
   }, [pyodide, handleRun])
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-gray-900 text-gray-100">
+    <div className="h-screen w-screen overflow-hidden bg-gray-50">
       {/* 顶部工具栏 */}
-      <div className="h-12 px-4 flex items-center justify-between border-b border-gray-800 bg-gray-900/90">
-        <div className="flex items-center gap-3">
+      <div className="h-16 px-6 flex items-center justify-between border-b-2 border-gray-200 bg-white shadow-sm">
+        <div className="flex items-center gap-4">
           <div className="relative" data-menu="file-menu">
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700"
+              className="px-4 py-2 rounded-xl bg-purple-50 border-2 border-purple-200 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-all duration-200 font-medium text-sm"
             >
-            文件 ▾
+              📁 文件 ▾
             </button>
             {menuOpen ? (
-              <div className="absolute mt-1 min-w-[160px] rounded-md border border-gray-800 bg-gray-900 shadow-lg z-10">
+              <div className="absolute mt-2 min-w-[180px] rounded-xl border-2 border-purple-200 bg-white shadow-xl z-10">
                 <button
-                  className="w-full text-left px-3 py-2 hover:bg-slate-800"
+                  className="w-full text-left px-4 py-3 hover:bg-purple-50 rounded-t-xl transition-colors duration-200"
+                  onClick={handleNew}
+                >
+                  📄 新建
+                </button>
+                <div className="border-t border-gray-200"></div>
+                <button
+                  className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors duration-200"
                   onClick={handleRename}
                 >
-                  重命名
+                  ✏️ 重命名
                 </button>
                 <button
-                  className="w-full text-left px-3 py-2 hover:bg-slate-800"
+                  className="w-full text-left px-4 py-3 hover:bg-purple-50 rounded-b-xl transition-colors duration-200"
                   onClick={handleSave}
                 >
-                  保存
+                  💾 保存
                 </button>
               </div>
             ) : null}
           </div>
-          <div className="font-medium">
-            {programName || "未命名程序"} - Monaco + Pyodide
-            <span className="ml-2 text-xs text-gray-400">
-              {monacoConfig === 'local' && "🌐"}
-              {monacoConfig === 'bundle' && "📦"}
-              {monacoConfig === 'cdn' && "☁️"}
-              {monacoConfig === 'loading' && "⏳"}
+          <div className="flex items-center gap-3">
+            <div className="font-bold text-xl text-gray-900">
+              {programName || "未命名程序"}
+            </div>
+            <span className="text-sm text-gray-500">
+              {monacoConfig === 'local' && "🌐 本地服务器"}
+              {monacoConfig === 'bundle' && "📦 离线模式"}
+              {monacoConfig === 'cdn' && "☁️ CDN 模式"}
+              {monacoConfig === 'loading' && "⏳ 加载中"}
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             onClick={handleRun}
             disabled={running}
-            className="px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60"
+            className="px-6 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:opacity-60 text-white font-bold text-sm shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
           >
-            {running ? "运行中..." : "运行 (Shift+Enter)"}
+            {running ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                运行中...
+              </>
+            ) : (
+              <>
+                ▶️ 运行代码
+                <span className="text-xs opacity-80">(Shift+Enter)</span>
+              </>
+            )}
           </button>
           <button
             onClick={handleClear}
-            className="px-3 py-1.5 rounded-md bg-slate-700 hover:bg-slate-600"
+            className="px-4 py-3 rounded-xl bg-gray-100 border-2 border-gray-200 text-gray-700 hover:bg-gray-200 hover:border-gray-300 transition-all duration-200 font-medium text-sm"
           >
-            清空输出
+            🗑️ 清空输出
           </button>
         </div>
       </div>
 
       {/* 主体两栏布局 */}
-      <div className="flex h-[calc(100vh-3rem)]">
-        <div className="w-1/2 md:w-3/5 h-full border-r border-gray-800">
+      <div className="flex h-[calc(100vh-4rem)]">
+        <div className="w-1/2 md:w-3/5 h-full border-r-2 border-gray-200 bg-white">
           {typeof window !== "undefined" && monacoConfig !== 'loading' ? (
             <Editor
               height="100%"
               defaultLanguage="python"
               value={code}
               onChange={(v: any) => setCode(v ?? "")}
-              theme="vs-dark"
+              theme="vs-light"
               onMount={handleEditorMount}
               options={{
                 fontSize: 14,
@@ -456,40 +593,114 @@ export default function MonacoEditorPage() {
                 wordWrap: "on",
                 tabSize: 4,
                 insertSpaces: true,
+                padding: { top: 16, bottom: 16 },
+                lineNumbers: "on",
+                renderLineHighlight: "line",
+                scrollBeyondLastLine: false,
+                smoothScrolling: true,
+                cursorBlinking: "smooth",
+                cursorSmoothCaretAnimation: "on",
               }}
               loading={
-                <div className="h-full flex flex-col items-center justify-center text-sm text-gray-400">
-                  <div>🔄 Monaco Editor 加载中...</div>
-                  <div className="text-xs mt-2 capitalize">
-                    {monacoConfig === 'local' && "🌐 本地服务器版本"}
-                    {monacoConfig === 'bundle' && "📦 本机包版本（离线）"}
-                    {monacoConfig === 'cdn' && "☁️ CDN 版本"}
+                <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl flex items-center justify-center">
+                      <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <div className="text-lg font-semibold text-gray-700 mb-2">Monaco Editor 加载中...</div>
+                    <div className="text-sm text-gray-500 capitalize">
+                      {monacoConfig === 'local' && "🌐 本地服务器版本"}
+                      {monacoConfig === 'bundle' && "📦 本机包版本（离线）"}
+                      {monacoConfig === 'cdn' && "☁️ CDN 版本"}
+                    </div>
                   </div>
                 </div>
               }
             />
           ) : (
-            <div className="h-full flex items-center justify-center text-sm text-gray-400">
-              {monacoConfig === 'loading' 
-                ? "⏳ 初始化 Monaco Editor..." 
-                : "⌨️ 编辑器需要客户端环境"}
+            <div className="h-full flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl flex items-center justify-center">
+                  <span className="text-2xl">⌨️</span>
+                </div>
+                <div className="text-lg font-semibold text-gray-700 mb-2">
+                  {monacoConfig === 'loading' 
+                    ? "⏳ 初始化 Monaco Editor..." 
+                    : "⌨️ 编辑器需要客户端环境"}
+                </div>
+                <div className="text-sm text-gray-500">请稍候，编辑器正在加载...</div>
+              </div>
             </div>
           )}
         </div>
 
-        <div className="w-1/2 md:w-2/5 h-full flex flex-col">
-          <div className="px-3 py-2 text-xs uppercase tracking-wide text-gray-400 border-b border-gray-800">
-            结果 / Result
+        <div className="w-1/2 md:w-2/5 h-full flex flex-col bg-white">
+          <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 border-b-2 border-gray-200">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📊</span>
+              <span className="font-bold text-gray-900">运行结果</span>
+              <span className="text-sm text-gray-500">/ Result</span>
+            </div>
           </div>
-          <div className="flex-1 overflow-auto bg-gray-950">
-            {outputImage ? (
-              <div className="p-3">
-                <img src={outputImage} className="max-w-full h-auto rounded-md border border-gray-800" />
+          {syntaxError ? (
+            <div className="mx-4 mt-3 rounded-xl border-2 border-red-200 bg-red-50 text-red-800 px-4 py-3 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="font-semibold">语法错误</div>
+                  <div className="text-sm break-words">{syntaxError.message}</div>
+                  {syntaxError.line ? (
+                    <div className="text-xs mt-1">位置：第 {syntaxError.line} 行</div>
+                  ) : null}
+                </div>
+                <div className="flex-shrink-0">
+                  <button
+                    onClick={() => focusLine(syntaxError.line)}
+                    className="px-3 py-1.5 rounded-lg bg-white border-2 border-red-200 text-red-700 hover:bg-red-100 text-sm"
+                  >
+                    定位到行
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          <div ref={outputRef} className="flex-1 overflow-auto bg-gray-50">
+            {runError ? (
+              <div className="p-4 pt-3">
+                <div className="rounded-xl border-2 border-red-200 bg-red-50 text-red-800 px-4 py-3 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="font-semibold">运行错误</div>
+                      <div className="text-sm break-words">{runError.message}</div>
+                      {runError.line ? (
+                        <div className="text-xs mt-1">位置：第 {runError.line} 行</div>
+                      ) : null}
+                    </div>
+                    <div className="flex-shrink-0">
+                      <button
+                        onClick={() => focusLine(runError.line)}
+                        className="px-3 py-1.5 rounded-lg bg-white border-2 border-red-200 text-red-700 hover:bg-red-100 text-sm"
+                      >
+                        定位到行
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : null}
-            <pre className="m-0 p-4 text-gray-100 text-sm leading-6">
-{outputText || (pyodide ? "# 运行后图像/输出将显示在这里" : "# 正在加载 Pyodide，首次加载需要一点时间...")}
-            </pre>
+            {outputImage ? (
+              <div className="p-4">
+                <div className="bg-white rounded-xl border-2 border-gray-200 p-4 shadow-sm">
+                  <img src={outputImage} className="max-w-full h-auto rounded-lg" />
+                </div>
+              </div>
+            ) : null}
+            <div className="p-4">
+              <div className="bg-white rounded-xl border-2 border-gray-200 shadow-sm">
+                <pre className="m-0 p-4 text-gray-800 text-sm leading-6 font-mono whitespace-pre-wrap">
+{outputText || (pyodide ? "# 🎯 运行后图像/输出将显示在这里\n# 💡 提示：使用 Shift+Enter 快速运行代码" : "# ⏳ 正在加载 Pyodide，首次加载需要一点时间...\n# 📦 正在下载 Python 科学计算包")}
+                </pre>
+              </div>
+            </div>
           </div>
         </div>
       </div>
