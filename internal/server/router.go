@@ -187,6 +187,11 @@ func (s *Server) setupRoutes() {
 				// 获取所有scratch项目
 				admin.GET("/scratch/projects", gorails.Wrap(s.handler.GetAllScratchProjectHandler, nil))
 
+				// 程序管理路由
+				admin.GET("/programs", gorails.Wrap(s.handler.AdminListProgramsHandler, nil))
+				admin.GET("/programs/search", gorails.Wrap(s.handler.AdminSearchProgramsHandler, nil))
+				admin.DELETE("/programs/:id", gorails.Wrap(s.handler.AdminDeleteProgramHandler, nil))
+
 				// 文件管理路由
 				admin.POST("/files/upload", gorails.Wrap(s.handler.PostMultiFileUploadHandler, nil))
 			}

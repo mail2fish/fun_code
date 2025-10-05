@@ -40,4 +40,12 @@ type ProgramDao interface {
 	ListProgramsWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Program, bool, error)
 	// CountPrograms 获取用户程序总数
 	CountPrograms(userID uint) (int64, error)
+	// ListAllProgramsWithPagination 分页获取所有程序列表（管理员用）
+	ListAllProgramsWithPagination(pageSize uint, beginID uint, forward, asc bool, userID *uint) ([]model.Program, bool, error)
+	// CountAllPrograms 获取所有程序总数（管理员用）
+	CountAllPrograms(userID *uint) (int64, error)
+	// SearchPrograms 搜索程序（管理员用）
+	SearchPrograms(keyword string, userID *uint) ([]model.Program, error)
+	// Delete 删除程序
+	Delete(id uint) error
 }

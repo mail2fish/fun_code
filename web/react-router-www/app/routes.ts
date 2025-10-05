@@ -18,7 +18,6 @@ export default [
     route("/www/user/programs/new", "routes/editor/monaco_new.tsx"),
     route("/www/user/programs/open/:programId", "routes/editor/monaco_open.tsx"),
     route("/www/user/my_python", "routes/user/my_python.tsx"),
-    route("/www/admin/my_python", "routes/admin/my_python.tsx"),
 
     // admin
     route("/www/admin/dashboard", "routes/admin/dashboard.tsx"),
@@ -33,6 +32,8 @@ export default [
     route("/www/admin/all_scratch", "routes/admin/all_scratch.tsx"),
     route("/www/admin/my_scratch", "routes/admin/my_scratch.tsx"),
     route("/www/admin/excalidraw", "routes/admin/excalidraw.tsx"),
+    route("/www/admin/my_python", "routes/admin/my_python.tsx"),
+    route("/www/admin/all_python", "routes/admin/all_python.tsx"),
     
     // course management
     route("/www/admin/list_courses", "routes/admin/list_courses.tsx"),

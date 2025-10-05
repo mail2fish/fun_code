@@ -96,7 +96,8 @@ export function AdminNavbar({}: AdminNavbarProps) {
   ];
 
   const programMenuItems: MenuItem[] = [
-    { href: "/www/admin/all_scratch", label: "全部程序", icon: FileText },
+    { href: "/www/admin/all_scratch", label: "全部Scratch程序", icon: FileText },
+    { href: "/www/admin/all_python", label: "全部Python程序", icon: Code2 },
     { href: "/www/shares/all", label: "全部分享", icon: Globe },
     { href: "/www/files/list", label: "资源列表", icon: HardDrive },
     { href: "/www/admin/files/upload", label: "上传资源", icon: Upload },

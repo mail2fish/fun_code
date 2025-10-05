@@ -186,3 +186,161 @@ func (h *Handler) ListProgramsHandler(c *gin.Context, params *ListProgramsParams
 		HasNext: hasMore,
 	}, nil
 }
+
+// AdminListProgramsParams 管理员程序列表参数
+type AdminListProgramsParams struct {
+	PageSize uint  `form:"pageSize" binding:"required"`
+	BeginID  uint  `form:"beginID"`
+	Forward  bool  `form:"forward"`
+	Asc      bool  `form:"asc"`
+	UserID   *uint `form:"userId"`
+}
+
+// AdminSearchProgramsParams 管理员程序搜索参数
+type AdminSearchProgramsParams struct {
+	Keyword string `form:"keyword" binding:"required"`
+	UserID  *uint  `form:"userId"`
+}
+
+// AdminDeleteProgramParams 管理员删除程序参数
+type AdminDeleteProgramParams struct {
+	ID uint `uri:"id" binding:"required"`
+}
+
+func (p *AdminListProgramsParams) Parse(c *gin.Context) gorails.Error {
+	// 设置默认值
+	p.PageSize = 20
+	p.BeginID = 0
+	p.Forward = true
+	p.Asc = true
+	p.UserID = nil
+
+	// 解析页面大小
+	if pageSizeStr := c.DefaultQuery("pageSize", "20"); pageSizeStr != "" {
+		if pageSize, err := strconv.ParseUint(pageSizeStr, 10, 32); err == nil {
+			if pageSize > 0 && pageSize <= 100 {
+				p.PageSize = uint(pageSize)
+			}
+		}
+	}
+
+	// 解析起始ID
+	if beginIDStr := c.DefaultQuery("beginID", "0"); beginIDStr != "" {
+		if beginID, err := strconv.ParseUint(beginIDStr, 10, 32); err == nil {
+			p.BeginID = uint(beginID)
+		}
+	}
+
+	// 解析方向
+	if forwardStr := c.DefaultQuery("forward", "true"); forwardStr != "" {
+		if forward, err := strconv.ParseBool(forwardStr); err == nil {
+			p.Forward = forward
+		}
+	}
+
+	// 解析排序
+	if ascStr := c.DefaultQuery("asc", "true"); ascStr != "" {
+		if asc, err := strconv.ParseBool(ascStr); err == nil {
+			p.Asc = asc
+		}
+	}
+
+	// 解析用户ID（可选）
+	if userIdStr := c.Query("userId"); userIdStr != "" {
+		if userId, err := strconv.ParseUint(userIdStr, 10, 32); err == nil {
+			userIdUint := uint(userId)
+			p.UserID = &userIdUint
+		}
+	}
+
+	return nil
+}
+
+func (p *AdminSearchProgramsParams) Parse(c *gin.Context) gorails.Error {
+	// 解析关键词
+	if keyword := c.Query("keyword"); keyword != "" {
+		p.Keyword = keyword
+	} else {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
+	}
+
+	// 解析用户ID（可选）
+	p.UserID = nil
+	if userIdStr := c.Query("userId"); userIdStr != "" {
+		if userId, err := strconv.ParseUint(userIdStr, 10, 32); err == nil {
+			userIdUint := uint(userId)
+			p.UserID = &userIdUint
+		}
+	}
+
+	return nil
+}
+
+func (p *AdminDeleteProgramParams) Parse(c *gin.Context) gorails.Error {
+	// 解析ID
+	if idStr := c.Param("id"); idStr != "" {
+		if id, err := strconv.ParseUint(idStr, 10, 32); err == nil {
+			p.ID = uint(id)
+		} else {
+			return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+		}
+	} else {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
+	}
+
+	return nil
+}
+
+// AdminListProgramsHandler 管理员获取所有程序列表
+func (h *Handler) AdminListProgramsHandler(c *gin.Context, params *AdminListProgramsParams) ([]model.Program, *gorails.ResponseMeta, gorails.Error) {
+	// 获取程序列表
+	programs, hasMore, err := h.dao.ProgramDao.ListAllProgramsWithPagination(params.PageSize, params.BeginID, params.Forward, params.Asc, params.UserID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 获取总数
+	total, err := h.dao.ProgramDao.CountAllPrograms(params.UserID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	return programs, &gorails.ResponseMeta{
+		Total:   int(total),
+		HasNext: hasMore,
+	}, nil
+}
+
+// AdminSearchProgramsHandler 管理员搜索程序
+func (h *Handler) AdminSearchProgramsHandler(c *gin.Context, params *AdminSearchProgramsParams) ([]model.Program, *gorails.ResponseMeta, gorails.Error) {
+	// 搜索程序
+	programs, err := h.dao.ProgramDao.SearchPrograms(params.Keyword, params.UserID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	return programs, &gorails.ResponseMeta{
+		Total:   len(programs),
+		HasNext: false,
+	}, nil
+}
+
+// AdminDeleteProgramHandler 管理员删除程序
+func (h *Handler) AdminDeleteProgramHandler(c *gin.Context, params *AdminDeleteProgramParams) (*gorails.ResponseEmpty, *gorails.ResponseMeta, gorails.Error) {
+	// 检查程序是否存在
+	program, err := h.dao.ProgramDao.Get(params.ID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeQueryNotFound, global.ErrorMsgQueryNotFound, err)
+	}
+	if program == nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeQueryNotFound, global.ErrorMsgQueryNotFound, nil)
+	}
+
+	// 删除程序
+	err = h.dao.ProgramDao.Delete(params.ID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeDeleteFailed, global.ErrorMsgDeleteFailed, err)
+	}
+
+	return &gorails.ResponseEmpty{}, nil, nil
+}
