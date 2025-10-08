@@ -45,6 +45,7 @@ export default function MonacoEditorPage() {
   const [localsView, setLocalsView] = React.useState<string>("")
   const [breakpoints, setBreakpoints] = React.useState<Set<number>>(new Set())
   const [bpDecorations, setBpDecorations] = React.useState<string[]>([])
+  const [currentLineDecorations, setCurrentLineDecorations] = React.useState<string[]>([])
 
   // 调试样式注入（断点小红点）
   React.useEffect(() => {
@@ -56,7 +57,7 @@ export default function MonacoEditorPage() {
     style.innerHTML = `
       .bp-glyph { width: 14px !important; height: 14px !important; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 2px #fee2e2; }
       .bp-line { background: rgba(239, 68, 68, 0.08); }
-      .paused-line { background: rgba(59, 130, 246, 0.15) !important; }
+      .current-line { background: rgba(59, 130, 246, 0.15) !important; }
       .current-glyph { position: relative; width: 0 !important; height: 0 !important; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 10px solid #3b82f6; margin-left: 2px; }
     `
     document.head.appendChild(style)
@@ -509,6 +510,9 @@ export default function MonacoEditorPage() {
         })
       } catch (_) {}
 
+      // 初始化断点装饰
+      refreshBreakpointDecorations(editor, monaco, breakpoints)
+
       // 点击行号/边距切换断点
       try {
         editor.onMouseDown((e: any) => {
@@ -525,7 +529,7 @@ export default function MonacoEditorPage() {
         })
       } catch (_) {}
     },
-    [handleRun]
+    [handleRun, breakpoints]
   )
 
   // 重新绑定快捷键，确保闭包中拿到最新的 pyodide 与代码
@@ -540,7 +544,15 @@ export default function MonacoEditorPage() {
     } catch (_) {}
   }, [pyodide, handleRun])
 
-  // 断点装饰刷新与暂停标记
+  // 当断点状态变化时，更新断点装饰
+  React.useEffect(() => {
+    const editor = editorRef.current
+    const monaco = monacoRef.current
+    if (!editor || !monaco) return
+    refreshBreakpointDecorations(editor, monaco, breakpoints)
+  }, [breakpoints])
+
+  // 断点装饰刷新
   function refreshBreakpointDecorations(editor: any, monaco: any, bps: Set<number>) {
     try {
       const decos = Array.from(bps).map((line) => ({
@@ -557,17 +569,22 @@ export default function MonacoEditorPage() {
     } catch (_) {}
   }
 
-  function markPaused(editor: any, monaco: any, line?: number | null) {
+  // 当前行装饰（调试暂停时）
+  function markCurrentLine(editor: any, monaco: any, line?: number | null) {
     try {
       const ranges = [] as any[]
       if (line) {
         ranges.push({
           range: new monaco.Range(line, 1, line, 1),
-          options: { isWholeLine: true, className: 'paused-line', glyphMarginClassName: 'current-glyph' },
+          options: { 
+            isWholeLine: true, 
+            className: 'current-line', 
+            glyphMarginClassName: 'current-glyph' 
+          },
         })
       }
-      const applied = editor.deltaDecorations(bpDecorations, ranges)
-      setBpDecorations(applied)
+      const applied = editor.deltaDecorations(currentLineDecorations, ranges)
+      setCurrentLineDecorations(applied)
     } catch (_) {}
   }
 
@@ -581,10 +598,10 @@ export default function MonacoEditorPage() {
       await debugContinue()
     } else {
       const editor = editorRef.current, monaco = monacoRef.current
-      if (editor && monaco) markPaused(editor, monaco, null)
+      if (editor && monaco) markCurrentLine(editor, monaco, null)
       setDebugging(true)
       setPausedLine(null)
-      setLocalsView('未设置断点。点击左侧添加断点，然后使用“继续/单步”。')
+      setLocalsView('未设置断点。点击左侧添加断点，然后使用"继续/单步"。')
     }
   }
 
@@ -593,7 +610,7 @@ export default function MonacoEditorPage() {
     setPausedLine(null)
     setLocalsView("")
     const editor = editorRef.current, monaco = monacoRef.current
-    if (editor && monaco) markPaused(editor, monaco, null)
+    if (editor && monaco) markCurrentLine(editor, monaco, null)
   }
 
   async function debugContinue(stepOnce = false) {
@@ -622,11 +639,11 @@ export default function MonacoEditorPage() {
         })
       const filtered = Object.fromEntries(filteredEntries)
       setLocalsView(JSON.stringify(filtered, null, 2))
-      markPaused(editor, monaco, st.line || null)
+      markCurrentLine(editor, monaco, st.line || null)
     } else {
       setPausedLine(null)
       setLocalsView("")
-      markPaused(editor, monaco, null)
+      markCurrentLine(editor, monaco, null)
     }
   }
 
