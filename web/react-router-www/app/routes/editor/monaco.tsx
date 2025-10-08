@@ -6,6 +6,367 @@ import Editor, { loader } from "@monaco-editor/react"
 import { useUser } from "~/hooks/use-user"
 import { Home, Code2 } from "lucide-react"
 
+// Python语言配置函数
+function configurePythonLanguage(monaco: any) {
+  // 注册Python语言
+  monaco.languages.register({ id: 'python' })
+
+  // 配置Python语言特性
+  monaco.languages.setLanguageConfiguration('python', {
+    comments: {
+      lineComment: '#',
+      blockComment: ['"""', '"""']
+    },
+    brackets: [
+      ['{', '}'],
+      ['[', ']'],
+      ['(', ')']
+    ],
+    autoClosingPairs: [
+      { open: '{', close: '}' },
+      { open: '[', close: ']' },
+      { open: '(', close: ')' },
+      { open: '"', close: '"' },
+      { open: "'", close: "'" },
+      { open: '"""', close: '"""' },
+      { open: "'''", close: "'''" }
+    ],
+    surroundingPairs: [
+      { open: '{', close: '}' },
+      { open: '[', close: ']' },
+      { open: '(', close: ')' },
+      { open: '"', close: '"' },
+      { open: "'", close: "'" }
+    ],
+    folding: {
+      offSide: true,
+      markers: {
+        start: new RegExp("^\\s*#region\\b"),
+        end: new RegExp("^\\s*#endregion\\b")
+      }
+    }
+  })
+
+  // 注册Python代码片段
+  monaco.languages.registerCompletionItemProvider('python', {
+    provideCompletionItems: (model: any, position: any) => {
+      const suggestions = [
+        // 基础Python语法
+        {
+          label: 'print',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'print(${1:message})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '打印输出到控制台'
+        },
+        {
+          label: 'if',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'if ${1:condition}:\n    ${2:pass}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '条件语句'
+        },
+        {
+          label: 'for',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'for ${1:item} in ${2:iterable}:\n    ${3:pass}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: 'for循环'
+        },
+        {
+          label: 'while',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'while ${1:condition}:\n    ${2:pass}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: 'while循环'
+        },
+        {
+          label: 'def',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'def ${1:function_name}(${2:parameters}):\n    """${3:docstring}"""\n    ${4:pass}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '定义函数'
+        },
+        {
+          label: 'class',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'class ${1:ClassName}:\n    """${2:docstring}"""\n    def __init__(self${3:, parameters}):\n        ${4:pass}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '定义类'
+        },
+        {
+          label: 'try',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'try:\n    ${1:pass}\nexcept ${2:Exception} as ${3:e}:\n    ${4:pass}\nfinally:\n    ${5:pass}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '异常处理'
+        },
+        {
+          label: 'with',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'with ${1:expression} as ${2:variable}:\n    ${3:pass}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '上下文管理器'
+        },
+        {
+          label: 'import',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'import ${1:module}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '导入模块'
+        },
+        {
+          label: 'from',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'from ${1:module} import ${2:name}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '从模块导入'
+        },
+
+        // NumPy相关
+        {
+          label: 'np.array',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'np.array(${1:data})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '创建NumPy数组'
+        },
+        {
+          label: 'np.linspace',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'np.linspace(${1:start}, ${2:stop}, ${3:num})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '创建线性间隔的数组'
+        },
+        {
+          label: 'np.arange',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'np.arange(${1:start}, ${2:stop}, ${3:step})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '创建数值范围数组'
+        },
+        {
+          label: 'np.zeros',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'np.zeros(${1:shape})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '创建零数组'
+        },
+        {
+          label: 'np.ones',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'np.ones(${1:shape})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '创建一数组'
+        },
+        {
+          label: 'np.random',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'np.random.${1:function}(${2:parameters})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: 'NumPy随机数生成'
+        },
+
+        // Matplotlib相关
+        {
+          label: 'plt.plot',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'plt.plot(${1:x}, ${2:y}${3:, label="${4:label}")',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '绘制线图'
+        },
+        {
+          label: 'plt.scatter',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'plt.scatter(${1:x}, ${2:y}${3:, s=${4:20}, c=${5:"blue"})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '绘制散点图'
+        },
+        {
+          label: 'plt.bar',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'plt.bar(${1:x}, ${2:height}${3:, width=${4:0.8}})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '绘制柱状图'
+        },
+        {
+          label: 'plt.hist',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'plt.hist(${1:data}${2:, bins=${3:10}})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '绘制直方图'
+        },
+        {
+          label: 'plt.figure',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'plt.figure(figsize=(${1:width}, ${2:height}))',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '创建图形'
+        },
+        {
+          label: 'plt.title',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'plt.title("${1:title}")',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '设置图形标题'
+        },
+        {
+          label: 'plt.xlabel',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'plt.xlabel("${1:x_label}")',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '设置x轴标签'
+        },
+        {
+          label: 'plt.ylabel',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'plt.ylabel("${1:y_label}")',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '设置y轴标签'
+        },
+        {
+          label: 'plt.grid',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'plt.grid(${1:True})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '显示网格'
+        },
+        {
+          label: 'plt.legend',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'plt.legend()',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '显示图例'
+        },
+        {
+          label: 'plt.show',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'plt.show()',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '显示图形'
+        },
+        {
+          label: 'plt.savefig',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'plt.savefig("${1:filename}.png"${2:, dpi=${3:300}, bbox_inches="tight"})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '保存图形'
+        },
+
+        // 常用数学函数
+        {
+          label: 'np.sin',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'np.sin(${1:x})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '正弦函数'
+        },
+        {
+          label: 'np.cos',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'np.cos(${1:x})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '余弦函数'
+        },
+        {
+          label: 'np.tan',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'np.tan(${1:x})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '正切函数'
+        },
+        {
+          label: 'np.exp',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'np.exp(${1:x})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '指数函数'
+        },
+        {
+          label: 'np.log',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'np.log(${1:x})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '自然对数'
+        },
+        {
+          label: 'np.sqrt',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'np.sqrt(${1:x})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '平方根'
+        },
+
+        // 常用导入语句
+        {
+          label: 'import numpy as np',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          insertText: 'import numpy as np',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '导入NumPy库'
+        },
+        {
+          label: 'import matplotlib.pyplot as plt',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          insertText: 'import matplotlib.pyplot as plt',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '导入Matplotlib绘图库'
+        },
+        {
+          label: 'import pandas as pd',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          insertText: 'import pandas as pd',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '导入Pandas数据处理库'
+        },
+        {
+          label: 'import seaborn as sns',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          insertText: 'import seaborn as sns',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '导入Seaborn统计绘图库'
+        }
+      ]
+
+      return { suggestions }
+    }
+  })
+
+  // 注册悬停提示
+  monaco.languages.registerHoverProvider('python', {
+    provideHover: (model: any, position: any) => {
+      const word = model.getWordAtPosition(position)
+      if (!word) return null
+
+      const hoverInfo: { [key: string]: string } = {
+        'print': '打印函数：将值输出到标准输出流',
+        'len': '长度函数：返回对象的长度或元素个数',
+        'range': '范围函数：生成一个整数序列',
+        'list': '列表函数：创建列表或转换其他类型为列表',
+        'dict': '字典函数：创建字典或转换其他类型为字典',
+        'str': '字符串函数：创建字符串或转换其他类型为字符串',
+        'int': '整数函数：创建整数或转换其他类型为整数',
+        'float': '浮点数函数：创建浮点数或转换其他类型为浮点数',
+        'bool': '布尔函数：创建布尔值或转换其他类型为布尔值',
+        'np': 'NumPy：Python科学计算的基础库',
+        'plt': 'Matplotlib：Python绘图库',
+        'pd': 'Pandas：Python数据分析库',
+        'sns': 'Seaborn：基于Matplotlib的统计绘图库'
+      }
+
+      const info = hoverInfo[word.word]
+      if (info) {
+        return {
+          range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
+          contents: [{ value: `**${word.word}**\n\n${info}` }]
+        }
+      }
+
+      return null
+    }
+  })
+}
+
 export default function MonacoEditorPage() {
   const { programId: routeProgramId } = useParams()
   const navigate = useNavigate()
@@ -530,6 +891,9 @@ export default function MonacoEditorPage() {
         })
       } catch (_) {}
 
+      // 配置Python语言支持
+      configurePythonLanguage(monaco)
+
       // 初始化断点装饰
       refreshBreakpointDecorations(editor, monaco, breakpoints)
 
@@ -788,6 +1152,57 @@ export default function MonacoEditorPage() {
                 cursorBlinking: "smooth",
                 cursorSmoothCaretAnimation: "on",
                 glyphMargin: true,
+                // 启用自动补全
+                suggest: {
+                  showKeywords: true,
+                  showSnippets: true,
+                  showFunctions: true,
+                  showConstructors: true,
+                  showFields: true,
+                  showVariables: true,
+                  showClasses: true,
+                  showStructs: true,
+                  showInterfaces: true,
+                  showModules: true,
+                  showProperties: true,
+                  showEvents: true,
+                  showOperators: true,
+                  showUnits: true,
+                  showValues: true,
+                  showConstants: true,
+                  showEnums: true,
+                  showEnumMembers: true,
+                  showColors: true,
+                  showFiles: true,
+                  showReferences: true,
+                  showFolders: true,
+                  showTypeParameters: true,
+                  showIssues: true,
+                  showUsers: true,
+                  showWords: true
+                },
+                // 自动补全触发字符
+                quickSuggestions: {
+                  other: true,
+                  comments: false,
+                  strings: true
+                },
+                // 接受建议的快捷键
+                acceptSuggestionOnEnter: "on",
+                // 建议选择器
+                suggestOnTriggerCharacters: true,
+                // 自动显示建议
+                suggestSelection: "first",
+                // 代码片段建议
+                snippetSuggestions: "top",
+                // 参数提示
+                parameterHints: {
+                  enabled: true
+                },
+                // 悬停提示
+                hover: {
+                  enabled: true
+                }
               }}
               loading={
                 <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
