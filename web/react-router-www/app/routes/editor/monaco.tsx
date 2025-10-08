@@ -3,10 +3,13 @@ import { fetchWithAuth } from "~/utils/api"
 import { HOST_URL } from "~/config"
 import { useParams, useNavigate } from "react-router"
 import Editor, { loader } from "@monaco-editor/react"
+import { useUser } from "~/hooks/use-user"
+import { Home, Code2 } from "lucide-react"
 
 export default function MonacoEditorPage() {
   const { programId: routeProgramId } = useParams()
   const navigate = useNavigate()
+  const { userInfo } = useUser()
   const [monacoConfig, setMonacoConfig] = React.useState<'local' | 'bundle' | 'cdn' | 'loading'>('loading')
   const [code, setCode] = React.useState<string>(
     [
@@ -46,6 +49,23 @@ export default function MonacoEditorPage() {
   const [breakpoints, setBreakpoints] = React.useState<Set<number>>(new Set())
   const [bpDecorations, setBpDecorations] = React.useState<string[]>([])
   const [currentLineDecorations, setCurrentLineDecorations] = React.useState<string[]>([])
+
+  // 导航函数
+  const handleGoHome = () => {
+    if (userInfo?.role === 'admin') {
+      navigate('/www/admin/dashboard')
+    } else {
+      navigate('/www/user/dashboard')
+    }
+  }
+
+  const handleGoToPrograms = () => {
+    if (userInfo?.role === 'admin') {
+      navigate('/www/admin/my_python')
+    } else {
+      navigate('/www/user/my_python')
+    }
+  }
 
   // 调试样式注入（断点小红点）
   React.useEffect(() => {
@@ -701,6 +721,21 @@ export default function MonacoEditorPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleGoHome}
+            className="px-4 py-3 rounded-xl bg-blue-50 border-2 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 font-medium text-sm flex items-center gap-2"
+          >
+            <Home className="h-4 w-4" />
+            首页
+          </button>
+          <button
+            onClick={handleGoToPrograms}
+            className="px-4 py-3 rounded-xl bg-purple-50 border-2 border-purple-200 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-all duration-200 font-medium text-sm flex items-center gap-2"
+          >
+            <Code2 className="h-4 w-4" />
+            程序列表
+          </button>
+          <div className="w-px h-8 bg-gray-300"></div>
           <button
             onClick={handleRun}
             disabled={running}
