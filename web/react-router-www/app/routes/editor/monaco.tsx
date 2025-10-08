@@ -367,6 +367,107 @@ function configurePythonLanguage(monaco: any) {
   })
 }
 
+// 调试检查面板组件（变量/输出 标签 + 搜索 + 复制）
+function DebugInspector({
+  pausedLine,
+  locals,
+  stdout,
+}: {
+  pausedLine: number | null
+  locals: Record<string, string>
+  stdout: string
+}) {
+  const [activeTab, setActiveTab] = React.useState<'vars' | 'stdout'>('vars')
+  const [query, setQuery] = React.useState('')
+
+  const filteredLocals = React.useMemo(() => {
+    if (!query) return locals
+    const q = query.toLowerCase()
+    const entries = Object.entries(locals).filter(([k, v]) =>
+      k.toLowerCase().includes(q) || String(v ?? '').toLowerCase().includes(q)
+    )
+    return Object.fromEntries(entries)
+  }, [locals, query])
+
+  const copyText = (text: string) => {
+    try {
+      navigator.clipboard.writeText(text)
+      ;(window as any).toast?.success?.('已复制到剪贴板')
+    } catch (_) {}
+  }
+
+  return (
+    <div className="rounded-xl border-2 border-blue-200 bg-blue-50 text-blue-900 shadow-sm">
+      <div className="flex items-center gap-3 px-4 pt-3">
+        <div className="text-sm font-semibold">调试状态 {pausedLine ? `(行 ${pausedLine})` : ''}</div>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab('vars')}
+            className={`px-2.5 py-1 text-xs rounded-md border ${activeTab === 'vars' ? 'bg-white border-blue-300 text-blue-700' : 'bg-blue-100 border-blue-200 text-blue-800 hover:bg-blue-200'}`}
+          >变量</button>
+          <button
+            onClick={() => setActiveTab('stdout')}
+            className={`px-2.5 py-1 text-xs rounded-md border ${activeTab === 'stdout' ? 'bg-white border-blue-300 text-blue-700' : 'bg-blue-100 border-blue-200 text-blue-800 hover:bg-blue-200'}`}
+          >输出</button>
+        </div>
+      </div>
+
+      {/* 工具栏 */}
+      <div className="px-4 pb-3 flex items-center gap-2">
+        {activeTab === 'vars' ? (
+          <>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="搜索变量名/值..."
+              className="flex-1 px-3 py-1.5 text-sm rounded-md bg-white/80 border border-blue-200 placeholder:text-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
+            <button
+              onClick={() => copyText(JSON.stringify(locals, null, 2))}
+              className="px-2.5 py-1 text-xs rounded-md bg-white border border-blue-200 text-blue-700 hover:bg-blue-100"
+            >复制变量JSON</button>
+          </>
+        ) : (
+          <button
+            onClick={() => copyText(stdout || '')}
+            className="ml-auto px-2.5 py-1 text-xs rounded-md bg-white border border-blue-200 text-blue-700 hover:bg-blue-100"
+          >复制输出</button>
+        )}
+      </div>
+
+      {/* 内容区 */}
+      <div className="px-4 pb-4">
+        {activeTab === 'vars' ? (
+          Object.keys(filteredLocals).length ? (
+            <div className="rounded-lg bg-white border border-blue-200">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-blue-50 text-blue-800">
+                    <th className="text-left px-3 py-2 font-semibold w-48">变量名</th>
+                    <th className="text-left px-3 py-2 font-semibold">值</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(filteredLocals).map(([k, v]) => (
+                    <tr key={k} className="border-t border-blue-100 hover:bg-blue-50/50">
+                      <td className="px-3 py-1.5 align-top font-mono text-[11px] text-blue-900 break-all">{k}</td>
+                      <td className="px-3 py-1.5 align-top font-mono text-[11px] text-blue-900 whitespace-pre-wrap break-words">{String(v)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-xs text-blue-700/80">{query ? '没有匹配到变量' : '无变量'}</div>
+          )
+        ) : (
+          <pre className="text-xs bg-white rounded-lg border border-blue-200 p-3 whitespace-pre-wrap text-blue-900">{stdout || '无输出'}</pre>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function MonacoEditorPage() {
   const { programId: routeProgramId } = useParams()
   const navigate = useNavigate()
@@ -1269,10 +1370,11 @@ export default function MonacoEditorPage() {
           </div>
           {debugging && (
             <div className="px-4 pt-3">
-              <div className="rounded-xl border-2 border-blue-200 bg-blue-50 text-blue-900 px-4 py-3 shadow-sm">
-                <div className="text-sm font-semibold">调试状态 {pausedLine ? `(行 ${pausedLine})` : ''}</div>
-                <pre className="text-xs whitespace-pre-wrap mt-1">{localsView || '无变量'}</pre>
-              </div>
+              <DebugInspector
+                pausedLine={pausedLine}
+                locals={(() => { try { return JSON.parse(localsView || '{}') } catch (_) { return {} } })()}
+                stdout={outputText}
+              />
             </div>
           )}
           {syntaxError ? (
