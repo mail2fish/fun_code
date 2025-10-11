@@ -43,3 +43,5 @@ fun_code
 funcode_server
 scripts/*
 api_gateway/
+air_pro/
+pro.sh

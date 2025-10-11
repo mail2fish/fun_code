@@ -4,7 +4,7 @@ tmp_dir = "tmp"
 [build]
   cmd = "go build -o ./api_gateway/funcode ./cmd/fun_code"
   delay = 1000
-  exclude_dir = ["assets", "air", "tmp", "vendor", "testdata", "web", "storage","doc"]
+  exclude_dir = ["assets", "air","air_pro","api_gateway", "tmp", "vendor", "testdata", "web", "storage","doc"]
   exclude_file = []
   exclude_regex = ["_test.go"]
   exclude_unchanged = false
