@@ -581,6 +581,55 @@ export default function MonacoEditorPage() {
   const [breakpoints, setBreakpoints] = React.useState<Set<number>>(new Set())
   const [bpDecorations, setBpDecorations] = React.useState<string[]>([])
   const [currentLineDecorations, setCurrentLineDecorations] = React.useState<string[]>([])
+  
+  // 面板大小和可见性控制
+  const [editorWidth, setEditorWidth] = React.useState(60) // 百分比
+  const [showEditor, setShowEditor] = React.useState(true)
+  const [showOutput, setShowOutput] = React.useState(true)
+  const [isResizing, setIsResizing] = React.useState(false)
+  const containerRef = React.useRef<HTMLDivElement>(null)
+
+  // 面板调整大小逻辑
+  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizing(true)
+    
+    const startX = e.clientX
+    const startWidth = editorWidth
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return
+      const containerWidth = containerRef.current.offsetWidth
+      const deltaX = e.clientX - startX
+      const deltaPercent = (deltaX / containerWidth) * 100
+      const newWidth = Math.max(20, Math.min(80, startWidth + deltaPercent))
+      setEditorWidth(newWidth)
+    }
+    
+    const handleMouseUp = () => {
+      setIsResizing(false)
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+    
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  }, [editorWidth])
+
+  // 切换面板可见性
+  const toggleEditor = () => {
+    setShowEditor(!showEditor)
+    if (!showEditor) {
+      setShowOutput(true) // 确保至少有一个面板显示
+    }
+  }
+
+  const toggleOutput = () => {
+    setShowOutput(!showOutput)
+    if (!showOutput) {
+      setShowEditor(true) // 确保至少有一个面板显示
+    }
+  }
 
   // 导航函数
   const handleGoHome = () => {
@@ -1271,6 +1320,35 @@ export default function MonacoEditorPage() {
             程序列表
           </button>
           <div className="w-px h-8 bg-gray-300"></div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggleEditor}
+              className={`px-2 py-1.5 rounded text-xs font-medium transition-all duration-200 ${
+                showEditor 
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50 border border-gray-200'
+              }`}
+              title={showEditor ? '隐藏编辑器' : '显示编辑器'}
+            >
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            <button
+              onClick={toggleOutput}
+              className={`px-2 py-1.5 rounded text-xs font-medium transition-all duration-200 ${
+                showOutput 
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50 border border-gray-200'
+              }`}
+              title={showOutput ? '隐藏输出面板' : '显示输出面板'}
+            >
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm8 0a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1V8z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+          <div className="w-px h-8 bg-gray-300"></div>
           <button
             onClick={handleRun}
             disabled={running}
@@ -1298,118 +1376,146 @@ export default function MonacoEditorPage() {
       </div>
 
       {/* 主体两栏布局 */}
-      <div className="flex h-[calc(100vh-4rem)]">
-        <div className="w-1/2 md:w-3/5 h-full border-r-2 border-gray-200 bg-white">
-          {typeof window !== "undefined" && monacoConfig !== 'loading' ? (
-            <Editor
-              height="100%"
-              defaultLanguage="python"
-              value={code}
-              onChange={(v: any) => setCode(v ?? "")}
-              theme="vs-light"
-              onMount={handleEditorMount}
-              options={{
-                fontSize: 14,
-                minimap: { enabled: false },
-                automaticLayout: true,
-                wordWrap: "on",
-                tabSize: 4,
-                insertSpaces: true,
-                padding: { top: 16, bottom: 16 },
-                lineNumbers: "on",
-                renderLineHighlight: "line",
-                scrollBeyondLastLine: false,
-                smoothScrolling: true,
-                cursorBlinking: "smooth",
-                cursorSmoothCaretAnimation: "on",
-                glyphMargin: true,
-                // 启用自动补全
-                suggest: {
-                  showKeywords: true,
-                  showSnippets: true,
-                  showFunctions: true,
-                  showConstructors: true,
-                  showFields: true,
-                  showVariables: true,
-                  showClasses: true,
-                  showStructs: true,
-                  showInterfaces: true,
-                  showModules: true,
-                  showProperties: true,
-                  showEvents: true,
-                  showOperators: true,
-                  showUnits: true,
-                  showValues: true,
-                  showConstants: true,
-                  showEnums: true,
-                  showEnumMembers: true,
-                  showColors: true,
-                  showFiles: true,
-                  showReferences: true,
-                  showFolders: true,
-                  showTypeParameters: true,
-                  showIssues: true,
-                  showUsers: true,
-                  showWords: true
-                },
-                // 自动补全触发字符
-                quickSuggestions: {
-                  other: true,
-                  comments: false,
-                  strings: true
-                },
-                // 接受建议的快捷键
-                acceptSuggestionOnEnter: "on",
-                // 建议选择器
-                suggestOnTriggerCharacters: true,
-                // 自动显示建议
-                suggestSelection: "first",
-                // 代码片段建议
-                snippetSuggestions: "top",
-                // 参数提示
-                parameterHints: {
-                  enabled: true
-                },
-                // 悬停提示
-                hover: {
-                  enabled: true
-                }
-              }}
-              loading={
-                <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
-                  <div className="text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl flex items-center justify-center">
-                      <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                    <div className="text-lg font-semibold text-gray-700 mb-2">Monaco Editor 加载中...</div>
-                    <div className="text-sm text-gray-500 capitalize">
-                      {monacoConfig === 'local' && "🌐 本地服务器版本"}
-                      {monacoConfig === 'bundle' && "📦 本机包版本（离线）"}
-                      {monacoConfig === 'cdn' && "☁️ CDN 版本"}
+      <div ref={containerRef} className="flex h-[calc(100vh-4rem)]">
+        {showEditor && (
+          <div 
+            className="h-full bg-white relative"
+            style={{ width: showOutput ? `${editorWidth}%` : '100%' }}
+          >
+            {typeof window !== "undefined" && monacoConfig !== 'loading' ? (
+              <Editor
+                height="100%"
+                defaultLanguage="python"
+                value={code}
+                onChange={(v: any) => setCode(v ?? "")}
+                theme="vs-light"
+                onMount={handleEditorMount}
+                options={{
+                  fontSize: 14,
+                  minimap: { enabled: false },
+                  automaticLayout: true,
+                  wordWrap: "on",
+                  tabSize: 4,
+                  insertSpaces: true,
+                  padding: { top: 16, bottom: 16 },
+                  lineNumbers: "on",
+                  renderLineHighlight: "line",
+                  scrollBeyondLastLine: false,
+                  smoothScrolling: true,
+                  cursorBlinking: "smooth",
+                  cursorSmoothCaretAnimation: "on",
+                  glyphMargin: true,
+                  // 启用自动补全
+                  suggest: {
+                    showKeywords: true,
+                    showSnippets: true,
+                    showFunctions: true,
+                    showConstructors: true,
+                    showFields: true,
+                    showVariables: true,
+                    showClasses: true,
+                    showStructs: true,
+                    showInterfaces: true,
+                    showModules: true,
+                    showProperties: true,
+                    showEvents: true,
+                    showOperators: true,
+                    showUnits: true,
+                    showValues: true,
+                    showConstants: true,
+                    showEnums: true,
+                    showEnumMembers: true,
+                    showColors: true,
+                    showFiles: true,
+                    showReferences: true,
+                    showFolders: true,
+                    showTypeParameters: true,
+                    showIssues: true,
+                    showUsers: true,
+                    showWords: true
+                  },
+                  // 自动补全触发字符
+                  quickSuggestions: {
+                    other: true,
+                    comments: false,
+                    strings: true
+                  },
+                  // 接受建议的快捷键
+                  acceptSuggestionOnEnter: "on",
+                  // 建议选择器
+                  suggestOnTriggerCharacters: true,
+                  // 自动显示建议
+                  suggestSelection: "first",
+                  // 代码片段建议
+                  snippetSuggestions: "top",
+                  // 参数提示
+                  parameterHints: {
+                    enabled: true
+                  },
+                  // 悬停提示
+                  hover: {
+                    enabled: true
+                  }
+                }}
+                loading={
+                  <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
+                    <div className="text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl flex items-center justify-center">
+                        <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                      <div className="text-lg font-semibold text-gray-700 mb-2">Monaco Editor 加载中...</div>
+                      <div className="text-sm text-gray-500 capitalize">
+                        {monacoConfig === 'local' && "🌐 本地服务器版本"}
+                        {monacoConfig === 'bundle' && "📦 本机包版本（离线）"}
+                        {monacoConfig === 'cdn' && "☁️ CDN 版本"}
+                      </div>
                     </div>
                   </div>
+                }
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl flex items-center justify-center">
+                    <span className="text-2xl">⌨️</span>
+                  </div>
+                  <div className="text-lg font-semibold text-gray-700 mb-2">
+                    {monacoConfig === 'loading' 
+                      ? "⏳ 初始化 Monaco Editor..." 
+                      : "⌨️ 编辑器需要客户端环境"}
+                  </div>
+                  <div className="text-sm text-gray-500">请稍候，编辑器正在加载...</div>
                 </div>
-              }
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl flex items-center justify-center">
-                  <span className="text-2xl">⌨️</span>
-                </div>
-                <div className="text-lg font-semibold text-gray-700 mb-2">
-                  {monacoConfig === 'loading' 
-                    ? "⏳ 初始化 Monaco Editor..." 
-                    : "⌨️ 编辑器需要客户端环境"}
-                </div>
-                <div className="text-sm text-gray-500">请稍候，编辑器正在加载...</div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
-        <div className="w-1/2 md:w-2/5 h-full flex flex-col bg-white">
-          <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 border-b-2 border-gray-200">
+        {/* 拖拽手柄 */}
+        {showEditor && showOutput && (
+          <div
+            className={`w-1 bg-gray-200 hover:bg-blue-300 cursor-col-resize transition-colors duration-200 flex items-center justify-center group ${
+              isResizing ? 'bg-blue-400' : ''
+            }`}
+            onMouseDown={handleMouseDown}
+            title="拖拽调整面板大小"
+          >
+            <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="w-0.5 h-0.5 bg-gray-500 rounded-full"></div>
+              <div className="w-0.5 h-0.5 bg-gray-500 rounded-full"></div>
+              <div className="w-0.5 h-0.5 bg-gray-500 rounded-full"></div>
+              <div className="w-0.5 h-0.5 bg-gray-500 rounded-full"></div>
+              <div className="w-0.5 h-0.5 bg-gray-500 rounded-full"></div>
+            </div>
+          </div>
+        )}
+
+        {showOutput && (
+          <div 
+            className="h-full flex flex-col bg-white"
+            style={{ width: showEditor ? `${100 - editorWidth}%` : '100%' }}
+          >
+            <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 border-b-2 border-gray-200">
             <div className="flex items-center gap-2">
               <span className="text-lg">📊</span>
               <span className="font-bold text-gray-900">运行结果</span>
@@ -1507,7 +1613,8 @@ export default function MonacoEditorPage() {
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )
