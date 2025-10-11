@@ -50,6 +50,76 @@ function configurePythonLanguage(monaco: any) {
   // 注册Python代码片段
   monaco.languages.registerCompletionItemProvider('python', {
     provideCompletionItems: (model: any, position: any) => {
+        // 动态收集当前文件中定义的函数与类方法，作为补全项
+      const codeText: string = model?.getValue?.() || ''
+      const dynamic: any[] = []
+
+      try {
+        // 普通函数: def func_name(param1, param2):
+        const funcRegex = /^\s*def\s+([A-Za-z_]\w*)\s*\(([^)]*)\)\s*:/gm
+        let m: RegExpExecArray | null
+        while ((m = funcRegex.exec(codeText))) {
+          const name = m[1]
+          const paramsRaw = (m[2] || '').trim()
+          const paramsList = paramsRaw
+            ? paramsRaw.split(',').map(s => s.trim()).filter(Boolean)
+            : []
+          const snippetParams = paramsList.length
+            ? paramsList.map((p, idx) => `
+${'${'}${idx + 1}:${p.replace(/\$/g, '')}${'}'}`.replace(/\n/g, '')).join(', ')
+            : ''
+          dynamic.push({
+            label: name,
+            kind: monaco.languages.CompletionItemKind.Function,
+            insertText: `${name}(${snippetParams})`,
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '来自当前文件的函数定义',
+          })
+        }
+
+        // 类与方法: class ClassName:\n    def method(self, ...):
+        const classRegex = /^\s*class\s+([A-Za-z_]\w*)\s*\([^)]*\)\s*:|^\s*class\s+([A-Za-z_]\w*)\s*:\s*$/gm
+        // 预先获取行数组以便限定类作用域
+        const lines = codeText.split('\n')
+        let classMatch: RegExpExecArray | null
+        while ((classMatch = classRegex.exec(codeText))) {
+          const className = (classMatch[1] || classMatch[2] || '').trim()
+          if (!className) continue
+          // 从类定义所在行向下，找缩进的方法定义
+          const startIdx = codeText.slice(0, classMatch.index).split('\n').length - 1
+          const indentMatch = lines[startIdx]?.match(/^(\s*)class\b/)
+          const classIndent = indentMatch ? indentMatch[1] : lines[startIdx]?.match(/^(\s*)/)?.[1] || ''
+          for (let i = startIdx + 1; i < lines.length; i++) {
+            const line = lines[i]
+            if (!line.trim()) continue
+            // 类体在更深缩进层级，遇到比 classIndent 更浅的缩进则结束
+            const currentIndent = (line.match(/^(\s*)/)?.[1] || '')
+            if (currentIndent.length <= classIndent.length) break
+            const methodMatch = line.match(/^\s*def\s+([A-Za-z_]\w*)\s*\(([^)]*)\)\s*:/)
+            if (methodMatch) {
+              const methodName = methodMatch[1]
+              const paramsRaw = (methodMatch[2] || '').trim()
+              const paramsList = paramsRaw
+                ? paramsRaw.split(',').map(s => s.trim()).filter(Boolean)
+                : []
+              // 过滤掉 self/cls
+              const cleanedParams = paramsList.filter(p => !/^self\b|^cls\b/.test(p))
+              const snippetParams = cleanedParams.length
+                ? cleanedParams.map((p, idx) => `
+${'${'}${idx + 1}:${p.replace(/\$/g, '')}${'}'}`.replace(/\n/g, '')).join(', ')
+                : ''
+              dynamic.push({
+                label: `${className}.${methodName}`,
+                kind: monaco.languages.CompletionItemKind.Method,
+                insertText: `${className}.${methodName}(${snippetParams})`,
+                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                documentation: '来自当前文件的类方法',
+              })
+            }
+          }
+        }
+      } catch (_) {}
+
       const suggestions = [
         // 基础Python语法
         {
@@ -328,7 +398,7 @@ function configurePythonLanguage(monaco: any) {
         }
       ]
 
-      return { suggestions }
+      return { suggestions: [...dynamic, ...suggestions] }
     }
   })
 
