@@ -1261,6 +1261,24 @@ export default function MonacoEditorPage() {
       {/* 顶部工具栏 */}
       <div className="h-16 px-6 flex items-center justify-between border-b-2 border-gray-200 bg-white shadow-sm">
         <div className="flex items-center gap-4">
+          {/* 首页和程序列表按钮 - 最左侧 */}
+          <button
+            onClick={handleGoHome}
+            className="px-4 py-3 rounded-xl bg-blue-50 border-2 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 font-medium text-sm flex items-center gap-2"
+          >
+            <Home className="h-4 w-4" />
+            首页
+          </button>
+          <button
+            onClick={handleGoToPrograms}
+            className="px-4 py-3 rounded-xl bg-purple-50 border-2 border-purple-200 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-all duration-200 font-medium text-sm flex items-center gap-2"
+          >
+            <Code2 className="h-4 w-4" />
+            程序列表
+          </button>
+          <div className="w-px h-8 bg-gray-300"></div>
+          
+          {/* 文件菜单 */}
           <div className="relative" data-menu="file-menu">
             <button
               onClick={() => setMenuOpen((v) => !v)}
@@ -1292,6 +1310,8 @@ export default function MonacoEditorPage() {
               </div>
             ) : null}
           </div>
+          
+          {/* 程序名称和状态 */}
           <div className="flex items-center gap-3">
             <div className="font-bold text-xl text-gray-900">
               {programName || "未命名程序"}
@@ -1305,21 +1325,6 @@ export default function MonacoEditorPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleGoHome}
-            className="px-4 py-3 rounded-xl bg-blue-50 border-2 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 font-medium text-sm flex items-center gap-2"
-          >
-            <Home className="h-4 w-4" />
-            首页
-          </button>
-          <button
-            onClick={handleGoToPrograms}
-            className="px-4 py-3 rounded-xl bg-purple-50 border-2 border-purple-200 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-all duration-200 font-medium text-sm flex items-center gap-2"
-          >
-            <Code2 className="h-4 w-4" />
-            程序列表
-          </button>
-          <div className="w-px h-8 bg-gray-300"></div>
           <div className="flex items-center gap-1">
             <button
               onClick={toggleEditor}
