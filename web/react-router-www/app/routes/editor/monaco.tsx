@@ -564,6 +564,12 @@ export default function MonacoEditorPage() {
   const [pyodide, setPyodide] = React.useState<any>(null)
   const [outputText, setOutputText] = React.useState<string>("")
   const [outputImage, setOutputImage] = React.useState<string>("")
+  // 控制台分栏
+  const [stdoutText, setStdoutText] = React.useState<string>("")
+  const [stderrText, setStderrText] = React.useState<string>("")
+  const [logsText, setLogsText] = React.useState<string>("")
+  // 控制台选项卡：输出/错误/日志
+  const [activeConsoleTab, setActiveConsoleTab] = React.useState<'out' | 'err' | 'log'>('out')
   const [running, setRunning] = React.useState(false)
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [programName, setProgramName] = React.useState<string>("未命名程序")
@@ -571,6 +577,9 @@ export default function MonacoEditorPage() {
   const [syntaxError, setSyntaxError] = React.useState<{ message: string; line?: number } | null>(null)
   const [runError, setRunError] = React.useState<{ message: string; line?: number } | null>(null)
   const outputRef = React.useRef<HTMLDivElement>(null)
+  // 图形输出挂载点（Pixi + matplotlib）
+  const gfxRootRef = React.useRef<HTMLDivElement>(null)
+  const mplRootRef = React.useRef<HTMLDivElement>(null)
   const programType = "python"
   const editorRef = React.useRef<any>(null)
   const monacoRef = React.useRef<any>(null)
@@ -588,6 +597,13 @@ export default function MonacoEditorPage() {
   const [showOutput, setShowOutput] = React.useState(true)
   const [isResizing, setIsResizing] = React.useState(false)
   const containerRef = React.useRef<HTMLDivElement>(null)
+
+  // 有错误时自动切换到“错误”标签
+  React.useEffect(() => {
+    if (runError || (stderrText && stderrText.trim() !== '')) {
+      setActiveConsoleTab('err')
+    }
+  }, [runError, stderrText])
 
   // 面板调整大小逻辑
   const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
@@ -762,6 +778,158 @@ export default function MonacoEditorPage() {
     }
   }, [])
 
+  // 动态加载本地 PixiJS 并提供全局 GameAPI（仅客户端）
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    let disposed = false
+
+    function ensureGameAPI() {
+      if ((window as any).GameAPI) return
+      (window as any).GameAPI = (function(){
+        let app: any = null
+        let stage: any = null
+        let sprites: Record<string, any> = {}
+        let input = { keys: new Set<string>(), mouse: { x: 0, y: 0, down: false } }
+        let rootEl: HTMLElement | null = null
+        let visible = false
+
+        function bindInput(el: HTMLElement) {
+          const onKeyDown = (e: KeyboardEvent) => input.keys.add(e.code)
+          const onKeyUp = (e: KeyboardEvent) => input.keys.delete(e.code)
+          const onMouseMove = (e: MouseEvent) => { input.mouse.x = e.offsetX; input.mouse.y = e.offsetY }
+          const onMouseDown = () => { input.mouse.down = true }
+          const onMouseUp = () => { input.mouse.down = false }
+          window.addEventListener('keydown', onKeyDown)
+          window.addEventListener('keyup', onKeyUp)
+          el.addEventListener('mousemove', onMouseMove)
+          el.addEventListener('mousedown', onMouseDown)
+          el.addEventListener('mouseup', onMouseUp)
+          ;(input as any)._unbind = () => {
+            window.removeEventListener('keydown', onKeyDown)
+            window.removeEventListener('keyup', onKeyUp)
+            el.removeEventListener('mousemove', onMouseMove)
+            el.removeEventListener('mousedown', onMouseDown)
+            el.removeEventListener('mouseup', onMouseUp)
+          }
+        }
+
+        return {
+          init: (containerEl: HTMLElement, opts: { width: number; height: number }) => {
+            if (!(window as any).PIXI) throw new Error('PIXI 未加载')
+            if (app && rootEl === containerEl) {
+              visible = true
+              containerEl.style.display = ''
+              return
+            }
+            if (app) {
+              try { (input as any)._unbind?.() } catch {}
+              try { app.destroy(true, { children: true, texture: true, baseTexture: true }) } catch {}
+              app = null; stage = null; sprites = {}
+            }
+            rootEl = containerEl
+            const PIXI = (window as any).PIXI
+            app = new PIXI.Application({ width: opts.width, height: opts.height, background: 0x222222, antialias: true })
+            stage = app.stage
+            containerEl.innerHTML = ''
+            containerEl.appendChild(app.view as HTMLCanvasElement)
+            bindInput(containerEl)
+            visible = true
+            containerEl.style.display = ''
+          },
+          setVisible: (v: boolean) => {
+            visible = v
+            if (rootEl) rootEl.style.display = v ? '' : 'none'
+          },
+          destroy: () => {
+            try { (input as any)._unbind?.() } catch {}
+            if (app) {
+              try { app.destroy(true, { children: true, texture: true, baseTexture: true }) } catch {}
+            }
+            app = null; stage = null; sprites = {}; rootEl = null; visible = false
+          },
+          loadAssets: async (assets: Record<string, string>) => {
+            if (!(window as any).PIXI) throw new Error('PIXI 未加载')
+            const PIXI = (window as any).PIXI
+            const entries = Object.entries(assets)
+            await Promise.all(entries.map(([alias, src]) => (PIXI.Assets as any).add({ alias, src })))
+            await (PIXI.Assets as any).load(Object.keys(assets))
+          },
+          getInput: () => ({ keys: Array.from(input.keys), mouse: { ...input.mouse } }),
+          setScene: (state: any) => {
+            if (!app || !stage || !visible) return
+            const PIXI = (window as any).PIXI
+            if (typeof state?.background === 'number') {
+              try { app.renderer.background.color = state.background } catch {}
+            }
+            const list: any[] = Array.isArray(state?.displayList) ? state.displayList : []
+            const used: Record<string, boolean> = {}
+            for (const item of list) {
+              const id = String(item.id || item.key || Math.random())
+              used[id] = true
+              let node = sprites[id]
+              if (!node) {
+                if (item.type === 'sprite' && item.key) {
+                  const tex = (PIXI.Assets as any).get(item.key)
+                  if (!tex) continue
+                  node = new PIXI.Sprite(tex)
+                } else if (item.type === 'rect') {
+                  node = new (PIXI as any).Graphics()
+                } else if (item.type === 'text') {
+                  node = new (PIXI as any).Text({ text: item.text || '', style: item.style || { fill: 0xffffff, fontSize: 14 } })
+                }
+                if (!node) continue
+                sprites[id] = node
+                stage.addChild(node)
+              }
+              if (item.type === 'sprite') {
+                node.x = item.x || 0; node.y = item.y || 0
+                if (item.anchor) node.anchor?.set(item.anchor.x ?? 0.5, item.anchor.y ?? 0.5)
+                if (item.scale) node.scale?.set(item.scale.x ?? 1, item.scale.y ?? 1)
+                if (item.rotation) node.rotation = item.rotation
+                if (item.alpha != null) node.alpha = item.alpha
+                if (item.visible != null) node.visible = !!item.visible
+                if (item.w && item.h) { node.width = item.w; node.height = item.h }
+                if (item.zIndex != null) node.zIndex = item.zIndex
+              } else if (item.type === 'rect') {
+                const g = node as any
+                g.clear()
+                g.beginFill(typeof item.fill === 'number' ? item.fill : 0x4ade80)
+                g.drawRect(item.x || 0, item.y || 0, item.w || 10, item.h || 10)
+                g.endFill()
+                if (item.alpha != null) g.alpha = item.alpha
+                if (item.visible != null) g.visible = !!item.visible
+              } else if (item.type === 'text') {
+                node.text = item.text || ''
+                node.x = item.x || 0; node.y = item.y || 0
+                if (item.style) node.style = item.style
+                if (item.alpha != null) node.alpha = item.alpha
+                if (item.visible != null) node.visible = !!item.visible
+              }
+            }
+            Object.keys(sprites).forEach((id) => {
+              if (!used[id]) {
+                const n = sprites[id]
+                try { stage.removeChild(n); n.destroy?.() } catch {}
+                delete sprites[id]
+              }
+            })
+          },
+        }
+      })()
+    }
+
+    function loadPixi() {
+      if ((window as any).PIXI) { ensureGameAPI(); return }
+      const s = document.createElement('script')
+      s.src = `${HOST_URL}/pyodide/pixi/pixi.min.js`
+      s.async = true
+      s.onload = () => { if (!disposed) ensureGameAPI() }
+      document.head.appendChild(s)
+    }
+    loadPixi()
+    return () => { disposed = true }
+  }, [])
+
   const handleRun = React.useCallback(async () => {
     if (!pyodide) {
       setOutputText("Pyodide 加载中，请稍候...")
@@ -772,6 +940,12 @@ export default function MonacoEditorPage() {
     setRunError(null)
     setOutputText("")
     setOutputImage("")
+    setStdoutText("")
+    setStderrText("")
+    // 清空 matplotlib 容器
+    try { if (mplRootRef.current) mplRootRef.current.innerHTML = '' } catch (_) {}
+    // 默认隐藏 Pixi 画布，直到用户代码中显式启用
+    try { (window as any).GameAPI?.setVisible(false) } catch (_) {}
     try {
       const wrapped = `\nimport sys, io, traceback, base64\nout_buffer = io.StringIO()\nerr_buffer = io.StringIO()\n_sys_stdout = sys.stdout\n_sys_stderr = sys.stderr\nsys.stdout = out_buffer\nsys.stderr = err_buffer\nns = {}\nimg_b64 = ""\ntry:\n    exec(${JSON.stringify(code)}, ns)\n    try:\n        import matplotlib.pyplot as plt\n        if plt.get_fignums():\n            bio = io.BytesIO()\n            plt.savefig(bio, format='png', dpi=150, bbox_inches='tight')\n            bio.seek(0)\n            img_b64 = 'data:image/png;base64,' + base64.b64encode(bio.read()).decode('ascii')\n            plt.close('all')\n    except Exception:\n        pass\nexcept Exception as e:\n    traceback.print_exc()\nfinally:\n    sys.stdout = _sys_stdout\n    sys.stderr = _sys_stderr\nres = {'stdout': out_buffer.getvalue(), 'stderr': err_buffer.getvalue(), 'image': img_b64}\nimport json\njson.dumps(res)\n`
       const json = await pyodide.runPythonAsync(wrapped)
@@ -781,7 +955,19 @@ export default function MonacoEditorPage() {
         const e = String(parsed.stderr || "")
         const outCombined = e ? (s ? (s + "\n" + e) : e) : s
         setOutputText(outCombined)
-        setOutputImage(String(parsed.image || ""))
+        setStdoutText(s)
+        setStderrText(e)
+        const img = String(parsed.image || "")
+        setOutputImage(img)
+        try {
+          if (img && mplRootRef.current) {
+            const imgEl = document.createElement('img')
+            imgEl.src = img
+            imgEl.className = 'max-w-full h-auto rounded-lg border border-gray-200'
+            mplRootRef.current.innerHTML = ''
+            mplRootRef.current.appendChild(imgEl)
+          }
+        } catch (_) {}
         // 尝试从标准输出/标准错误中解析语法或运行错误
         const out = outCombined
         if (out.includes("SyntaxError")) {
@@ -839,6 +1025,9 @@ export default function MonacoEditorPage() {
   const handleClear = () => {
     setOutputText("")
     setOutputImage("")
+    setStdoutText("")
+    setStderrText("")
+    setLogsText("")
     setSyntaxError(null)
     setRunError(null)
   }
@@ -1580,41 +1769,68 @@ export default function MonacoEditorPage() {
             </div>
           ) : null}
           <div ref={outputRef} className="flex-1 overflow-auto bg-gray-50">
-            {runError ? (
-              <div className="p-4 pt-3">
-                <div className="rounded-xl border-2 border-red-200 bg-red-50 text-red-800 px-4 py-3 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="font-semibold">运行错误</div>
-                      <div className="text-sm break-words">{runError.message}</div>
-                      {runError.line ? (
-                        <div className="text-xs mt-1">位置：第 {runError.line} 行</div>
-                      ) : null}
-                    </div>
-                    <div className="flex-shrink-0">
-                      <button
-                        onClick={() => focusLine(runError.line)}
-                        className="px-3 py-1.5 rounded-lg bg-white border-2 border-red-200 text-red-700 hover:bg-red-100 text-sm"
-                      >
-                        定位到行
-                      </button>
-                    </div>
+            {/* 图形输出区：Pixi 画布 + matplotlib 图片 */}
+            <div className="p-4">
+              <div className="bg-white rounded-xl border-2 border-gray-200 p-3 shadow-sm space-y-3">
+                <div className="text-sm font-semibold text-gray-700">图形输出</div>
+                <div ref={gfxRootRef} id="gfx-root" className="w-full overflow-hidden rounded-lg border border-gray-200" style={{ height: 480 }}></div>
+                <div ref={mplRootRef} id="mpl-root" className="w-full space-y-2"></div>
+              </div>
+            </div>
+            {null}
+            {/* 控制台输出区：Tabs: stdout / stderr / logs（简化为三块叠放，后续可加交互）*/}
+            <div className="px-4 pb-4">
+              <div className="bg-white rounded-xl border-2 border-gray-200 shadow-sm">
+                <div className="border-b border-gray-200 px-3 pt-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <button
+                      onClick={() => setActiveConsoleTab('out')}
+                      className={`px-3 py-1 rounded-t-lg border ${activeConsoleTab === 'out' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'}`}
+                    >输出</button>
+                    <button
+                      onClick={() => setActiveConsoleTab('err')}
+                      className={`px-3 py-1 rounded-t-lg border ${activeConsoleTab === 'err' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'}`}
+                    >错误</button>
+                    <button
+                      onClick={() => setActiveConsoleTab('log')}
+                      className={`px-3 py-1 rounded-t-lg border ${activeConsoleTab === 'log' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'}`}
+                    >日志</button>
                   </div>
                 </div>
-              </div>
-            ) : null}
-            {outputImage ? (
-              <div className="p-4">
-                <div className="bg-white rounded-xl border-2 border-gray-200 p-4 shadow-sm">
-                  <img src={outputImage} className="max-w-full h-auto rounded-lg" />
+                <div className="p-4">
+                  {activeConsoleTab === 'out' ? (
+                    <pre className="m-0 text-gray-800 text-sm leading-6 font-mono whitespace-pre-wrap">{stdoutText || (pyodide ? "" : "# ⏳ 正在加载 Pyodide...")}</pre>
+                  ) : null}
+                  {activeConsoleTab === 'err' ? (
+                    <>
+                      {runError ? (
+                        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 text-red-800 px-3 py-2 shadow-sm">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="font-semibold text-sm">运行错误</div>
+                              <div className="text-xs break-words">{runError.message}</div>
+                              {runError.line ? (
+                                <div className="text-[11px] mt-1">位置：第 {runError.line} 行</div>
+                              ) : null}
+                            </div>
+                            <div className="flex-shrink-0">
+                              <button
+                                onClick={() => focusLine(runError.line)}
+                                className="px-2.5 py-1 rounded-md bg-white border border-red-200 text-red-700 hover:bg-red-100 text-xs"
+                              >
+                                定位到行
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                      <pre className="m-0 text-rose-700 text-sm leading-6 font-mono whitespace-pre-wrap">{stderrText}</pre>
+                    </>
+                  ) : null}
+                  {activeConsoleTab === 'log' ? (
+                    <pre className="m-0 text-gray-700 text-sm leading-6 font-mono whitespace-pre-wrap">{logsText}</pre>
+                  ) : null}
                 </div>
-              </div>
-            ) : null}
-            <div className="p-4">
-              <div className="bg-white rounded-xl border-2 border-gray-200 shadow-sm">
-                <pre className="m-0 p-4 text-gray-800 text-sm leading-6 font-mono whitespace-pre-wrap">
-{outputText || (pyodide ? "# 🎯 运行后图像/输出将显示在这里\n# 💡 提示：使用 Shift+Enter 快速运行代码" : "# ⏳ 正在加载 Pyodide，首次加载需要一点时间...\n# 📦 正在下载 Python 科学计算包")}
-                </pre>
               </div>
             </div>
           </div>
