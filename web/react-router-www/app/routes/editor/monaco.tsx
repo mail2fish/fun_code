@@ -590,6 +590,8 @@ export default function MonacoEditorPage() {
   const [breakpoints, setBreakpoints] = React.useState<Set<number>>(new Set())
   const [bpDecorations, setBpDecorations] = React.useState<string[]>([])
   const [currentLineDecorations, setCurrentLineDecorations] = React.useState<string[]>([])
+  // Pixi 可见性（用于折叠空白）
+  const [pixiVisible, setPixiVisible] = React.useState<boolean>(false)
   
   // 面板大小和可见性控制
   const [editorWidth, setEditorWidth] = React.useState(60) // 百分比
@@ -792,6 +794,9 @@ export default function MonacoEditorPage() {
         let input = { keys: new Set<string>(), mouse: { x: 0, y: 0, down: false } }
         let rootEl: HTMLElement | null = null
         let visible = false
+        function notify(v: boolean) {
+          try { window.dispatchEvent(new CustomEvent('fun-pixi-visible', { detail: v })) } catch {}
+        }
 
         function bindInput(el: HTMLElement) {
           const onKeyDown = (e: KeyboardEvent) => input.keys.add(e.code)
@@ -819,6 +824,7 @@ export default function MonacoEditorPage() {
             if (app && rootEl === containerEl) {
               visible = true
               containerEl.style.display = ''
+              notify(true)
               return
             }
             if (app) {
@@ -835,10 +841,12 @@ export default function MonacoEditorPage() {
             bindInput(containerEl)
             visible = true
             containerEl.style.display = ''
+            notify(true)
           },
           setVisible: (v: boolean) => {
             visible = v
             if (rootEl) rootEl.style.display = v ? '' : 'none'
+            notify(!!v)
           },
           destroy: () => {
             try { (input as any)._unbind?.() } catch {}
@@ -846,6 +854,7 @@ export default function MonacoEditorPage() {
               try { app.destroy(true, { children: true, texture: true, baseTexture: true }) } catch {}
             }
             app = null; stage = null; sprites = {}; rootEl = null; visible = false
+            notify(false)
           },
           loadAssets: async (assets: Record<string, string>) => {
             if (!(window as any).PIXI) throw new Error('PIXI 未加载')
@@ -927,7 +936,14 @@ export default function MonacoEditorPage() {
       document.head.appendChild(s)
     }
     loadPixi()
-    return () => { disposed = true }
+    const onVisible = (e: any) => {
+      try { setPixiVisible(Boolean(e?.detail)) } catch {}
+    }
+    try { window.addEventListener('fun-pixi-visible', onVisible as any) } catch {}
+    return () => {
+      disposed = true
+      try { window.removeEventListener('fun-pixi-visible', onVisible as any) } catch {}
+    }
   }, [])
 
   const handleRun = React.useCallback(async () => {
@@ -1773,7 +1789,12 @@ export default function MonacoEditorPage() {
             <div className="p-4">
               <div className="bg-white rounded-xl border-2 border-gray-200 p-3 shadow-sm space-y-3">
                 <div className="text-sm font-semibold text-gray-700">图形输出</div>
-                <div ref={gfxRootRef} id="gfx-root" className="w-full overflow-hidden rounded-lg border border-gray-200" style={{ height: 480 }}></div>
+                <div
+                  ref={gfxRootRef}
+                  id="gfx-root"
+                  className="w-full overflow-hidden rounded-lg border border-gray-200"
+                  style={{ height: pixiVisible ? 480 : 0 }}
+                ></div>
                 <div ref={mplRootRef} id="mpl-root" className="w-full space-y-2"></div>
               </div>
             </div>
