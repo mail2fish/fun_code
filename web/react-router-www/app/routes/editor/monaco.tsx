@@ -601,6 +601,14 @@ export default function MonacoEditorPage() {
 
   // 在最大化/还原时搬运 Pixi 画布与 Matplotlib DOM 节点，避免内容丢失
   React.useEffect(() => {
+    const rebindPixiRoot = (el: HTMLElement | null) => {
+      try {
+        if (!el) return
+        const w = el.clientWidth || 800
+        const h = el.clientHeight || 480
+        ;(window as any).GameAPI?.init?.(el, { width: w, height: h })
+      } catch (_) {}
+    }
     const moveAllChildren = (fromEl: HTMLElement | null, toEl: HTMLElement | null) => {
       if (!fromEl || !toEl) return
       try {
@@ -617,10 +625,24 @@ export default function MonacoEditorPage() {
       // 进入全屏：把原容器里的内容搬到全屏容器
       moveAllChildren(gfxRootRef.current, fullscreenGfxRef.current)
       moveAllChildren(mplRootRef.current, fullscreenMplRef.current)
+      // 将可见容器的 ID 映射为通用 ID，确保用户代码通过 getElementById('gfx-root'/'mpl-root') 能获取到当前可见容器
+      try { if (gfxRootRef.current) gfxRootRef.current.id = 'gfx-root-hidden' } catch (_) {}
+      try { if (fullscreenGfxRef.current) fullscreenGfxRef.current.id = 'gfx-root' } catch (_) {}
+      try { if (mplRootRef.current) mplRootRef.current.id = 'mpl-root-hidden' } catch (_) {}
+      try { if (fullscreenMplRef.current) fullscreenMplRef.current.id = 'mpl-root' } catch (_) {}
+      // 重新绑定 Pixi 到全屏容器（确保输入与渲染在新容器中）
+      rebindPixiRoot(fullscreenGfxRef.current)
     } else {
       // 退出全屏：把内容搬回原容器
       moveAllChildren(fullscreenGfxRef.current, gfxRootRef.current)
       moveAllChildren(fullscreenMplRef.current, mplRootRef.current)
+      // 还原通用 ID 到原容器
+      try { if (fullscreenGfxRef.current) fullscreenGfxRef.current.id = 'gfx-root-fullscreen' } catch (_) {}
+      try { if (gfxRootRef.current) gfxRootRef.current.id = 'gfx-root' } catch (_) {}
+      try { if (fullscreenMplRef.current) fullscreenMplRef.current.id = 'mpl-root-fullscreen' } catch (_) {}
+      try { if (mplRootRef.current) mplRootRef.current.id = 'mpl-root' } catch (_) {}
+      // 重新绑定 Pixi 回原容器
+      rebindPixiRoot(gfxRootRef.current)
       // 完成搬运后再卸载覆盖层
       setOverlayMounted(false)
     }
@@ -984,6 +1006,8 @@ export default function MonacoEditorPage() {
       setOutputText("Pyodide 加载中，请稍候...")
       return
     }
+    // 每次运行前，确保销毁旧的 Pixi 实例以保证游戏可重启
+    try { (window as any).GameAPI?.destroy?.() } catch (_) {}
     setRunning(true)
     setSyntaxError(null)
     setRunError(null)
@@ -991,12 +1015,13 @@ export default function MonacoEditorPage() {
     setOutputImage("")
     setStdoutText("")
     setStderrText("")
-    // 清空 matplotlib 容器
+    // 清空 matplotlib 容器（普通/全屏都清空，稍后使用活跃容器渲染）
     try { if (mplRootRef.current) mplRootRef.current.innerHTML = '' } catch (_) {}
+    try { if (fullscreenMplRef.current) fullscreenMplRef.current.innerHTML = '' } catch (_) {}
     // 默认隐藏 Pixi 画布，直到用户代码中显式启用
     try { (window as any).GameAPI?.setVisible(false) } catch (_) {}
     try {
-      const wrapped = `\nimport sys, io, traceback, base64\nout_buffer = io.StringIO()\nerr_buffer = io.StringIO()\n_sys_stdout = sys.stdout\n_sys_stderr = sys.stderr\nsys.stdout = out_buffer\nsys.stderr = err_buffer\nns = {}\nimg_b64 = ""\ntry:\n    exec(${JSON.stringify(code)}, ns)\n    try:\n        import matplotlib.pyplot as plt\n        if plt.get_fignums():\n            bio = io.BytesIO()\n            plt.savefig(bio, format='png', dpi=150, bbox_inches='tight')\n            bio.seek(0)\n            img_b64 = 'data:image/png;base64,' + base64.b64encode(bio.read()).decode('ascii')\n            plt.close('all')\n    except Exception:\n        pass\nexcept Exception as e:\n    traceback.print_exc()\nfinally:\n    sys.stdout = _sys_stdout\n    sys.stderr = _sys_stderr\nres = {'stdout': out_buffer.getvalue(), 'stderr': err_buffer.getvalue(), 'image': img_b64}\nimport json\njson.dumps(res)\n`
+      const wrapped = `\nimport sys, io, traceback, base64\nout_buffer = io.StringIO()\nerr_buffer = io.StringIO()\n_sys_stdout = sys.stdout\n_sys_stderr = sys.stderr\nsys.stdout = out_buffer\nsys.stderr = err_buffer\n# 运行前尝试清理旧的图形与游戏状态\ntry:\n    import matplotlib.pyplot as _plt\n    _plt.close('all')\nexcept Exception:\n    pass\nns = {}\nimg_b64 = ""\ntry:\n    exec(${JSON.stringify(code)}, ns)\n    try:\n        import matplotlib.pyplot as plt\n        if plt.get_fignums():\n            bio = io.BytesIO()\n            plt.savefig(bio, format='png', dpi=150, bbox_inches='tight')\n            bio.seek(0)\n            img_b64 = 'data:image/png;base64,' + base64.b64encode(bio.read()).decode('ascii')\n            plt.close('all')\n    except Exception:\n        pass\nexcept Exception as e:\n    traceback.print_exc()\nfinally:\n    sys.stdout = _sys_stdout\n    sys.stderr = _sys_stderr\nres = {'stdout': out_buffer.getvalue(), 'stderr': err_buffer.getvalue(), 'image': img_b64}\nimport json\njson.dumps(res)\n`
       const json = await pyodide.runPythonAsync(wrapped)
       try {
         const parsed = JSON.parse(String(json))
@@ -1009,12 +1034,13 @@ export default function MonacoEditorPage() {
         const img = String(parsed.image || "")
         setOutputImage(img)
         try {
-          if (img && mplRootRef.current) {
+          const activeRoot = isOutputMaximized ? fullscreenMplRef.current : mplRootRef.current
+          if (img && activeRoot) {
             const imgEl = document.createElement('img')
             imgEl.src = img
             imgEl.className = 'max-w-full h-auto rounded-lg border border-gray-200'
-            mplRootRef.current.innerHTML = ''
-            mplRootRef.current.appendChild(imgEl)
+            activeRoot.innerHTML = ''
+            activeRoot.appendChild(imgEl)
           }
         } catch (_) {}
         // 尝试从标准输出/标准错误中解析语法或运行错误
@@ -1469,6 +1495,18 @@ export default function MonacoEditorPage() {
     const st = resp.state || {}
     setOutputText(String(resp.stdout || ""))
     setOutputImage(String(resp.image || ""))
+    // 在调试暂停或结束后，若有图像，也渲染到活跃容器
+    try {
+      const img = String(resp.image || "")
+      const activeRoot = isOutputMaximized ? fullscreenMplRef.current : mplRootRef.current
+      if (img && activeRoot) {
+        const imgEl = document.createElement('img')
+        imgEl.src = img
+        imgEl.className = 'max-w-full h-auto rounded-lg border border-gray-200'
+        activeRoot.innerHTML = ''
+        activeRoot.appendChild(imgEl)
+      }
+    } catch (_) {}
     if (st.paused) {
       setPausedLine(st.line || null)
       // 过滤 __builtins__ 和双下划线变量，并限制每个值长度
@@ -1915,6 +1953,14 @@ export default function MonacoEditorPage() {
             <div className="mb-3 flex items-center gap-2">
               <div className="text-base font-semibold text-white">图形输出（全屏）</div>
               <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={handleRun}
+                  disabled={running}
+                  className={`px-3 py-1.5 text-sm rounded-lg text-white shadow ${running ? 'bg-emerald-500/70 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+                  title="运行代码 (Shift+Enter)"
+                >
+                  {running ? '运行中…' : '运行代码'}
+                </button>
                 <button
                   onClick={() => setIsOutputMaximized(false)}
                   className="px-3 py-1.5 text-sm rounded-lg bg-white border-2 border-gray-200 text-gray-800 hover:bg-gray-100"
