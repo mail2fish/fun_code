@@ -592,6 +592,39 @@ export default function MonacoEditorPage() {
   const [currentLineDecorations, setCurrentLineDecorations] = React.useState<string[]>([])
   // Pixi 可见性（用于折叠空白）
   const [pixiVisible, setPixiVisible] = React.useState<boolean>(false)
+  // 图形输出交互
+  const [isOutputSelected, setIsOutputSelected] = React.useState<boolean>(false)
+  const [isOutputMaximized, setIsOutputMaximized] = React.useState<boolean>(false)
+  const [overlayMounted, setOverlayMounted] = React.useState<boolean>(false)
+  const fullscreenGfxRef = React.useRef<HTMLDivElement>(null)
+  const fullscreenMplRef = React.useRef<HTMLDivElement>(null)
+
+  // 在最大化/还原时搬运 Pixi 画布与 Matplotlib DOM 节点，避免内容丢失
+  React.useEffect(() => {
+    const moveAllChildren = (fromEl: HTMLElement | null, toEl: HTMLElement | null) => {
+      if (!fromEl || !toEl) return
+      try {
+        // 清空目标容器
+        while (toEl.firstChild) toEl.removeChild(toEl.firstChild)
+        // 将源容器的子节点逐一搬运到目标（appendChild 会移动节点）
+        const nodes: ChildNode[] = []
+        fromEl.childNodes.forEach((n) => nodes.push(n))
+        for (const n of nodes) toEl.appendChild(n)
+      } catch (_) {}
+    }
+
+    if (isOutputMaximized) {
+      // 进入全屏：把原容器里的内容搬到全屏容器
+      moveAllChildren(gfxRootRef.current, fullscreenGfxRef.current)
+      moveAllChildren(mplRootRef.current, fullscreenMplRef.current)
+    } else {
+      // 退出全屏：把内容搬回原容器
+      moveAllChildren(fullscreenGfxRef.current, gfxRootRef.current)
+      moveAllChildren(fullscreenMplRef.current, mplRootRef.current)
+      // 完成搬运后再卸载覆盖层
+      setOverlayMounted(false)
+    }
+  }, [isOutputMaximized])
   
   // 面板大小和可见性控制
   const [editorWidth, setEditorWidth] = React.useState(60) // 百分比
@@ -1787,13 +1820,30 @@ export default function MonacoEditorPage() {
           <div ref={outputRef} className="flex-1 overflow-auto bg-gray-50">
             {/* 图形输出区：Pixi 画布 + matplotlib 图片 */}
             <div className="p-4">
-              <div className="bg-white rounded-xl border-2 border-gray-200 p-3 shadow-sm space-y-3">
-                <div className="text-sm font-semibold text-gray-700">图形输出</div>
+              <div
+                className={`bg-white rounded-xl border-2 p-3 shadow-sm space-y-3 transition-shadow ${isOutputSelected ? 'border-blue-400 ring-2 ring-blue-300' : 'border-gray-200'}`}
+                onClick={() => setIsOutputSelected(true)}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="text-sm font-semibold text-gray-700">图形输出</div>
+                  <div className="ml-auto flex items-center gap-2">
+                    {!isOutputMaximized ? (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setOverlayMounted(true); setIsOutputMaximized(true) }}
+                        className="px-2 py-1 text-xs rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100"
+                        title="最大化图形输出"
+                      >
+                        ⛶ 最大化
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                {/* 始终渲染原始容器，最大化时它们会被置空（内容移动到全屏容器） */}
                 <div
                   ref={gfxRootRef}
                   id="gfx-root"
                   className="w-full overflow-hidden rounded-lg border border-gray-200"
-                  style={{ height: pixiVisible ? 480 : 0 }}
+                  style={{ height: pixiVisible && !isOutputMaximized ? 480 : 0 }}
                 ></div>
                 <div ref={mplRootRef} id="mpl-root" className="w-full space-y-2"></div>
               </div>
@@ -1858,6 +1908,38 @@ export default function MonacoEditorPage() {
           </div>
         )}
       </div>
+      {/* 图形输出 全屏覆盖层 */}
+      {overlayMounted && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
+          <div className="absolute inset-0 p-4 flex flex-col">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="text-base font-semibold text-white">图形输出（全屏）</div>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => setIsOutputMaximized(false)}
+                  className="px-3 py-1.5 text-sm rounded-lg bg-white border-2 border-gray-200 text-gray-800 hover:bg-gray-100"
+                >
+                  还原
+                </button>
+              </div>
+            </div>
+            <div
+              className={`flex-1 bg-white rounded-xl border-2 ${isOutputSelected ? 'border-blue-400 ring-2 ring-blue-300' : 'border-gray-200'}`}
+              onClick={() => setIsOutputSelected(true)}
+            >
+              <div className="h-full w-full p-3 flex flex-col gap-3">
+                <div
+                  ref={fullscreenGfxRef}
+                  id="gfx-root-fullscreen"
+                  className="w-full overflow-hidden rounded-lg border border-gray-200"
+                  style={{ height: pixiVisible ? 'calc(100vh - 220px)' : 0 }}
+                ></div>
+                <div ref={fullscreenMplRef} id="mpl-root-fullscreen" className="w-full flex-1 overflow-auto space-y-2"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
