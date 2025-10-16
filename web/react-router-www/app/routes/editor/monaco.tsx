@@ -631,7 +631,7 @@ export default function MonacoEditorPage() {
       try { if (mplRootRef.current) mplRootRef.current.id = 'mpl-root-hidden' } catch (_) {}
       try { if (fullscreenMplRef.current) fullscreenMplRef.current.id = 'mpl-root' } catch (_) {}
       // 重新绑定 Pixi 到全屏容器（确保输入与渲染在新容器中）
-      rebindPixiRoot(fullscreenGfxRef.current)
+      rebindPixiRoot(fullscreenGfxRef.current)  
     } else {
       // 退出全屏：把内容搬回原容器
       moveAllChildren(fullscreenGfxRef.current, gfxRootRef.current)
@@ -1095,7 +1095,7 @@ export default function MonacoEditorPage() {
     } finally {
       setRunning(false)
     }
-  }, [pyodide, code])
+  }, [pyodide, code, isOutputMaximized])
 
   const handleClear = () => {
     setOutputText("")
