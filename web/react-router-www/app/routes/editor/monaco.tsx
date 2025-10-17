@@ -545,20 +545,14 @@ export default function MonacoEditorPage() {
   const [monacoConfig, setMonacoConfig] = React.useState<'local' | 'bundle' | 'cdn' | 'loading'>('loading')
   const [code, setCode] = React.useState<string>(
     [
-      "# 绘制一个正弦函数图像",
-      "import numpy as np",
-      "import matplotlib.pyplot as plt",
-      "",
-      "x = np.linspace(0, 2*np.pi, 400)",
-      "y = np.sin(x)",
-      "",
-      "plt.figure(figsize=(6, 3))",
-      "plt.plot(x, y)",
-      "plt.title('y = sin(x)')",
-      "plt.grid(True)",
-      "",
-      "# 运行后右侧会显示图像，也可以在下方看到标准输出",
-      "print('绘图完成')",
+      "# 仅用 print 输出一个有趣的小恐龙",
+      "print(\"           __        \")",
+      "print(\"          / _)_      \")",
+      "print(\"   .-^^^-/ /         \")",
+      "print(\"__/       /          \")",
+      "print(\"<__.|_|-|_|  Roar!   \")",
+      "print()",
+      "print(\"欢迎来到 Fun Code，开动你的想象力吧！\")",
     ].join("\n")
   )
   const [pyodide, setPyodide] = React.useState<any>(null)
@@ -1111,9 +1105,6 @@ export default function MonacoEditorPage() {
     // 重置所有状态
     setCode([
       "# 新建 Python 程序",
-      "import numpy as np",
-      "import matplotlib.pyplot as plt",
-      "",
       "# 在这里编写你的代码",
       "print('Hello, World!')",
     ].join("\n"))
