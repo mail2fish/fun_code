@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -117,25 +119,67 @@ func (h *Handler) GetLibraryAssetHandler(c *gin.Context, params *GetLibraryAsset
 	safeFilenameRegex := regexp.MustCompile(`[^a-zA-Z0-9_.-]`)
 	filename = safeFilenameRegex.ReplaceAllString(filename, "")
 
-	// 从嵌入的文件系统中获取资源文件
-	assetData, err := web.GetScratchAsset(filename)
-	if err != nil {
-		// 获取 assetID 字符串长度，把它分成 4 段
-		assetIDLength := len(filename)
-		if assetIDLength < 36 {
-			return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
+	// 根据浏览器是否支持 gzip，优先尝试 .gz 压缩资源
+	acceptEncoding := c.GetHeader("Accept-Encoding")
+	supportGzip := strings.Contains(acceptEncoding, "gzip")
+
+	var assetData []byte
+	var err error
+
+	// 辅助函数：尝试读取嵌入资源或文件系统资源
+	readAsset := func(name string) ([]byte, error) {
+		// 先尝试嵌入的文件
+		data, e := web.GetScratchAsset(name)
+		if e == nil {
+			return data, nil
 		}
 
-		assetID1 := filename[:assetIDLength/4]
-		assetID2 := filename[assetIDLength/4 : assetIDLength/2]
-		assetID3 := filename[assetIDLength/2 : assetIDLength*3/4]
-		assetID4 := filename[assetIDLength*3/4:]
+		// 嵌入失败则尝试文件系统
+		assetIDLength := len(name)
+		if assetIDLength < 36 {
+			return nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, nil)
+		}
 
-		// 使用 scratch 服务的基础路径
+		assetID1 := name[:assetIDLength/4]
+		assetID2 := name[assetIDLength/4 : assetIDLength/2]
+		assetID3 := name[assetIDLength/2 : assetIDLength*3/4]
+		assetID4 := name[assetIDLength*3/4:]
+
 		filePath := filepath.Join(h.dao.ScratchDao.GetScratchBasePath(), "assets", assetID1, assetID2, assetID3, assetID4)
+		data, e = os.ReadFile(filePath)
+		if e != nil {
+			return nil, e
+		}
+		return data, nil
+	}
 
-		// 尝试从文件系统中读取资源文件
-		assetData, err = os.ReadFile(filePath)
+	// 先检查是否存在 .gz 版本
+	gzName := filename + ".gz"
+	gzData, gzErr := readAsset(gzName)
+
+	if gzErr == nil {
+		if supportGzip {
+			// 直接返回压缩数据，设置 Content-Encoding
+			assetData = gzData
+			// 注意：Content-Type 依据原始文件后缀
+			// 在后面统一设置
+			c.Header("Content-Encoding", "gzip")
+		} else {
+			// 客户端不支持 gzip，则解压后返回
+			gr, e := gzip.NewReader(bytes.NewReader(gzData))
+			if e != nil {
+				return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeReadFileFailed, global.ErrorMsgReadFileFailed, e)
+			}
+			defer gr.Close()
+			decompressed, e := io.ReadAll(gr)
+			if e != nil {
+				return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeReadFileFailed, global.ErrorMsgReadFileFailed, e)
+			}
+			assetData = decompressed
+		}
+	} else {
+		// 不存在 .gz，则按原逻辑读取未压缩资源
+		assetData, err = readAsset(filename)
 		if err != nil {
 			return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 		}
@@ -479,7 +523,7 @@ func (h *Handler) PostCreateScratchProject(c *gin.Context) {
 	})
 }
 
-var safeFilenameRegex = regexp.MustCompile(`[^a-zA-Z0-9_.-]`)
+//
 
 // RenderScratchProject 渲染Scratch项目数据
 func RenderScratchProject(c *gin.Context, data []byte, meta *gorails.ResponseMeta) {

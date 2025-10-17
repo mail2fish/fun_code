@@ -54,11 +54,10 @@ func (s *Server) setupRoutes() {
 	})
 
 	if s.config.Server.Mode == config.ModeAPIGateway {
+		s.router.Any("/assets/*path", APIGatewayHandler(s.config))
 		s.router.Any("/shares/*path", APIGatewayHandler(s.config))
 		s.router.Any("/api/*path", APIGatewayHandler(s.config))
 		s.router.Any("/projects/*path", APIGatewayHandler(s.config))
-		s.router.Any("/scratch/*path", APIGatewayHandler(s.config))
-
 	} else {
 
 		s.router.GET("/shares/:token", gorails.Wrap(s.handler.GetShareScratchProjectHandler, handler.RenderTemplateResponse))
@@ -206,13 +205,13 @@ func (s *Server) setupRoutes() {
 			projects.GET("/scratch/lesson/:class_id/:course_id/:lesson_id/:project_id", gorails.Wrap(s.handler.GetLessonScratchProjectHandler, handler.RenderTemplateResponse))
 
 		}
-	}
-	assets := s.router.Group("/assets")
-	assets.Use(s.handler.AuthMiddleware())
-	// 添加新的路由用于获取Scratch资源文件 - 已改造为 gorails.Wrap 形式
-	{
-		assets.GET("/scratch/:filename", gorails.Wrap(s.handler.GetLibraryAssetHandler, handler.RenderLibraryAsset))
-		assets.POST("/scratch/:asset_id", gorails.Wrap(s.handler.UploadScratchAssetHandler, handler.RenderUploadScratchAssetResponse))
+		assets := s.router.Group("/assets")
+		assets.Use(s.handler.AuthMiddleware())
+		// 添加新的路由用于获取Scratch资源文件 - 已改造为 gorails.Wrap 形式
+		{
+			assets.GET("/scratch/:filename", gorails.Wrap(s.handler.GetLibraryAssetHandler, handler.RenderLibraryAsset))
+			assets.POST("/scratch/:asset_id", gorails.Wrap(s.handler.UploadScratchAssetHandler, handler.RenderUploadScratchAssetResponse))
+		}
 	}
 
 }
