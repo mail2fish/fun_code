@@ -4,18 +4,18 @@ import "embed"
 
 // 递归嵌入整个目录，确保子目录文件（如 monaco/vs/loader.js）被包含
 //
-//go:embed react-router-www/build/client
+//go:embed all:react-router-www/build/client
 var WWWStaticFiles embed.FS
 
 // 递归嵌入 public 目录，提供 /monaco 等静态资源
 //
-//go:embed react-router-www/public
+//go:embed all:react-router-www/public
 var WWWPublicStaticFiles embed.FS
 
-//go:embed scratch/dist
+//go:embed all:scratch/dist
 var ScratchStaticFiles embed.FS
 
-//go:embed pyodide
+//go:embed all:pyodide
 var PyodideStaticFiles embed.FS
 
 // 添加一个函数来获取 scratch 的 index.html 内容
