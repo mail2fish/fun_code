@@ -44,7 +44,7 @@ export default function ExcalidrawEditor() {
     }
   }, [langCode]);
 
-  const isNewBoard = location.pathname === '/excalidraw/new';
+  const isNewBoard = location.pathname === '/www/excalidraw/new';
   const saveTimeoutRef = useRef<number | null>(null);
 
   const saveThumbnail = useCallback(async (id: string) => {
@@ -85,7 +85,7 @@ export default function ExcalidrawEditor() {
     }
     setSaveStatus('idle');
     setLoadStatus('idle');
-    navigate('/excalidraw/new');
+    navigate('/www/excalidraw/new');
   }, [excalidrawAPI, navigate, menuLabels.newLabel]);
 
   const mapBrowserLanguageToExcalidraw = useCallback((lang: string | null | undefined): ExcalidrawLangCode => {

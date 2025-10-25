@@ -54,7 +54,7 @@ func (s *Server) setupRoutes() {
 	})
 
 	if s.config.Server.Mode == config.ModeAPIGateway {
-		s.router.Any("/assets/*path", APIGatewayHandler(s.config))
+		s.router.Any("/assets/scratch/*path", APIGatewayHandler(s.config))
 		s.router.Any("/shares/*path", APIGatewayHandler(s.config))
 		s.router.Any("/api/*path", APIGatewayHandler(s.config))
 		s.router.Any("/projects/*path", APIGatewayHandler(s.config))
