@@ -577,13 +577,16 @@ export default function MonacoEditorPage() {
   const programType = "python"
   const editorRef = React.useRef<any>(null)
   const monacoRef = React.useRef<any>(null)
+  // 记录编辑器鼠标监听的可清理句柄，避免重复绑定导致多次触发
+  const mouseDownDisposeRef = React.useRef<any>(null)
   // 调试相关
   const [debugging, setDebugging] = React.useState(false)
   const [pausedLine, setPausedLine] = React.useState<number | null>(null)
   const [localsView, setLocalsView] = React.useState<string>("")
   const [breakpoints, setBreakpoints] = React.useState<Set<number>>(new Set())
-  const [bpDecorations, setBpDecorations] = React.useState<string[]>([])
-  const [currentLineDecorations, setCurrentLineDecorations] = React.useState<string[]>([])
+  // 用 ref 保存装饰 ID，避免因闭包拿到旧 state 造成叠加
+  const bpDecorationsRef = React.useRef<string[]>([])
+  const currentLineDecorationsRef = React.useRef<string[]>([])
   // Pixi 可见性（用于折叠空白）
   const [pixiVisible, setPixiVisible] = React.useState<boolean>(false)
   // 图形输出交互
@@ -1418,21 +1421,26 @@ export default function MonacoEditorPage() {
 
       // 点击行号/边距切换断点
       try {
-        editor.onMouseDown((e: any) => {
-          if (e.target?.type === monaco.editor.MouseTargetType.GUTTER_LINE_DECORATIONS ||
-              e.target?.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN ||
-              e.target?.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS) {
+        // 若之前已绑定，先移除，避免重复绑定导致的多次触发
+        try { mouseDownDisposeRef.current?.dispose?.() } catch (_) {}
+        mouseDownDisposeRef.current = editor.onMouseDown((e: any) => {
+          // 仅在点击断点图标所在的 glyph margin 且为左键时切换断点
+          if (e.event?.browserEvent?.button !== 0) return
+          if (e.target?.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
             const line = e.target.position?.lineNumber
             if (!line) return
-            const next = new Set(breakpoints)
-            if (next.has(line)) next.delete(line); else next.add(line)
-            setBreakpoints(next)
-            refreshBreakpointDecorations(editor, monaco, next)
+            // 使用函数式更新，避免闭包拿到过期的 breakpoints 状态
+            setBreakpoints((prev) => {
+              const next = new Set(prev)
+              if (next.has(line)) next.delete(line); else next.add(line)
+              refreshBreakpointDecorations(editor, monaco, next)
+              return next
+            })
           }
         })
       } catch (_) {}
     },
-    [handleRun, breakpoints]
+    [handleRun]
   )
 
   // 重新绑定快捷键，确保闭包中拿到最新的 pyodide 与代码
@@ -1467,8 +1475,8 @@ export default function MonacoEditorPage() {
           glyphMarginHoverMessage: { value: `断点: 行 ${line}` },
         },
       }))
-      const applied = editor.deltaDecorations(bpDecorations, decos)
-      setBpDecorations(applied)
+      const applied = editor.deltaDecorations(bpDecorationsRef.current, decos)
+      bpDecorationsRef.current = applied
     } catch (_) {}
   }
 
@@ -1486,8 +1494,8 @@ export default function MonacoEditorPage() {
           },
         })
       }
-      const applied = editor.deltaDecorations(currentLineDecorations, ranges)
-      setCurrentLineDecorations(applied)
+      const applied = editor.deltaDecorations(currentLineDecorationsRef.current, ranges)
+      currentLineDecorationsRef.current = applied
     } catch (_) {}
   }
 
@@ -1566,6 +1574,20 @@ export default function MonacoEditorPage() {
     if (!debugging) return
     await debugContinue(true)
   }
+
+  // 组件卸载或编辑器被替换时，清理监听与装饰，避免重复与残留
+  React.useEffect(() => {
+    return () => {
+      try { mouseDownDisposeRef.current?.dispose?.() } catch {}
+      try {
+        const editor = editorRef.current
+        if (editor) {
+          editor.deltaDecorations(bpDecorationsRef.current, [])
+          editor.deltaDecorations(currentLineDecorationsRef.current, [])
+        }
+      } catch {}
+    }
+  }, [])
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-gray-50">
