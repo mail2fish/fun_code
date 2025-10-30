@@ -15,7 +15,6 @@ import {
 
 import { toast } from  "sonner" 
 
-import { HOST_URL } from "~/config";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "~/components/ui/select"
 import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
@@ -86,7 +85,7 @@ export function ProgramTable({
     
     async function fetchUsers() {
       try {
-        const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/list?pageSize=100`);
+        const res = await fetchWithAuth(`/api/admin/users/list?pageSize=100`);
         const data = await res.json();
         if (Array.isArray(data.data)) {
           setUserOptions(data.data)
@@ -105,7 +104,7 @@ export function ProgramTable({
     setSearching(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetchWithAuth(`${HOST_URL}/api/admin/users/search?keyword=${encodeURIComponent(searchKeyword)}&user_id=${selectedUser}`);
+        const res = await fetchWithAuth(`/api/admin/users/search?keyword=${encodeURIComponent(searchKeyword)}&user_id=${selectedUser}`);
         const data = await res.json();
         if (Array.isArray(data.data)) {
           setSearchResults(data.data);
@@ -150,7 +149,7 @@ export function ProgramTable({
         const params = new URLSearchParams();
         params.append("keyword", programKeyword);
         if (selectedUser && selectedUser !== "__all__") params.append("userId", selectedUser);
-        const res = await fetchWithAuth(`${HOST_URL}/api/admin/programs/search?${params.toString()}`);
+        const res = await fetchWithAuth(`/api/admin/programs/search?${params.toString()}`);
         const data = await res.json();
         let newPrograms: Program[] = [];
         if (Array.isArray(data.data)) {
@@ -516,7 +515,7 @@ export function ProgramTable({
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-lg font-semibold text-gray-900 truncate">
                             <a 
-                              href={`${HOST_URL}/www/user/programs/open/${program.id}`}
+                              href={`/www/user/programs/open/${program.id}`}
                               className="hover:text-purple-600 transition-colors"
                             >
                               {program.name || "未命名程序"}
@@ -561,7 +560,7 @@ export function ProgramTable({
                         asChild
                         className="h-9 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 hover:scale-105 hover:shadow-md transition-all duration-200 font-medium text-sm group"
                       >
-                        <a href={`${HOST_URL}/www/user/programs/open/${program.id}`}>
+                        <a href={`/www/user/programs/open/${program.id}`}>
                           <IconEdit className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
                           编辑
                         </a>
