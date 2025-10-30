@@ -1,8 +1,25 @@
 import { Sparkles, Heart, Star, Rocket } from "lucide-react"
 
 import { LoginForm } from "~/components/login-form"
+import { useUserInfo } from "~/hooks/use-user";
+import { useNavigate } from "react-router";
+import React from "react";
 
 export default function LoginPage() {
+  const { userInfo, isLoading } = useUserInfo();
+  const navigate = useNavigate();
+
+  // 自动重定向到 dashboard
+  React.useEffect(() => {
+    if (!isLoading && userInfo) {
+      if (userInfo.role === "管理员") {
+        navigate("/www/admin/dashboard", { replace: true });
+      } else {
+        navigate("/www/user/dashboard", { replace: true });
+      }
+    }
+  }, [isLoading, userInfo, navigate]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-blue-400 relative overflow-hidden">
       {/* 背景装饰元素 */}
