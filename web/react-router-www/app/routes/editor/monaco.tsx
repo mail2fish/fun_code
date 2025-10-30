@@ -659,6 +659,15 @@ export default function MonacoEditorPage() {
     }
   }, [runError, stderrText])
 
+  // 运行成功（无错误且有输出）时，如当前在“错误”标签则自动切回“输出”
+  React.useEffect(() => {
+    const noError = !runError && (!stderrText || stderrText.trim() === '')
+    const hasVisibleOutput = (stdoutText && stdoutText.trim() !== '') || (outputImage && outputImage.trim() !== '')
+    if (!running && activeConsoleTab === 'err' && noError && hasVisibleOutput) {
+      setActiveConsoleTab('out')
+    }
+  }, [running, activeConsoleTab, runError, stderrText, stdoutText, outputImage])
+
   // 面板调整大小逻辑
   const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
     e.preventDefault()
