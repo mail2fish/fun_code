@@ -649,7 +649,7 @@ export default function MonacoEditorPage() {
   const [isResizing, setIsResizing] = React.useState(false)
   const containerRef = React.useRef<HTMLDivElement>(null)
 
-  // 有错误时自动切换到“错误”标签
+  // 有错误时自动切换到"错误"标签
   React.useEffect(() => {
     if (runError || (stderrText && stderrText.trim() !== '')) {
       setActiveConsoleTab('err')
@@ -1273,6 +1273,50 @@ export default function MonacoEditorPage() {
     }
   }, [code, programName, programId])
 
+  const handleSaveToComputer = React.useCallback(async () => {
+    try {
+      const defaultName = (programName && programName.trim()) ? programName.trim() : "未命名程序"
+      const filename = defaultName.endsWith('.py') ? defaultName : `${defaultName}.py`
+      const content = code ?? ''
+
+      // 优先使用 File System Access API
+      if (typeof (window as any).showSaveFilePicker === 'function') {
+        const handle = await (window as any).showSaveFilePicker({
+          suggestedName: filename,
+          types: [
+            {
+              description: 'Python 文件',
+              accept: {
+                'text/x-python': ['.py'],
+                'text/plain': ['.py']
+              }
+            }
+          ]
+        })
+        const writable = await handle.createWritable()
+        await writable.write(new Blob([content], { type: 'text/x-python' }))
+        await writable.close()
+      } else {
+        // 回退为浏览器下载
+        const blob = new Blob([content], { type: 'text/x-python' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(url)
+      }
+
+      setMenuOpen(false)
+      ;(window as any).toast?.success?.("已保存到电脑")
+    } catch (e) {
+      console.error("保存到电脑失败", e)
+      ;(window as any).toast?.error?.("保存到电脑失败")
+    }
+  }, [code, programName])
+
   // 若带有 programId，加载程序内容并填充
   React.useEffect(() => {
     let mounted = true
@@ -1569,10 +1613,17 @@ export default function MonacoEditorPage() {
                   ✏️ 重命名
                 </button>
                 <button
-                  className="w-full text-left px-4 py-3 hover:bg-purple-50 rounded-b-xl transition-colors duration-200"
+                  className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors duration-200"
                   onClick={handleSave}
                 >
                   💾 保存
+                </button>
+                <div className="border-t border-gray-200"></div>
+                <button
+                  className="w-full text-left px-4 py-3 hover:bg-purple-50 rounded-b-xl transition-colors duration-200"
+                  onClick={handleSaveToComputer}
+                >
+                  🖥️ 保存到电脑
                 </button>
               </div>
             ) : null}
