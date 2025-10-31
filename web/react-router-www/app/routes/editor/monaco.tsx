@@ -567,6 +567,7 @@ export default function MonacoEditorPage() {
   const [running, setRunning] = React.useState(false)
   const [menuOpen, setMenuOpen] = React.useState(false)
   const [programName, setProgramName] = React.useState<string>("未命名程序")
+  const [ownerName, setOwnerName] = React.useState<string>("")
   const [programId, setProgramId] = React.useState<number | null>(null)
   const [syntaxError, setSyntaxError] = React.useState<{ message: string; line?: number } | null>(null)
   const [runError, setRunError] = React.useState<{ message: string; line?: number } | null>(null)
@@ -1121,6 +1122,12 @@ export default function MonacoEditorPage() {
       "print('Hello, World!')",
     ].join("\n"))
     setProgramName("未命名程序")
+    try {
+      const u = userInfo as any
+      const owner = (u?.nickname || u?.username || "") as string
+      setOwnerName(owner)
+      if (typeof document !== 'undefined') document.title = owner ? `${owner}-未命名程序` : `未命名程序`
+    } catch (_) {}
     setProgramId(null)
     setOutputText("")
     setOutputImage("")
@@ -1181,6 +1188,7 @@ export default function MonacoEditorPage() {
     if (input != null && input.trim() !== "") {
       const newName = input.trim()
       setProgramName(newName)
+      try { if (typeof document !== 'undefined') document.title = ownerName ? `${ownerName}-${newName}` : newName } catch (_) {}
       
       // 重命名后自动保存文件
       try {
@@ -1234,6 +1242,7 @@ export default function MonacoEditorPage() {
         }
         nameToUse = input.trim() || "未命名程序"
         setProgramName(nameToUse)
+        try { if (typeof document !== 'undefined') document.title = ownerName ? `${ownerName}-${nameToUse}` : nameToUse } catch (_) {}
       }
 
       const idFromRoute = routeProgramId ? Number(routeProgramId) : 0
@@ -1261,6 +1270,7 @@ export default function MonacoEditorPage() {
             // 只有在新建程序时才更新程序名称，避免覆盖已加载的程序名称
             if (!routeProgramId) {
               setProgramName(nameToUse)
+              try { if (typeof document !== 'undefined') document.title = ownerName ? `${ownerName}-${nameToUse}` : nameToUse } catch (_) {}
             }
             // 保存成功后跳转到打开页面
             if (typeof returnedId === "number") {
@@ -1359,8 +1369,18 @@ export default function MonacoEditorPage() {
         if (programData && typeof programData.name === "string" && programData.name.trim() !== "") {
           console.log("设置程序名称:", programData.name)
           setProgramName(programData.name)
+          try {
+            const owner = (programData.user?.nickname || programData.user?.username || userInfo?.nickname || userInfo?.username || "") as string
+            setOwnerName(owner)
+            if (typeof document !== 'undefined') document.title = owner ? `${owner}-${programData.name}` : programData.name
+          } catch (_) {}
         } else {
           console.log("程序名称为空或无效:", programData?.name)
+          try {
+            const owner = (programData?.user?.nickname || programData?.user?.username || userInfo?.nickname || userInfo?.username || "") as string
+            setOwnerName(owner)
+            if (typeof document !== 'undefined') document.title = owner ? `${owner}-未命名程序` : '未命名程序'
+          } catch (_) {}
         }
         
         // 加载程序代码
