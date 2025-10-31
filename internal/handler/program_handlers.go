@@ -87,7 +87,10 @@ type GetProgramResponse struct {
 	ID      uint   `json:"id"`
 	Name    string `json:"name"`
 	Ext     int    `json:"ext"`
-	Program string `json:"program"`
+    Program string `json:"program"`
+    UserID  uint   `json:"user_id"`
+    OwnerUsername string `json:"owner_username"`
+    OwnerNickname string `json:"owner_nickname"`
 }
 
 // GetProgramHandler 根据 ID 返回程序的元信息和最新内容
@@ -101,12 +104,22 @@ func (h *Handler) GetProgramHandler(c *gin.Context, params *GetProgramParams) (*
 		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeNoPermission, "无权读取该程序", nil)
 	}
 
-	content, err := h.dao.ProgramDao.GetContent(params.ID, "")
+    content, err := h.dao.ProgramDao.GetContent(params.ID, "")
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
-	resp := &GetProgramResponse{ID: prog.ID, Name: prog.Name, Ext: prog.Ext, Program: string(content)}
+    // 获取作者信息（用于前端显示标题）
+    var ownerUsername, ownerNickname string
+    if u, err := h.dao.UserDao.GetUserByID(prog.UserID); err == nil && u != nil {
+        ownerUsername = u.Username
+        ownerNickname = u.Nickname
+        if ownerNickname == "" {
+            ownerNickname = ownerUsername
+        }
+    }
+
+    resp := &GetProgramResponse{ID: prog.ID, Name: prog.Name, Ext: prog.Ext, Program: string(content), UserID: prog.UserID, OwnerUsername: ownerUsername, OwnerNickname: ownerNickname}
 	return resp, nil, nil
 }
 

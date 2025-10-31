@@ -1370,14 +1370,14 @@ export default function MonacoEditorPage() {
           console.log("设置程序名称:", programData.name)
           setProgramName(programData.name)
           try {
-            const owner = (programData.user?.nickname || programData.user?.username || userInfo?.nickname || userInfo?.username || "") as string
+            const owner = (programData.owner_nickname || programData.owner_username || programData.user?.nickname || programData.user?.username || "") as string
             setOwnerName(owner)
             if (typeof document !== 'undefined') document.title = owner ? `${owner}-${programData.name}` : programData.name
           } catch (_) {}
         } else {
           console.log("程序名称为空或无效:", programData?.name)
           try {
-            const owner = (programData?.user?.nickname || programData?.user?.username || userInfo?.nickname || userInfo?.username || "") as string
+            const owner = (programData.owner_nickname || programData.owner_username || programData?.user?.nickname || programData?.user?.username || "") as string
             setOwnerName(owner)
             if (typeof document !== 'undefined') document.title = owner ? `${owner}-未命名程序` : '未命名程序'
           } catch (_) {}
