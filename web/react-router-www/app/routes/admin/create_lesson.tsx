@@ -33,6 +33,7 @@ import { fetchWithAuth } from "~/utils/api"
 
 // API 服务
 import { HOST_URL } from "~/config"
+import ExcalidrawPicker from "~/components/excalidraw-picker"
 
 // 课程类型定义
 interface Course {
@@ -80,6 +81,7 @@ const formSchema = z.object({
   }),
   project_id_1: z.string().optional(),
   project_id_2: z.string().optional(),
+  flow_chart_id: z.string().optional(),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -231,6 +233,7 @@ export default function CreateLessonPage() {
       project_type: "scratch",
       project_id_1: projectIdFromParams || "none",
       project_id_2: "none",
+      flow_chart_id: "none",
     },
   })
 
@@ -359,6 +362,7 @@ export default function CreateLessonPage() {
         course_ids: values.course_ids || [], // 确保课程ID数组不为undefined
         project_id_1: values.project_id_1 === "none" ? undefined : values.project_id_1,
         project_id_2: values.project_id_2 === "none" ? undefined : values.project_id_2,
+        flow_chart_id: values.flow_chart_id === "none" ? undefined : values.flow_chart_id,
       }
       
       const result = await createLesson(processedValues, files)
@@ -803,6 +807,19 @@ export default function CreateLessonPage() {
                 
                 <Separator />
                 
+                {/* 流程图（Excalidraw） */}
+                <div className="space-y-4">
+                  <h4 className="text-md font-medium">流程图（Excalidraw）</h4>
+                  <ExcalidrawPicker
+                    isAdmin
+                    previewCompact
+                    value={form.watch("flow_chart_id")}
+                    onChange={(id) => form.setValue("flow_chart_id", id ?? "none")}
+                  />
+                </div>
+
+                <Separator />
+
                 {/* 文件上传 */}
                 <div className="space-y-6">
                   <h4 className="text-md font-medium">资源文件（可选）</h4>

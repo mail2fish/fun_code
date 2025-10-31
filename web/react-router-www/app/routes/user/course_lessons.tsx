@@ -32,6 +32,7 @@ interface Lesson {
   project_1: string;
   project_2: string;
   project_3: string;
+  flow_chart_id?: number | string;
   created_at: string;
   updated_at: string;
 }
@@ -314,6 +315,18 @@ export default function CourseLessons() {
                             >
                               <BookOpen className="w-4 h-4 mr-2" />
                               挑战项目
+                              <ExternalLink className="w-3 h-3 ml-2" />
+                            </Button>
+                          )}
+                          {/* 流程图按钮 */}
+                          {lesson.flow_chart_id && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(`/www/excalidraw/open/${lesson.flow_chart_id}`, '_blank')}
+                              className="rounded-full hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
+                            >
+                              查看流程图
                               <ExternalLink className="w-3 h-3 ml-2" />
                             </Button>
                           )}

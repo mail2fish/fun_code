@@ -12,7 +12,8 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
-  GraduationCap
+  GraduationCap,
+  ExternalLink
 } from "lucide-react";
 
 import { fetchWithAuth } from "~/utils/api";
@@ -413,14 +414,14 @@ export default function ClassCourses() {
             </CardHeader>
             <CardContent>
               <Table>
-                <TableHeader>
+                    <TableHeader>
                   <TableRow>
                     <TableHead className="w-16">序号</TableHead>
                     <TableHead>课件名称</TableHead>
                     <TableHead>描述</TableHead>
                     <TableHead className="w-24">难度</TableHead>
                     <TableHead className="w-24">时长</TableHead>
-                    <TableHead className="w-32 text-right">操作</TableHead>
+                        <TableHead className="w-48 text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -448,27 +449,50 @@ export default function ClassCourses() {
                         {formatDuration(lesson.duration)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {lesson.project_id_1 > 0 ? (
-                          <a href={`${HOST_URL}/projects/scratch/lesson/${classId}/${courseId}/${lesson.id}/${lesson.project_id_1}`}>
+                        <div className="flex justify-end gap-2">
+                          {lesson.project_id_1 > 0 ? (
+                            <a href={`${HOST_URL}/projects/scratch/lesson/${classId}/${courseId}/${lesson.id}/${lesson.project_id_1}`}>
+                              <Button 
+                                size="sm" 
+                                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white w-24"
+                              >
+                                <Play className="w-4 h-4 mr-1" />
+                                打开程序
+                              </Button>
+                            </a>
+                          ) : (
                             <Button 
                               size="sm" 
-                              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white w-24"
+                              variant="outline"
+                              disabled
+                              className="text-gray-400"
                             >
                               <Play className="w-4 h-4 mr-1" />
-                              打开程序
+                              暂无项目
                             </Button>
-                          </a>
-                        ) : (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            disabled
-                            className="text-gray-400"
-                          >
-                            <Play className="w-4 h-4 mr-1" />
-                            暂无项目
-                          </Button>
-                        )}
+                          )}
+                          {Number(lesson.flow_chart_id as any) > 0 && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="w-28"
+                              onClick={() => window.open(`/www/excalidraw/open/${lesson.flow_chart_id}`, '_blank')}
+                            >
+                              查看流程图
+                              <ExternalLink className="w-3 h-3 ml-2" />
+                            </Button>
+                          )}
+                          {!(Number(lesson.flow_chart_id as any) > 0) && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              disabled
+                              className="w-28 text-gray-400"
+                            >
+                              暂无流程图
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
