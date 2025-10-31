@@ -476,7 +476,7 @@ export default function ClassCourses() {
                               size="sm" 
                               variant="outline"
                               className="w-28"
-                              onClick={() => window.open(`/www/excalidraw/open/${lesson.flow_chart_id}`, '_blank')}
+                              onClick={() => window.open(`/www/excalidraw/open/${lesson.flow_chart_id}?readonly=1`, '_blank')}
                             >
                               查看流程图
                               <ExternalLink className="w-3 h-3 ml-2" />

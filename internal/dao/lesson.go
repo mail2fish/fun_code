@@ -86,6 +86,18 @@ func (l *LessonDaoImpl) GetLesson(lessonID uint) (*model.Lesson, error) {
 	return &lesson, nil
 }
 
+// GetLessonByFlowChartID 根据流程图ID查找关联课时
+func (l *LessonDaoImpl) GetLessonByFlowChartID(flowChartID uint) (*model.Lesson, error) {
+	var lesson model.Lesson
+	if err := l.db.Where("flow_chart_id = ?", flowChartID).First(&lesson).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("未找到关联该流程图的课时")
+		}
+		return nil, err
+	}
+	return &lesson, nil
+}
+
 // GetLessonWithPermission 获取课时详情（权限验证）
 func (l *LessonDaoImpl) GetLessonWithPermission(lessonID, userID uint) (*model.Lesson, error) {
 	var lesson model.Lesson

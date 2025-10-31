@@ -27,6 +27,9 @@ type LessonDao interface {
 	// GetLesson 获取课时详情
 	GetLesson(lessonID uint) (*model.Lesson, error)
 
+    // GetLessonByFlowChartID 根据流程图ID查找关联课时
+    GetLessonByFlowChartID(flowChartID uint) (*model.Lesson, error)
+
 	// GetLessonWithPermission 获取课时详情（权限验证）
 	GetLessonWithPermission(lessonID, userID uint) (*model.Lesson, error)
 

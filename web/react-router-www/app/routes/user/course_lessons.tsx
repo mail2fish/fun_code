@@ -323,7 +323,7 @@ export default function CourseLessons() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => window.open(`/www/excalidraw/open/${lesson.flow_chart_id}`, '_blank')}
+                              onClick={() => window.open(`/www/excalidraw/open/${lesson.flow_chart_id}?readonly=1`, '_blank')}
                               className="rounded-full hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
                             >
                               查看流程图

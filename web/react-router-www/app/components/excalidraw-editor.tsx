@@ -26,6 +26,10 @@ export default function ExcalidrawEditor() {
   const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const isReadOnly = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('readonly') === '1' || params.get('mode') === 'readonly';
+  }, [location.search]);
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('idle');
@@ -48,6 +52,7 @@ export default function ExcalidrawEditor() {
   const saveTimeoutRef = useRef<number | null>(null);
 
   const saveThumbnail = useCallback(async (id: string) => {
+    if (isReadOnly) return; // 只读模式不上传缩略图
     if (!excalidrawAPI) return;
     try {
       const elements = excalidrawAPI.getSceneElements();
@@ -69,7 +74,7 @@ export default function ExcalidrawEditor() {
         body: formData,
       });
     } catch {}
-  }, [excalidrawAPI]);
+  }, [excalidrawAPI, isReadOnly]);
 
   const handleBack = useCallback(() => {
     if (window.history.length > 1) navigate(-1);
@@ -77,6 +82,7 @@ export default function ExcalidrawEditor() {
   }, [navigate]);
 
   const handleNewBoard = useCallback(() => {
+    if (isReadOnly) return; // 只读模式不允许新建
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     if (excalidrawAPI) {
       const currentAppState = excalidrawAPI.getAppState();
@@ -86,7 +92,7 @@ export default function ExcalidrawEditor() {
     setSaveStatus('idle');
     setLoadStatus('idle');
     navigate('/www/excalidraw/new');
-  }, [excalidrawAPI, navigate, menuLabels.newLabel]);
+  }, [excalidrawAPI, navigate, menuLabels.newLabel, isReadOnly]);
 
   const mapBrowserLanguageToExcalidraw = useCallback((lang: string | null | undefined): ExcalidrawLangCode => {
     const lower = (lang || '').toLowerCase();
@@ -126,6 +132,7 @@ export default function ExcalidrawEditor() {
   }, [mapBrowserLanguageToExcalidraw]);
 
   const createBoard = useCallback(async (elements: any[], appState: AppState, files: BinaryFiles, title?: string) => {
+    if (isReadOnly) return; // 只读模式不创建
     try {
       setSaveStatus('saving');
       const boardData = {
@@ -158,9 +165,10 @@ export default function ExcalidrawEditor() {
       if (excalidrawAPI) excalidrawAPI.setToast({ message: "创建失败，请重试", duration: 3000, closable: true });
       throw error;
     }
-  }, [navigate, excalidrawAPI, saveThumbnail, boardTitle]);
+  }, [navigate, excalidrawAPI, saveThumbnail, boardTitle, isReadOnly]);
 
   const updateBoard = useCallback(async (id: string, elements: any[], appState: AppState, files: BinaryFiles, title?: string) => {
+    if (isReadOnly) return; // 只读模式不更新
     try {
       setSaveStatus('saving');
       const boardData = {
@@ -188,12 +196,15 @@ export default function ExcalidrawEditor() {
       setSaveStatus('error');
       if (excalidrawAPI) excalidrawAPI.setToast({ message: "更新失败，请重试", duration: 3000, closable: true });
     }
-  }, [excalidrawAPI, saveThumbnail]);
+  }, [excalidrawAPI, saveThumbnail, isReadOnly]);
 
   const loadBoard = useCallback(async (id: string) => {
     try {
       setLoadStatus('loading');
-      const response = await fetch(`${HOST_URL}/api/excalidraw/boards/${id}`, { method: 'GET', headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` } });
+      const url = isReadOnly
+        ? `${HOST_URL}/api/student/excalidraw/boards/${id}`
+        : `${HOST_URL}/api/excalidraw/boards/${id}`;
+      const response = await fetch(url, { method: 'GET', headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` } });
       if (!response.ok) throw new Error('加载失败');
       const result = await response.json();
       const boardData = result.data;
@@ -214,9 +225,10 @@ export default function ExcalidrawEditor() {
       setLoadStatus('error');
       if (excalidrawAPI) excalidrawAPI.setToast({ message: "加载失败，请重试", duration: 3000, closable: true });
     }
-  }, [excalidrawAPI]);
+  }, [excalidrawAPI, isReadOnly]);
 
   const handleChange = useCallback((elements: readonly any[], appState: AppState, files: BinaryFiles) => {
+    if (isReadOnly) return; // 只读模式不触发自动保存
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     if (elements.length === 0) return;
     saveTimeoutRef.current = window.setTimeout(() => {
@@ -224,16 +236,17 @@ export default function ExcalidrawEditor() {
       else if (boardId) updateBoard(boardId, [...elements], appState, files);
     }, 30000);
     setSaveStatus('idle');
-  }, [isNewBoard, boardId, createBoard, updateBoard]);
+  }, [isNewBoard, boardId, createBoard, updateBoard, isReadOnly]);
 
   const handleManualSave = useCallback(() => {
+    if (isReadOnly) return; // 只读模式不手动保存
     if (!excalidrawAPI) return;
     const elements = excalidrawAPI.getSceneElements();
     const appState = excalidrawAPI.getAppState();
     const files = excalidrawAPI.getFiles();
     if (isNewBoard) createBoard([...elements], appState, files);
     else if (boardId) updateBoard(boardId, [...elements], appState, files);
-  }, [excalidrawAPI, isNewBoard, boardId, createBoard, updateBoard]);
+  }, [excalidrawAPI, isNewBoard, boardId, createBoard, updateBoard, isReadOnly]);
 
   useEffect(() => {
     if (excalidrawAPI && boardId && !isNewBoard && parseInt(boardId) > 0) {
@@ -273,14 +286,18 @@ export default function ExcalidrawEditor() {
       <div style={{ paddingLeft: '0px', height: '100%', width: '100%' }}>
         <Excalidraw excalidrawAPI={setExcalidrawAPI} onChange={handleChange} theme="light" langCode={langCode}>
           <MainMenu>
-            <MainMenu.Item onSelect={handleNewBoard}><span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}><IconNew />{menuLabels.newLabel}</span></MainMenu.Item>
-            <MainMenu.Item onSelect={handleManualSave} disabled={saveStatus === 'saving' || loadStatus === 'loading'}><span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}><IconSave />{menuLabels.saveLabel}</span></MainMenu.Item>
-            <MainMenu.Item onSelect={() => { setRenameValue(boardTitle); setIsRenameOpen(true); }}><span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}><IconRename />{menuLabels.renameLabel}</span></MainMenu.Item>
-            <MainMenu.Separator />
+            {!isReadOnly && (
+              <>
+                <MainMenu.Item onSelect={handleNewBoard}><span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}><IconNew />{menuLabels.newLabel}</span></MainMenu.Item>
+                <MainMenu.Item onSelect={handleManualSave} disabled={saveStatus === 'saving' || loadStatus === 'loading'}><span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}><IconSave />{menuLabels.saveLabel}</span></MainMenu.Item>
+                <MainMenu.Item onSelect={() => { setRenameValue(boardTitle); setIsRenameOpen(true); }}><span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}><IconRename />{menuLabels.renameLabel}</span></MainMenu.Item>
+                <MainMenu.Separator />
+                <MainMenu.DefaultItems.ClearCanvas />
+                <MainMenu.Separator />
+              </>
+            )}
             <MainMenu.DefaultItems.LoadScene />
             <MainMenu.DefaultItems.Export />
-            <MainMenu.DefaultItems.ClearCanvas />
-            <MainMenu.Separator />
             <MainMenu.Item onSelect={handleBack}><span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}><IconBack />{menuLabels.backLabel}</span></MainMenu.Item>
           </MainMenu>
         </Excalidraw>

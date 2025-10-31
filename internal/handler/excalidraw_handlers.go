@@ -211,6 +211,52 @@ func (h *Handler) GetExcalidrawBoardHandler(c *gin.Context, params *GetExcalidra
 	}, nil, nil
 }
 
+// ======================== 学生只读获取画板 ========================
+
+type GetStudentExcalidrawBoardParams struct {
+	ID uint `json:"id" uri:"id" binding:"required"`
+}
+
+func (p *GetStudentExcalidrawBoardParams) Parse(c *gin.Context) gorails.Error {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	p.ID = uint(id)
+	return nil
+}
+
+// StudentGetExcalidrawBoardHandler 面向学生的只读接口
+func (h *Handler) StudentGetExcalidrawBoardHandler(c *gin.Context, params *GetStudentExcalidrawBoardParams) (*GetExcalidrawBoardResponse, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeUnauthorized, global.ErrorMsgUnauthorized, nil)
+	}
+
+	// 读取画板
+	board, boardJson, err := h.dao.ExcalidrawDao.GetByID(c.Request.Context(), params.ID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	// 通过流程图ID找到关联课件，并验证学生权限
+	lesson, err := h.dao.LessonDao.GetLessonByFlowChartID(board.ID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, err)
+	}
+	if _, err := h.dao.LessonDao.GetLessonWithPermission(lesson.ID, userID); err != nil {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, err)
+	}
+
+	return &GetExcalidrawBoardResponse{
+		ID:        board.ID,
+		Name:      board.Name,
+		BoardJson: boardJson,
+		CreatedAt: board.CreatedAt,
+		UpdatedAt: board.UpdatedAt,
+	}, nil, nil
+}
+
 type GetExcalidrawBoardParams struct {
 	ID uint `json:"id" uri:"id" binding:"required"`
 }
@@ -367,6 +413,51 @@ func (h *Handler) GetExcalidrawThumbHandler(c *gin.Context, params *GetExcalidra
 	}
 
 	// 返回图片数据，缓存设置将在RenderProjectThumbnail中处理
+	return content, nil, nil
+}
+
+// 学生只读获取缩略图
+type GetStudentExcalidrawThumbParams struct {
+	ID uint `json:"id" uri:"id" binding:"required"`
+}
+
+func (p *GetStudentExcalidrawThumbParams) Parse(c *gin.Context) gorails.Error {
+	boardIDStr := c.Param("id")
+	if boardIDStr == "" {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, "画板ID不能为空", nil)
+	}
+	boardID, err := strconv.ParseUint(boardIDStr, 10, 32)
+	if err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeInvalidParams, "画板ID格式错误", err)
+	}
+	p.ID = uint(boardID)
+	return nil
+}
+
+func (h *Handler) StudentGetExcalidrawThumbHandler(c *gin.Context, params *GetStudentExcalidrawThumbParams) ([]byte, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+	if userID == 0 {
+		return nil, nil, gorails.NewError(http.StatusUnauthorized, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeUnauthorized, global.ErrorMsgUnauthorized, nil)
+	}
+
+	board, _, err := h.dao.ExcalidrawDao.GetByID(c.Request.Context(), params.ID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryNotFound, "画板不存在", err)
+	}
+
+	// 验证是否有权限通过课程访问
+	lesson, err := h.dao.LessonDao.GetLessonByFlowChartID(board.ID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, "无权限访问", err)
+	}
+	if _, err := h.dao.LessonDao.GetLessonWithPermission(lesson.ID, userID); err != nil {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeNoPermission, "无权限访问", err)
+	}
+
+	content, err := h.dao.ExcalidrawDao.GetExcalidrawThumb(board.ID, board.FilePath)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_SCRATCH, global.ErrorCodeQueryNotFound, "缩略图不存在", err)
+	}
 	return content, nil, nil
 }
 
