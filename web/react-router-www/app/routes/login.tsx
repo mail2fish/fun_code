@@ -8,15 +8,18 @@ import React from "react";
 export default function LoginPage() {
   const { userInfo, isLoading } = useUserInfo();
   const navigate = useNavigate();
+  const redirectTo = (history.state && (history.state as any).usr && (history.state as any).usr.redirectTo) || 
+    (typeof window !== 'undefined' && (window as any).__RR_STATE__?.redirectTo) || undefined;
 
   // 自动重定向到 dashboard
   React.useEffect(() => {
     if (!isLoading && userInfo) {
-      if (userInfo.role === "管理员") {
-        navigate("/www/admin/dashboard", { replace: true });
-      } else {
-        navigate("/www/user/dashboard", { replace: true });
+      if (redirectTo) {
+        navigate(redirectTo, { replace: true });
+        return;
       }
+      if (userInfo.role === "管理员") navigate("/www/admin/dashboard", { replace: true });
+      else navigate("/www/user/dashboard", { replace: true });
     }
   }, [isLoading, userInfo, navigate]);
 
