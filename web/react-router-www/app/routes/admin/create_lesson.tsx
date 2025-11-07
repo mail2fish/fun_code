@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useNavigate, useSearchParams } from "react-router"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import { z } from "zod"
 
 import { AdminLayout } from "~/components/admin-layout"
@@ -113,23 +113,38 @@ async function getCourses() {
 }
 
 // 获取项目列表
-async function getProjects() {
+async function getProjects(projectType: "scratch" | "python" = "scratch") {
   try {
-    const response = await fetchWithAuth(`${HOST_URL}/api/scratch/projects?pageSize=100`)
+    const apiUrl = projectType === "scratch" 
+      ? `${HOST_URL}/api/scratch/projects?pageSize=100`
+      : `${HOST_URL}/api/programs?pageSize=100`
+    
+    const response = await fetchWithAuth(apiUrl)
     if (!response.ok) {
       throw new Error(`API 错误: ${response.status}`)
     }
     const data = await response.json()
+    
     // 兼容不同接口返回结构
-    let projects: Project[] = [];
+    let rawProjects: any[] = [];
     if (Array.isArray(data.data)) {
-      projects = data.data;
-    } else if (Array.isArray(data.data.projects)) {
-      projects = data.data.projects;
+      rawProjects = data.data;
+    } else if (Array.isArray(data.data?.projects)) {
+      rawProjects = data.data.projects;
     }
+    
+    // 统一处理数据结构：将 Python 项目的 number 类型 id 和 user_id 转换为 string
+    const projects: Project[] = rawProjects.map((p: any) => ({
+      id: String(p.id),
+      name: p.name || "",
+      user_id: String(p.user_id || p.userId || ""),
+      created_at: p.created_at || p.createdAt || "",
+      createdAt: p.createdAt || p.created_at || "",
+    }))
+    
     return projects
   } catch (error) {
-    console.error("获取项目列表失败:", error)
+    console.error(`获取${projectType === "scratch" ? "Scratch" : "Python"}项目列表失败:`, error)
     return []
   }
 }
@@ -237,13 +252,14 @@ export default function CreateLessonPage() {
     },
   })
 
-  // 加载数据
+  // 加载初始数据
   React.useEffect(() => {
     const loadData = async () => {
       try {
+        const initialProjectType = form.getValues("project_type") || "scratch"
         const [courseList, projectList, userList] = await Promise.all([
           getCourses(),
-          getProjects(),
+          getProjects(initialProjectType),
           getUsers()
         ])
         
@@ -300,6 +316,48 @@ export default function CreateLessonPage() {
     }
     loadData()
   }, [courseIdFromParams, form])
+
+  // 监听项目类型变化
+  const projectType = useWatch({
+    control: form.control,
+    name: "project_type",
+    defaultValue: "scratch"
+  })
+
+  // 监听项目类型变化，重新加载对应类型的项目列表
+  React.useEffect(() => {
+    if (!projectType) return
+
+    const loadProjectsByType = async () => {
+      try {
+        const projectList = await getProjects(projectType)
+        setProjects(Array.isArray(projectList) ? projectList : [])
+        
+        // 检查当前选择的项目是否属于新类型，如果不属于则清空选择
+        const currentProjectId1 = form.getValues("project_id_1")
+        const currentProjectId2 = form.getValues("project_id_2")
+        
+        if (currentProjectId1 && currentProjectId1 !== "none") {
+          const exists = projectList.some(p => String(p.id) === String(currentProjectId1))
+          if (!exists) {
+            form.setValue("project_id_1", "none")
+          }
+        }
+        
+        if (currentProjectId2 && currentProjectId2 !== "none") {
+          const exists = projectList.some(p => String(p.id) === String(currentProjectId2))
+          if (!exists) {
+            form.setValue("project_id_2", "none")
+          }
+        }
+      } catch (error) {
+        console.error("加载项目列表失败:", error)
+        setProjects([])
+      }
+    }
+
+    loadProjectsByType()
+  }, [projectType, form])
 
   // 处理文件上传
   const handleFileChange = (fileType: string, file: File | null) => {
@@ -701,7 +759,12 @@ export default function CreateLessonPage() {
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => window.open(`${HOST_URL}/projects/scratch/open/${selectedProject.id}`, '_blank')}
+                                  onClick={() => {
+                                    const previewUrl = projectType === "scratch"
+                                      ? `${HOST_URL}/projects/scratch/open/${selectedProject.id}`
+                                      : `${HOST_URL}/www/user/programs/open/${selectedProject.id}`
+                                    window.open(previewUrl, '_blank')
+                                  }}
                                 >
                                   预览项目
                                 </Button>
@@ -792,7 +855,12 @@ export default function CreateLessonPage() {
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => window.open(`${HOST_URL}/scratch?project=${selectedProject.id}`, '_blank')}
+                                  onClick={() => {
+                                    const previewUrl = projectType === "scratch"
+                                      ? `${HOST_URL}/projects/scratch/open/${selectedProject.id}`
+                                      : `${HOST_URL}/www/user/programs/open/${selectedProject.id}`
+                                    window.open(previewUrl, '_blank')
+                                  }}
                                 >
                                   预览项目
                                 </Button>
