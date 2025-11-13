@@ -84,13 +84,13 @@ func (p *GetProgramParams) Parse(c *gin.Context) gorails.Error {
 
 // GetProgramResponse 获取程序详情响应
 type GetProgramResponse struct {
-	ID      uint   `json:"id"`
-	Name    string `json:"name"`
-	Ext     int    `json:"ext"`
-    Program string `json:"program"`
-    UserID  uint   `json:"user_id"`
-    OwnerUsername string `json:"owner_username"`
-    OwnerNickname string `json:"owner_nickname"`
+	ID            uint   `json:"id"`
+	Name          string `json:"name"`
+	Ext           int    `json:"ext"`
+	Program       string `json:"program"`
+	UserID        uint   `json:"user_id"`
+	OwnerUsername string `json:"owner_username"`
+	OwnerNickname string `json:"owner_nickname"`
 }
 
 // GetProgramHandler 根据 ID 返回程序的元信息和最新内容
@@ -104,22 +104,23 @@ func (h *Handler) GetProgramHandler(c *gin.Context, params *GetProgramParams) (*
 		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeNoPermission, "无权读取该程序", nil)
 	}
 
-    content, err := h.dao.ProgramDao.GetContent(params.ID, "")
+	md5Param := c.Query("md5")
+	content, err := h.dao.ProgramDao.GetContent(params.ID, md5Param)
 	if err != nil {
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
 	}
 
-    // 获取作者信息（用于前端显示标题）
-    var ownerUsername, ownerNickname string
-    if u, err := h.dao.UserDao.GetUserByID(prog.UserID); err == nil && u != nil {
-        ownerUsername = u.Username
-        ownerNickname = u.Nickname
-        if ownerNickname == "" {
-            ownerNickname = ownerUsername
-        }
-    }
+	// 获取作者信息（用于前端显示标题）
+	var ownerUsername, ownerNickname string
+	if u, err := h.dao.UserDao.GetUserByID(prog.UserID); err == nil && u != nil {
+		ownerUsername = u.Username
+		ownerNickname = u.Nickname
+		if ownerNickname == "" {
+			ownerNickname = ownerUsername
+		}
+	}
 
-    resp := &GetProgramResponse{ID: prog.ID, Name: prog.Name, Ext: prog.Ext, Program: string(content), UserID: prog.UserID, OwnerUsername: ownerUsername, OwnerNickname: ownerNickname}
+	resp := &GetProgramResponse{ID: prog.ID, Name: prog.Name, Ext: prog.Ext, Program: string(content), UserID: prog.UserID, OwnerUsername: ownerUsername, OwnerNickname: ownerNickname}
 	return resp, nil, nil
 }
 
@@ -198,6 +199,57 @@ func (h *Handler) ListProgramsHandler(c *gin.Context, params *ListProgramsParams
 		Total:   int(total),
 		HasNext: hasMore,
 	}, nil
+}
+
+// GetProgramHistoriesParams 历史记录请求参数
+type GetProgramHistoriesParams struct {
+	ID uint `uri:"id" binding:"required"`
+}
+
+func (p *GetProgramHistoriesParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+// GetProgramHistoriesResponse 历史记录响应
+type GetProgramHistoriesResponse struct {
+	ProgramID uint            `json:"program_id"`
+	Name      string          `json:"name"`
+	Ext       int             `json:"ext"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	Histories []model.History `json:"histories"`
+}
+
+// GetProgramHistoriesHandler 获取程序历史文件列表
+func (h *Handler) GetProgramHistoriesHandler(c *gin.Context, params *GetProgramHistoriesParams) (*GetProgramHistoriesResponse, *gorails.ResponseMeta, gorails.Error) {
+	prog, err := h.dao.ProgramDao.Get(params.ID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusNotFound, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeQueryNotFound, global.ErrorMsgQueryNotFound, err)
+	}
+
+	userID := h.getUserID(c)
+	if prog.UserID != userID && !h.hasPermission(c, PermissionManageAll) {
+		return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeNoPermission, "无权查看该程序历史", nil)
+	}
+
+	histories, err := h.dao.ProgramDao.GetProgramHistories(prog.ID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_PROGRAM, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	resp := &GetProgramHistoriesResponse{
+		ProgramID: prog.ID,
+		Name:      prog.Name,
+		Ext:       prog.Ext,
+		CreatedAt: prog.CreatedAt,
+		UpdatedAt: prog.UpdatedAt,
+		Histories: histories,
+	}
+
+	return resp, nil, nil
 }
 
 // AdminListProgramsParams 管理员程序列表参数

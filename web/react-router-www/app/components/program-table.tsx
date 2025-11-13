@@ -565,6 +565,18 @@ export function ProgramTable({
                           编辑
                         </a>
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        title="查看历史"
+                        asChild
+                        className="h-9 bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100 hover:border-purple-300 hover:scale-105 hover:shadow-md transition-all duration-200 font-medium text-sm group"
+                      >
+                        <a href={`/www/user/programs/${program.id}/histories`}>
+                          <IconHistory className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
+                          历史
+                        </a>
+                      </Button>
                       
                       <Dialog>
                         <DialogTrigger asChild>

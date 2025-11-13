@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jun/fun_code/internal/config"
@@ -143,6 +144,40 @@ func (d *ProgramDaoImpl) GetContent(id uint, md5Str string) ([]byte, error) {
 		return nil, err
 	}
 	return data, nil
+}
+
+func (d *ProgramDaoImpl) GetProgramHistories(programID uint) ([]model.History, error) {
+	var prog model.Program
+	if err := d.db.Where("id = ?", programID).First(&prog).Error; err != nil {
+		return nil, err
+	}
+
+	dirPath := filepath.Join(d.basePath, prog.FilePath)
+	pattern := filepath.Join(dirPath, fmt.Sprintf("%d_*.json", prog.ID))
+	files, err := filepath.Glob(pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	histories := make([]model.History, 0, len(files))
+	for _, f := range files {
+		info, err := os.Stat(f)
+		if err != nil {
+			continue
+		}
+		filename := filepath.Base(f)
+		filename = strings.TrimSuffix(filename, ".json")
+		histories = append(histories, model.History{
+			Filename:  filename,
+			CreatedAt: info.ModTime(),
+		})
+	}
+
+	sort.Slice(histories, func(i, j int) bool {
+		return histories[i].CreatedAt.After(histories[j].CreatedAt)
+	})
+
+	return histories, nil
 }
 
 func (d *ProgramDaoImpl) ListProgramsWithPagination(userID uint, pageSize uint, beginID uint, forward, asc bool) ([]model.Program, bool, error) {

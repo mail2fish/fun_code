@@ -543,18 +543,17 @@ export default function MonacoEditorPage() {
   const navigate = useNavigate()
   const { userInfo } = useUser()
   const [monacoConfig, setMonacoConfig] = React.useState<'local' | 'bundle' | 'cdn' | 'loading'>('loading')
-  const [code, setCode] = React.useState<string>(
-    [
-      "# 仅用 print 输出一个有趣的小恐龙",
-      "print(\"           __        \")",
-      "print(\"          / _)_      \")",
-      "print(\"   .-^^^-/ /         \")",
-      "print(\"__/       /          \")",
-      "print(\"<__.|_|-|_|  Roar!   \")",
-      "print()",
-      "print(\"欢迎来到 Fun Code，开动你的想象力吧！\")",
-    ].join("\n")
-  )
+  const initialCode = [
+    "# 仅用 print 输出一个有趣的小恐龙",
+    "print(\"           __        \")",
+    "print(\"          / _)_      \")",
+    "print(\"   .-^^^-/ /         \")",
+    "print(\"__/       /          \")",
+    "print(\"<__.|_|-|_|  Roar!   \")",
+    "print()",
+    "print(\"欢迎来到 Fun Code，开动你的想象力吧！\")",
+  ].join("\n")
+  const [code, setCode] = React.useState<string>(initialCode)
   const [pyodide, setPyodide] = React.useState<any>(null)
   const [outputText, setOutputText] = React.useState<string>("")
   const [outputImage, setOutputImage] = React.useState<string>("")
@@ -596,6 +595,11 @@ export default function MonacoEditorPage() {
   const [overlayMounted, setOverlayMounted] = React.useState<boolean>(false)
   const fullscreenGfxRef = React.useRef<HTMLDivElement>(null)
   const fullscreenMplRef = React.useRef<HTMLDivElement>(null)
+  // 定时保存相关状态
+  const [lastSaveTime, setLastSaveTime] = React.useState<Date | null>(null)
+  const [isAutoSaving, setIsAutoSaving] = React.useState<boolean>(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState<boolean>(false)
+  const lastCodeRef = React.useRef<string>(initialCode)
 
   // 在最大化/还原时搬运 Pixi 画布与 Matplotlib DOM 节点，避免内容丢失
   React.useEffect(() => {
@@ -1116,11 +1120,13 @@ export default function MonacoEditorPage() {
 
   const handleNew = () => {
     // 重置所有状态
-    setCode([
+    const newCode = [
       "# 新建 Python 程序",
       "# 在这里编写你的代码",
       "print('Hello, World!')",
-    ].join("\n"))
+    ].join("\n")
+    setCode(newCode)
+    lastCodeRef.current = newCode
     setProgramName("未命名程序")
     try {
       const u = userInfo as any
@@ -1134,6 +1140,8 @@ export default function MonacoEditorPage() {
     setSyntaxError(null)
     setRunError(null)
     setMenuOpen(false)
+    setHasUnsavedChanges(false)
+    setLastSaveTime(null)
     
     // 更新浏览器 URL 到新建页面
     navigate("/www/user/programs/new", { replace: true })
@@ -1216,6 +1224,9 @@ export default function MonacoEditorPage() {
               if (typeof returnedId === "number") setProgramId(returnedId)
             }
           } catch (_) {}
+          setLastSaveTime(new Date())
+          setHasUnsavedChanges(false)
+          lastCodeRef.current = code
           console.log("重命名并保存成功")
           ;(window as any).toast?.success?.("重命名并保存成功")
         } else {
@@ -1229,6 +1240,59 @@ export default function MonacoEditorPage() {
       }
     }
   }
+
+  // 自动保存函数（静默保存，不弹出命名对话框）
+  const handleAutoSave = React.useCallback(async () => {
+    // 如果程序未命名或者是默认名称且没有 programId，则不自动保存
+    const nameToUse = programName
+    if (!nameToUse || nameToUse.trim() === "" || (nameToUse === "未命名程序" && !programId && !routeProgramId)) {
+      return
+    }
+
+    // 如果没有未保存的更改，则不保存
+    if (!hasUnsavedChanges) {
+      return
+    }
+
+    setIsAutoSaving(true)
+    try {
+      const idFromRoute = routeProgramId ? Number(routeProgramId) : 0
+      const idToSave = typeof programId === "number" && !isNaN(programId) ? programId : (isNaN(idFromRoute) ? 0 : idFromRoute)
+
+      const resp = await fetchWithAuth(`${HOST_URL}/api/programs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: idToSave,
+          name: nameToUse,
+          type: programType,
+          program: code,
+        }),
+      })
+
+      if (resp.ok) {
+        try {
+          const data = await resp.json()
+          if (data && (data.id != null || (data.data && data.data.id != null))) {
+            const returnedId = data.id ?? data.data.id
+            if (typeof returnedId === "number") setProgramId(returnedId)
+          }
+        } catch (_) {}
+        setLastSaveTime(new Date())
+        setHasUnsavedChanges(false)
+        lastCodeRef.current = code
+        console.log("自动保存成功")
+      } else {
+        console.error("自动保存失败")
+      }
+    } catch (e) {
+      console.error("自动保存失败", e)
+    } finally {
+      setIsAutoSaving(false)
+    }
+  }, [code, programName, programId, routeProgramId, programType, hasUnsavedChanges])
 
   const handleSave = React.useCallback(async () => {
     try {
@@ -1279,6 +1343,9 @@ export default function MonacoEditorPage() {
           }
         } catch (_) {}
         setMenuOpen(false)
+        setLastSaveTime(new Date())
+        setHasUnsavedChanges(false)
+        lastCodeRef.current = code
         // 简单提示
         console.log("保存成功")
         ;(window as any).toast?.success?.("保存成功")
@@ -1293,7 +1360,7 @@ export default function MonacoEditorPage() {
       ;(window as any).toast?.error?.("保存失败")
       alert("保存失败")
     }
-  }, [code, programName, programId])
+  }, [code, programName, programId, routeProgramId, programType, ownerName, navigate])
 
   const handleSaveToComputer = React.useCallback(async () => {
     try {
@@ -1338,6 +1405,25 @@ export default function MonacoEditorPage() {
       ;(window as any).toast?.error?.("保存到电脑失败")
     }
   }, [code, programName])
+
+  // 检测代码变化
+  React.useEffect(() => {
+    // 如果代码与上次保存的代码不同，则标记为未保存
+    if (code !== lastCodeRef.current) {
+      setHasUnsavedChanges(true)
+    }
+  }, [code])
+
+  // 定时保存：每30秒自动保存一次
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      handleAutoSave()
+    }, 30000) // 30秒
+
+    return () => {
+      clearInterval(interval)
+    }
+  }, [handleAutoSave])
 
   // 若带有 programId，加载程序内容并填充
   React.useEffect(() => {
@@ -1387,6 +1473,9 @@ export default function MonacoEditorPage() {
         if (programData && typeof programData.program === "string") {
           console.log("设置程序代码，长度:", programData.program.length)
           setCode(programData.program)
+          lastCodeRef.current = programData.program
+          setHasUnsavedChanges(false)
+          setLastSaveTime(new Date())
         }
         
         // 加载程序ID
@@ -1691,6 +1780,21 @@ export default function MonacoEditorPage() {
               {monacoConfig === 'cdn' && "☁️ CDN 模式"}
               {monacoConfig === 'loading' && "⏳ 加载中"}
             </span>
+            {/* 保存状态显示 */}
+            <div className="flex items-center gap-2 text-xs">
+              {isAutoSaving ? (
+                <span className="text-blue-600 flex items-center gap-1">
+                  <div className="w-2 h-2 border border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  保存中...
+                </span>
+              ) : hasUnsavedChanges ? (
+                <span className="text-orange-600">● 未保存</span>
+              ) : lastSaveTime ? (
+                <span className="text-green-600">
+                  ✓ 已保存 {lastSaveTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              ) : null}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
