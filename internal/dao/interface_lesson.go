@@ -27,8 +27,8 @@ type LessonDao interface {
 	// GetLesson 获取课时详情
 	GetLesson(lessonID uint) (*model.Lesson, error)
 
-    // GetLessonByFlowChartID 根据流程图ID查找关联课时
-    GetLessonByFlowChartID(flowChartID uint) (*model.Lesson, error)
+	// GetLessonByFlowChartID 根据流程图ID查找关联课时
+	GetLessonByFlowChartID(flowChartID uint) (*model.Lesson, error)
 
 	// GetLessonWithPermission 获取课时详情（权限验证）
 	GetLessonWithPermission(lessonID, userID uint) (*model.Lesson, error)
@@ -85,4 +85,13 @@ type LessonDao interface {
 
 	// IsLessonInCourse 检查课时是否属于指定课程
 	IsLessonInCourse(lessonID, courseID uint) (bool, error)
+
+	// SetLessonFiles 设置课时关联的资源文件
+	SetLessonFiles(lessonID uint, fileIDs []uint) error
+
+	// GetLessonFiles 获取课时关联的资源文件详情
+	GetLessonFiles(lessonID uint) ([]model.File, error)
+
+	// GetLessonFileIDs 获取课时关联的资源文件ID列表
+	GetLessonFileIDs(lessonID uint) ([]uint, error)
 }

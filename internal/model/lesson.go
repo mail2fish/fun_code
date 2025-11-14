@@ -20,6 +20,9 @@ type Lesson struct {
 	// 关联关系 - 多对多关系
 	Courses []Course `json:"courses,omitempty" gorm:"many2many:lesson_courses"` // 关联的课程列表
 
+	// 关联的资源文件
+	Files []File `json:"files,omitempty" gorm:"many2many:lesson_files"`
+
 	// 文档相关字段
 	DocumentName string `json:"document_name" gorm:"size:255"` // 文档名称
 	DocumentPath string `json:"document_path" gorm:"size:500"` // 文档路径

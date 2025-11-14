@@ -76,7 +76,7 @@ func (l *LessonDaoImpl) UpdateLesson(lessonID, authorID uint, expectedUpdatedAt 
 // GetLesson 获取课时详情
 func (l *LessonDaoImpl) GetLesson(lessonID uint) (*model.Lesson, error) {
 	var lesson model.Lesson
-	if err := l.db.Preload("Courses.Author").First(&lesson, lessonID).Error; err != nil {
+	if err := l.db.Preload("Courses.Author").Preload("Files").First(&lesson, lessonID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("课时不存在")
 		}
@@ -103,7 +103,7 @@ func (l *LessonDaoImpl) GetLessonWithPermission(lessonID, userID uint) (*model.L
 	var lesson model.Lesson
 
 	// 查询课时并检查权限（课程作者或班级成员）
-	query := l.db.Preload("Courses.Author").
+	query := l.db.Preload("Courses.Author").Preload("Files").
 		Joins("JOIN lesson_courses lc ON lc.lesson_id = lessons.id").
 		Joins("JOIN courses c ON c.id = lc.course_id").
 		Where("lessons.id = ?", lessonID)
@@ -241,6 +241,11 @@ func (l *LessonDaoImpl) DeleteLesson(lessonID, authorID uint, expectedUpdatedAt 
 
 	// 使用事务删除课时及其关联
 	return l.db.Transaction(func(tx *gorm.DB) error {
+		// 先删除所有资源文件关联
+		if err := tx.Where("lesson_id = ?", lessonID).Delete(&model.LessonFile{}).Error; err != nil {
+			return fmt.Errorf("删除课时资源关联失败: %w", err)
+		}
+
 		// 先删除所有关联记录
 		if err := tx.Where("lesson_id = ?", lessonID).Delete(&model.LessonCourse{}).Error; err != nil {
 			return fmt.Errorf("删除课时关联失败: %w", err)
@@ -447,6 +452,13 @@ func (l *LessonDaoImpl) DuplicateLesson(lessonID, targetCourseID, authorID uint)
 		return nil, err
 	}
 
+	// 复制资源文件关联
+	if fileIDs, err := l.GetLessonFileIDs(lessonID); err == nil && len(fileIDs) > 0 {
+		if err := l.SetLessonFiles(newLesson.ID, fileIDs); err != nil {
+			return nil, err
+		}
+	}
+
 	// 将新课时添加到目标课程
 	if err := l.AddLessonToCourse(newLesson.ID, targetCourseID, 0); err != nil {
 		return nil, err
@@ -606,4 +618,51 @@ func (l *LessonDaoImpl) IsLessonInCourse(lessonID, courseID uint) (bool, error) 
 		return false, err
 	}
 	return count > 0, nil
+}
+
+// SetLessonFiles 设置课时关联的资源文件
+func (l *LessonDaoImpl) SetLessonFiles(lessonID uint, fileIDs []uint) error {
+	return l.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("lesson_id = ?", lessonID).Delete(&model.LessonFile{}).Error; err != nil {
+			return fmt.Errorf("清理课时资源关联失败: %w", err)
+		}
+
+		if len(fileIDs) == 0 {
+			return nil
+		}
+
+		for _, fileID := range fileIDs {
+			if err := tx.Exec(
+				"INSERT INTO lesson_files (lesson_id, file_id) VALUES (?, ?)",
+				lessonID, fileID,
+			).Error; err != nil {
+				return fmt.Errorf("创建课时资源关联失败: %w", err)
+			}
+		}
+
+		return nil
+	})
+}
+
+// GetLessonFiles 获取课时关联的资源文件详情
+func (l *LessonDaoImpl) GetLessonFiles(lessonID uint) ([]model.File, error) {
+	var files []model.File
+	if err := l.db.Model(&model.File{}).
+		Joins("JOIN lesson_files lf ON lf.file_id = files.id").
+		Where("lf.lesson_id = ?", lessonID).
+		Find(&files).Error; err != nil {
+		return nil, err
+	}
+	return files, nil
+}
+
+// GetLessonFileIDs 获取课时关联的资源文件ID列表
+func (l *LessonDaoImpl) GetLessonFileIDs(lessonID uint) ([]uint, error) {
+	var ids []uint
+	if err := l.db.Model(&model.LessonFile{}).
+		Where("lesson_id = ?", lessonID).
+		Pluck("file_id", &ids).Error; err != nil {
+		return nil, err
+	}
+	return ids, nil
 }

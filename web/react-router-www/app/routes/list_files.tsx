@@ -6,6 +6,7 @@ import { LayoutProvider } from "~/components/layout-provider"
 import { FileTable } from "~/components/file-table"
 import { Button } from "~/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card"
+export { listResourceFiles as fetchFilesList, searchResourceFiles } from "~/utils/file-library"
 
 // API 服务
 import { HOST_URL } from "~/config"

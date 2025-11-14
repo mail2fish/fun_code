@@ -34,6 +34,8 @@ import { fetchWithAuth } from "~/utils/api"
 // API 服务
 import { HOST_URL } from "~/config"
 import ExcalidrawPicker from "~/components/excalidraw-picker"
+import { ResourceFileManager } from "~/components/resource-file-manager"
+import type { ResourceFile } from "~/utils/file-library"
 
 // 课程类型定义
 interface Course {
@@ -82,6 +84,8 @@ interface Lesson {
   created_at: string
   updated_at: string
   flow_chart_id?: number | string
+  resource_files?: ResourceFile[]
+  resource_file_ids?: number[]
 }
 
 // 表单验证 Schema
@@ -207,17 +211,23 @@ async function getLesson(id: string) {
 }
 
 // 更新课件
-async function updateLesson(id: string, lessonData: FormData, files: {
-  documentFile?: File
-  video1File?: File
-  video2File?: File
-  video3File?: File
-}, clearFlags: {
-  clearDocument?: boolean
-  clearVideo1?: boolean
-  clearVideo2?: boolean
-  clearVideo3?: boolean
-}) {
+async function updateLesson(
+  id: string,
+  lessonData: FormData,
+  files: {
+    documentFile?: File
+    video1File?: File
+    video2File?: File
+    video3File?: File
+  },
+  clearFlags: {
+    clearDocument?: boolean
+    clearVideo1?: boolean
+    clearVideo2?: boolean
+    clearVideo3?: boolean
+  },
+  resourceFileIds: number[],
+) {
   try {
     const formData = new FormData()
     
@@ -253,6 +263,8 @@ async function updateLesson(id: string, lessonData: FormData, files: {
         formData.append(key, 'true')
       }
     })
+
+    formData.append('resource_file_ids', resourceFileIds.join(','))
 
     const response = await fetchWithAuth(`${HOST_URL}/api/admin/lessons/${id}`, {
       method: "PUT",
@@ -294,6 +306,7 @@ export default function EditLessonPage() {
     clearVideo2?: boolean
     clearVideo3?: boolean
   }>({})
+  const [resourceFiles, setResourceFiles] = React.useState<ResourceFile[]>([])
 
   // 初始化表单
   const form = useForm<FormData>({
@@ -332,6 +345,7 @@ export default function EditLessonPage() {
 
         const lessonInfo = lessonData.data
         setLesson(lessonInfo)
+        setResourceFiles(Array.isArray(lessonInfo.resource_files) ? lessonInfo.resource_files : [])
 
         // 根据课件中的项目类型加载对应类型的项目列表
         const lessonProjectType = (lessonInfo.project_type === "python" || lessonInfo.project_type === "scratch") 
@@ -485,7 +499,7 @@ export default function EditLessonPage() {
         flow_chart_id: values.flow_chart_id === "none" ? undefined : values.flow_chart_id,
       }
       
-      const result = await updateLesson(lessonId, processedValues, files, clearFlags)
+      await updateLesson(lessonId, processedValues, files, clearFlags, resourceFiles.map(file => file.id))
       
       toast.success("课件更新成功")
       
@@ -1255,6 +1269,10 @@ export default function EditLessonPage() {
                     </div>
                   </div>
                 </div>
+                
+                <Separator />
+                
+                <ResourceFileManager value={resourceFiles} onChange={setResourceFiles} />
                 
                 <Separator />
                 

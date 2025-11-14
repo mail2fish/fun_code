@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import { IconUpload, IconFile, IconX, IconTrash } from "@tabler/icons-react";
-import CryptoJS from 'crypto-js';
 
 import { AdminLayout } from "~/components/admin-layout";
 import { Button } from "~/components/ui/button";
@@ -9,64 +8,32 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 
+import { calculateSHA1, uploadResourceFiles } from "~/utils/file-library";
+
 interface FileWithMetadata {
-  file: File;
-  name: string;
-  description: string;
-  sha1: string;
-  tagId: number;
-  preview?: string;
+  file: File
+  name: string
+  description: string
+  sha1: string
+  preview?: string
 }
 
 interface UploadResult {
-  success_count: number;
-  failed_count: number;
-  total_count: number;
+  success_count: number
+  failed_count: number
+  total_count: number
   success_files: Array<{
-    id: number;
-    name: string;
-    description: string;
-    size: number;
-    tag_id: number;
-    content_type: number;
-  }>;
+    id: number
+    name: string
+    description: string
+    size: number
+    tag_id: number
+    content_type: number
+  }>
   failed_files: Array<{
-    file_name: string;
-    error: string;
-  }>;
-}
-
-// 计算文件的SHA1哈希值 - 兼容非HTTPS环境
-async function calculateSHA1(file: File): Promise<string> {
-  // 检查是否支持 crypto.subtle (HTTPS 或 localhost)
-  if (window.crypto && window.crypto.subtle) {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const hashBuffer = await crypto.subtle.digest('SHA-1', arrayBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      return hashHex;
-    } catch (error) {
-      console.warn('crypto.subtle 不可用，使用备用方案:', error);
-    }
-  }
-  
-  // 备用方案：使用 crypto-js 库（兼容 HTTP 环境）
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const arrayBuffer = event.target?.result as ArrayBuffer;
-        const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
-        const hash = CryptoJS.SHA1(wordArray).toString();
-        resolve(hash);
-      } catch (error) {
-        reject(error);
-      }
-    };
-    reader.onerror = () => reject(new Error('文件读取失败'));
-    reader.readAsArrayBuffer(file);
-  });
+    file_name: string
+    error: string
+  }>
 }
 
 export default function UploadFilesPage() {
@@ -108,7 +75,6 @@ export default function UploadFilesPage() {
             name: file.name,
             description: nameWithoutExtension,
             sha1,
-            tagId: 0,
             preview,
           };
         })
@@ -123,7 +89,7 @@ export default function UploadFilesPage() {
     }
   }, []);
 
-  const updateFileMetadata = useCallback((index: number, field: keyof FileWithMetadata, value: string | number) => {
+  const updateFileMetadata = useCallback((index: number, field: keyof FileWithMetadata, value: string) => {
     setSelectedFiles(prev => 
       prev.map((item, i) => 
         i === index ? { ...item, [field]: value } : item
@@ -161,36 +127,27 @@ export default function UploadFilesPage() {
     setUploadResult(null);
 
     try {
-      const formData = new FormData();
-      
-      // 添加文件
-      selectedFiles.forEach((fileData) => {
-        formData.append('files', fileData.file);
-      });
-      
-      // 添加元数据
-      selectedFiles.forEach((fileData) => {
-        formData.append('names', fileData.name);
-        formData.append('descriptions', fileData.description);
-        formData.append('sha1s', fileData.sha1);
-        formData.append('tag_ids', fileData.tagId.toString());
-      });
+      const resultData = await uploadResourceFiles(
+        selectedFiles.map((fileData) => ({
+          file: fileData.file,
+          name: fileData.name,
+          description: fileData.description,
+          sha1: fileData.sha1,
+        }))
+      )
 
-      const response = await fetch('/api/admin/files/upload', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error(`上传失败: ${response.statusText}`);
+      const uploadSummary: UploadResult = {
+        success_count: resultData.successCount,
+        failed_count: resultData.failedCount,
+        total_count: resultData.totalCount,
+        success_files: resultData.successFiles,
+        failed_files: resultData.failedFiles,
       }
 
-      const result = await response.json();
-      setUploadResult({ success: true, data: result.data });
+      setUploadResult({ success: true, data: uploadSummary });
       setSelectedFiles([]); // 清空文件列表
     } catch (error: any) {
-      setUploadResult({ success: false, error: error.message });
+      setUploadResult({ success: false, error: error?.message || "上传失败，请重试" });
     } finally {
       setIsSubmitting(false);
     }
@@ -297,18 +254,6 @@ export default function UploadFilesPage() {
                               value={fileData.name}
                               onChange={(e) => updateFileMetadata(index, 'name', e.target.value)}
                               required
-                              className="border-slate-300 focus:border-blue-500 focus:ring-blue-500"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor={`tagId-${index}`} className="text-slate-700 font-medium">标签ID</Label>
-                            <Input
-                              id={`tagId-${index}`}
-                              type="number"
-                              value={fileData.tagId}
-                              onChange={(e) => updateFileMetadata(index, 'tagId', parseInt(e.target.value) || 0)}
-                              min="0"
                               className="border-slate-300 focus:border-blue-500 focus:ring-blue-500"
                             />
                           </div>

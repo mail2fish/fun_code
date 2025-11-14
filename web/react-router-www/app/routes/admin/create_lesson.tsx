@@ -34,6 +34,8 @@ import { fetchWithAuth } from "~/utils/api"
 // API 服务
 import { HOST_URL } from "~/config"
 import ExcalidrawPicker from "~/components/excalidraw-picker"
+import { ResourceFileManager } from "~/components/resource-file-manager"
+import type { ResourceFile } from "~/utils/file-library"
 
 // 课程类型定义
 interface Course {
@@ -165,12 +167,16 @@ async function getUsers() {
 }
 
 // 创建课件
-async function createLesson(lessonData: FormData, files: {
+async function createLesson(
+  lessonData: FormData,
+  files: {
   documentFile?: File
   video1File?: File
   video2File?: File
   video3File?: File
-}) {
+  },
+  resourceFileIds: number[],
+) {
   try {
     const formData = new FormData()
     
@@ -199,6 +205,8 @@ async function createLesson(lessonData: FormData, files: {
     if (files.video3File) {
       formData.append('video_3_file', files.video3File)
     }
+
+    formData.append('resource_file_ids', resourceFileIds.join(','))
 
     const response = await fetchWithAuth(`${HOST_URL}/api/admin/lessons`, {
       method: "POST",
@@ -235,6 +243,7 @@ export default function CreateLessonPage() {
     video2File?: File
     video3File?: File
   }>({})
+  const [resourceFiles, setResourceFiles] = React.useState<ResourceFile[]>([])
 
   // 初始化表单
   const form = useForm<FormData>({
@@ -423,9 +432,10 @@ export default function CreateLessonPage() {
         flow_chart_id: values.flow_chart_id === "none" ? undefined : values.flow_chart_id,
       }
       
-      const result = await createLesson(processedValues, files)
+      await createLesson(processedValues, files, resourceFiles.map(file => file.id))
       
       toast.success("课件创建成功")
+      setResourceFiles([])
       
       // 创建成功后跳转到课件列表页
       setTimeout(() => {
@@ -1009,6 +1019,10 @@ export default function CreateLessonPage() {
                     </div>
                   </div>
                 </div>
+                
+                <Separator />
+                
+                <ResourceFileManager value={resourceFiles} onChange={setResourceFiles} />
                 
                 <Separator />
                 

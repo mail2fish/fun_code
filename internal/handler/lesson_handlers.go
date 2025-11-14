@@ -24,32 +24,43 @@ import (
 
 // CreateLessonParams 创建课时请求参数
 type CreateLessonParams struct {
-	CourseIDs    string                `json:"course_ids" form:"course_ids"` // 改为字符串类型，在Parse中处理转换
-	Title        string                `json:"title" form:"title" binding:"required"`
-	Content      string                `json:"content" form:"content"`
-	FlowChartID  uint                  `json:"flow_chart_id" form:"flow_chart_id"`
-	ProjectType  string                `json:"project_type" form:"project_type"`
-	ProjectID1   string                `json:"project_id_1" form:"project_id_1"` // 改为字符串类型，在Parse中处理转换
-	ProjectID2   string                `json:"project_id_2" form:"project_id_2"` // 改为字符串类型，在Parse中处理转换
-	Duration     string                `json:"duration" form:"duration"`         // 改为字符串类型，在Parse中处理转换
-	Difficulty   string                `json:"difficulty" form:"difficulty"`
-	Description  string                `json:"description" form:"description"`
-	DocumentFile *multipart.FileHeader `json:"-" form:"document_file"` // 文档文件
-	Video1File   *multipart.FileHeader `json:"-" form:"video_1_file"`  // 视频1文件
-	Video2File   *multipart.FileHeader `json:"-" form:"video_2_file"`  // 视频2文件
-	Video3File   *multipart.FileHeader `json:"-" form:"video_3_file"`  // 视频3文件
+	CourseIDs                string                `json:"course_ids" form:"course_ids"` // 改为字符串类型，在Parse中处理转换
+	Title                    string                `json:"title" form:"title" binding:"required"`
+	Content                  string                `json:"content" form:"content"`
+	FlowChartID              uint                  `json:"flow_chart_id" form:"flow_chart_id"`
+	ProjectType              string                `json:"project_type" form:"project_type"`
+	ProjectID1               string                `json:"project_id_1" form:"project_id_1"` // 改为字符串类型，在Parse中处理转换
+	ProjectID2               string                `json:"project_id_2" form:"project_id_2"` // 改为字符串类型，在Parse中处理转换
+	Duration                 string                `json:"duration" form:"duration"`         // 改为字符串类型，在Parse中处理转换
+	Difficulty               string                `json:"difficulty" form:"difficulty"`
+	Description              string                `json:"description" form:"description"`
+	DocumentFile             *multipart.FileHeader `json:"-" form:"document_file"` // 文档文件
+	Video1File               *multipart.FileHeader `json:"-" form:"video_1_file"`  // 视频1文件
+	Video2File               *multipart.FileHeader `json:"-" form:"video_2_file"`  // 视频2文件
+	Video3File               *multipart.FileHeader `json:"-" form:"video_3_file"`  // 视频3文件
+	ResourceFileIDs          string                `json:"resource_file_ids" form:"resource_file_ids"`
+	ResourceFileIDsProvided  bool
+	ResourceFiles            []*multipart.FileHeader `json:"-" form:"resource_files"`
+	ResourceFileSHA1s        []string                `json:"resource_file_sha1s" form:"resource_file_sha1s"`
+	ResourceFileDescriptions []string                `json:"resource_file_descriptions" form:"resource_file_descriptions"`
+	ResourceFileTagIDs       []string                `json:"resource_file_tag_ids" form:"resource_file_tag_ids"`
 
 	// 实际使用的字段（解析后）
-	ParsedCourseIDs  []uint
-	ParsedProjectID1 uint
-	ParsedProjectID2 uint
-	ParsedDuration   int
+	ParsedCourseIDs       []uint
+	ParsedProjectID1      uint
+	ParsedProjectID2      uint
+	ParsedDuration        int
+	ParsedResourceFileIDs []uint
+	NewResourceFileTagIDs []uint
 }
 
 func (p *CreateLessonParams) Parse(c *gin.Context) gorails.Error {
 	// 解析JSON字段
 	if err := c.ShouldBind(p); err != nil {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	if p.ResourceFileIDs != "" {
+		p.ResourceFileIDsProvided = true
 	}
 
 	// 解析 course_ids 字段
@@ -89,6 +100,21 @@ func (p *CreateLessonParams) Parse(c *gin.Context) gorails.Error {
 		}
 	}
 
+	// 解析 resource_file_ids 字段
+	p.ParsedResourceFileIDs = []uint{}
+	if strings.TrimSpace(p.ResourceFileIDs) != "" {
+		parts := strings.Split(p.ResourceFileIDs, ",")
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
+			if fileID, err := strconv.ParseUint(part, 10, 32); err == nil {
+				p.ParsedResourceFileIDs = append(p.ParsedResourceFileIDs, uint(fileID))
+			}
+		}
+	}
+
 	// 解析文件字段
 	form, err := c.MultipartForm()
 	if err == nil {
@@ -111,6 +137,40 @@ func (p *CreateLessonParams) Parse(c *gin.Context) gorails.Error {
 		if files := form.File["video_3_file"]; len(files) > 0 {
 			p.Video3File = files[0]
 		}
+
+		// 标记是否显式提供资源文件ID
+		if values, ok := form.Value["resource_file_ids"]; ok {
+			p.ResourceFileIDsProvided = true
+			if len(values) > 0 {
+				p.ResourceFileIDs = values[0]
+			}
+		}
+
+		// 解析资源文件
+		if files := form.File["resource_files"]; len(files) > 0 {
+			p.ResourceFiles = files
+		}
+
+		if values := form.Value["resource_file_sha1s"]; len(values) > 0 {
+			p.ResourceFileSHA1s = values
+		}
+
+		if values := form.Value["resource_file_descriptions"]; len(values) > 0 {
+			p.ResourceFileDescriptions = values
+		}
+
+		if tagStrs := form.Value["resource_file_tag_ids"]; len(tagStrs) > 0 {
+			tags := make([]uint, len(tagStrs))
+			for i, tagStr := range tagStrs {
+				if tagStr == "" {
+					continue
+				}
+				if tagID, err := strconv.ParseUint(tagStr, 10, 32); err == nil {
+					tags[i] = uint(tagID)
+				}
+			}
+			p.NewResourceFileTagIDs = tags
+		}
 	}
 
 	return nil
@@ -124,20 +184,22 @@ type CreateLessonResponse struct {
 	Title     string `json:"title"`
 	Content   string `json:"content"`
 
-	DocumentName string `json:"document_name"`
-	DocumentPath string `json:"document_path"`
-	FlowChartID  uint   `json:"flow_chart_id"`
-	ProjectType  string `json:"project_type"`
-	ProjectID1   uint   `json:"project_id_1"`
-	ProjectID2   uint   `json:"project_id_2"`
-	VideoPath1   string `json:"video_path_1"`
-	VideoPath2   string `json:"video_path_2"`
-	VideoPath3   string `json:"video_path_3"`
-	Duration     int    `json:"duration"`
-	Difficulty   string `json:"difficulty"`
-	Description  string `json:"description"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
+	DocumentName    string         `json:"document_name"`
+	DocumentPath    string         `json:"document_path"`
+	FlowChartID     uint           `json:"flow_chart_id"`
+	ProjectType     string         `json:"project_type"`
+	ProjectID1      uint           `json:"project_id_1"`
+	ProjectID2      uint           `json:"project_id_2"`
+	VideoPath1      string         `json:"video_path_1"`
+	VideoPath2      string         `json:"video_path_2"`
+	VideoPath3      string         `json:"video_path_3"`
+	Duration        int            `json:"duration"`
+	Difficulty      string         `json:"difficulty"`
+	Description     string         `json:"description"`
+	CreatedAt       string         `json:"created_at"`
+	UpdatedAt       string         `json:"updated_at"`
+	ResourceFileIDs []uint         `json:"resource_file_ids"`
+	ResourceFiles   []FileResponse `json:"resource_files"`
 }
 
 // CreateLessonHandler 创建课时
@@ -194,6 +256,51 @@ func (h *Handler) CreateLessonHandler(c *gin.Context, params *CreateLessonParams
 		video3Path = savedPath
 	}
 
+	// 处理资源文件（先上传新文件）
+	resourceFileIDs := make([]uint, 0, len(params.ParsedResourceFileIDs))
+	resourceFileIDs = append(resourceFileIDs, params.ParsedResourceFileIDs...)
+
+	for idx, fileHeader := range params.ResourceFiles {
+		description := ""
+		if idx < len(params.ResourceFileDescriptions) {
+			description = params.ResourceFileDescriptions[idx]
+		}
+		sha1 := ""
+		if idx < len(params.ResourceFileSHA1s) {
+			sha1 = params.ResourceFileSHA1s[idx]
+		}
+		if sha1 == "" {
+			return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "resource_file_sha1s 不能为空", nil)
+		}
+		tagID := uint(0)
+		if idx < len(params.NewResourceFileTagIDs) {
+			tagID = params.NewResourceFileTagIDs[idx]
+		}
+
+		fileResp, perr := h.processUploadedFileWithSHA1(fileHeader, userID, description, sha1, tagID)
+		if perr != nil {
+			return nil, nil, perr
+		}
+		resourceFileIDs = append(resourceFileIDs, fileResp.ID)
+	}
+
+	// 去重，保持顺序
+	if len(resourceFileIDs) > 0 {
+		seen := make(map[uint]struct{}, len(resourceFileIDs))
+		dedup := make([]uint, 0, len(resourceFileIDs))
+		for _, id := range resourceFileIDs {
+			if id == 0 {
+				continue
+			}
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			dedup = append(dedup, id)
+		}
+		resourceFileIDs = dedup
+	}
+
 	// 构建课时对象
 	lesson := &model.Lesson{
 		Title:        params.Title,
@@ -217,6 +324,11 @@ func (h *Handler) CreateLessonHandler(c *gin.Context, params *CreateLessonParams
 		// 如果创建失败，清理已上传的文件
 		h.cleanupUploadedFiles([]string{documentPath, video1Path, video2Path, video3Path})
 		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeCreateFailed, global.ErrorMsgInsertFailed, err)
+	}
+
+	// 建立课时与资源文件的关联
+	if err := h.dao.LessonDao.SetLessonFiles(lesson.ID, resourceFileIDs); err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeUpdateFailed, "保存课时资源文件失败", err)
 	}
 
 	// 将课时关联到课程
@@ -249,6 +361,13 @@ func (h *Handler) CreateLessonHandler(c *gin.Context, params *CreateLessonParams
 		CreatedAt:    time.Unix(lesson.CreatedAt, 0).Format(time.RFC3339),
 		UpdatedAt:    time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339),
 	}
+
+	lessonFiles, err := h.dao.LessonDao.GetLessonFiles(lesson.ID)
+	if err != nil {
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, "获取课时资源文件失败", err)
+	}
+	response.ResourceFileIDs = resourceFileIDs
+	response.ResourceFiles = buildFileResponses(lessonFiles)
 
 	return response, nil, nil
 }
@@ -353,33 +472,41 @@ func (h *Handler) cleanupUploadedFiles(filePaths []string) {
 
 // UpdateLessonParams 更新课时请求参数
 type UpdateLessonParams struct {
-	LessonID      uint                  `json:"lesson_id" uri:"lesson_id" binding:"required"`
-	CourseIDs     string                `json:"course_ids" form:"course_ids"` // 改为字符串类型，在Parse中处理转换
-	Title         string                `json:"title" form:"title"`
-	Content       string                `json:"content" form:"content"`
-	FlowChartID   string                `json:"flow_chart_id" form:"flow_chart_id"`
-	ProjectType   string                `json:"project_type" form:"project_type"`
-	ProjectID1    string                `json:"project_id_1" form:"project_id_1"`
-	ProjectID2    string                `json:"project_id_2" form:"project_id_2"`
-	Duration      string                `json:"duration" form:"duration"`
-	Difficulty    string                `json:"difficulty" form:"difficulty"`
-	Description   string                `json:"description" form:"description"`
-	UpdatedAt     int64                 `json:"updated_at" form:"updated_at"`         // 乐观锁
-	DocumentFile  *multipart.FileHeader `json:"-" form:"document_file"`               // 文档文件(可选，如果提供则替换现有文件)
-	Video1File    *multipart.FileHeader `json:"-" form:"video_1_file"`                // 视频1文件(可选)
-	Video2File    *multipart.FileHeader `json:"-" form:"video_2_file"`                // 视频2文件(可选)
-	Video3File    *multipart.FileHeader `json:"-" form:"video_3_file"`                // 视频3文件(可选)
-	ClearDocument bool                  `json:"clear_document" form:"clear_document"` // 清除文档文件
-	ClearVideo1   bool                  `json:"clear_video_1" form:"clear_video_1"`   // 清除视频1
-	ClearVideo2   bool                  `json:"clear_video_2" form:"clear_video_2"`   // 清除视频2
-	ClearVideo3   bool                  `json:"clear_video_3" form:"clear_video_3"`   // 清除视频3
+	LessonID                 uint                  `json:"lesson_id" uri:"lesson_id" binding:"required"`
+	CourseIDs                string                `json:"course_ids" form:"course_ids"` // 改为字符串类型，在Parse中处理转换
+	Title                    string                `json:"title" form:"title"`
+	Content                  string                `json:"content" form:"content"`
+	FlowChartID              string                `json:"flow_chart_id" form:"flow_chart_id"`
+	ProjectType              string                `json:"project_type" form:"project_type"`
+	ProjectID1               string                `json:"project_id_1" form:"project_id_1"`
+	ProjectID2               string                `json:"project_id_2" form:"project_id_2"`
+	Duration                 string                `json:"duration" form:"duration"`
+	Difficulty               string                `json:"difficulty" form:"difficulty"`
+	Description              string                `json:"description" form:"description"`
+	UpdatedAt                int64                 `json:"updated_at" form:"updated_at"`         // 乐观锁
+	DocumentFile             *multipart.FileHeader `json:"-" form:"document_file"`               // 文档文件(可选，如果提供则替换现有文件)
+	Video1File               *multipart.FileHeader `json:"-" form:"video_1_file"`                // 视频1文件(可选)
+	Video2File               *multipart.FileHeader `json:"-" form:"video_2_file"`                // 视频2文件(可选)
+	Video3File               *multipart.FileHeader `json:"-" form:"video_3_file"`                // 视频3文件(可选)
+	ClearDocument            bool                  `json:"clear_document" form:"clear_document"` // 清除文档文件
+	ClearVideo1              bool                  `json:"clear_video_1" form:"clear_video_1"`   // 清除视频1
+	ClearVideo2              bool                  `json:"clear_video_2" form:"clear_video_2"`   // 清除视频2
+	ClearVideo3              bool                  `json:"clear_video_3" form:"clear_video_3"`   // 清除视频3
+	ResourceFileIDs          string                `json:"resource_file_ids" form:"resource_file_ids"`
+	ResourceFileIDsProvided  bool
+	ResourceFiles            []*multipart.FileHeader `json:"-" form:"resource_files"`
+	ResourceFileSHA1s        []string                `json:"resource_file_sha1s" form:"resource_file_sha1s"`
+	ResourceFileDescriptions []string                `json:"resource_file_descriptions" form:"resource_file_descriptions"`
+	ResourceFileTagIDs       []string                `json:"resource_file_tag_ids" form:"resource_file_tag_ids"`
 
 	// 实际使用的字段（解析后）
-	ParsedCourseIDs   []uint
-	ParsedFlowChartID *uint
-	ParsedProjectID1  *uint
-	ParsedProjectID2  *uint
-	ParsedDuration    *int
+	ParsedCourseIDs       []uint
+	ParsedFlowChartID     *uint
+	ParsedProjectID1      *uint
+	ParsedProjectID2      *uint
+	ParsedDuration        *int
+	ParsedResourceFileIDs []uint
+	NewResourceFileTagIDs []uint
 }
 
 func (p *UpdateLessonParams) Parse(c *gin.Context) gorails.Error {
@@ -391,6 +518,9 @@ func (p *UpdateLessonParams) Parse(c *gin.Context) gorails.Error {
 	// 解析表单字段
 	if err := c.ShouldBind(p); err != nil {
 		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	if p.ResourceFileIDs != "" {
+		p.ResourceFileIDsProvided = true
 	}
 
 	// 解析 course_ids 字段
@@ -450,6 +580,14 @@ func (p *UpdateLessonParams) Parse(c *gin.Context) gorails.Error {
 	if err == nil {
 		defer form.RemoveAll()
 
+		// 标记是否显式提供资源文件ID
+		if values, ok := form.Value["resource_file_ids"]; ok {
+			p.ResourceFileIDsProvided = true
+			if len(values) > 0 {
+				p.ResourceFileIDs = values[0]
+			}
+		}
+
 		// 解析文档文件
 		if files := form.File["document_file"]; len(files) > 0 {
 			p.DocumentFile = files[0]
@@ -467,6 +605,61 @@ func (p *UpdateLessonParams) Parse(c *gin.Context) gorails.Error {
 		if files := form.File["video_3_file"]; len(files) > 0 {
 			p.Video3File = files[0]
 		}
+
+		// 解析资源文件
+		if files := form.File["resource_files"]; len(files) > 0 {
+			p.ResourceFiles = files
+		}
+		if values := form.Value["resource_file_sha1s"]; len(values) > 0 {
+			p.ResourceFileSHA1s = values
+		}
+		if values := form.Value["resource_file_descriptions"]; len(values) > 0 {
+			p.ResourceFileDescriptions = values
+		}
+		if tagStrs := form.Value["resource_file_tag_ids"]; len(tagStrs) > 0 {
+			tags := make([]uint, len(tagStrs))
+			for i, tagStr := range tagStrs {
+				if tagStr == "" {
+					continue
+				}
+				if tagID, err := strconv.ParseUint(tagStr, 10, 32); err == nil {
+					tags[i] = uint(tagID)
+				}
+			}
+			p.NewResourceFileTagIDs = tags
+		}
+	}
+
+	if len(p.ResourceFiles) > 0 {
+		if len(p.ResourceFileSHA1s) != len(p.ResourceFiles) {
+			return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "resource_file_sha1s 数量必须与 resource_files 一致", nil)
+		}
+		if len(p.ResourceFileDescriptions) > 0 && len(p.ResourceFileDescriptions) != len(p.ResourceFiles) {
+			return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "resource_file_descriptions 数量必须与 resource_files 一致", nil)
+		}
+		if len(p.ResourceFileDescriptions) == 0 {
+			p.ResourceFileDescriptions = make([]string, len(p.ResourceFiles))
+		}
+		if len(p.NewResourceFileTagIDs) == 0 {
+			p.NewResourceFileTagIDs = make([]uint, len(p.ResourceFiles))
+		} else if len(p.NewResourceFileTagIDs) != len(p.ResourceFiles) {
+			return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "resource_file_tag_ids 数量必须与 resource_files 一致", nil)
+		}
+	}
+
+	// 解析 resource_file_ids 字段
+	p.ParsedResourceFileIDs = []uint{}
+	if strings.TrimSpace(p.ResourceFileIDs) != "" {
+		parts := strings.Split(p.ResourceFileIDs, ",")
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
+			if fileID, err := strconv.ParseUint(part, 10, 32); err == nil {
+				p.ParsedResourceFileIDs = append(p.ParsedResourceFileIDs, uint(fileID))
+			}
+		}
 	}
 
 	return nil
@@ -474,11 +667,13 @@ func (p *UpdateLessonParams) Parse(c *gin.Context) gorails.Error {
 
 // UpdateLessonResponse 更新课时响应
 type UpdateLessonResponse struct {
-	Message   string `json:"message"`
-	ID        uint   `json:"id"`
-	Title     string `json:"title"`
-	Content   string `json:"content"`
-	UpdatedAt string `json:"updated_at"`
+	Message         string         `json:"message"`
+	ID              uint           `json:"id"`
+	Title           string         `json:"title"`
+	Content         string         `json:"content"`
+	UpdatedAt       string         `json:"updated_at"`
+	ResourceFileIDs []uint         `json:"resource_file_ids"`
+	ResourceFiles   []FileResponse `json:"resource_files"`
 }
 
 // UpdateLessonHandler 更新课时
@@ -601,7 +796,62 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 		}
 	}
 
-	// 构建更新数据
+	// 处理资源文件
+	resourceFileIDs := []uint{}
+	shouldUpdateResourceFiles := params.ResourceFileIDsProvided || len(params.ResourceFiles) > 0
+
+	if shouldUpdateResourceFiles {
+		if params.ResourceFileIDsProvided {
+			resourceFileIDs = append(resourceFileIDs, params.ParsedResourceFileIDs...)
+		} else {
+			existingIDs, err := h.dao.LessonDao.GetLessonFileIDs(params.LessonID)
+			if err != nil {
+				return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, "获取课时资源文件失败", err)
+			}
+			resourceFileIDs = append(resourceFileIDs, existingIDs...)
+		}
+
+		for idx, fileHeader := range params.ResourceFiles {
+			description := ""
+			if idx < len(params.ResourceFileDescriptions) {
+				description = params.ResourceFileDescriptions[idx]
+			}
+			sha1 := ""
+			if idx < len(params.ResourceFileSHA1s) {
+				sha1 = params.ResourceFileSHA1s[idx]
+			}
+			if sha1 == "" {
+				return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, "resource_file_sha1s 不能为空", nil)
+			}
+			tagID := uint(0)
+			if idx < len(params.NewResourceFileTagIDs) {
+				tagID = params.NewResourceFileTagIDs[idx]
+			}
+
+			fileResp, perr := h.processUploadedFileWithSHA1(fileHeader, userID, description, sha1, tagID)
+			if perr != nil {
+				return nil, nil, perr
+			}
+			resourceFileIDs = append(resourceFileIDs, fileResp.ID)
+		}
+
+		if len(resourceFileIDs) > 0 {
+			seen := make(map[uint]struct{}, len(resourceFileIDs))
+			dedup := make([]uint, 0, len(resourceFileIDs))
+			for _, id := range resourceFileIDs {
+				if id == 0 {
+					continue
+				}
+				if _, ok := seen[id]; ok {
+					continue
+				}
+				seen[id] = struct{}{}
+				dedup = append(dedup, id)
+			}
+			resourceFileIDs = dedup
+		}
+	}
+
 	updates := make(map[string]interface{})
 	if params.Title != "" {
 		updates["title"] = params.Title
@@ -616,10 +866,10 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 		updates["project_type"] = params.ProjectType
 	}
 	if params.ParsedProjectID1 != nil {
-		updates["ProjectID1"] = *params.ParsedProjectID1
+		updates["project_id_1"] = *params.ParsedProjectID1
 	}
 	if params.ParsedProjectID2 != nil {
-		updates["ProjectID2"] = *params.ParsedProjectID2
+		updates["project_id_2"] = *params.ParsedProjectID2
 	}
 	if params.ParsedDuration != nil {
 		updates["duration"] = *params.ParsedDuration
@@ -631,7 +881,6 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 		updates["description"] = params.Description
 	}
 
-	// 添加文件相关的更新
 	if params.ClearDocument || params.DocumentFile != nil {
 		updates["document_name"] = newDocumentName
 		updates["document_path"] = newDocumentPath
@@ -655,6 +904,12 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 			return nil, nil, gorails.NewError(http.StatusConflict, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeUpdateConflict, "课时已被其他用户修改，请刷新后重试", err)
 		}
 		return nil, nil, gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeUpdateFailed, global.ErrorMsgUpdateFailed, err)
+	}
+
+	if shouldUpdateResourceFiles {
+		if err := h.dao.LessonDao.SetLessonFiles(params.LessonID, resourceFileIDs); err != nil {
+			return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeUpdateFailed, "更新课时资源文件失败", err)
+		}
 	}
 
 	// 检查是否需要更新课程关联（如果前端传递了course_ids字段，无论是否为空）
@@ -704,6 +959,15 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 		UpdatedAt: time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339),
 	}
 
+	if len(lesson.Files) > 0 {
+		ids := make([]uint, 0, len(lesson.Files))
+		for _, file := range lesson.Files {
+			ids = append(ids, file.ID)
+		}
+		response.ResourceFileIDs = ids
+		response.ResourceFiles = buildFileResponses(lesson.Files)
+	}
+
 	return response, nil, nil
 }
 
@@ -731,20 +995,22 @@ type GetLessonResponse struct {
 		SortOrder   int    `json:"sort_order"`
 	} `json:"courses,omitempty"`
 
-	DocumentName string `json:"document_name"`
-	DocumentPath string `json:"document_path"`
-	FlowChartID  uint   `json:"flow_chart_id"`
-	ProjectType  string `json:"project_type"`
-	ProjectID1   uint   `json:"project_id_1"`
-	ProjectID2   uint   `json:"project_id_2"`
-	VideoPath1   string `json:"video_path_1"`
-	VideoPath2   string `json:"video_path_2"`
-	VideoPath3   string `json:"video_path_3"`
-	Duration     int    `json:"duration"`
-	Difficulty   string `json:"difficulty"`
-	Description  string `json:"description"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
+	DocumentName    string         `json:"document_name"`
+	DocumentPath    string         `json:"document_path"`
+	FlowChartID     uint           `json:"flow_chart_id"`
+	ProjectType     string         `json:"project_type"`
+	ProjectID1      uint           `json:"project_id_1"`
+	ProjectID2      uint           `json:"project_id_2"`
+	VideoPath1      string         `json:"video_path_1"`
+	VideoPath2      string         `json:"video_path_2"`
+	VideoPath3      string         `json:"video_path_3"`
+	Duration        int            `json:"duration"`
+	Difficulty      string         `json:"difficulty"`
+	Description     string         `json:"description"`
+	CreatedAt       string         `json:"created_at"`
+	UpdatedAt       string         `json:"updated_at"`
+	ResourceFileIDs []uint         `json:"resource_file_ids"`
+	ResourceFiles   []FileResponse `json:"resource_files"`
 }
 
 // GetLessonHandler 获取课时详情
@@ -776,6 +1042,15 @@ func (h *Handler) GetLessonHandler(c *gin.Context, params *GetLessonParams) (*Ge
 		Description:  lesson.Description,
 		CreatedAt:    time.Unix(lesson.CreatedAt, 0).Format(time.RFC3339),
 		UpdatedAt:    time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339),
+	}
+
+	if len(lesson.Files) > 0 {
+		ids := make([]uint, 0, len(lesson.Files))
+		for _, file := range lesson.Files {
+			ids = append(ids, file.ID)
+		}
+		response.ResourceFileIDs = ids
+		response.ResourceFiles = buildFileResponses(lesson.Files)
 	}
 
 	// 获取关联的课程信息（通过多对多关系）
@@ -1215,4 +1490,21 @@ func (h *Handler) RemoveLessonFromCourseHandler(c *gin.Context, params *RemoveLe
 	}
 
 	return response, nil, nil
+}
+
+func buildFileResponses(files []model.File) []FileResponse {
+	responses := make([]FileResponse, 0, len(files))
+	for _, file := range files {
+		f := file
+		responses = append(responses, FileResponse{
+			ID:           f.ID,
+			Name:         f.GetName(),
+			Description:  f.Description,
+			Size:         f.Size,
+			TagID:        f.TagID,
+			ContentType:  f.ContentType,
+			OriginalName: f.OriginalName,
+		})
+	}
+	return responses
 }
