@@ -578,9 +578,11 @@ func (l *LessonDaoImpl) GetLessonCourses(lessonID uint) ([]model.Course, error) 
 }
 
 // ListLessonsInCourse 获取课程中的所有课时（按关联表中的排序）
+// 预加载 Files 以便前端可以判断是否有资源文件
 func (l *LessonDaoImpl) ListLessonsInCourse(courseID uint) ([]model.Lesson, error) {
 	var lessons []model.Lesson
-	if err := l.db.Joins("JOIN lesson_courses ON lesson_courses.lesson_id = lessons.id").
+	if err := l.db.Preload("Files").
+		Joins("JOIN lesson_courses ON lesson_courses.lesson_id = lessons.id").
 		Where("lesson_courses.course_id = ?", courseID).
 		Order("lesson_courses.sort_order ASC, lessons.id ASC").
 		Find(&lessons).Error; err != nil {

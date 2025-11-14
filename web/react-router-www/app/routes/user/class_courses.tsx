@@ -43,6 +43,7 @@ interface Lesson {
   duration: number;
   difficulty: string;
   description: string;
+  files?: Array<{ id: number }>;
 }
 
 // 课程数据接口
@@ -472,15 +473,27 @@ export default function ClassCourses() {
                               暂无项目
                             </Button>
                           )}
-                          <Link to={`/www/user/lesson/${lesson.id}/resources`}>
+                          {(lesson.files && lesson.files.length > 0) ? (
+                            <Link to={`/www/user/lesson/${lesson.id}/resources`}>
+                              <Button 
+                                size="sm" 
+                                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white w-28"
+                              >
+                                <FileText className="w-4 h-4 mr-1" />
+                                资源文件
+                              </Button>
+                            </Link>
+                          ) : (
                             <Button 
                               size="sm" 
-                              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white w-28"
+                              variant="outline"
+                              disabled
+                              className="w-28 text-gray-400"
                             >
                               <FileText className="w-4 h-4 mr-1" />
-                              查看资源
+                              暂无资源
                             </Button>
-                          </Link>
+                          )}
                           {Number(lesson.flow_chart_id as any) > 0 ? (
                             <Button 
                               size="sm" 
