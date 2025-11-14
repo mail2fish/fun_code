@@ -1111,3 +1111,109 @@ func (h *Handler) GetMyCourseHandler(c *gin.Context, params *GetMyCourseParams) 
 
 	return course, nil, nil
 }
+
+// GetMyLessonParams 获取我的课件详情请求参数
+type GetMyLessonParams struct {
+	LessonID uint `json:"lesson_id" uri:"lesson_id" binding:"required"`
+}
+
+func (p *GetMyLessonParams) Parse(c *gin.Context) gorails.Error {
+	if err := c.ShouldBindUri(p); err != nil {
+		return gorails.NewError(http.StatusBadRequest, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeInvalidParams, global.ErrorMsgInvalidParams, err)
+	}
+	return nil
+}
+
+// GetMyLessonResponse 获取我的课件详情响应
+type GetMyLessonResponse struct {
+	ID      uint   `json:"id"`
+	Title   string `json:"title"`
+	Content string `json:"content"`
+	Courses []struct {
+		ID          uint   `json:"id"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		SortOrder   int    `json:"sort_order"`
+	} `json:"courses,omitempty"`
+
+	DocumentName    string         `json:"document_name"`
+	DocumentPath    string         `json:"document_path"`
+	FlowChartID     uint           `json:"flow_chart_id"`
+	ProjectType     string         `json:"project_type"`
+	ProjectID1      uint           `json:"project_id_1"`
+	ProjectID2      uint           `json:"project_id_2"`
+	VideoPath1      string         `json:"video_path_1"`
+	VideoPath2      string         `json:"video_path_2"`
+	VideoPath3      string         `json:"video_path_3"`
+	Duration        int            `json:"duration"`
+	Difficulty      string         `json:"difficulty"`
+	Description     string         `json:"description"`
+	CreatedAt       string         `json:"created_at"`
+	UpdatedAt       string         `json:"updated_at"`
+	ResourceFileIDs []uint         `json:"resource_file_ids"`
+	ResourceFiles   []FileResponse `json:"resource_files"`
+}
+
+// GetMyLessonHandler 获取我的课件详情（学生端）
+func (h *Handler) GetMyLessonHandler(c *gin.Context, params *GetMyLessonParams) (*GetMyLessonResponse, *gorails.ResponseMeta, gorails.Error) {
+	userID := h.getUserID(c)
+
+	// 使用带权限检查的方法获取课件详情
+	lesson, err := h.dao.LessonDao.GetLessonWithPermission(params.LessonID, userID)
+	if err != nil {
+		if err.Error() == "课时不存在或您无权访问" {
+			return nil, nil, gorails.NewError(http.StatusForbidden, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeNoPermission, global.ErrorMsgNoPermission, err)
+		}
+		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, global.ErrorMsgQueryFailed, err)
+	}
+
+	response := &GetMyLessonResponse{
+		ID:      lesson.ID,
+		Title:   lesson.Title,
+		Content: lesson.Content,
+
+		DocumentName: lesson.DocumentName,
+		DocumentPath: lesson.DocumentPath,
+		FlowChartID:  lesson.FlowChartID,
+		ProjectType:  lesson.ProjectType,
+		ProjectID1:   lesson.ProjectID1,
+		ProjectID2:   lesson.ProjectID2,
+		VideoPath1:   lesson.Video1,
+		VideoPath2:   lesson.Video2,
+		VideoPath3:   lesson.Video3,
+		Duration:     lesson.Duration,
+		Difficulty:   lesson.Difficulty,
+		Description:  lesson.Description,
+		CreatedAt:    time.Unix(lesson.CreatedAt, 0).Format(time.RFC3339),
+		UpdatedAt:    time.Unix(lesson.UpdatedAt, 0).Format(time.RFC3339),
+	}
+
+	// 添加资源文件信息
+	if len(lesson.Files) > 0 {
+		ids := make([]uint, 0, len(lesson.Files))
+		for _, file := range lesson.Files {
+			ids = append(ids, file.ID)
+		}
+		response.ResourceFileIDs = ids
+		response.ResourceFiles = BuildFileResponses(lesson.Files)
+	}
+
+	// 获取关联的课程信息（通过多对多关系）
+	if len(lesson.Courses) > 0 {
+		for _, course := range lesson.Courses {
+			response.Courses = append(response.Courses, struct {
+				ID          uint   `json:"id"`
+				Title       string `json:"title"`
+				Description string `json:"description"`
+				SortOrder   int    `json:"sort_order"`
+			}{
+				ID:          course.ID,
+				Title:       course.Title,
+				Description: course.Description,
+				SortOrder:   0, // 暂时设为0，如果需要可以后续优化
+			})
+		}
+	}
+
+	return response, nil, nil
+}

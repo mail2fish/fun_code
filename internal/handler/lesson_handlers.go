@@ -367,7 +367,7 @@ func (h *Handler) CreateLessonHandler(c *gin.Context, params *CreateLessonParams
 		return nil, nil, gorails.NewError(http.StatusInternalServerError, gorails.ERR_HANDLER, global.ERR_MODULE_LESSON, global.ErrorCodeQueryFailed, "获取课时资源文件失败", err)
 	}
 	response.ResourceFileIDs = resourceFileIDs
-	response.ResourceFiles = buildFileResponses(lessonFiles)
+	response.ResourceFiles = BuildFileResponses(lessonFiles)
 
 	return response, nil, nil
 }
@@ -965,7 +965,7 @@ func (h *Handler) UpdateLessonHandler(c *gin.Context, params *UpdateLessonParams
 			ids = append(ids, file.ID)
 		}
 		response.ResourceFileIDs = ids
-		response.ResourceFiles = buildFileResponses(lesson.Files)
+		response.ResourceFiles = BuildFileResponses(lesson.Files)
 	}
 
 	return response, nil, nil
@@ -1050,7 +1050,7 @@ func (h *Handler) GetLessonHandler(c *gin.Context, params *GetLessonParams) (*Ge
 			ids = append(ids, file.ID)
 		}
 		response.ResourceFileIDs = ids
-		response.ResourceFiles = buildFileResponses(lesson.Files)
+		response.ResourceFiles = BuildFileResponses(lesson.Files)
 	}
 
 	// 获取关联的课程信息（通过多对多关系）
@@ -1492,7 +1492,8 @@ func (h *Handler) RemoveLessonFromCourseHandler(c *gin.Context, params *RemoveLe
 	return response, nil, nil
 }
 
-func buildFileResponses(files []model.File) []FileResponse {
+// BuildFileResponses 构建文件响应列表（导出函数，供其他 handler 使用）
+func BuildFileResponses(files []model.File) []FileResponse {
 	responses := make([]FileResponse, 0, len(files))
 	for _, file := range files {
 		f := file

@@ -31,10 +31,10 @@ type Lesson struct {
 	FlowChartID uint `json:"flow_chart_id" gorm:"index"` // 流程图ID
 
 	// 项目相关字段
-	ProjectType string `json:"project_type" gorm:"size:50"` // 项目类型
-	ProjectID1  uint   `json:"project_id_1" gorm:"index"`   // 项目ID 1
-	ProjectID2  uint   `json:"project_id_2" gorm:"index"`   // 项目ID 2
-	ProjectID3  uint   `json:"project_id_3" gorm:"index"`   // 项目ID 3
+	ProjectType string `json:"project_type" gorm:"size:50"`                    // 项目类型
+	ProjectID1  uint   `json:"project_id_1" gorm:"column:project_id_1;index"`  // 项目ID 1
+	ProjectID2  uint   `json:"project_id_2" gorm:"column:project_id_2;index"`  // 项目ID 2
+	ProjectID3  uint   `json:"project_id_3" gorm:"column:project_id_3;index"`  // 项目ID 3
 
 	// 视频相关字段
 	Video1 string `json:"video_1" gorm:"size:500"` // 视频1路径/URL

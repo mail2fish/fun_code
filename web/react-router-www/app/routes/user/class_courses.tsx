@@ -13,7 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
   GraduationCap,
-  ExternalLink
+  ExternalLink,
+  FileText
 } from "lucide-react";
 
 import { fetchWithAuth } from "~/utils/api";
@@ -471,18 +472,25 @@ export default function ClassCourses() {
                               暂无项目
                             </Button>
                           )}
-                          {Number(lesson.flow_chart_id as any) > 0 && (
+                          <Link to={`/www/user/lesson/${lesson.id}/resources`}>
                             <Button 
                               size="sm" 
-                              variant="outline"
-                              className="w-28"
+                              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white w-28"
+                            >
+                              <FileText className="w-4 h-4 mr-1" />
+                              查看资源
+                            </Button>
+                          </Link>
+                          {Number(lesson.flow_chart_id as any) > 0 ? (
+                            <Button 
+                              size="sm" 
+                              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white w-28"
                               onClick={() => window.open(`/www/excalidraw/open/${lesson.flow_chart_id}?readonly=1`, '_blank')}
                             >
+                              <ExternalLink className="w-4 h-4 mr-1" />
                               查看流程图
-                              <ExternalLink className="w-3 h-3 ml-2" />
                             </Button>
-                          )}
-                          {!(Number(lesson.flow_chart_id as any) > 0) && (
+                          ) : (
                             <Button 
                               size="sm" 
                               variant="outline"
