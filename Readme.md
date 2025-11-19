@@ -4,7 +4,7 @@
 
 ## Introduction
 
-The Fun Coding Scratch Editor is an ultra-lightweight, open-source visual programming system for children that serves as an alternative to the desktop Scratch editor. It not only includes Scratch but also supports drawing flowcharts with Excalidraw.
+The Fun Coding Scratch Editor is an ultra-lightweight, open-source visual programming system for children that serves as an alternative to the desktop Scratch editor and Python IDE. It not only includes Scratch and Python but also supports drawing flowcharts with Excalidraw.
 
 Compared with other open-source Scratch systems, it features extremely simple deployment: it uses an SQLite file database and requires no configuration—just download and run—to provide a complete local service that includes user management and Scratch visual programming. The system is compatible with Windows, Linux, and macOS, making it especially suitable for individuals and small children's programming training institutions.
 
@@ -136,6 +136,11 @@ In the admin panel, click the "Resource Files" button to open the resource file 
 12. Flow Chart
 
 ![Flowchart](docs/images/excalidraw.png)
+
+13. Python Support 
+
+![Python](docs/images/python.png)
+
 
 ## Build Guide
 

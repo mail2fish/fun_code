@@ -1,3 +1,123 @@
+# v0.0.8
+
+## Feature Updates
+
+- **Monaco Editor - Python Programming Environment**
+  - Full Python language support with syntax highlighting and autocompletion
+  - Integrated Pyodide runtime for Python code execution in the browser
+  - Debugging functionality with breakpoints, step-through debugging, and variable inspection
+  - Graphical output support using Pixi.js for game development
+  - Matplotlib integration for data visualization
+  - Auto-save functionality with 30-second interval
+  - Program history viewing and restoration
+  - Save programs to local computer
+  - Input support for interactive programs
+  - Enhanced error handling with syntax error highlighting and line navigation
+  - Panel resizing and visibility toggles for better workspace management
+  - Fullscreen mode for graphical output
+  - Console tabs for output, errors, and logs
+
+- **Program Management**
+  - Program list and count functionality
+  - Administrator program management interface
+  - Program history retrieval and display
+  - Program sharing and permission verification
+
+- **Excalidraw Integration**
+  - Excalidraw editor support for flowcharts and diagrams
+  - ExcalidrawPicker component for flow chart selection in lesson creation
+  - Read-only access for students to view Excalidraw boards and thumbnails
+
+- **Lesson Management**
+  - Resource file management in lesson creation and editing
+  - Lesson detail retrieval with preloaded resource files
+  - Dynamic project type handling
+
+- **Authentication & Routing**
+  - Authentication layout for protected routes
+  - Automatic redirection based on user role after login
+  - Enhanced login redirection logic
+
+- **Infrastructure Improvements**
+  - API Gateway functionality and configurations
+  - Static file handling optimization with pre-compressed resources support
+  - File compression support using vite-plugin-compression
+  - Enhanced asset handling and routing
+
+## Bug Fixes
+
+- Fixed API endpoint URLs in ProgramTable component
+- Fixed routing paths for asset handling in server and Excalidraw editor
+- Fixed input wrapper function compatibility in Monaco editor
+- Fixed dependencies update issues in Monaco editor
+
+## Refactoring
+
+- Improved breakpoint handling and cleanup in Monaco editor
+- Refactored program management page using ProgramTable component
+- Optimized Monaco editor's output handling logic
+
+# v0.0.8
+
+## 功能更新
+
+- **Monaco 编辑器 - Python 编程环境**
+  - 完整的 Python 语言支持，包括语法高亮和自动补全
+  - 集成 Pyodide 运行时，支持在浏览器中执行 Python 代码
+  - 调试功能，支持断点、单步调试和变量查看
+  - 使用 Pixi.js 支持图形输出，可用于游戏开发
+  - 集成 Matplotlib 支持数据可视化
+  - 自动保存功能，每 30 秒自动保存一次
+  - 程序历史记录查看和恢复功能
+  - 保存程序到本地电脑
+  - 支持输入功能，可编写交互式程序
+  - 增强的错误处理，支持语法错误高亮和行号定位
+  - 面板大小调整和可见性切换，优化工作空间管理
+  - 图形输出全屏模式
+  - 控制台标签页，分别显示输出、错误和日志
+
+- **程序管理**
+  - 程序列表和计数功能
+  - 管理员程序管理界面
+  - 程序历史记录检索和显示
+  - 程序分享和权限验证
+
+- **Excalidraw 集成**
+  - Excalidraw 编辑器支持，可用于流程图和图表绘制
+  - ExcalidrawPicker 组件，支持在课程创建时选择流程图
+  - 学生只读访问 Excalidraw 画板和缩略图
+
+- **课程管理**
+  - 课程创建和编辑中的资源文件管理
+  - 课程详情检索，支持预加载资源文件
+  - 动态项目类型处理
+
+- **认证和路由**
+  - 受保护路由的认证布局
+  - 基于用户角色的登录后自动跳转
+  - 增强的登录重定向逻辑
+
+- **基础设施改进**
+  - API Gateway 功能和配置
+  - 静态文件处理优化，支持预压缩资源
+  - 文件压缩支持，使用 vite-plugin-compression
+  - 增强的资源处理和路由
+
+## Bug 修复
+
+- 修复 ProgramTable 组件中的 API 端点 URL
+- 修复服务器和 Excalidraw 编辑器中的资源处理路由路径
+- 修复 Monaco 编辑器中的输入包装函数兼容性问题
+- 修复 Monaco 编辑器中的依赖更新问题
+
+## 代码重构
+
+- 改进 Monaco 编辑器中的断点处理和清理逻辑
+- 使用 ProgramTable 组件重构程序管理页面
+- 优化 Monaco 编辑器的输出处理逻辑
+
+---
+
 # v0.0.7
 
 ## Feature Updates

@@ -4,7 +4,7 @@
 
 ## 简介
 
-趣编程Scratch编辑器是一个替代桌面版 Scratch 编辑器，超轻的开源少儿图形化编程系统，它同时还支持 Excalidraw 绘制流程图。
+趣编程Scratch编辑器是一个替代桌面版 Scratch 编辑器，支持学习 Python ，超轻的开源少儿图形化编程学习系统，它同时还支持 Excalidraw 绘制流程图。
 
 和其他的Scratch开源的系统相比，它的特点在于部署超级简单，使用SQlite 文件数据库，用户无需任何配置，只需下载并运行程序，即可在本地计算机上提供包含用户管理和 Scratch 图形编程的完整服务。该系统兼容 Windows、Linux、Mac 等主流操作系统平台，尤其适合个人，或者小型少儿编程培训机构使用。
  
@@ -142,6 +142,10 @@ chmod +x ./funcode_darwin_arm64
 12. Flow Chart
 
 ![Flowchart](docs/images/excalidraw.png)
+
+13. 支持 Python 
+
+![Python](docs/images/python.png)
 
 ## 构建指南
 
