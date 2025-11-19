@@ -1406,6 +1406,78 @@ export default function MonacoEditorPage() {
     }
   }, [code, programName])
 
+  const handleViewHistory = React.useCallback(async () => {
+    setMenuOpen(false)
+    
+    // 先保存当前内容
+    try {
+      // 若用户未命名且没有 programId，弹出一次命名对话框
+      let nameToUse = programName
+      const idFromRoute = routeProgramId ? Number(routeProgramId) : 0
+      const hasExistingId = (typeof programId === "number" && !isNaN(programId)) || (idFromRoute > 0)
+      
+      if (!hasExistingId && (!nameToUse || nameToUse.trim() === "" || nameToUse === "未命名程序")) {
+        const input = window.prompt("请输入程序名称", programName || "未命名程序")
+        if (input == null) {
+          return // 用户取消命名，不跳转
+        }
+        nameToUse = input.trim() || "未命名程序"
+        setProgramName(nameToUse)
+        try { if (typeof document !== 'undefined') document.title = ownerName ? `${ownerName}-${nameToUse}` : nameToUse } catch (_) {}
+      }
+
+      const idToSave = typeof programId === "number" && !isNaN(programId) ? programId : (isNaN(idFromRoute) ? 0 : idFromRoute)
+
+      const resp = await fetchWithAuth(`${HOST_URL}/api/programs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: idToSave,
+          name: nameToUse,
+          type: programType,
+          program: code,
+        }),
+      })
+
+      if (resp.ok) {
+        try {
+          const data = await resp.json()
+          if (data && (data.id != null || (data.data && data.data.id != null))) {
+            const returnedId = data.id ?? data.data.id
+            if (typeof returnedId === "number") {
+              setProgramId(returnedId)
+              setLastSaveTime(new Date())
+              setHasUnsavedChanges(false)
+              lastCodeRef.current = code
+              // 保存成功后跳转到历史记录页面
+              navigate(`/www/user/programs/${returnedId}/histories`)
+              return
+            }
+          }
+        } catch (_) {}
+        // 如果返回了 ID 但解析失败，使用保存时的 ID
+        const finalId = typeof programId === "number" && !isNaN(programId) ? programId : (isNaN(idFromRoute) ? null : idFromRoute)
+        if (finalId) {
+          setLastSaveTime(new Date())
+          setHasUnsavedChanges(false)
+          lastCodeRef.current = code
+          navigate(`/www/user/programs/${finalId}/histories`)
+        } else {
+          ;(window as any).toast?.error?.("保存成功，但无法获取程序ID")
+        }
+      } else {
+        const txt = await resp.text()
+        console.error("保存失败", txt)
+        ;(window as any).toast?.error?.("保存失败，无法查看历史记录")
+      }
+    } catch (e) {
+      console.error("保存失败", e)
+      ;(window as any).toast?.error?.("保存失败，无法查看历史记录")
+    }
+  }, [code, programName, programId, routeProgramId, programType, ownerName, navigate])
+
   // 检测代码变化
   React.useEffect(() => {
     // 如果代码与上次保存的代码不同，则标记为未保存
@@ -1757,6 +1829,13 @@ export default function MonacoEditorPage() {
                   onClick={handleSave}
                 >
                   💾 保存
+                </button>
+                <div className="border-t border-gray-200"></div>
+                <button
+                  className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors duration-200"
+                  onClick={handleViewHistory}
+                >
+                  📜 历史记录
                 </button>
                 <div className="border-t border-gray-200"></div>
                 <button
