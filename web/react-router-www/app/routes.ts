@@ -53,6 +53,7 @@ export default [
         // excalidraw editor routes
         route("/www/excalidraw/new", "routes/excalidraw.new.tsx"),
         route("/www/excalidraw/open/:boardId", "routes/excalidraw.open.boardId.tsx"),
+        route("/www/excalidraw/scratch/:projectId", "routes/excalidraw.scratch.projectId.tsx"),
     ]),
 
 ] satisfies RouteConfig;

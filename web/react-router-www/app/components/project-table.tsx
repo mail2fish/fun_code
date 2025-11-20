@@ -1,5 +1,6 @@
 import * as React from "react"
-import { IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconHistory, IconRefresh, IconShare, IconBook } from "@tabler/icons-react"
+import { useNavigate } from "react-router"
+import { IconEdit, IconTrash, IconChevronLeft, IconChevronRight, IconHistory, IconRefresh, IconShare, IconBook, IconRoute } from "@tabler/icons-react"
 
 import { Button } from "~/components/ui/button"
 import {
@@ -62,6 +63,7 @@ export function ProjectTable({
   projectsApiUrl,
   showCreateLessonButton = false,
 }: ProjectTableProps) {
+  const navigate = useNavigate()
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
   const [sharingId, setSharingId] = React.useState<string | null>(null)
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false)
@@ -84,6 +86,7 @@ export function ProjectTable({
   const [searchingProject, setSearchingProject] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<string>("__all__")
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc")
+  const [generatingFlowchart, setGeneratingFlowchart] = React.useState<string | null>(null)
 
   // 无限滚动相关状态
   const [projects, setProjects] = React.useState<Project[]>([])
@@ -464,6 +467,19 @@ export function ProjectTable({
     }
   }
 
+  // 创建流程图
+  const handleCreateFlowchart = async (project: Project) => {
+    setGeneratingFlowchart(project.id)
+    try {
+      // 使用 React Router 导航到流程图页面，由页面处理 Mermaid 转换
+      navigate(`/www/excalidraw/scratch/${project.id}`)
+    } catch (error) {
+      console.error("创建流程图时出错：", error)
+      toast(`创建流程图失败：${error instanceof Error ? error.message : '未知错误'}`)
+      setGeneratingFlowchart(null)
+    }
+  }
+
   // 创建分享
   const handleCreateShare = async () => {
     if (!currentShareProject) {
@@ -770,7 +786,22 @@ export function ProjectTable({
                         </Button>
                       </div>
                       
-                      {/* 最后一行：创建课件（仅在 admin 页面显示） */}
+                      {/* 创建流程图（所有用户都可以使用） */}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          title="创建流程图"
+                          onClick={() => handleCreateFlowchart(project)}
+                          disabled={generatingFlowchart === project.id}
+                          className="flex-1 h-9 bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100 hover:border-purple-300 hover:scale-105 hover:shadow-md transition-all duration-200 font-medium text-sm group"
+                        >
+                          <IconRoute className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
+                          {generatingFlowchart === project.id ? "生成中..." : "创建流程图"}
+                        </Button>
+                      </div>
+                      
+                      {/* 创建课件（仅在 admin 权限时显示） */}
                       {showCreateLessonButton && (
                         <div className="flex gap-2">
                           <Button

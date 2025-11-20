@@ -199,6 +199,9 @@ func (s *Server) setupRoutes() {
 
 				// 文件管理路由
 				admin.POST("/files/upload", gorails.Wrap(s.handler.PostMultiFileUploadHandler, nil))
+
+				// 流程图管理路由
+				admin.GET("/flowchart/scratch/:project_id", gorails.Wrap(s.handler.GetFlowchartScratchHandler, nil))
 			}
 			// 班级相关路由
 		}
