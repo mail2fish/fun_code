@@ -304,20 +304,44 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 
 	// Handle REPEAT loop
 	if block.Opcode == "control_repeat" || block.Opcode == "control_repeat_until" {
+		var lastNodeName string
 		if substack := getSubstackBlockID(block); substack != "" {
 			substackSafeID := idMapper.GetSafeID(substack)
 			substackNode := fmt.Sprintf("%s_%s", prefix, substackSafeID)
-			builder.WriteString(fmt.Sprintf("    %s --> %s[循环体]\n", nodeName, substackNode))
-			generateBlockFlow(builder, blocks, substack, prefix, depth+1, visited, idMapper, translator, broadcasts)
-			// Loop back
-			builder.WriteString(fmt.Sprintf("    %s --> %s\n", substackNode, nodeName))
+
+			// 连接到循环体的第一个节点
+			builder.WriteString(fmt.Sprintf("    %s --> %s\n", nodeName, substackNode))
+
+			// 为循环体生成单独的 visited 副本，避免与外层循环互相污染
+			loopVisited := make(map[string]bool)
+			for k, v := range visited {
+				loopVisited[k] = v
+			}
+
+			// 生成循环体
+			generateBlockFlow(builder, blocks, substack, prefix, depth+1, loopVisited, idMapper, translator, broadcasts)
+
+			// 循环体最后一个节点回到当前循环节点
+			lastBlockID := findLastBlockInSubstack(blocks, substack)
+			if lastBlockID != "" {
+				lastSafeID := idMapper.GetSafeID(lastBlockID)
+				lastNodeName = fmt.Sprintf("%s_%s", prefix, lastSafeID)
+				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, nodeName))
+			} else {
+				// 如果循环体为空，直接回到当前节点
+				builder.WriteString(fmt.Sprintf("    %s --> %s\n", substackNode, nodeName))
+			}
 		}
 
-		// Continue to next block after loop
+		// 循环完成后，继续执行下一个块（循环体整体视为一个节点）
 		if block.Next != nil {
 			nextSafeID := idMapper.GetSafeID(*block.Next)
 			nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
-			builder.WriteString(fmt.Sprintf("    %s --> %s\n", nodeName, nextNodeName))
+			if lastNodeName != "" {
+				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, nextNodeName))
+			} else {
+				builder.WriteString(fmt.Sprintf("    %s --> %s\n", nodeName, nextNodeName))
+			}
 			generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
 		}
 		return true, true
@@ -334,6 +358,35 @@ func getSubstackBlockID(block Block) string {
 		}
 	}
 	return ""
+}
+
+// findLastBlockInSubstack finds the last block in a substack chain, without following next blocks
+func findLastBlockInSubstack(blocks map[string]Block, startID string) string {
+	if startID == "" {
+		return ""
+	}
+
+	block, exists := blocks[startID]
+	if !exists {
+		return ""
+	}
+
+	// If there's a next block, continue the chain (but don't follow next blocks of control blocks)
+	if block.Next != nil {
+		return findLastBlockInSubstack(blocks, *block.Next)
+	}
+
+	// If this is a control block with substack, we need to recursively find the last block in the substack
+	if substackID := getSubstackBlockID(block); substackID != "" {
+		// First, follow the substack
+		substackLastID := findLastBlockInSubstack(blocks, substackID)
+		if substackLastID != "" {
+			return substackLastID
+		}
+	}
+
+	// This is the last block
+	return startID
 }
 
 // findLastBlockInChain finds the last block in a chain, handling nested control structures
@@ -637,6 +690,10 @@ func GetBlockLabel(block Block, translator *OpcodeTranslator, broadcasts map[str
 	} else {
 		// Also get input values
 		for key, input := range block.Inputs {
+			// Skip SUBSTACK input for control blocks (it's the loop body, not a parameter)
+			if key == "SUBSTACK" || key == "SUBSTACK2" {
+				continue
+			}
 			// Special handling for BROADCAST_INPUT
 			if key == "BROADCAST_INPUT" {
 				switch v := input.(type) {
