@@ -234,7 +234,6 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 
 	// Handle IF block
 	if block.Opcode == "control_if" {
-		hasSubstack := false
 		if substack := getSubstackBlockID(block); substack != "" {
 			substackSafeID := idMapper.GetSafeID(substack)
 			substackNode := fmt.Sprintf("%s_%s", prefix, substackSafeID)
@@ -250,9 +249,6 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 				nextSafeID := idMapper.GetSafeID(*block.Next)
 				nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
 				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, nextNodeName))
-
-				// 标记已经有路径到 next 了，所以"否"分支只需要添加箭头，不需要再次调用 generateBlockFlow
-				hasSubstack = true
 			}
 		}
 
@@ -262,10 +258,8 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 			nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
 			builder.WriteString(fmt.Sprintf("    %s -->|否| %s\n", nodeName, nextNodeName))
 
-			// 只有当"是"分支没有连接到 next 时才需要继续处理
-			if !hasSubstack {
-				generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
-			}
+			// 继续生成后续节点，避免 next 节点缺失
+			generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
 		} else {
 			// 如果没有 next，添加"否"分支指向结束
 			endNodeName := fmt.Sprintf("%s_end", nodeName)
@@ -337,7 +331,12 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 		if block.Next != nil {
 			nextSafeID := idMapper.GetSafeID(*block.Next)
 			nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
-			builder.WriteString(fmt.Sprintf("    %s --> %s\n", nodeName, nextNodeName))
+			if lastNodeName != "" {
+				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, nextNodeName))
+			} else {
+				builder.WriteString(fmt.Sprintf("    %s --> %s\n", nodeName, nextNodeName))
+			}
+
 			generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
 		}
 		return true, true
@@ -370,15 +369,6 @@ func findLastBlockInSubstack(blocks map[string]Block, startID string) string {
 	// If there's a next block, continue the chain (but don't follow next blocks of control blocks)
 	if block.Next != nil {
 		return findLastBlockInSubstack(blocks, *block.Next)
-	}
-
-	// If this is a control block with substack, we need to recursively find the last block in the substack
-	if substackID := getSubstackBlockID(block); substackID != "" {
-		// First, follow the substack
-		substackLastID := findLastBlockInSubstack(blocks, substackID)
-		if substackLastID != "" {
-			return substackLastID
-		}
 	}
 
 	// This is the last block
