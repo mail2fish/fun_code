@@ -299,15 +299,15 @@ func (h *Handler) GetLessonScratchProjectHandler(c *gin.Context, params *GetLess
 		AssetHost      string
 		ProjectRoute   string
 	}{
-		CanSaveProject: false, // 课时项目通常为只读
-		CanRemix:       true,  // 允许基于课时项目创建新项目
+		CanSaveProject: false, // 课时项目为只读
+		CanRemix:       false, // 课堂教学中仅允许查看
 		ProjectID:      fmt.Sprintf("%d_%d_%d_%d", params.ClassID, params.CourseID, params.LessonID, params.ProjectID),
 		Host:           h.config.ScratchEditor.Host,
 		ProjectTitle:   project.Name,
 		HTMLTitle:      fmt.Sprintf("Lesson %s - %s", lesson.Title, project.Name),
 		UserName:       user.Username,
 		NickName:       user.Nickname,
-		IsPlayerOnly:   false,
+		IsPlayerOnly:   true, // 课堂播放模式，仅展示舞台
 		IsFullScreen:   false,
 		ProjectHost:    h.config.ScratchEditor.Host + "/api/student/scratch/projects",
 		AssetHost:      h.config.ScratchEditor.Host + "/assets/scratch",

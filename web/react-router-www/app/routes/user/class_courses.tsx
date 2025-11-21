@@ -453,15 +453,14 @@ export default function ClassCourses() {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           {lesson.project_id_1 > 0 ? (
-                            <a href={`${HOST_URL}/projects/scratch/lesson/${classId}/${courseId}/${lesson.id}/${lesson.project_id_1}`}>
-                              <Button 
-                                size="sm" 
-                                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white w-24"
-                              >
-                                <Play className="w-4 h-4 mr-1" />
-                                打开程序
-                              </Button>
-                            </a>
+                            <Button 
+                              size="sm" 
+                              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white w-24"
+                              onClick={() => window.open(`${HOST_URL}/projects/scratch/lesson/${classId}/${courseId}/${lesson.id}/${lesson.project_id_1}`, '_blank')}
+                            >
+                              <Play className="w-4 h-4 mr-1" />
+                              打开程序
+                            </Button>
                           ) : (
                             <Button 
                               size="sm" 
