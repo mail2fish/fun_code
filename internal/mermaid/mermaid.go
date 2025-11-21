@@ -282,9 +282,14 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 			// 继续生成后续节点，避免 next 节点缺失
 			generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
 		} else {
-			// 如果没有 next，添加"否"分支指向结束
-			endNodeName := fmt.Sprintf("%s_end", nodeName)
-			builder.WriteString(fmt.Sprintf("    %s -->|否| %s[结束]\n", nodeName, endNodeName))
+			// 如果没有 next，尝试回到最近的循环节点
+			if loopNodeName := findNearestLoopAncestorNode(block, blocks, idMapper, prefix); loopNodeName != "" {
+				builder.WriteString(fmt.Sprintf("    %s -->|否| %s\n", nodeName, loopNodeName))
+			} else {
+				// 无循环父节点才指向结束
+				endNodeName := fmt.Sprintf("%s_end", nodeName)
+				builder.WriteString(fmt.Sprintf("    %s -->|否| %s[结束]\n", nodeName, endNodeName))
+			}
 		}
 		return true, true
 	}
@@ -850,4 +855,26 @@ func getNodeShape(opcode string) (string, string) {
 
 	// Regular action blocks - use round shape
 	return "( ", ")"
+}
+
+func findNearestLoopAncestorNode(block Block, blocks map[string]Block, idMapper *IDMapper, prefix string) string {
+	visited := make(map[string]bool)
+	parentPtr := block.Parent
+	for parentPtr != nil {
+		parentID := *parentPtr
+		if visited[parentID] {
+			break
+		}
+		visited[parentID] = true
+		parentBlock, exists := blocks[parentID]
+		if !exists {
+			break
+		}
+		if parentBlock.Opcode == "control_forever" || parentBlock.Opcode == "control_repeat" || parentBlock.Opcode == "control_repeat_until" {
+			parentSafeID := idMapper.GetSafeID(parentID)
+			return fmt.Sprintf("%s_%s", prefix, parentSafeID)
+		}
+		parentPtr = parentBlock.Parent
+	}
+	return ""
 }
