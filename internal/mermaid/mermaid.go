@@ -669,6 +669,8 @@ func GetBlockLabel(block Block, translator *OpcodeTranslator, broadcasts map[str
 				fieldVals = append(fieldVals, "随机位置")
 			case "_myself_":
 				fieldVals = append(fieldVals, "自己")
+			case "left-right":
+				fieldVals = append(fieldVals, "左右旋转")
 			default:
 				if translated := translator.Translate(valStr); translated != "" && translated != valStr {
 					fieldVals = append(fieldVals, translated)
