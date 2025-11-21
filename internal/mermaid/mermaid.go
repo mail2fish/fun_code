@@ -691,7 +691,10 @@ func GetBlockLabel(block Block, translator *OpcodeTranslator, broadcasts map[str
 	if opcode == "motion_gotoxy" {
 		for _, key := range []string{"X", "Y"} {
 			if input, exists := block.Inputs[key]; exists {
-				value := extractInputValue(input)
+				value := resolveInputDisplay(input, translator, broadcasts, blocks, make(map[string]bool))
+				if value == "" {
+					value = extractInputValue(input)
+				}
 				fieldVals = append(fieldVals, value)
 			}
 		}
