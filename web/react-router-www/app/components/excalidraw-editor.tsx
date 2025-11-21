@@ -210,7 +210,7 @@ export default function ExcalidrawEditor() {
       const boardData = result.data;
       if (boardData.name) {
         setBoardTitle(boardData.name);
-        document.title = boardData.name;
+        document.title = `流程图： ${boardData.name}`;
       }
       let sceneData;
       try { sceneData = JSON.parse(boardData.board_json); } catch { throw new Error('画板数据格式错误'); }
@@ -253,7 +253,7 @@ export default function ExcalidrawEditor() {
       loadBoard(boardId);
     } else if (isNewBoard) {
       setBoardTitle('');
-      document.title = '画板';
+      document.title = '流程图： 画板';
     }
   }, [excalidrawAPI, boardId, isNewBoard, loadBoard]);
 
@@ -312,7 +312,7 @@ export default function ExcalidrawEditor() {
                   const nextTitle = renameValue.trim();
                   if (!nextTitle) { setIsRenameOpen(false); return; }
                   setBoardTitle(nextTitle);
-                  document.title = nextTitle;
+                  document.title = `流程图： ${nextTitle}`;
                   if (excalidrawAPI) {
                     const elements = excalidrawAPI.getSceneElements();
                     const appState = excalidrawAPI.getAppState();

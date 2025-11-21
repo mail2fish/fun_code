@@ -206,7 +206,7 @@ export default function ExcalidrawScratchFlowchartPage() {
           // 设置标题
           const projectNameFromApi = result.data?.project_name || result.project_name;
           const projectName = projectNameFromApi || '未命名项目';
-          setBoardTitle(`${projectName} - 流程图`);
+          setBoardTitle(`流程图： ${projectName} `);
           document.title = `流程图 - ${projectName}`;
 
           setLoadStatus('loaded');
