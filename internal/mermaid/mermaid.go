@@ -447,6 +447,35 @@ func extractInputValue(input interface{}) string {
 	return ""
 }
 
+var keyOptionTranslations = map[string]string{
+	"space":       "空格",
+	"any":         "任意键",
+	"left arrow":  "左箭头",
+	"right arrow": "右箭头",
+	"up arrow":    "上箭头",
+	"down arrow":  "下箭头",
+}
+
+func translateFieldValue(valStr string, translator *OpcodeTranslator) string {
+	switch valStr {
+	case "_mouse_":
+		return "鼠标指针"
+	case "_random_":
+		return "随机位置"
+	case "_myself_":
+		return "自己"
+	case "left-right":
+		return "左右旋转"
+	}
+	if translated, ok := keyOptionTranslations[strings.ToLower(valStr)]; ok {
+		return translated
+	}
+	if translated := translator.Translate(valStr); translated != "" && translated != valStr {
+		return translated
+	}
+	return valStr
+}
+
 // getReferencedBlockLabel generates a label for a referenced block (used in inputs)
 // This avoids infinite recursion by using a simpler approach and tracking visited blocks
 func getReferencedBlockLabel(blockID string, block Block, translator *OpcodeTranslator, broadcasts map[string]string, blocks map[string]Block) string {
@@ -477,21 +506,7 @@ func getReferencedBlockLabelRecursive(blockID string, block Block, translator *O
 			}
 		}
 		if valStr != "" {
-			// Translate special values like _mouse_, _random_, _myself_, etc.
-			switch valStr {
-			case "_mouse_":
-				parts = append(parts, "鼠标指针")
-			case "_random_":
-				parts = append(parts, "随机位置")
-			case "_myself_":
-				parts = append(parts, "自己")
-			default:
-				if translated := translator.Translate(valStr); translated != "" && translated != valStr {
-					parts = append(parts, translated)
-				} else {
-					parts = append(parts, valStr)
-				}
-			}
+			parts = append(parts, translateFieldValue(valStr, translator))
 		}
 	}
 
@@ -647,23 +662,7 @@ func GetBlockLabel(block Block, translator *OpcodeTranslator, broadcasts map[str
 			valStr = fmt.Sprintf("%v", v)
 		}
 		if valStr != "" {
-			// Translate special values like _mouse_, _random_, _myself_, etc.
-			switch valStr {
-			case "_mouse_":
-				fieldVals = append(fieldVals, "鼠标指针")
-			case "_random_":
-				fieldVals = append(fieldVals, "随机位置")
-			case "_myself_":
-				fieldVals = append(fieldVals, "自己")
-			case "left-right":
-				fieldVals = append(fieldVals, "左右旋转")
-			default:
-				if translated := translator.Translate(valStr); translated != "" && translated != valStr {
-					fieldVals = append(fieldVals, translated)
-				} else {
-					fieldVals = append(fieldVals, valStr)
-				}
-			}
+			fieldVals = append(fieldVals, translateFieldValue(valStr, translator))
 		}
 	}
 
@@ -741,16 +740,7 @@ func GetBlockLabel(block Block, translator *OpcodeTranslator, broadcasts map[str
 									break // Only take the first field value
 								}
 								if refValue != "" {
-									// Translate special values to Chinese
-									switch refValue {
-									case "_mouse_":
-										refValue = "鼠标指针"
-									case "_random_":
-										refValue = "随机位置"
-									case "_myself_":
-										refValue = "自己"
-									}
-									fieldVals = append(fieldVals, refValue)
+									fieldVals = append(fieldVals, translateFieldValue(refValue, translator))
 								} else {
 									fieldVals = append(fieldVals, blockID)
 								}
