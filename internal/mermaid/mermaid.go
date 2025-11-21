@@ -333,15 +333,11 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 			}
 		}
 
-		// 循环完成后，继续执行下一个块（循环体整体视为一个节点）
+		// 循环完成后，继续执行下一个块（整体从当前循环节点流出）
 		if block.Next != nil {
 			nextSafeID := idMapper.GetSafeID(*block.Next)
 			nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
-			if lastNodeName != "" {
-				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, nextNodeName))
-			} else {
-				builder.WriteString(fmt.Sprintf("    %s --> %s\n", nodeName, nextNodeName))
-			}
+			builder.WriteString(fmt.Sprintf("    %s --> %s\n", nodeName, nextNodeName))
 			generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
 		}
 		return true, true
