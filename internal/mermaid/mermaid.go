@@ -438,11 +438,20 @@ func getReferencedBlockLabelRecursive(blockID string, block Block, translator *O
 			}
 		}
 		if valStr != "" {
-			// Translate special values like _mouse_, _random_, etc.
-			if translated := translator.Translate(valStr); translated != "" && translated != valStr {
-				parts = append(parts, translated)
-			} else {
-				parts = append(parts, valStr)
+			// Translate special values like _mouse_, _random_, _myself_, etc.
+			switch valStr {
+			case "_mouse_":
+				parts = append(parts, "鼠标指针")
+			case "_random_":
+				parts = append(parts, "随机位置")
+			case "_myself_":
+				parts = append(parts, "自己")
+			default:
+				if translated := translator.Translate(valStr); translated != "" && translated != valStr {
+					parts = append(parts, translated)
+				} else {
+					parts = append(parts, valStr)
+				}
 			}
 		}
 	}
@@ -599,11 +608,20 @@ func GetBlockLabel(block Block, translator *OpcodeTranslator, broadcasts map[str
 			valStr = fmt.Sprintf("%v", v)
 		}
 		if valStr != "" {
-			// Translate special values like _mouse_, _random_, etc.
-			if translated := translator.Translate(valStr); translated != "" && translated != valStr {
-				fieldVals = append(fieldVals, translated)
-			} else {
-				fieldVals = append(fieldVals, valStr)
+			// Translate special values like _mouse_, _random_, _myself_, etc.
+			switch valStr {
+			case "_mouse_":
+				fieldVals = append(fieldVals, "鼠标指针")
+			case "_random_":
+				fieldVals = append(fieldVals, "随机位置")
+			case "_myself_":
+				fieldVals = append(fieldVals, "自己")
+			default:
+				if translated := translator.Translate(valStr); translated != "" && translated != valStr {
+					fieldVals = append(fieldVals, translated)
+				} else {
+					fieldVals = append(fieldVals, valStr)
+				}
 			}
 		}
 	}
@@ -684,6 +702,8 @@ func GetBlockLabel(block Block, translator *OpcodeTranslator, broadcasts map[str
 										refValue = "鼠标指针"
 									case "_random_":
 										refValue = "随机位置"
+									case "_myself_":
+										refValue = "自己"
 									}
 									fieldVals = append(fieldVals, refValue)
 								} else {
