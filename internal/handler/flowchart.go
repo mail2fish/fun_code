@@ -25,7 +25,8 @@ func (p *GetFlowchartScratchParams) Parse(c *gin.Context) gorails.Error {
 
 // GetFlowchartScratchResponse 获取流程图响应
 type GetFlowchartScratchResponse struct {
-	Mermaid string `json:"mermaid"`
+	Mermaid     string `json:"mermaid"`
+	ProjectName string `json:"project_name"`
 }
 
 // GetFlowchartScratchHandler 获取Scratch项目的流程图
@@ -76,9 +77,9 @@ func (h *Handler) GetFlowchartScratchHandler(c *gin.Context, params *GetFlowchar
 
 	// 返回响应
 	response := &GetFlowchartScratchResponse{
-		Mermaid: mermaidString,
+		Mermaid:     mermaidString,
+		ProjectName: projectName,
 	}
 
 	return response, nil, nil
 }
-

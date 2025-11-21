@@ -1,16 +1,18 @@
 import { Excalidraw, MainMenu, convertToExcalidrawElements } from "@excalidraw/excalidraw";
 import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { HOST_URL } from "~/config";
 import { fetchWithAuth } from "~/utils/api";
-import { toast } from "sonner";
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 type LoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
 type ExcalidrawLangCode = 'en' | 'zh-CN' | 'zh-TW';
 
+const IconSave = () => (
+  <svg width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable="false"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
+);
 const IconBack = () => (
   <svg width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable="false"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
 );
@@ -27,11 +29,11 @@ export default function ExcalidrawScratchFlowchartPage() {
   const menuLabels = useMemo(() => {
     switch (langCode) {
       case 'en':
-        return { backLabel: 'Back' };
+        return { backLabel: 'Back', saveLabel: 'Save' };
       case 'zh-TW':
-        return { backLabel: '返回' };
+        return { backLabel: '返回', saveLabel: '保存' };
       default:
-        return { backLabel: '返回' };
+        return { backLabel: '返回', saveLabel: '保存' };
     }
   }, [langCode]);
 
@@ -202,9 +204,10 @@ export default function ExcalidrawScratchFlowchartPage() {
           }
 
           // 设置标题
-          const projectName = result.data?.project_name || `项目 ${projectId}`;
+          const projectNameFromApi = result.data?.project_name || result.project_name;
+          const projectName = projectNameFromApi || '未命名项目';
           setBoardTitle(`${projectName} - 流程图`);
-          document.title = `${projectName} - 流程图`;
+          document.title = `流程图 - ${projectName}`;
 
           setLoadStatus('loaded');
           excalidrawAPI.setToast({ message: "流程图已加载", duration: 2000, closable: true });
@@ -241,6 +244,20 @@ export default function ExcalidrawScratchFlowchartPage() {
     loadMermaidAndConvert();
   }, [excalidrawAPI, projectId]);
 
+  const handleManualSave = useCallback(() => {
+    if (!excalidrawAPI) return;
+    const elements = excalidrawAPI.getSceneElements();
+    const appState = excalidrawAPI.getAppState();
+    const files = excalidrawAPI.getFiles();
+    if (!elements || elements.length === 0) {
+      if (excalidrawAPI) {
+        excalidrawAPI.setToast({ message: "暂无可保存内容", duration: 2000, closable: true });
+      }
+      return;
+    }
+    createBoard([...elements], appState, files);
+  }, [excalidrawAPI, createBoard]);
+
   const handleChange = useCallback((elements: readonly any[], appState: AppState, files: BinaryFiles) => {
     // 自动保存功能可以在这里实现
     setSaveStatus('idle');
@@ -275,6 +292,12 @@ export default function ExcalidrawScratchFlowchartPage() {
       <div style={{ paddingLeft: '0px', height: '100%', width: '100%' }}>
         <Excalidraw excalidrawAPI={setExcalidrawAPI} onChange={handleChange} theme="light" langCode={langCode}>
           <MainMenu>
+            <MainMenu.Item onSelect={handleManualSave} disabled={saveStatus === 'saving' || loadStatus === 'loading'}>
+              <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                <IconSave />{menuLabels.saveLabel}
+              </span>
+            </MainMenu.Item>
+            <MainMenu.Separator />
             <MainMenu.Item onSelect={handleBack}>
               <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
                 <IconBack />{menuLabels.backLabel}
