@@ -8,6 +8,27 @@ import (
 	"strings"
 )
 
+var mermaidLabelReplacer = strings.NewReplacer(
+	"[", "&#91;",
+	"]", "&#93;",
+	"(", "&#40;",
+	")", "&#41;",
+	"{", "&#123;",
+	"}", "&#125;",
+	"<", "&lt;",
+	">", "&gt;",
+	"|", "&#124;",
+	"\"", "&quot;",
+	"'", "&#39;",
+	"\n", " ",
+	"\r", " ",
+	"\t", " ",
+)
+
+func sanitizeMermaidLabel(label string) string {
+	return mermaidLabelReplacer.Replace(label)
+}
+
 // IDMapper maps Scratch block IDs to safe Mermaid node IDs
 type IDMapper struct {
 	idMap   map[string]string
@@ -96,7 +117,7 @@ func GenerateMermaid(project *Project, rootName string) string {
 	// Write header
 	builder.WriteString("flowchart TD\n")
 	builder.WriteString("    Start[")
-	builder.WriteString(rootName)
+	builder.WriteString(sanitizeMermaidLabel(rootName))
 	builder.WriteString("]\n")
 
 	// Process each target
@@ -114,7 +135,7 @@ func GenerateMermaid(project *Project, rootName string) string {
 		// Create a branch for this target
 		// Use MD5 hash for safe node ID
 		branchHash := generateID(target.Name)
-		builder.WriteString(fmt.Sprintf("    Start --> %s[%s]\n", branchHash, target.Name))
+		builder.WriteString(fmt.Sprintf("    Start --> %s[%s]\n", branchHash, sanitizeMermaidLabel(target.Name)))
 
 		// Find all top-level blocks (program entry points)
 		topLevelBlocks := findTopLevelBlocks(target.Blocks)
@@ -183,7 +204,7 @@ func generateBlockFlow(builder *strings.Builder, blocks map[string]Block, blockI
 	nodeShape, nodeShapeClose := getNodeShape(block.Opcode)
 
 	// Write node with appropriate shape
-	builder.WriteString(fmt.Sprintf("    %s%s%s%s\n", nodeName, nodeShape, label, nodeShapeClose))
+	builder.WriteString(fmt.Sprintf("    %s%s%s%s\n", nodeName, nodeShape, sanitizeMermaidLabel(label), nodeShapeClose))
 
 	// Handle control blocks with substacks
 	if _, handled := HandleControlBlock(builder, blocks, block, nodeName, prefix, blockID, depth, visited, idMapper, translator, broadcasts); handled {
