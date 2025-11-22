@@ -77,12 +77,12 @@ export function ExcalidrawPicker({ value, onChange, isAdmin = true, previewCompa
           <DialogTrigger asChild>
             <Button type="button" variant="outline">{selectedId ? "更换流程图" : "选择流程图"}</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-5xl">
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>选择流程图</DialogTitle>
             </DialogHeader>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col flex-1 min-h-0 space-y-3">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <Input
                   placeholder="搜索画板（按名称/ID/作者）"
                   value={keyword}
@@ -92,35 +92,37 @@ export function ExcalidrawPicker({ value, onChange, isAdmin = true, previewCompa
                   刷新
                 </Button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {filtered.map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => setTempSelectedId(String(b.id))}
-                    className={`text-left rounded-lg border transition hover:shadow-sm ${tempSelectedId === String(b.id) ? "ring-2 ring-blue-400" : ""}`}
-                  >
-                    <div className="w-full h-36 overflow-hidden rounded-t-lg bg-white">
-                      <img
-                        src={`${HOST_URL}/api/excalidraw/boards/${b.id}/thumbnail`}
-                        alt={b.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-                    <div className="p-2 space-y-1">
-                      <div className="text-sm font-medium truncate" title={b.name}>{b.name || `画板 ${b.id}`}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-2">
-                        <span>ID:{b.id}</span>
-                        {b.user?.nickname || b.user?.username ? (
-                          <span>· {b.user?.nickname || b.user?.username}</span>
-                        ) : null}
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pr-1">
+                  {filtered.map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setTempSelectedId(String(b.id))}
+                      className={`text-left rounded-lg border transition hover:shadow-sm ${tempSelectedId === String(b.id) ? "ring-2 ring-blue-400" : ""}`}
+                    >
+                      <div className="w-full h-36 overflow-hidden rounded-t-lg bg-white">
+                        <img
+                          src={`${HOST_URL}/api/excalidraw/boards/${b.id}/thumbnail`}
+                          alt={b.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
                       </div>
-                    </div>
-                  </button>
-                ))}
+                      <div className="p-2 space-y-1">
+                        <div className="text-sm font-medium truncate" title={b.name}>{b.name || `画板 ${b.id}`}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-2">
+                          <span>ID:{b.id}</span>
+                          {b.user?.nickname || b.user?.username ? (
+                            <span>· {b.user?.nickname || b.user?.username}</span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-2 border-t flex-shrink-0">
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>取消</Button>
                 <Button
                   type="button"
