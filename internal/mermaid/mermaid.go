@@ -346,46 +346,43 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 
 	// Handle REPEAT loop
 	if block.Opcode == "control_repeat" || block.Opcode == "control_repeat_until" {
-		var lastNodeName string
+		loopEndNode := fmt.Sprintf("%s_loop_end", nodeName)
+		builder.WriteString(fmt.Sprintf("    %s[循环结束]\n", loopEndNode))
+
 		if substack := getSubstackBlockID(block); substack != "" {
 			substackSafeID := idMapper.GetSafeID(substack)
 			substackNode := fmt.Sprintf("%s_%s", prefix, substackSafeID)
+			builder.WriteString(fmt.Sprintf("    %s -->|继续循环| %s\n", nodeName, substackNode))
 
-			// 连接到循环体的第一个节点
-			builder.WriteString(fmt.Sprintf("    %s --> %s\n", nodeName, substackNode))
-
-			// 为循环体生成单独的 visited 副本，避免与外层循环互相污染
 			loopVisited := make(map[string]bool)
 			for k, v := range visited {
 				loopVisited[k] = v
 			}
 
-			// 生成循环体
 			generateBlockFlow(builder, blocks, substack, prefix, depth+1, loopVisited, idMapper, translator, broadcasts)
 
-			// 循环体最后一个节点回到当前循环节点
 			lastBlockID := findLastBlockInSubstack(blocks, substack)
 			if lastBlockID != "" {
 				lastSafeID := idMapper.GetSafeID(lastBlockID)
-				lastNodeName = fmt.Sprintf("%s_%s", prefix, lastSafeID)
-				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, nodeName))
+				lastNodeName := fmt.Sprintf("%s_%s", prefix, lastSafeID)
+				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, loopEndNode))
 			} else {
-				// 如果循环体为空，直接回到当前节点
-				builder.WriteString(fmt.Sprintf("    %s --> %s\n", substackNode, nodeName))
+				builder.WriteString(fmt.Sprintf("    %s --> %s\n", substackNode, loopEndNode))
 			}
+		} else {
+			builder.WriteString(fmt.Sprintf("    %s -->|继续循环| %s\n", nodeName, loopEndNode))
 		}
 
-		// 循环完成后，继续执行下一个块（整体从当前循环节点流出）
+		builder.WriteString(fmt.Sprintf("    %s -->|结束循环| %s\n", nodeName, loopEndNode))
+
 		if block.Next != nil {
 			nextSafeID := idMapper.GetSafeID(*block.Next)
 			nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
-			if lastNodeName != "" {
-				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, nextNodeName))
-			} else {
-				builder.WriteString(fmt.Sprintf("    %s --> %s\n", nodeName, nextNodeName))
-			}
-
+			builder.WriteString(fmt.Sprintf("    %s --> %s\n", loopEndNode, nextNodeName))
 			generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
+		} else {
+			endNodeName := fmt.Sprintf("%s_end", loopEndNode)
+			builder.WriteString(fmt.Sprintf("    %s --> %s[结束]\n", loopEndNode, endNodeName))
 		}
 		return true, true
 	}
