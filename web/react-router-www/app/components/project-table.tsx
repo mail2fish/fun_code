@@ -776,12 +776,12 @@ export function ProjectTable({
                           asChild
                           variant="outline"
                           size="sm"
-                          title="创建流程图（可右键新标签页打开）"
+                          title="生成流程图（可右键新标签页打开）"
                           className="flex-1 h-9 bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100 hover:border-purple-300 hover:scale-105 hover:shadow-md transition-all duration-200 font-medium text-sm group"
                         >
                           <a href={`/www/excalidraw/scratch/${project.id}`}>
                             <IconRoute className="h-4 w-4 mr-1 transition-transform duration-200 group-hover:rotate-12" />
-                            创建流程图
+                            生成流程图
                           </a>
                         </Button>
                       </div>

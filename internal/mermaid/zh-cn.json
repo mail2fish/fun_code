@@ -2,6 +2,7 @@
     "CONTROL_FOREVER": "重复执行",
     "CONTROL_REPEAT": "重复执行 %1 次",
     "CONTROL_IF": "如果 %1 那么",
+    "CONTROL_IF_ELSE": "如果 %1",
     "CONTROL_ELSE": "否则",
     "CONTROL_STOP": "停止",
     "CONTROL_STOP_ALL": "全部脚本",

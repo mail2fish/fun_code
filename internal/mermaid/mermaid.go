@@ -605,6 +605,46 @@ func getOrderedOperatorKeys(opcode string, inputs map[string]interface{}) []stri
 func GetBlockLabel(block Block, translator *OpcodeTranslator, broadcasts map[string]string, blocks map[string]Block) string {
 	opcode := block.Opcode
 
+	// Special handling for control_if and control_if_else - extract CONDITION first
+	if opcode == "control_if" || opcode == "control_if_else" {
+		var conditionLabel string
+		if conditionInput, exists := block.Inputs["CONDITION"]; exists {
+			conditionLabel = resolveInputDisplay(conditionInput, translator, broadcasts, blocks, make(map[string]bool))
+			if conditionLabel == "" {
+				conditionLabel = extractInputValue(conditionInput)
+			}
+		}
+
+		// Get translation
+		chineseLabel := translator.Translate(opcode)
+		// Check if translation exists by checking if it contains %1 placeholder or is different from simplified opcode
+		simplifiedOpcode := opcode
+		if parts := strings.Split(opcode, "_"); len(parts) >= 2 {
+			simplifiedOpcode = strings.Join(parts[1:], "_")
+		}
+
+		// If translation exists and is different from simplified opcode, use it
+		if chineseLabel != "" && chineseLabel != simplifiedOpcode && strings.Contains(chineseLabel, "%1") {
+			// Replace placeholder %1 with condition
+			if conditionLabel != "" {
+				result := strings.ReplaceAll(chineseLabel, "%1", conditionLabel)
+				return result
+			}
+			// If no condition, return translation without placeholder
+			return strings.ReplaceAll(chineseLabel, "%1", "")
+		}
+
+		// Fallback if no translation or condition exists
+		if conditionLabel != "" {
+			return fmt.Sprintf("如果 %s", conditionLabel)
+		}
+		// Last fallback
+		if chineseLabel != "" && chineseLabel != simplifiedOpcode {
+			return chineseLabel
+		}
+		return opcode
+	}
+
 	// Extract readable name from opcode
 	parts := strings.Split(opcode, "_")
 	var action string
