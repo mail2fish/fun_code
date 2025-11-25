@@ -287,7 +287,7 @@ func HandleControlBlockWithTarget(builder *strings.Builder, blocks map[string]Bl
 
 		builder.WriteString(fmt.Sprintf("    %s -->|否| %s\n", nodeName, conditionEndNode))
 
-		connectEndNodeToNext(builder, conditionEndNode, block, prefix, blocks, idMapper, translator, broadcasts, depth, visited, targetEndNode)
+		connectEndNodeToNext(builder, conditionEndNode, block, blockID, prefix, blocks, idMapper, translator, broadcasts, depth, visited, targetEndNode)
 		return true, true
 	}
 
@@ -322,7 +322,7 @@ func HandleControlBlockWithTarget(builder *strings.Builder, blocks map[string]Bl
 			builder.WriteString(fmt.Sprintf("    %s -->|否| %s\n", nodeName, conditionEndNode))
 		}
 
-		connectEndNodeToNext(builder, conditionEndNode, block, prefix, blocks, idMapper, translator, broadcasts, depth, visited, targetEndNode)
+		connectEndNodeToNext(builder, conditionEndNode, block, blockID, prefix, blocks, idMapper, translator, broadcasts, depth, visited, targetEndNode)
 		return true, true
 	}
 
@@ -352,7 +352,7 @@ func HandleControlBlockWithTarget(builder *strings.Builder, blocks map[string]Bl
 
 		builder.WriteString(fmt.Sprintf("    %s -->|不成立| %s\n", nodeName, loopEndNode))
 
-		connectEndNodeToNext(builder, loopEndNode, block, prefix, blocks, idMapper, translator, broadcasts, depth, visited, targetEndNode)
+		connectEndNodeToNext(builder, loopEndNode, block, blockID, prefix, blocks, idMapper, translator, broadcasts, depth, visited, targetEndNode)
 		return true, true
 	}
 
@@ -887,7 +887,7 @@ func findNearestLoopAncestorNode(block Block, blocks map[string]Block, idMapper 
 	return ""
 }
 
-func connectEndNodeToNext(builder *strings.Builder, endNode string, block Block, prefix string, blocks map[string]Block, idMapper *IDMapper, translator *OpcodeTranslator, broadcasts map[string]string, depth int, visited map[string]bool, targetEndNode string) {
+func connectEndNodeToNext(builder *strings.Builder, endNode string, block Block, blockID string, prefix string, blocks map[string]Block, idMapper *IDMapper, translator *OpcodeTranslator, broadcasts map[string]string, depth int, visited map[string]bool, targetEndNode string) {
 	if targetEndNode != "" {
 		// If target end node is specified, connect to it instead of finding parent
 		builder.WriteString(fmt.Sprintf("    %s --> %s\n", endNode, targetEndNode))
@@ -902,7 +902,7 @@ func connectEndNodeToNext(builder *strings.Builder, endNode string, block Block,
 		return
 	}
 
-	if parentTarget := findParentExitTarget(block, prefix, blocks, idMapper); parentTarget != "" {
+	if parentTarget := findParentExitTarget(block, blockID, prefix, blocks, idMapper); parentTarget != "" {
 		builder.WriteString(fmt.Sprintf("    %s --> %s\n", endNode, parentTarget))
 		return
 	}
@@ -911,7 +911,7 @@ func connectEndNodeToNext(builder *strings.Builder, endNode string, block Block,
 	builder.WriteString(fmt.Sprintf("    %s --> %s[结束]\n", endNode, endNodeName))
 }
 
-func findParentExitTarget(block Block, prefix string, blocks map[string]Block, idMapper *IDMapper) string {
+func findParentExitTarget(block Block, blockID string, prefix string, blocks map[string]Block, idMapper *IDMapper) string {
 	parentPtr := block.Parent
 	visited := make(map[string]bool)
 	for parentPtr != nil {
@@ -932,7 +932,13 @@ func findParentExitTarget(block Block, prefix string, blocks map[string]Block, i
 		}
 
 		if parentBlock.Next != nil {
-			nextSafeID := idMapper.GetSafeID(*parentBlock.Next)
+			nextID := *parentBlock.Next
+			// If parent's next points to the current block, skip to avoid self-loop
+			if nextID == blockID {
+				parentPtr = parentBlock.Parent
+				continue
+			}
+			nextSafeID := idMapper.GetSafeID(nextID)
 			return fmt.Sprintf("%s_%s", prefix, nextSafeID)
 		}
 
