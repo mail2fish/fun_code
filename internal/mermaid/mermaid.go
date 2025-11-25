@@ -178,6 +178,11 @@ func findTopLevelBlocks(blocks map[string]Block) []string {
 
 // generateBlockFlow recursively generates the flowchart for a block chain
 func generateBlockFlow(builder *strings.Builder, blocks map[string]Block, blockID string, prefix string, depth int, visited map[string]bool, idMapper *IDMapper, translator *OpcodeTranslator, broadcasts map[string]string) {
+	generateBlockFlowWithTarget(builder, blocks, blockID, prefix, depth, visited, idMapper, translator, broadcasts, "")
+}
+
+// generateBlockFlowWithTarget recursively generates the flowchart for a block chain with a target end node
+func generateBlockFlowWithTarget(builder *strings.Builder, blocks map[string]Block, blockID string, prefix string, depth int, visited map[string]bool, idMapper *IDMapper, translator *OpcodeTranslator, broadcasts map[string]string, targetEndNode string) {
 	if blockID == "" || visited[blockID] {
 		return
 	}
@@ -207,7 +212,7 @@ func generateBlockFlow(builder *strings.Builder, blocks map[string]Block, blockI
 	builder.WriteString(fmt.Sprintf("    %s%s%s%s\n", nodeName, nodeShape, sanitizeMermaidLabel(label), nodeShapeClose))
 
 	// Handle control blocks with substacks
-	if _, handled := HandleControlBlock(builder, blocks, block, nodeName, prefix, blockID, depth, visited, idMapper, translator, broadcasts); handled {
+	if _, handled := HandleControlBlockWithTarget(builder, blocks, block, nodeName, prefix, blockID, depth, visited, idMapper, translator, broadcasts, targetEndNode); handled {
 		return
 	}
 
@@ -216,18 +221,29 @@ func generateBlockFlow(builder *strings.Builder, blocks map[string]Block, blockI
 		nextSafeID := idMapper.GetSafeID(*block.Next)
 		nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
 		builder.WriteString(fmt.Sprintf("    %s --> %s\n", nodeName, nextNodeName))
-		generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
+		generateBlockFlowWithTarget(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts, targetEndNode)
 	} else if strings.HasPrefix(block.Opcode, "event_") {
 		// Event blocks might be standalone
 		builder.WriteString(fmt.Sprintf("    %s --> %s_end[结束]\n", nodeName, nodeName))
+	} else if targetEndNode != "" {
+		// If no next block but target end node is specified, connect to it
+		builder.WriteString(fmt.Sprintf("    %s --> %s\n", nodeName, targetEndNode))
 	}
 }
 
 // HandleControlBlock handles special control blocks (loops, conditionals)
 func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block Block, nodeName, prefix, blockID string, depth int, visited map[string]bool, idMapper *IDMapper, translator *OpcodeTranslator, broadcasts map[string]string) (bool, bool) {
+	return HandleControlBlockWithTarget(builder, blocks, block, nodeName, prefix, blockID, depth, visited, idMapper, translator, broadcasts, "")
+}
+
+// HandleControlBlockWithTarget handles special control blocks with a target end node
+func HandleControlBlockWithTarget(builder *strings.Builder, blocks map[string]Block, block Block, nodeName, prefix, blockID string, depth int, visited map[string]bool, idMapper *IDMapper, translator *OpcodeTranslator, broadcasts map[string]string, targetEndNode string) (bool, bool) {
 
 	// Handle FOREVER loop
 	if block.Opcode == "control_forever" {
+		loopContinueNode := fmt.Sprintf("%s_loop_continue", nodeName)
+		builder.WriteString(fmt.Sprintf("    %s[继续循环]\n", loopContinueNode))
+
 		if substack := getSubstackBlockID(block); substack != "" {
 			substackSafeID := idMapper.GetSafeID(substack)
 			substackNode := fmt.Sprintf("%s_%s", prefix, substackSafeID)
@@ -239,17 +255,15 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 				loopVisited[k] = v
 			}
 
-			// Generate the entire substack chain
-			generateBlockFlow(builder, blocks, substack, prefix, depth+1, loopVisited, idMapper, translator, broadcasts)
-
-			// Find the last block in the substack and loop back to the forever block
-			lastBlockID := findLastBlockInChain(blocks, substack)
-			if lastBlockID != "" {
-				lastSafeID := idMapper.GetSafeID(lastBlockID)
-				lastNodeName := fmt.Sprintf("%s_%s", prefix, lastSafeID)
-				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, nodeName))
-			}
+			// Generate the entire substack chain, forcing it to end at the loop continue node
+			generateBlockFlowWithTarget(builder, blocks, substack, prefix, depth+1, loopVisited, idMapper, translator, broadcasts, loopContinueNode)
+		} else {
+			// Empty loop body still connects through the loop continue node
+			builder.WriteString(fmt.Sprintf("    %s --> %s\n", nodeName, loopContinueNode))
 		}
+
+		// Loop continue node connects back to the forever node
+		builder.WriteString(fmt.Sprintf("    %s --> %s\n", loopContinueNode, nodeName))
 		return true, true
 	}
 
@@ -262,32 +276,18 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 			substackSafeID := idMapper.GetSafeID(substack)
 			substackNode := fmt.Sprintf("%s_%s", prefix, substackSafeID)
 			builder.WriteString(fmt.Sprintf("    %s -->|是| %s\n", nodeName, substackNode))
-			generateBlockFlow(builder, blocks, substack, prefix, depth+1, visited, idMapper, translator, broadcasts)
+			generateBlockFlowWithTarget(builder, blocks, substack, prefix, depth+1, visited, idMapper, translator, broadcasts, conditionEndNode)
 
-			lastBlockID := findLastBlockInChain(blocks, substack)
-			var lastNodeName string
-			if lastBlockID != "" {
-				lastSafeID := idMapper.GetSafeID(lastBlockID)
-				lastNodeName = fmt.Sprintf("%s_%s", prefix, lastSafeID)
-			} else {
-				lastNodeName = substackNode
+			if lastBlockID := findLastBlockInChain(blocks, substack); lastBlockID == "" {
+				builder.WriteString(fmt.Sprintf("    %s --> %s\n", substackNode, conditionEndNode))
 			}
-			builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, conditionEndNode))
 		} else {
 			builder.WriteString(fmt.Sprintf("    %s -->|是| %s\n", nodeName, conditionEndNode))
 		}
 
 		builder.WriteString(fmt.Sprintf("    %s -->|否| %s\n", nodeName, conditionEndNode))
 
-		if block.Next != nil {
-			nextSafeID := idMapper.GetSafeID(*block.Next)
-			nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
-			builder.WriteString(fmt.Sprintf("    %s --> %s\n", conditionEndNode, nextNodeName))
-			generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
-		} else {
-			endNodeName := fmt.Sprintf("%s_end", conditionEndNode)
-			builder.WriteString(fmt.Sprintf("    %s --> %s[结束]\n", conditionEndNode, endNodeName))
-		}
+		connectEndNodeToNext(builder, conditionEndNode, block, prefix, blocks, idMapper, translator, broadcasts, depth, visited, targetEndNode)
 		return true, true
 	}
 
@@ -300,14 +300,9 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 			substack1SafeID := idMapper.GetSafeID(substack1)
 			substackNode := fmt.Sprintf("%s_%s", prefix, substack1SafeID)
 			builder.WriteString(fmt.Sprintf("    %s -->|是| %s\n", nodeName, substackNode))
-			generateBlockFlow(builder, blocks, substack1, prefix, depth+1, visited, idMapper, translator, broadcasts)
+			generateBlockFlowWithTarget(builder, blocks, substack1, prefix, depth+1, visited, idMapper, translator, broadcasts, conditionEndNode)
 
-			lastBlockID := findLastBlockInChain(blocks, substack1)
-			if lastBlockID != "" {
-				lastSafeID := idMapper.GetSafeID(lastBlockID)
-				lastNodeName := fmt.Sprintf("%s_%s", prefix, lastSafeID)
-				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, conditionEndNode))
-			} else {
+			if lastBlockID := findLastBlockInChain(blocks, substack1); lastBlockID == "" {
 				builder.WriteString(fmt.Sprintf("    %s --> %s\n", substackNode, conditionEndNode))
 			}
 		} else {
@@ -318,29 +313,16 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 			substack2SafeID := idMapper.GetSafeID(substack2)
 			substackNode := fmt.Sprintf("%s_%s", prefix, substack2SafeID)
 			builder.WriteString(fmt.Sprintf("    %s -->|否| %s\n", nodeName, substackNode))
-			generateBlockFlow(builder, blocks, substack2, prefix, depth+1, visited, idMapper, translator, broadcasts)
+			generateBlockFlowWithTarget(builder, blocks, substack2, prefix, depth+1, visited, idMapper, translator, broadcasts, conditionEndNode)
 
-			lastBlockID := findLastBlockInChain(blocks, substack2)
-			if lastBlockID != "" {
-				lastSafeID := idMapper.GetSafeID(lastBlockID)
-				lastNodeName := fmt.Sprintf("%s_%s", prefix, lastSafeID)
-				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, conditionEndNode))
-			} else {
+			if lastBlockID := findLastBlockInChain(blocks, substack2); lastBlockID == "" {
 				builder.WriteString(fmt.Sprintf("    %s --> %s\n", substackNode, conditionEndNode))
 			}
 		} else {
 			builder.WriteString(fmt.Sprintf("    %s -->|否| %s\n", nodeName, conditionEndNode))
 		}
 
-		if block.Next != nil {
-			nextSafeID := idMapper.GetSafeID(*block.Next)
-			nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
-			builder.WriteString(fmt.Sprintf("    %s --> %s\n", conditionEndNode, nextNodeName))
-			generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
-		} else {
-			endNodeName := fmt.Sprintf("%s_end", conditionEndNode)
-			builder.WriteString(fmt.Sprintf("    %s --> %s[结束]\n", conditionEndNode, endNodeName))
-		}
+		connectEndNodeToNext(builder, conditionEndNode, block, prefix, blocks, idMapper, translator, broadcasts, depth, visited, targetEndNode)
 		return true, true
 	}
 
@@ -359,13 +341,8 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 				loopVisited[k] = v
 			}
 
-			generateBlockFlow(builder, blocks, substack, prefix, depth+1, loopVisited, idMapper, translator, broadcasts)
-
-			lastBlockID := findLastBlockInSubstack(blocks, substack)
-			if lastBlockID != "" {
-				lastSafeID := idMapper.GetSafeID(lastBlockID)
-				lastNodeName := fmt.Sprintf("%s_%s", prefix, lastSafeID)
-				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, loopEndNode))
+			if _, exists := blocks[substack]; exists {
+				generateBlockFlowWithTarget(builder, blocks, substack, prefix, depth+1, loopVisited, idMapper, translator, broadcasts, loopEndNode)
 			} else {
 				builder.WriteString(fmt.Sprintf("    %s --> %s\n", substackNode, loopEndNode))
 			}
@@ -375,15 +352,7 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 
 		builder.WriteString(fmt.Sprintf("    %s -->|结束循环| %s\n", nodeName, loopEndNode))
 
-		if block.Next != nil {
-			nextSafeID := idMapper.GetSafeID(*block.Next)
-			nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
-			builder.WriteString(fmt.Sprintf("    %s --> %s\n", loopEndNode, nextNodeName))
-			generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
-		} else {
-			endNodeName := fmt.Sprintf("%s_end", loopEndNode)
-			builder.WriteString(fmt.Sprintf("    %s --> %s[结束]\n", loopEndNode, endNodeName))
-		}
+		connectEndNodeToNext(builder, loopEndNode, block, prefix, blocks, idMapper, translator, broadcasts, depth, visited, targetEndNode)
 		return true, true
 	}
 
@@ -398,26 +367,6 @@ func getSubstackBlockID(block Block) string {
 		}
 	}
 	return ""
-}
-
-// findLastBlockInSubstack finds the last block in a substack chain, without following next blocks
-func findLastBlockInSubstack(blocks map[string]Block, startID string) string {
-	if startID == "" {
-		return ""
-	}
-
-	block, exists := blocks[startID]
-	if !exists {
-		return ""
-	}
-
-	// If there's a next block, continue the chain (but don't follow next blocks of control blocks)
-	if block.Next != nil {
-		return findLastBlockInSubstack(blocks, *block.Next)
-	}
-
-	// This is the last block
-	return startID
 }
 
 // findLastBlockInChain finds the last block in a chain, handling nested control structures
@@ -896,4 +845,78 @@ func findNearestLoopAncestorNode(block Block, blocks map[string]Block, idMapper 
 		parentPtr = parentBlock.Parent
 	}
 	return ""
+}
+
+func connectEndNodeToNext(builder *strings.Builder, endNode string, block Block, prefix string, blocks map[string]Block, idMapper *IDMapper, translator *OpcodeTranslator, broadcasts map[string]string, depth int, visited map[string]bool, targetEndNode string) {
+	if targetEndNode != "" {
+		// If target end node is specified, connect to it instead of finding parent
+		builder.WriteString(fmt.Sprintf("    %s --> %s\n", endNode, targetEndNode))
+		return
+	}
+
+	if block.Next != nil {
+		nextSafeID := idMapper.GetSafeID(*block.Next)
+		nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
+		builder.WriteString(fmt.Sprintf("    %s --> %s\n", endNode, nextNodeName))
+		generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
+		return
+	}
+
+	if parentTarget := findParentExitTarget(block, prefix, blocks, idMapper); parentTarget != "" {
+		builder.WriteString(fmt.Sprintf("    %s --> %s\n", endNode, parentTarget))
+		return
+	}
+
+	endNodeName := fmt.Sprintf("%s_end", endNode)
+	builder.WriteString(fmt.Sprintf("    %s --> %s[结束]\n", endNode, endNodeName))
+}
+
+func findParentExitTarget(block Block, prefix string, blocks map[string]Block, idMapper *IDMapper) string {
+	parentPtr := block.Parent
+	visited := make(map[string]bool)
+	for parentPtr != nil {
+		parentID := *parentPtr
+		if visited[parentID] {
+			break
+		}
+		visited[parentID] = true
+
+		parentBlock, exists := blocks[parentID]
+		if !exists {
+			break
+		}
+
+		parentNodeName := fmt.Sprintf("%s_%s", prefix, idMapper.GetSafeID(parentID))
+		if isControlBlockWithEnd(parentBlock.Opcode) {
+			return getControlBlockEndNodeName(parentBlock.Opcode, parentNodeName)
+		}
+
+		if parentBlock.Next != nil {
+			nextSafeID := idMapper.GetSafeID(*parentBlock.Next)
+			return fmt.Sprintf("%s_%s", prefix, nextSafeID)
+		}
+
+		parentPtr = parentBlock.Parent
+	}
+	return ""
+}
+
+func isControlBlockWithEnd(opcode string) bool {
+	switch opcode {
+	case "control_if", "control_if_else", "control_repeat", "control_repeat_until":
+		return true
+	default:
+		return false
+	}
+}
+
+func getControlBlockEndNodeName(opcode, nodeName string) string {
+	switch opcode {
+	case "control_if", "control_if_else":
+		return fmt.Sprintf("%s_cond_end", nodeName)
+	case "control_repeat", "control_repeat_until":
+		return fmt.Sprintf("%s_loop_end", nodeName)
+	default:
+		return ""
+	}
 }
