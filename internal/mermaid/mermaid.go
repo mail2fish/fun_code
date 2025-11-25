@@ -334,7 +334,7 @@ func HandleControlBlockWithTarget(builder *strings.Builder, blocks map[string]Bl
 		if substack := getSubstackBlockID(block); substack != "" {
 			substackSafeID := idMapper.GetSafeID(substack)
 			substackNode := fmt.Sprintf("%s_%s", prefix, substackSafeID)
-			builder.WriteString(fmt.Sprintf("    %s -->|继续循环| %s\n", nodeName, substackNode))
+			builder.WriteString(fmt.Sprintf("    %s -->|成立| %s\n", nodeName, substackNode))
 
 			loopVisited := make(map[string]bool)
 			for k, v := range visited {
@@ -347,10 +347,10 @@ func HandleControlBlockWithTarget(builder *strings.Builder, blocks map[string]Bl
 				builder.WriteString(fmt.Sprintf("    %s --> %s\n", substackNode, loopEndNode))
 			}
 		} else {
-			builder.WriteString(fmt.Sprintf("    %s -->|继续循环| %s\n", nodeName, loopEndNode))
+			builder.WriteString(fmt.Sprintf("    %s -->|成立| %s\n", nodeName, loopEndNode))
 		}
 
-		builder.WriteString(fmt.Sprintf("    %s -->|结束循环| %s\n", nodeName, loopEndNode))
+		builder.WriteString(fmt.Sprintf("    %s -->|不成立| %s\n", nodeName, loopEndNode))
 
 		connectEndNodeToNext(builder, loopEndNode, block, prefix, blocks, idMapper, translator, broadcasts, depth, visited, targetEndNode)
 		return true, true
