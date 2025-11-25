@@ -255,69 +255,91 @@ func HandleControlBlock(builder *strings.Builder, blocks map[string]Block, block
 
 	// Handle IF block
 	if block.Opcode == "control_if" {
+		conditionEndNode := fmt.Sprintf("%s_cond_end", nodeName)
+		builder.WriteString(fmt.Sprintf("    %s[条件结束]\n", conditionEndNode))
+
 		if substack := getSubstackBlockID(block); substack != "" {
 			substackSafeID := idMapper.GetSafeID(substack)
 			substackNode := fmt.Sprintf("%s_%s", prefix, substackSafeID)
-			// 是：条件满足，执行 SUBSTACK
-			builder.WriteString(fmt.Sprintf("    %s -->|是| %s[执行条件分支]\n", nodeName, substackNode))
+			builder.WriteString(fmt.Sprintf("    %s -->|是| %s\n", nodeName, substackNode))
 			generateBlockFlow(builder, blocks, substack, prefix, depth+1, visited, idMapper, translator, broadcasts)
 
-			// 找到 substack 的最后一个 block 并连接到 next
 			lastBlockID := findLastBlockInChain(blocks, substack)
-			if lastBlockID != "" && block.Next != nil {
+			var lastNodeName string
+			if lastBlockID != "" {
 				lastSafeID := idMapper.GetSafeID(lastBlockID)
-				lastNodeName := fmt.Sprintf("%s_%s", prefix, lastSafeID)
-				nextSafeID := idMapper.GetSafeID(*block.Next)
-				nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
-				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, nextNodeName))
+				lastNodeName = fmt.Sprintf("%s_%s", prefix, lastSafeID)
+			} else {
+				lastNodeName = substackNode
 			}
+			builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, conditionEndNode))
+		} else {
+			builder.WriteString(fmt.Sprintf("    %s -->|是| %s\n", nodeName, conditionEndNode))
 		}
 
-		// 否：条件不满足，直接跳到 next
+		builder.WriteString(fmt.Sprintf("    %s -->|否| %s\n", nodeName, conditionEndNode))
+
 		if block.Next != nil {
 			nextSafeID := idMapper.GetSafeID(*block.Next)
 			nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
-			builder.WriteString(fmt.Sprintf("    %s -->|否| %s\n", nodeName, nextNodeName))
-
-			// 继续生成后续节点，避免 next 节点缺失
+			builder.WriteString(fmt.Sprintf("    %s --> %s\n", conditionEndNode, nextNodeName))
 			generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
 		} else {
-			// 如果没有 next，尝试回到最近的循环节点
-			if loopNodeName := findNearestLoopAncestorNode(block, blocks, idMapper, prefix); loopNodeName != "" {
-				builder.WriteString(fmt.Sprintf("    %s -->|否| %s\n", nodeName, loopNodeName))
-			} else {
-				// 无循环父节点才指向结束
-				endNodeName := fmt.Sprintf("%s_end", nodeName)
-				builder.WriteString(fmt.Sprintf("    %s -->|否| %s[结束]\n", nodeName, endNodeName))
-			}
+			endNodeName := fmt.Sprintf("%s_end", conditionEndNode)
+			builder.WriteString(fmt.Sprintf("    %s --> %s[结束]\n", conditionEndNode, endNodeName))
 		}
 		return true, true
 	}
 
 	// Handle IF-ELSE block
 	if block.Opcode == "control_if_else" {
-		// Main substack
+		conditionEndNode := fmt.Sprintf("%s_cond_end", nodeName)
+		builder.WriteString(fmt.Sprintf("    %s[条件结束]\n", conditionEndNode))
+
 		if substack1 := getSubstackBlockID(block); substack1 != "" {
 			substack1SafeID := idMapper.GetSafeID(substack1)
-			substackNode := fmt.Sprintf("%s_%s_1", prefix, substack1SafeID)
-			builder.WriteString(fmt.Sprintf("    %s -->|是| %s[执行真分支]\n", nodeName, substackNode))
-			generateBlockFlow(builder, blocks, substack1, fmt.Sprintf("%s_%s_1", prefix, substack1SafeID), depth+1, visited, idMapper, translator, broadcasts)
+			substackNode := fmt.Sprintf("%s_%s", prefix, substack1SafeID)
+			builder.WriteString(fmt.Sprintf("    %s -->|是| %s\n", nodeName, substackNode))
+			generateBlockFlow(builder, blocks, substack1, prefix, depth+1, visited, idMapper, translator, broadcasts)
+
+			lastBlockID := findLastBlockInChain(blocks, substack1)
+			if lastBlockID != "" {
+				lastSafeID := idMapper.GetSafeID(lastBlockID)
+				lastNodeName := fmt.Sprintf("%s_%s", prefix, lastSafeID)
+				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, conditionEndNode))
+			} else {
+				builder.WriteString(fmt.Sprintf("    %s --> %s\n", substackNode, conditionEndNode))
+			}
+		} else {
+			builder.WriteString(fmt.Sprintf("    %s -->|是| %s\n", nodeName, conditionEndNode))
 		}
 
-		// Else substack
 		if substack2 := getSubstack2BlockID(block); substack2 != "" {
 			substack2SafeID := idMapper.GetSafeID(substack2)
-			substackNode := fmt.Sprintf("%s_%s_2", prefix, substack2SafeID)
-			builder.WriteString(fmt.Sprintf("    %s -->|否| %s[执行假分支]\n", nodeName, substackNode))
-			generateBlockFlow(builder, blocks, substack2, fmt.Sprintf("%s_%s_2", prefix, substack2SafeID), depth+1, visited, idMapper, translator, broadcasts)
+			substackNode := fmt.Sprintf("%s_%s", prefix, substack2SafeID)
+			builder.WriteString(fmt.Sprintf("    %s -->|否| %s\n", nodeName, substackNode))
+			generateBlockFlow(builder, blocks, substack2, prefix, depth+1, visited, idMapper, translator, broadcasts)
+
+			lastBlockID := findLastBlockInChain(blocks, substack2)
+			if lastBlockID != "" {
+				lastSafeID := idMapper.GetSafeID(lastBlockID)
+				lastNodeName := fmt.Sprintf("%s_%s", prefix, lastSafeID)
+				builder.WriteString(fmt.Sprintf("    %s --> %s\n", lastNodeName, conditionEndNode))
+			} else {
+				builder.WriteString(fmt.Sprintf("    %s --> %s\n", substackNode, conditionEndNode))
+			}
+		} else {
+			builder.WriteString(fmt.Sprintf("    %s -->|否| %s\n", nodeName, conditionEndNode))
 		}
 
-		// Continue to next block
 		if block.Next != nil {
 			nextSafeID := idMapper.GetSafeID(*block.Next)
 			nextNodeName := fmt.Sprintf("%s_%s", prefix, nextSafeID)
-			builder.WriteString(fmt.Sprintf("    %s --> %s\n", nodeName, nextNodeName))
+			builder.WriteString(fmt.Sprintf("    %s --> %s\n", conditionEndNode, nextNodeName))
 			generateBlockFlow(builder, blocks, *block.Next, prefix, depth+1, visited, idMapper, translator, broadcasts)
+		} else {
+			endNodeName := fmt.Sprintf("%s_end", conditionEndNode)
+			builder.WriteString(fmt.Sprintf("    %s --> %s[结束]\n", conditionEndNode, endNodeName))
 		}
 		return true, true
 	}
