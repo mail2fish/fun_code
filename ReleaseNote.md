@@ -1,3 +1,35 @@
+# v0.0.9
+
+## Feature Updates
+
+- **Scratch Flowchart Generation**
+  - Improved conditional block display: control_if and control_if_else blocks now correctly extract and display condition expressions in Chinese
+  - Enhanced loop branch labels: changed from "继续循环/结束循环" to "成立/不成立" for better clarity
+  - Added translation support for special Scratch values (e.g., "_edge_" displays as "舞台边缘")
+  - Flowchart creation button supports right-click to open in new tab or window
+
+## Bug Fixes
+
+- Fixed issue where control_if and control_if_else blocks were not displaying condition expressions correctly
+- Fixed ambiguous loop branch labels in generated flowcharts
+
+# v0.0.9
+
+## 功能更新
+
+- **Scratch 流程图生成**
+  - 改进条件块显示：control_if 和 control_if_else 块现在能正确提取并显示条件表达式（中文）
+  - 优化循环分支标签：从"继续循环/结束循环"改为"成立/不成立"，语义更清晰
+  - 新增特殊 Scratch 值翻译支持（如 "_edge_" 显示为"舞台边缘"）
+  - 创建流程图按钮支持右键新标签页或新窗口打开
+
+## Bug 修复
+
+- 修复 control_if 和 control_if_else 块未正确显示条件表达式的问题
+- 修复生成的流程图中循环分支标签存在歧义的问题
+
+---
+
 # v0.0.8
 
 ## Feature Updates
