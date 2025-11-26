@@ -458,6 +458,13 @@ func translateFieldValue(valStr string, translator *OpcodeTranslator) string {
 		return "随机位置"
 	case "_myself_":
 		return "自己"
+	case "_edge_":
+		// Try to get translation from zh-cn.json first
+		if translated := translator.Translate("_EDGE_"); translated != "" && translated != "_EDGE_" {
+			return translated
+		}
+		// Fallback to default translation
+		return "舞台边缘"
 	case "left-right":
 		return "左右旋转"
 	}

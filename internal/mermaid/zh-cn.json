@@ -297,5 +297,6 @@
     "NEW_BROADCAST_MESSAGE_TITLE": "新消息的名称：",
     "BROADCAST_MODAL_TITLE": "新消息",
     "DEFAULT_BROADCAST_MESSAGE_NAME": "消息1",
-    "_MOUSE_": "鼠标指针"
+    "_MOUSE_": "鼠标指针",
+    "_EDGE_": "舞台边缘"
 }
